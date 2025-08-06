@@ -1,0 +1,10 @@
+[package]
+name = "GameNro"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.41"
+serde = "1.0.219"
+serde_json = "1.0.142"
+tokio = { version = "*", features = ["full"] }

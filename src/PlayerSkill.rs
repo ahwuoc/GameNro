@@ -1,0 +1,15 @@
+use crate::Skill::Skill;
+#[derive(Debug, Clone)]
+pub struct PlayerSkill {
+    pub skills: Vec<Skill>,
+    pub skill_select: Option<Skill>,
+}
+
+impl PlayerSkill {
+    pub fn new() -> Self {
+        PlayerSkill {
+            skills: Vec::new(),
+            skill_select: None,
+        }
+    }
+}
