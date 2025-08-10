@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use crate::player::inventory::Inventory;
-use crate::models::item::Item;
+use crate::item::inventory::Inventory;
+use crate::item::item::Item;
 
 /// InventoryService manages inventory operations
 pub struct InventoryService {
@@ -15,7 +15,6 @@ impl InventoryService {
         }
     }
 
-    /// Get singleton instance
     pub fn get_instance() -> &'static mut InventoryService {
         static mut INSTANCE: Option<InventoryService> = None;
         unsafe {

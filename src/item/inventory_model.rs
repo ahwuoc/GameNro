@@ -1,4 +1,4 @@
-use crate::models::item::Item;
+use crate::item::item::Item;
 
 #[derive(Debug, Clone)]
 pub struct Inventory {

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::io;
 use tokio::time::Duration;
-
+use dotenv::dotenv;
+use std::env;
 use crate::entities::{array_head_2_frames, item_option_template, item_template};
 use crate::entities::{nclass, skill_template};
 use crate::network::async_net::message::Message;
@@ -77,8 +78,6 @@ impl DataGame {
     }
 
     pub async fn send_res(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Sending resource files");
-
         let zoom_level = session.zoom_level;
         let res_path = format!("data/girlkun/res/x{}", zoom_level);
 
@@ -108,9 +107,8 @@ impl DataGame {
                 }
             }
         }
-
-        let mut final_data = vec![3]; // type = 3 for version
-        final_data.extend_from_slice(&752012i32.to_be_bytes()); // version as int
+        let mut final_data = vec![3]; 
+        final_data.extend_from_slice(&752012i32.to_be_bytes()); 
         session.send_message_old(-74, final_data).await?;
 
         Ok(())
@@ -291,10 +289,7 @@ impl DataGame {
             .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
         msg.finalize_write();
-
-        // Send the message
         session.send_message_old(-87, msg.get_data()).await?;
-
         println!("Update data sent successfully");
         Ok(())
     }
@@ -616,8 +611,7 @@ impl DataGame {
         session.send_message(&msg).await?;
         Ok(())
     }
-
-    /// Implement Java ItemData.updateItem: -28 sub_cmd 8
+   
     pub async fn update_item(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
         let db = DbUtil::new().await.ok();
 
@@ -695,7 +689,6 @@ impl DataGame {
             session.send_message(&msg).await?;
         }
 
-        // 3) Send item templates (reload)
         {
             let mut msg = Message::new_for_writing(-28);
             msg.write_byte(8)?;
@@ -720,8 +713,8 @@ impl DataGame {
                 msg.write_byte((it.gender as u8) as i8)?;
                 msg.write_utf(&it.name)?;
                 msg.write_utf(&it.description)?;
-                msg.write_byte(0)?; // level (unknown in schema)
-                msg.write_int(it.power_require as i32)?; // strRequire
+                msg.write_byte(0)?; 
+                msg.write_int(it.power_require as i32)?; 
                 msg.write_short(it.icon_id as i16)?;
                 msg.write_short(it.part as i16)?;
                 msg.write_boolean(it.is_up_to_up != 0)?;
@@ -760,40 +753,31 @@ impl DataGame {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Sending client OK");
-
-        // Send client OK response
         let ok_data = b"ok".to_vec();
         session.send_message_old(-75, ok_data).await?;
-
         Ok(())
     }
-
     pub async fn send_link_ip(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let link_data = "Ngọc rồng Wars:127.0.0.1:14445:0,0,0";
+        dotenv().ok();
+         let link_data = env::var("GAME_LINK")
+        .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());
         let link_bytes = link_data.as_bytes();
-
         let mut data = vec![2];
         data.extend_from_slice(&(link_bytes.len() as u16).to_be_bytes());
         data.extend_from_slice(link_bytes);
         data.push(1);
         session.send_message_old(-29, data).await?;
-
         Ok(())
     }
 }
 
 async fn load_skill_data() -> Result<Vec<NClass>, Box<dyn std::error::Error>> {
-    // Get skill templates from manager
     let manager = crate::services::Manager::get_instance();
     let manager_guard = manager.lock().unwrap();
-
     let skill_templates = manager_guard.get_skill_templates();
-
-    // Group skill templates by nclass_id (like Java)
     let mut nclasses_map: HashMap<i32, NClass> = HashMap::new();
-
     for template in skill_templates {
         let nclass_id = template.nclass_id;
 
@@ -813,10 +797,7 @@ async fn load_skill_data() -> Result<Vec<NClass>, Box<dyn std::error::Error>> {
             }
         });
 
-        // Parse skills JSON from template.skills (like Java)
         let skills = parse_skills_json(&template.skills)?;
-
-        // Create SkillTemplate
         let skill_template = SkillTemplate {
             id: template.id as i8,
             class_id: template.nclass_id,
@@ -828,11 +809,8 @@ async fn load_skill_data() -> Result<Vec<NClass>, Box<dyn std::error::Error>> {
             dam_info: template.dam_info.clone(),
             skills,
         };
-
         nclass.skill_templates.push(skill_template);
     }
-
-    // Convert HashMap to Vec and sort by class_id
     let mut nclasses: Vec<NClass> = nclasses_map.into_values().collect();
     nclasses.sort_by_key(|nclass| nclass.class_id);
 

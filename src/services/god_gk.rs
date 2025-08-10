@@ -31,24 +31,14 @@ impl GodGK {
 
     pub async fn login_god_gk(&self, username: &str, password: &str) -> Result<Option<account::Model>, DbErr> {
         if let Some(db) = &self.db {
-            // Check if account exists and password matches
             if let Some(account) = db.get_account(username).await? {
                 if account.password == password {
-                    // Check if account is banned
                     if account.ban == 1 {
                         return Err(DbErr::Custom("Tài khoản đã bị khóa".to_string()));
                     }
-
-                    // Check if server is in maintenance
                     if self.maintenance {
                         return Err(DbErr::Custom(self.maintenance_message.clone()));
                     }
-
-                    // Check server open time (stubbed for now)
-                    if self.server_open_time > 0 {
-                        // TODO: Implement server open time check
-                    }
-
                     Ok(Some(account))
                 } else {
                     Err(DbErr::Custom("Sai mật khẩu".to_string()))
@@ -151,7 +141,6 @@ impl GodGK {
     }
 }
 
-// Global instance
 static GOD_GK: Lazy<Arc<Mutex<GodGK>>> = Lazy::new(|| {
     Arc::new(Mutex::new(GodGK::new()))
 });

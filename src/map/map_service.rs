@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use crate::models::map::Map;
-use crate::models::zone::Zone;
-use crate::data::waypoint::WayPoint;
+use crate::map::map::Map;
+use crate::map::zone::Zone;
+use crate::map::waypoint::WayPoint;
 use crate::player::Player;
 pub struct MapService {
     // Service state

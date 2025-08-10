@@ -3,11 +3,11 @@ use std::sync::Arc;
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 use crate::player::player::Player;
-use crate::models::mob::Mob;
+use crate::mob::RtMob;
 use crate::entities::item_template::Model as ItemMap;
 use crate::network::async_net::session::AsyncSession;
 use crate::network::async_net::message::Message;
-use crate::models::map::MAP_MANAGER;
+use crate::map::map_manager::MAP_MANAGER;
 
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct Zone {
     pub max_player: i32,
     
     pub players: Arc<RwLock<HashMap<u64, Player>>>,
-    pub mobs: Arc<RwLock<Vec<Mob>>>,
+    pub mobs: Arc<RwLock<Vec<RtMob>>>,
     pub items: Arc<RwLock<Vec<ItemMap>>>,
     
     // Zone state
@@ -40,29 +40,24 @@ impl Zone {
         }
     }
 
-    /// Check if zone is empty (no players)
     pub async fn is_empty(&self) -> bool {
         let players = self.players.read().await;
         players.is_empty()
     }
 
-    /// Check if zone is full (reached max players)
     pub async fn is_full(&self) -> bool {
         let players = self.players.read().await;
         players.len() >= self.max_player as usize
     }
 
-    /// Get number of players in zone
     pub async fn get_num_players(&self) -> usize {
         let players = self.players.read().await;
         players.len()
     }
 
-    /// Add player to zone
     pub async fn add_player(&self, player: Player) -> Result<(), Box<dyn std::error::Error>> {
         let mut players = self.players.write().await;
         
-        // Check if zone is full
         if players.len() >= self.max_player as usize {
             return Err("Zone is full".into());
         }
@@ -82,16 +77,13 @@ impl Zone {
         Ok(())
     }
 
-    /// Remove player from zone
     pub async fn remove_player(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
         let mut players = self.players.write().await;
         
         if players.remove(&player_id).is_some() {
-            // Update empty state
             let mut is_empty = self.is_empty.write().await;
             *is_empty = players.is_empty();
             
-            // Update full state
             let mut is_full = self.is_full.write().await;
             *is_full = players.len() >= self.max_player as usize;
             
@@ -101,41 +93,33 @@ impl Zone {
         Ok(())
     }
 
-    /// Get player by ID
     pub async fn get_player(&self, player_id: u64) -> Option<Player> {
         let players = self.players.read().await;
         players.get(&player_id).cloned()
     }
 
-    /// Get all players in zone
     pub async fn get_all_players(&self) -> Vec<Player> {
         let players = self.players.read().await;
         players.values().cloned().collect()
     }
 
-    /// Add mob to zone
-    pub async fn add_mob(&self, mob: Mob) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_mob(&self, mob: RtMob) -> Result<(), Box<dyn std::error::Error>> {
         let mut mobs = self.mobs.write().await;
         mobs.push(mob);
-        println!("Mob added to zone {} (map {})", self.zone_id, self.map_id);
         Ok(())
     }
 
-    /// Remove mob from zone
-    pub async fn remove_mob(&self, mob_id: i32) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn remove_mob(&self, mob_id: u64) -> Result<(), Box<dyn std::error::Error>> {
         let mut mobs = self.mobs.write().await;
         mobs.retain(|mob| mob.id != mob_id);
-        println!("Mob {} removed from zone {} (map {})", mob_id, self.zone_id, self.map_id);
         Ok(())
     }
 
-    /// Get all mobs in zone
-    pub async fn get_all_mobs(&self) -> Vec<Mob> {
+    pub async fn get_all_mobs(&self) -> Vec<RtMob> {
         let mobs = self.mobs.read().await;
         mobs.clone()
     }
 
-    /// Add item to zone
     pub async fn add_item(&self, item: ItemMap) -> Result<(), Box<dyn std::error::Error>> {
         let mut items = self.items.write().await;
         items.push(item);
@@ -143,7 +127,6 @@ impl Zone {
         Ok(())
     }
 
-    /// Remove item from zone
     pub async fn remove_item(&self, item_id: i32) -> Result<(), Box<dyn std::error::Error>> {
         let mut items = self.items.write().await;
         items.retain(|item| item.id != item_id);
@@ -151,15 +134,12 @@ impl Zone {
         Ok(())
     }
 
-    /// Get all items in zone
     pub async fn get_all_items(&self) -> Vec<ItemMap> {
         let items = self.items.read().await;
         items.clone()
     }
 
-    /// Update zone (called periodically)
     pub async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Update mobs
         let mut mobs = self.mobs.write().await;
         for mob in mobs.iter_mut() {
             // TODO: Implement mob update logic
@@ -189,6 +169,34 @@ impl Zone {
             mob_count: mobs.len() as i32,
             item_count: items.len() as i32,
         }
+    }
+
+    /// Broadcast a message to all players currently in this zone
+    pub async fn send_message_to_all_players(
+        &self,
+        mut msg: Message,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        msg.finalize_write();
+        let players = self.players.read().await;
+        for player in players.values() {
+            let _ = player.send_message(msg.clone());
+        }
+        Ok(())
+    }
+
+    pub async fn send_message_to_other_players(
+        &self,
+        except_player_id: u64,
+        mut msg: Message,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        msg.finalize_write();
+        let players = self.players.read().await;
+        for (pid, player) in players.iter() {
+            if *pid != except_player_id {
+                let _ = player.send_message(msg.clone());
+            }
+        }
+        Ok(())
     }
     pub async fn load_me_to_another(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
         let players_guard = self.players.read().await;
@@ -356,8 +364,7 @@ impl Zone {
             }
         };
         let _ = wp_count; // silence unused warning
-
-        // Mobs
+        // Load Mobs
         {
             let mobs_guard = self.mobs.read().await;
             let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
@@ -370,7 +377,7 @@ impl Zone {
                 msg.write_boolean(false)?; // is ice
                 msg.write_boolean(false)?; // is wind
 
-                msg.write_byte((mob.temp_id as u8) as i8)?;
+                msg.write_byte((mob.template_id as u8) as i8)?;
                 msg.write_byte(0)?; // unknown reserved
                 msg.write_long(mob.hp as i64)?;
                 msg.write_byte((mob.level as u8) as i8)?;
@@ -453,26 +460,19 @@ impl ZoneManager {
     pub async fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> Result<(), Box<dyn std::error::Error>> {
         let zone_key = format!("{}_{}", map_id, zone_id);
         let zone = Zone::new(map_id, zone_id, max_player);
-        
         let mut zones = self.zones.write().await;
         zones.insert(zone_key, zone);
-        
-        println!("Created zone {} for map {}", zone_id, map_id);
         Ok(())
     }
-
     pub async fn get_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
         let zone_key = format!("{}_{}", map_id, zone_id);
         let zones = self.zones.read().await;
         zones.get(&zone_key).cloned()
     }
-
     pub async fn get_best_zone(&self, map_id: i32) -> Option<Zone> {
         let zones = self.zones.read().await;
-        
         let mut best_zone: Option<&Zone> = None;
         let mut min_players = i32::MAX;
-        
         for (key, zone) in zones.iter() {
             if key.starts_with(&format!("{}_", map_id)) {
                 let player_count = zone.get_num_players().await as i32;
@@ -494,6 +494,35 @@ impl ZoneManager {
             .filter(|(key, _)| key.starts_with(&format!("{}_", map_id)))
             .map(|(_, zone)| zone.clone())
             .collect()
+    }
+
+    pub async fn send_message_to_all_players_in_map(
+        &self,
+        map_id: i32,
+        mut msg: Message,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        msg.finalize_write();
+        let zones = self.get_zones_for_map(map_id).await;
+        for zone in zones.into_iter() {
+            zone.send_message_to_all_players(msg.clone()).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn send_message_to_other_players_in_map(
+        &self,
+        map_id: i32,
+        except_player_id: u64,
+        mut msg: Message,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        msg.finalize_write();
+        let zones = self.get_zones_for_map(map_id).await;
+        for zone in zones.into_iter() {
+            zone
+                .send_message_to_other_players(except_player_id, msg.clone())
+                .await?;
+        }
+        Ok(())
     }
 }
 

@@ -1,17 +1,20 @@
-use crate::data;
-use crate::models::item;
 use crate::utils::Database;
-use sea_orm::EntityTrait;
+use crate::map::map_manager::MAP_MANAGER;
+use tokio::time::{sleep, Duration};
+use sea_orm::{EntityTrait, DatabaseBackend, Statement, TryGetable, QueryResult, ConnectionTrait};
+use serde_json::Value as JsonValue;
+use std::fs;
+use std::io::Write;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 
-// Import entities from the generated module
 use crate::entities::{item_template, map_template};
 use crate::entities::npc_template;
 use crate::entities::mob_template;
 use crate::entities::skill_template;
 use crate::entities::intrinsic;
+use crate::mob::MobService;
 
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| {
     Arc::new(Mutex::new(Manager::new()))
@@ -29,10 +32,10 @@ pub struct Manager {
     pub mob_templates_by_id: HashMap<i32, mob_template::Model>,
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub intrinsic_templates_by_id: HashMap<i32, intrinsic::Model>,
-    // Cached per-map parsed data
-    pub map_waypoints: HashMap<i32, Vec<crate::models::map::WayPoint>>, // map_id -> waypoints
-    pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>, // map_id -> Vec<(temp, level, hp, x, y)>
-    pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>, // map_id -> Vec<(npcId, x, y)>
+    pub map_waypoints: HashMap<i32, Vec<crate::map::map::WayPoint>>, 
+    pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>, 
+    pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>, 
+    pub mob_service: MobService,
     database: Option<Database>,
 }
 
@@ -53,6 +56,7 @@ impl Manager {
             map_waypoints: HashMap::new(),
             map_mobs: HashMap::new(),
             map_npcs: HashMap::new(),
+            mob_service: MobService::new(),
             database: None,
         }
     }
@@ -63,26 +67,144 @@ impl Manager {
 
     pub async fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let database = Database::new().await?;
-        self.database = Some(database);
+        self.database = Some(database.clone());
+        self.mob_service.set_database(database.connection);
         
         self.load_item_templates().await?;
-
-        // Load map templates
         self.load_map_templates().await?;
-        
-        // Load NPC templates
         self.load_npc_templates().await?;
-        
-        // Load mob templates
         self.load_mob_templates().await?;
-        
-        // Load skill templates
         self.load_skill_templates().await?;
-        
-        // Load intrinsic templates
         self.load_intrinsic_templates().await?;
-        
+        if let Err(e) = self.load_part_update_data().await {
+            eprintln!("Failed to load part update data: {:?}", e);
+        }
         println!("Manager initialized successfully!");
+        Ok(())
+    }
+
+    pub async fn init_maps_world(&self) -> Result<(), Box<dyn std::error::Error>> {
+        for template in &self.map_templates {
+            {
+                let mgr = MAP_MANAGER.write().await;
+                mgr.create_map(template).await?;
+                mgr.load_tiles_for_map(template.id, template.tile_id as i32).await?;
+            }
+
+            if let Some(wps) = self.map_waypoints.get(&template.id) {
+                if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+                    for wp in wps {
+                        map.add_waypoint(wp.clone()).await?;
+                    }
+                }
+            }
+
+            if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+                let specs = self.map_mobs.get(&template.id).cloned().unwrap_or_default();
+                map.init_mobs(&self.mob_templates_by_id, &specs).await?;
+            }
+
+            if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+                if let Some(nv_list) = self.map_npcs.get(&template.id) {
+                    let mut npc_ids: Vec<i32> = Vec::with_capacity(nv_list.len());
+                    let mut npc_x: Vec<i16> = Vec::with_capacity(nv_list.len());
+                    let mut npc_y: Vec<i16> = Vec::with_capacity(nv_list.len());
+                    for (id, x, y) in nv_list {
+                        npc_ids.push(*id);
+                        npc_x.push(*x);
+                        npc_y.push(*y);
+                    }
+                    map.init_npcs(&npc_ids, &npc_x, &npc_y).await?;
+                }
+            }
+        }
+
+        println!("Initialized {} maps into world", self.map_templates.len());
+        Ok(())
+    }
+
+    pub fn start_map_update_task(&self) {
+        tokio::spawn(async move {
+            loop {
+                let start = std::time::Instant::now();
+                {
+                    let mgr = MAP_MANAGER.read().await;
+                    let _ = mgr.update_all_maps().await;
+                }
+                let elapsed_ms = start.elapsed().as_millis() as u64;
+                let sleep_ms = if elapsed_ms >= 1000 { 0 } else { 1000 - elapsed_ms };
+                sleep(Duration::from_millis(sleep_ms)).await;
+            }
+        });
+    }
+    pub async fn load_part_update_data(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(ref database) = self.database else { return Ok(()); };
+
+        let stmt = Statement::from_string(DatabaseBackend::MySql, "SELECT id, type, data FROM part".to_string());
+        let rows: Vec<QueryResult> = database.connection.query_all(stmt).await?;
+
+        struct PartDetail { icon_id: i16, dx: i8, dy: i8 }
+        struct Part { _id: i16, part_type: i8, details: Vec<PartDetail> }
+
+        let mut parts: Vec<Part> = Vec::new();
+
+        for row in rows {
+            let id: i16 = row.try_get("", "id").unwrap_or(0);
+            let part_type: i8 = row.try_get("", "type").unwrap_or(0);
+            let data_str: String = row.try_get("", "data").unwrap_or_default();
+
+            // Clean escapes similar to Java replaceAll("\\\"", "")
+            let cleaned = data_str.replace("\\\"", "");
+            let parsed: JsonValue = serde_json::from_str(&cleaned).unwrap_or(JsonValue::Array(vec![]));
+
+            let mut details: Vec<PartDetail> = Vec::new();
+            if let Some(arr) = parsed.as_array() {
+                for elem in arr {
+                    // Each elem can be an array or stringified array
+                    let arr_val_opt: Option<JsonValue> = if let Some(a) = elem.as_array() {
+                        Some(JsonValue::Array(a.clone()))
+                    } else if let Some(s) = elem.as_str() {
+                        serde_json::from_str::<JsonValue>(s).ok()
+                    } else { None };
+
+                    if let Some(JsonValue::Array(pd)) = arr_val_opt {
+                        if pd.len() >= 3 {
+                            let icon_id = pd[0].as_i64()
+                                .or_else(|| pd[0].as_str().and_then(|s| s.parse::<i64>().ok()))
+                                .unwrap_or(0) as i16;
+                            let dx = pd[1].as_i64()
+                                .or_else(|| pd[1].as_str().and_then(|s| s.parse::<i64>().ok()))
+                                .unwrap_or(0) as i8;
+                            let dy = pd[2].as_i64()
+                                .or_else(|| pd[2].as_str().and_then(|s| s.parse::<i64>().ok()))
+                                .unwrap_or(0) as i8;
+                            details.push(PartDetail { icon_id, dx, dy });
+                        }
+                    }
+                }
+            }
+
+            parts.push(Part { _id: id, part_type, details });
+        }
+
+        // Serialize to file
+        let dir = "data/girlkun/update_data";
+        fs::create_dir_all(dir)?;
+        let path = format!("{}/part", dir);
+        let mut buf: Vec<u8> = Vec::new();
+        buf.extend_from_slice(&(parts.len() as u16).to_be_bytes());
+        for part in &parts {
+            buf.push(part.part_type as u8);
+            for d in &part.details {
+                buf.extend_from_slice(&(d.icon_id as u16).to_be_bytes());
+                buf.push(d.dx as u8);
+                buf.push(d.dy as u8);
+            }
+        }
+        let mut file = fs::File::create(&path)?;
+        file.write_all(&buf)?;
+        file.flush()?;
+        println!("Load part thành công ({} parts)", parts.len());
         Ok(())
     }
 
@@ -116,7 +238,7 @@ impl Manager {
                                         let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
                                         let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
                                         let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
-                                        list.push(crate::models::map::WayPoint::new(min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map, go_x, go_y));
+                                        list.push(crate::map::map::WayPoint::new(min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map, go_x, go_y));
                                     }
                                 }
                             }
@@ -205,8 +327,15 @@ impl Manager {
     async fn load_item_templates(&mut self)->Result<(),Box<dyn std::error::Error>>{
         if let Some(ref database) = self.database{
             let item_templates = item_template::Entity::find().all(&database.connection).await?;
+            let item_option_templates = crate::entities::item_option_template::Entity::find().all(&database.connection).await?;
+            
+            let item_option_count = item_option_templates.len();
             self.item_templates = item_templates.clone();
-             println!("Loaded {} item templates",self.item_templates.len());
+            let item_service = crate::item::item_service::ItemService::get_instance();
+            item_service.init(item_templates, item_option_templates);
+            
+            println!("Loaded {} item templates and {} item option templates", 
+                     self.item_templates.len(), item_option_count);
         }
         Ok(())
     }
@@ -277,5 +406,9 @@ impl Manager {
     }
     pub fn get_intrinsic_template_by_id(&self, id: i32) -> Option<&intrinsic::Model> {
         self.intrinsic_templates_by_id.get(&id)
+    }
+
+    pub fn get_mob_service(&self) -> &MobService {
+        &self.mob_service
     }
 }

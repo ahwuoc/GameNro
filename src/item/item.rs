@@ -1,46 +1,9 @@
 use crate::entities::item_option_template::Model as ItemOptionTemplate;
 use crate::entities::item_template::Model as ItemTemplate;
+use crate::item::item_option::ItemOption;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-pub struct ItemOption {
-    pub param: i32,
-    pub option_template: ItemOptionTemplate,
-}
-
-impl ItemOption {
-    pub fn new(param: i32, option_template: ItemOptionTemplate) -> Self {
-        Self {
-            param,
-            option_template,
-        }
-    }
-
-    /// Get option string with parameter replacement
-    pub fn get_option_string(&self) -> String {
-        self.option_template
-            .name
-            .replace("#", &self.param.to_string())
-    }
-
-    /// Get option ID
-    pub fn get_option_id(&self) -> i32 {
-        self.option_template.id
-    }
-
-    /// Get option parameter
-    pub fn get_param(&self) -> i32 {
-        self.param
-    }
-
-    /// Set option parameter
-    pub fn set_param(&mut self, param: i32) {
-        self.param = param;
-    }
-}
-
-/// Item represents a game item with template, options, and properties
 #[derive(Debug, Clone)]
 pub struct Item {
     pub template: Option<ItemTemplate>,
@@ -177,7 +140,7 @@ impl Item {
             // Skip certain option IDs (72, 73, 102, 107)
             let option_id = option.get_option_id();
             if option_id != 72 && option_id != 73 && option_id != 102 && option_id != 107 {
-                option_strings.push(option.get_option_string());
+                option_strings.push(option.get_option_description());
             }
         }
 

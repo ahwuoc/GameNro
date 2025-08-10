@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use chrono::{DateTime, Utc};
-use crate::models::zone::{Zone, ZoneManager};
-use crate::models::mob::Mob;
+use crate::map::zone::{Zone, ZoneManager};
+use crate::mob::RtMob;
 use crate::entities::map_template::Model as MapTemplate;
 use crate::entities::mob_template::Model as MobTemplate;
 
@@ -64,6 +65,8 @@ pub struct Map {
     pub bg_id: i32,
     pub bg_type: i32,
     pub r#type: i32,
+    pub zone_count: i32,
+    pub max_player: i32,
     
     // Map dimensions
     pub map_width: i32,
@@ -82,7 +85,6 @@ pub struct Map {
 }
 
 impl Map {
-    /// Create a new map from template
     pub fn from_template(template: &MapTemplate) -> Self {
         let current_time = Utc::now();
         
@@ -95,8 +97,10 @@ impl Map {
             bg_id: template.bg_id as i32,
             bg_type: template.bg_type as i32,
             r#type: template.r#type as i32,
-            map_width: 0, // Will be calculated
-            map_height: 0, // Will be calculated
+            zone_count: template.zones as i32,
+            max_player: template.max_player as i32,
+            map_width: 0,
+            map_height: 0, 
             tile_map: Vec::new(),
             tile_top: Vec::new(),
             zones: Arc::new(RwLock::new(Vec::new())),
@@ -106,49 +110,38 @@ impl Map {
             last_update: Arc::new(RwLock::new(current_time)),
         }
     }
-
-    /// Initialize map with zones
     pub async fn init_zones(&self, zone_manager: &ZoneManager) -> Result<(), Box<dyn std::error::Error>> {
         let n_zones = self.get_zone_count();
         let max_player = self.get_max_player_per_zone();
-        
         let mut zones = self.zones.write().await;
-        
         for i in 0..n_zones {
-            // Create zone in zone manager
             zone_manager.create_zone(self.map_id, i, max_player).await?;
-            
-            // Create zone instance for this map
             let zone = Zone::new(self.map_id, i, max_player);
             zones.push(zone);
         }
-        
-        println!("Initialized {} zones for map {}", n_zones, self.map_name);
         Ok(())
     }
 
-    pub async fn init_mobs(&self, mob_templates: &HashMap<i32, MobTemplate>) -> Result<(), Box<dyn std::error::Error>> {
-    
+    pub async fn init_mobs(
+        &self,
+        mob_templates: &HashMap<i32, MobTemplate>,
+        mob_specs: &[(i32, i32, i32, i32, i32)],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let zones = self.zones.read().await;
         for (zone_index, zone) in zones.iter().enumerate() {
-            // Create sample mobs for each zone
-            for i in 0..5 {
-                if let Some(template) = mob_templates.get(&(i + 1)) {
-                    let mob = Mob::from_template(
-                        template,
-                        i as i32,
-                        self.map_id,
-                        zone_index as i32,
-                        100 + (i * 50) as i32,
-                        100 + (i * 50) as i32,
+            for (idx, (temp_id, level, hp, x, y)) in mob_specs.iter().cloned().enumerate() {
+                if let Some(template) = mob_templates.get(&temp_id) {
+                    let mut mob = RtMob::from_template(
+                        template.clone(),
+                        idx as u64,
                     );
-                    
+                    mob.set_location(self.map_id as u32, zone_index as u32, x as i16, y as i16);
+                    if level > 0 { mob.level = level; }
+                    if hp > 0 { mob.max_hp = hp; mob.hp = hp; }
                     zone.add_mob(mob).await?;
                 }
             }
         }
-        
-        println!("Initialized mobs for map {}", self.map_name);
         Ok(())
     }
 
@@ -165,7 +158,6 @@ impl Map {
         for zone in zones.iter() {
             let _ = (npc_ids, npc_x, npc_y);
         }
-        println!("Initialized {} NPC templates for map {}", npc_ids.len(), self.map_name);
         Ok(())
     }
 
@@ -269,29 +261,8 @@ impl Map {
             npc_count: npcs.len() as i32,
         }
     }
-
-    /// Get zone count based on map type
-    fn get_zone_count(&self) -> i32 {
-        match self.r#type {
-            0 => 1, // MAP_OFFLINE
-            1 => 3, // MAP_BLACK_BALL_WAR
-            2 => 2, // MAP_MA_BU
-            3 => 4, // MAP_DOANH_TRAI
-            4 => 4, // MAP_BAN_DO_KHO_BAU
-            5 => 3, // MAP_CON_DUONG_RAN_DOC
-            6 => 2, // MAP_KHI_GAS
-            7 => 1, // MAP_SATAN
-            _ => 1, // Default
-        }
-    }
-
-    /// Get max player per zone
-    fn get_max_player_per_zone(&self) -> i32 {
-        match self.r#type {
-            0 => 1,  // MAP_OFFLINE
-            _ => 50, // Default
-        }
-    }
+    fn get_zone_count(&self) -> i32 { self.zone_count.max(1) }
+    fn get_max_player_per_zone(&self) -> i32 { self.max_player.max(1) }
 }
 
 /// Map information for client
@@ -325,40 +296,28 @@ impl MapManager {
             zone_manager: ZoneManager::new(),
         }
     }
-
-    /// Create a new map
     pub async fn create_map(&self, template: &MapTemplate) -> Result<(), Box<dyn std::error::Error>> {
         let map = Map::from_template(template);
-        
-        // Initialize zones
         map.init_zones(&self.zone_manager).await?;
-        
-        // Store map
         let mut maps = self.maps.write().await;
         maps.insert(map.map_id, map);
-        
-        println!("Created map {}: {}", template.id, template.name);
         Ok(())
     }
 
-    /// Get map by ID
     pub async fn get_map(&self, map_id: i32) -> Option<Map> {
         let maps = self.maps.read().await;
         maps.get(&map_id).cloned()
     }
 
-    /// Get all maps
     pub async fn get_all_maps(&self) -> Vec<Map> {
         let maps = self.maps.read().await;
         maps.values().cloned().collect()
     }
 
-    /// Get zone manager
     pub fn get_zone_manager(&self) -> &ZoneManager {
         &self.zone_manager
     }
 
-    /// Update all maps
     pub async fn update_all_maps(&self) -> Result<(), Box<dyn std::error::Error>> {
         let maps = self.maps.read().await;
         
@@ -366,6 +325,25 @@ impl MapManager {
             map.update().await?;
         }
         
+        Ok(())
+    }
+
+    pub async fn load_tiles_for_map(
+        &self,
+        map_id: i32,
+        tile_id: i32,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut maps = self.maps.write().await;
+        if let Some(map) = maps.get_mut(&map_id) {
+            if let Some((w, h, tile_map)) = read_tile_map_file(map_id) {
+                map.map_width = w;
+                map.map_height = h;
+                map.tile_map = tile_map;
+            }
+            if let Some(tile_top) = read_tile_top_file(tile_id) {
+                map.tile_top = tile_top;
+            }
+        }
         Ok(())
     }
 }
@@ -384,6 +362,8 @@ impl Clone for Map {
             bg_id: self.bg_id,
             bg_type: self.bg_type,
             r#type: self.r#type,
+            zone_count: self.zone_count,
+            max_player: self.max_player,
             map_width: self.map_width,
             map_height: self.map_height,
             tile_map: self.tile_map.clone(),
@@ -395,6 +375,31 @@ impl Clone for Map {
             last_update: Arc::clone(&self.last_update),
         }
     }
+}
+fn read_tile_map_file(map_id: i32) -> Option<(i32, i32, Vec<Vec<i32>>)> {
+    let path = format!("data/girlkun/map/tile_map_data/{}", map_id);
+    let data = fs::read(&path).ok()?;
+    if data.len() < 2 { return None; }
+    let w = data[0] as usize;
+    let h = data[1] as usize;
+    let expected = 2 + w * h;
+    if data.len() < expected { return None; }
+    let mut tiles: Vec<Vec<i32>> = Vec::with_capacity(h);
+    let mut idx = 2;
+    for _row in 0..h {
+        let mut row: Vec<i32> = Vec::with_capacity(w);
+        for _col in 0..w {
+            row.push(data[idx] as i32);
+            idx += 1;
+        }
+        tiles.push(row);
+    }
+    Some((w as i32, h as i32, tiles))
+}
+fn read_tile_top_file(tile_id: i32) -> Option<Vec<i32>> {
+    let path = format!("data/girlkun/map/tile_top/{}", tile_id);
+    let data = fs::read(&path).ok()?;
+    Some(data.into_iter().map(|b| b as i32).collect())
 }
 
 impl Clone for MapManager {

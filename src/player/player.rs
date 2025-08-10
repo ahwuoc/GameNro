@@ -1,7 +1,8 @@
 use crate::network::async_net::message::Message;
 use crate::player::n_point::NPoint;
-use crate::player::inventory::Inventory;
+use crate::item::inventory::{self, Inventory};
 use crate::models::IntrinsicPlayer;
+// parsing moved to player_dao
 use crate::utils::Location;
 use crate::entities;
 use serde_json::Value;
@@ -41,18 +42,15 @@ pub struct Player {
     pub last_time_use_option: u64,
     pub last_time_revived: u64,
     
-    // Flags
     pub just_revived: bool,
     pub is_fight: bool,
     pub is_fight1: bool,
     pub is_try: bool,
     pub is_try1: bool,
     
-    // Admin
     pub is_admin: bool,
     pub admin_key: bool,
     
-    // Notifications
     pub notify: Option<String>,
 
 
@@ -97,28 +95,12 @@ impl Player {
         }
     }
     
-    // Core methods
     pub fn is_die(&self) -> bool {
         self.is_die || self.n_point.hp <= 0
     }
 
-    /// Build runtime Player from DB entity
     pub fn from_entity(model: &entities::player::Model) -> Result<Self, String> {
-        let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
-        p.head = model.head as i16;
-
-        // inventory
-        p.inventory = Self::parse_inventory_json(&model.data_inventory)?;
-
-        // location: expect [map_id, x, y]
-        if let Ok((map_id, x, y)) = Self::parse_location_array(&model.data_location) {
-            p.map_id = map_id as u32;
-            p.location.set_map(p.map_id, 0);
-            p.location.set_position(p.location.x, p.location.y);
-        }
-
-
-        Ok(p)
+        crate::player::player_dao::from_entity(model)
     }
 
     fn parse_inventory_json(s: &str) -> Result<Inventory, String> {
@@ -133,6 +115,45 @@ impl Player {
         Ok(inv)
     }
 
+   pub fn get_head(&self) -> i16 {
+        if let Some(item) = self.inventory.items_body.get(5) {
+            if item.is_not_null_item() {
+                if let Some(tpl) = &item.template {
+                    let head = tpl.head; 
+                    if head != -1 {
+                        return head as i16;
+                    }
+                }
+            }
+        }
+        self.head
+    }
+   pub fn get_body(&self) -> i16 {
+        if let Some(item) = self.inventory.items_body.get(5) {
+            if item.is_not_null_item() {
+                if let Some(tpl) = &item.template {
+                    let body = tpl.body;
+                    if body != -1 {
+                        return body as i16;
+                    }
+                }
+            }
+        }
+        if self.gender == 1 { 59 } else { 57 }
+    }
+  pub fn get_leg(&self) -> i16 {
+      if let Some(item) = self.inventory.items_body.get(5) {
+           if item.is_not_null_item() {
+            if let Some(tpl) = &item.template {
+                let leg = tpl.leg;
+                if leg != -1 {
+                     return leg as i16;
+                }
+            }
+           }
+      }
+      if self.gender == 1 { 60 } else { 58 }
+    }
     fn parse_location_array(s: &str) -> Result<(i64, i64, i64), String> {
         if s.is_empty() { return Err("empty location".into()); }
         let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
@@ -142,18 +163,38 @@ impl Player {
         let y = arr.get(2).and_then(|x| x.as_i64()).ok_or("no y")?;
         Ok((map_id, x, y))
     }
-    
-    pub fn set_session_id(&mut self, session_id: String) {
-        self.session_id = Some(session_id);
+    fn parse_point_array(s: &str) -> Result<NPoint, String> {
+        if s.is_empty() { return Err("empty data_point".into()); }
+        let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
+        let arr = v.as_array().ok_or("data_point not array")?;
+
+        let read_i64 = |idx: usize| -> i64 {
+            arr.get(idx).and_then(|x| x.as_i64()).unwrap_or(0)
+        };
+
+        let mut np = NPoint::new();
+        let hp_max = read_i64(3).max(1) as u64;
+        let mp_max = read_i64(4).max(1) as u64;
+        let hp = read_i64(0) as u64;
+        let mp = read_i64(1) as u64;
+        let damage = read_i64(5) as u64;
+        let defense = read_i64(6) as u64;
+        let crit = read_i64(7) as u32;
+        let power = read_i64(8) as u64;
+
+        np.hp_max = hp_max;
+        np.mp_max = mp_max;
+        np.hp = if hp == 0 { hp_max } else { hp.min(hp_max) };
+        np.mp = if mp == 0 { mp_max } else { mp.min(mp_max) };
+        if damage != 0 { np.damage = damage; }
+        if defense != 0 { np.defense = defense; }
+        np.crit = crit;
+        np.power = power;
+        Ok(np)
     }
-    
-    pub fn get_session_id(&self) -> Option<String> {
-        self.session_id.clone()
-    }
+
     
     pub fn send_message(&self, _msg: Message) -> Result<(), std::io::Error> {
-        // TODO: Implement message sending through session manager
-        // For now, just return Ok
         Ok(())
     }
     
@@ -163,13 +204,8 @@ impl Player {
     
     pub fn update(&mut self) {
         if !self.before_dispose {
-            // Update NPoint
             self.n_point.update();
-            
-            // Update location
             self.location.update();
-            
-            // Check if player is dead
             if self.n_point.hp <= 0 && !self.is_die {
                 self.is_die = true;
             }
@@ -185,7 +221,6 @@ impl Player {
         let actual_damage = if piercing {
             damage
         } else {
-            // TODO: Calculate with defense
             damage
         };
         
@@ -216,7 +251,6 @@ impl Player {
             .as_millis() as u64;
     }
     
-    // Position methods
     pub fn set_position(&mut self, x: i16, y: i16) {
         self.location.x = x;
         self.location.y = y;
@@ -226,13 +260,10 @@ impl Player {
         (self.location.x, self.location.y)
     }
     
-    // Chat method
     pub fn chat(&self, text: &str) {
         println!("[{}]: {}", self.name, text);
-        // TODO: Send chat message to other players in zone
     }
     
-    // Admin methods
     pub fn is_admin(&self) -> bool {
         self.is_admin
     }
@@ -265,20 +296,16 @@ impl Player {
         self.is_try1 = false;
     }
     
-    // Training methods
     pub fn start_training(&mut self, type_train: u8) {
         self.is_train = true;
         self.type_train = type_train;
         self.time_off = 0;
     }
-    
     pub fn stop_training(&mut self) {
         self.is_train = false;
         self.type_train = 0;
         self.time_off = 0;
     }
-    
-    // Notification
     pub fn set_notify(&mut self, notify: String) {
         self.notify = Some(notify);
     }
