@@ -3,9 +3,10 @@ use crate::data::data_game::DataGame;
 use crate::services::god_gk::GodGK;
 use crate::entities::{account, player};
 use crate::player::Player as RtPlayer;
+use crate::services::player_info_service; 
 use sea_orm::*;
 use chrono;
-use crate::models::zone::ZONE_MANAGER;
+use crate::map::zone_manager::ZoneManager;
 
 pub struct AsyncController;
 
@@ -43,6 +44,14 @@ impl AsyncController {
 
                 Ok(())
             },
+            -7=>{
+                //move player
+                Ok(())
+            }
+            -63=>{
+                 //flag bag
+                Ok(())
+            }
             -67 => {
                 if _data.len() >= 4 {
                     let id = i32::from_be_bytes([_data[0], _data[1], _data[2], _data[3]]);
@@ -85,13 +94,8 @@ impl AsyncController {
     }
 
     async fn handle_message_not_login(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
-        if data.len() < 1 {
-            return Err("Invalid data length for -29 command".into());
-        }
-        
         let sub_cmd = data[0];
         println!("Handling -29 sub-command: {}", sub_cmd);
-        
         match sub_cmd {
             0 => {
                 if data.len() < 5 { 
@@ -186,12 +190,6 @@ impl AsyncController {
     }
 
     async fn handle_not_login(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Handling -93 command (not login)");
-        
-        if data.len() < 6 {
-            return Err("Invalid data length".into());
-        }
-
         let username_len = data[0] as usize;
         let password_len = data[1] as usize;
         let version = i32::from_le_bytes([data[2], data[3], data[4], data[5]]);
@@ -266,7 +264,7 @@ impl AsyncController {
                     Ok(Some(db_player)) => {
                         println!("Player found, sending login success data");
                         session.set_user_id(account.id);
-                        let rt_player = RtPlayer::from_entity(&db_player)
+                        let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| format!("Failed to build runtime player: {}", e))?;
                         session.set_player(rt_player);
                         Self::send_login_success_data(session).await?;
@@ -296,21 +294,10 @@ impl AsyncController {
     }
 
     async fn send_login_success_data(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Sending login success data");
-        
-        // -77 send small version (Java: DataGame.sendSmallVersion)
         DataGame::send_small_version(session).await?;
-        
-        // -93 bgitem version (Java: Service.gI().sendMessage(this, -93, "1630679752231_-93_r"))
         Self::send_message_93(session).await?;
-        
-        // -28 send version game (Java: DataGame.sendVersionGame)
         DataGame::send_version_game(session).await?;
-        
-        // -31 send data item background (Java: DataGame.sendDataItemBG)
         DataGame::send_data_item_bg(session).await?;
-        
-        // Send player info (Java: Controller.gI().sendInfo)
         Self::send_player_info(session).await?;
         
         Ok(())
@@ -338,30 +325,15 @@ impl AsyncController {
     }
 
     async fn switch_to_create_char(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Switching to character creation");
-
-        // Send data item background
         DataGame::send_data_item_bg(session).await?;
-
-        // Send version game
         DataGame::send_version_game(session).await?;
-
         DataGame::send_tile_set_info(session).await?;
-
-        // Send -93 message (character creation mode)
         session.send_message_old(-93, vec![2]).await?;
-
-        // Send update data
         DataGame::update_data(session).await?;
-
         Ok(())
     }
 
     async fn handle_create_char(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Handling character creation");
-        println!("DEBUG: Create char data length: {}", data.len());
-        println!("DEBUG: Create char data (hex): {:?}", data.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>());
-
         if data.len() < 5 { // Need at least: [sub_cmd][name_len_2bytes][gender][hair]
             return Err("Invalid data length".into());
         }
@@ -371,7 +343,6 @@ impl AsyncController {
             return Err("Invalid sub command".into());
         }
 
-        // Parse name length (2 bytes, big-endian) - Java readUTF format
         let name_len = u16::from_be_bytes([data[1], data[2]]) as usize;
         let gender = data[3] as i32;
         let hair = data[4] as i32;
@@ -383,21 +354,15 @@ impl AsyncController {
         }
 
         let name = String::from_utf8_lossy(&data[5..5 + name_len]).to_string();
-        println!("DEBUG: Character name: '{}'", name);
 
-        println!("Creating character - Name: {}, Gender: {}, Hair: {}", name, gender, hair);
-
-        // Validate name
         if !Self::is_valid_name(&name) {
             return Err("Invalid character name".into());
         }
 
-        // Check if name is taken
         if Self::is_name_taken(&name).await? {
             return Err("Character name already taken".into());
         }
 
-        // Check if name is ignored
         if Self::is_ignored_name(&name) {
             return Err("Character name not allowed".into());
         }
@@ -451,7 +416,7 @@ impl AsyncController {
         match player_result {
             Ok(db_player) => {
                 println!("Character created successfully: {}", name);
-                let rt_player = RtPlayer::from_entity(&db_player)
+                let rt_player = crate::player::player_dao::from_entity(&db_player)
                     .map_err(|e| format!("Failed to build runtime player: {}", e))?;
                 session.set_player(rt_player);
                 let username = session.get_username().unwrap_or(&String::new()).clone();
@@ -507,8 +472,10 @@ impl AsyncController {
     }
 
     async fn handle_client_ok(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Handling client ok - player initialization");
-        //TODO: 
+        let player = session.get_player().cloned().ok_or("Player not set")?;
+        player_info_service::PlayerInfoService::send_player_blob(session, &player).await?;
+        player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
+        
         println!("Client ok initialization completed");
         Ok(())
     }
@@ -517,12 +484,11 @@ impl AsyncController {
         name.len() >= 3 && name.len() <= 20
     }
     async fn is_name_taken(_name: &str) -> Result<bool, Box<dyn std::error::Error>> {
-        // TODO: Implement name taken check
+        // TODO: Implement name taken checkE
         Ok(false)
     }
 
     fn is_ignored_name(_name: &str) -> bool {
-        // TODO: Implement ignored name check
         false
     }
 }

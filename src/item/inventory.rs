@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use crate::models::item::Item;
+use crate::item::item::Item;
 
 #[derive(Debug, Clone)]
 pub struct Inventory {
-    // Currency
     pub gold: i64,
     pub gem: i32,
     pub ruby: i32,
@@ -46,27 +45,22 @@ impl Inventory {
         }
     }
 
-    /// Get total gem and ruby
     pub fn get_gem_and_ruby(&self) -> i32 {
         self.gem + self.ruby
     }
 
-    /// Get gem amount
     pub fn get_gem(&self) -> i32 {
         self.gem
     }
 
-    /// Get ruby amount
     pub fn get_ruby(&self) -> i32 {
         self.ruby
     }
 
-    /// Get gold amount
     pub fn get_gold(&self) -> i64 {
         self.gold
     }
 
-    /// Add gold with limit check
     pub fn add_gold(&mut self, amount: i64) {
         self.gold += amount;
         if self.gold > self.const_limit_gold {
@@ -74,32 +68,26 @@ impl Inventory {
         }
     }
 
-    /// Subtract gold
     pub fn sub_gold(&mut self, amount: i64) {
         self.gold = (self.gold - amount).max(0);
     }
 
-    /// Add gem
     pub fn add_gem(&mut self, amount: i32) {
         self.gem += amount;
     }
 
-    /// Subtract gem
     pub fn sub_gem(&mut self, amount: i32) {
         self.gem = (self.gem - amount).max(0);
     }
 
-    /// Add ruby
     pub fn add_ruby(&mut self, amount: i32) {
         self.ruby += amount;
     }
 
-    /// Subtract ruby
     pub fn sub_ruby(&mut self, amount: i32) {
         self.ruby = (self.ruby - amount).max(0);
     }
 
-    /// Subtract gem and ruby (ruby first, then gem)
     pub fn sub_gem_and_ruby(&mut self, amount: i32) {
         self.ruby -= amount;
         if self.ruby < 0 {
@@ -108,7 +96,6 @@ impl Inventory {
         }
     }
 
-    /// Add item to bag
     pub fn add_item_bag(&mut self, item: Item) -> bool {
         if self.items_bag.len() < self.const_max_items_bag {
             self.items_bag.push(item);
@@ -118,13 +105,11 @@ impl Inventory {
         }
     }
 
-    /// Add item to body
     pub fn add_item_body(&mut self, item: Item) -> bool {
         self.items_body.push(item);
         true
     }
 
-    /// Add item to box
     pub fn add_item_box(&mut self, item: Item) -> bool {
         if self.items_box.len() < self.const_max_items_box {
             self.items_box.push(item);
@@ -134,7 +119,6 @@ impl Inventory {
         }
     }
 
-    /// Remove item from bag by index
     pub fn remove_item_bag(&mut self, index: usize) -> Option<Item> {
         if index < self.items_bag.len() {
             Some(self.items_bag.remove(index))
@@ -143,7 +127,6 @@ impl Inventory {
         }
     }
 
-    /// Remove item from body by index
     pub fn remove_item_body(&mut self, index: usize) -> Option<Item> {
         if index < self.items_body.len() {
             Some(self.items_body.remove(index))
@@ -152,7 +135,6 @@ impl Inventory {
         }
     }
 
-    /// Remove item from box by index
     pub fn remove_item_box(&mut self, index: usize) -> Option<Item> {
         if index < self.items_box.len() {
             Some(self.items_box.remove(index))

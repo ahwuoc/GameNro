@@ -40,8 +40,8 @@ impl Intrinsic {
             param_to_2: entity.param_to_2 as i16,
             icon: entity.icon as i16,
             gender: entity.gender as i8,
-            param1: 0, // Will be set randomly
-            param2: 0,  // Will be set randomly
+            param1: 0, 
+            param2: 0,  
         }
     }
 

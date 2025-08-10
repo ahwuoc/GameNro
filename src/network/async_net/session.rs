@@ -25,7 +25,7 @@ impl AsyncSession {
     pub fn new(stream: TcpStream) -> Self {
         let (read_half, write_half) = stream.into_split();
         Self {
-            keys: b"PHUCNEAE".to_vec(),
+            keys: b"AHWUOCDZ".to_vec(),
             sent_key: false,
             zoom_level: 1,
             read_half,

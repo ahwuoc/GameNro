@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
-use crate::models::item::{Item, ItemOption};
+use crate::item::item::Item;
+use crate::item::item_option::ItemOption;
 use crate::entities::item_template::Model as ItemTemplate;
 
 /// ItemMap represents an item dropped on the map

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use crate::models::item::{Item, ItemOption};
+use crate::item::item::Item;
+use crate::item::item_option::ItemOption;
 use crate::entities::item_template::Model as ItemTemplate;
 use crate::entities::item_option_template::Model as ItemOptionTemplate;
 

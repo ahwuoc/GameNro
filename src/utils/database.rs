@@ -1,3 +1,5 @@
+use std::env;
+use dotenv::dotenv;
 use sea_orm::*;
 use crate::entities::{account, player};
 
@@ -8,7 +10,8 @@ pub struct Database {
 
 impl Database {
     pub async fn new() -> Result<Self, DbErr> {
-        let database_url = "mysql://root@localhost:3306/gamenro";
+        dotenv().ok();
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let pool = sea_orm::Database::connect(database_url).await?;
         Ok(Database { connection: pool })
     }

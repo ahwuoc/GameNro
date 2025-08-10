@@ -1,24 +1,12 @@
 pub mod player_info_service;
-pub mod item_service;
-pub mod item_time_service;
-pub mod item_map_service;
-pub mod inventory_service;
 pub mod npc_service;
-pub mod change_map_service;
-pub mod map_service;
 pub mod manager;
 pub mod god_gk;
 pub mod services;
 pub mod intrinsic_service;
 
 pub use player_info_service::PlayerInfoService;
-pub use item_service::ItemService;
-pub use item_time_service::ItemTimeService;
-pub use item_map_service::ItemMapService;
-pub use inventory_service::InventoryService;
 pub use npc_service::NpcService;
-pub use change_map_service::ChangeMapService;
-pub use map_service::MapService;
 pub use manager::Manager;
 pub use god_gk::GodGK;
 pub use services::ServiceHandles;
