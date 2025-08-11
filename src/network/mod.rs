@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use crate::network::async_net::{session::AsyncSession, controller::AsyncController};
 
 pub mod async_net;
-pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv().ok();
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = env::var("PORT").unwrap_or_else(|_| "14445".to_string());
@@ -16,8 +16,8 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
             Ok((socket, addr)) => {
                 println!("New connection from: {}", addr);
                 tokio::spawn(async move {
-                    if let Err(e) = handle_connection(socket).await {
-                        eprintln!("Error handling connection: {}", e);
+                    if let Err(()) = handle_connection(socket).await {
+                        eprintln!("Error handling connection");
                     }
                 });
             }
@@ -28,18 +28,18 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
     let mut session = AsyncSession::new(socket);
     loop {
         match session.read_message().await {
             Ok(message) => {
-                if let Err(e) = AsyncController::handle_message(&mut session, message.command, message.data).await {
-                    eprintln!("Error handling message: {}", e);
+                if let Err(_) = AsyncController::handle_message(&mut session, message.command, message.data).await {
+                    eprintln!("Error handling message");
                     break;
                 }
             }
             Err(e) => {
-                eprintln!("Error reading message: {}", e);
+                eprintln!("Error reading message: {:?}", e);
                 break;
             }
         }

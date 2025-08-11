@@ -4,12 +4,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use chrono::{DateTime, Utc};
-use crate::map::zone::{Zone, ZoneManager};
+use crate::map::zone::Zone;
+use crate::map::zone_manager::ZoneManager;
 use crate::mob::RtMob;
 use crate::entities::map_template::Model as MapTemplate;
 use crate::entities::mob_template::Model as MobTemplate;
 
-/// WayPoint represents a teleport point in the map
 #[derive(Debug, Clone)]
 pub struct WayPoint {
     pub min_x: i16,
@@ -55,7 +55,6 @@ impl WayPoint {
     }
 }
 
-#[derive(Debug)]
 pub struct Map {
     pub map_id: i32,
     pub map_name: String,
@@ -239,7 +238,6 @@ impl Map {
         *is_active = active;
     }
 
-    /// Get map info for client
     pub async fn get_map_info(&self) -> MapInfo {
         let zones = self.zones.read().await;
         let way_points = self.way_points.read().await;
@@ -283,73 +281,7 @@ pub struct MapInfo {
     pub npc_count: i32,
 }
 
-/// Map manager to handle multiple maps
-pub struct MapManager {
-    maps: Arc<RwLock<HashMap<i32, Map>>>,
-    zone_manager: ZoneManager,
-}
 
-impl MapManager {
-    pub fn new() -> Self {
-        Self {
-            maps: Arc::new(RwLock::new(HashMap::new())),
-            zone_manager: ZoneManager::new(),
-        }
-    }
-    pub async fn create_map(&self, template: &MapTemplate) -> Result<(), Box<dyn std::error::Error>> {
-        let map = Map::from_template(template);
-        map.init_zones(&self.zone_manager).await?;
-        let mut maps = self.maps.write().await;
-        maps.insert(map.map_id, map);
-        Ok(())
-    }
-
-    pub async fn get_map(&self, map_id: i32) -> Option<Map> {
-        let maps = self.maps.read().await;
-        maps.get(&map_id).cloned()
-    }
-
-    pub async fn get_all_maps(&self) -> Vec<Map> {
-        let maps = self.maps.read().await;
-        maps.values().cloned().collect()
-    }
-
-    pub fn get_zone_manager(&self) -> &ZoneManager {
-        &self.zone_manager
-    }
-
-    pub async fn update_all_maps(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let maps = self.maps.read().await;
-        
-        for map in maps.values() {
-            map.update().await?;
-        }
-        
-        Ok(())
-    }
-
-    pub async fn load_tiles_for_map(
-        &self,
-        map_id: i32,
-        tile_id: i32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut maps = self.maps.write().await;
-        if let Some(map) = maps.get_mut(&map_id) {
-            if let Some((w, h, tile_map)) = read_tile_map_file(map_id) {
-                map.map_width = w;
-                map.map_height = h;
-                map.tile_map = tile_map;
-            }
-            if let Some(tile_top) = read_tile_top_file(tile_id) {
-                map.tile_top = tile_top;
-            }
-        }
-        Ok(())
-    }
-}
-
-// Global map manager
-pub static MAP_MANAGER: Lazy<RwLock<MapManager>> = Lazy::new(|| RwLock::new(MapManager::new()));
 
 impl Clone for Map {
     fn clone(&self) -> Self {
@@ -402,11 +334,4 @@ fn read_tile_top_file(tile_id: i32) -> Option<Vec<i32>> {
     Some(data.into_iter().map(|b| b as i32).collect())
 }
 
-impl Clone for MapManager {
-    fn clone(&self) -> Self {
-        Self {
-            maps: Arc::clone(&self.maps),
-            zone_manager: self.zone_manager.clone(),
-        }
-    }
-}
+

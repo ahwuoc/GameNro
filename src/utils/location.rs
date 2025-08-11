@@ -43,6 +43,7 @@ impl Location {
     }
     
     pub fn update(&mut self) {
-       
+        // Update location-specific logic if needed
+        // Currently no specific update logic required
     }
 }

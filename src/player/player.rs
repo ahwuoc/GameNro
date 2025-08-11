@@ -1,4 +1,6 @@
+use crate::map::Zone;
 use crate::network::async_net::message::Message;
+use crate::network::async_net::session::AsyncSession;
 use crate::player::n_point::NPoint;
 use crate::item::inventory::{self, Inventory};
 use crate::models::IntrinsicPlayer;
@@ -8,8 +10,10 @@ use crate::entities;
 use serde_json::Value;
 
 use std::time::SystemTime;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Player {
     // Basic info
     pub id: u64,
@@ -48,12 +52,13 @@ pub struct Player {
     pub is_try: bool,
     pub is_try1: bool,
     
+    pub zone: Option<Zone>,
     pub is_admin: bool,
     pub admin_key: bool,
     
     pub notify: Option<String>,
-
-
+    
+    pub session: Option<Arc<RwLock<AsyncSession>>>,
 }
 
 impl Player {
@@ -89,9 +94,11 @@ impl Player {
             is_fight1: false,
             is_try: false,
             is_try1: false,
+            zone: None,
             is_admin: false,
             admin_key: false,
             notify: None,
+            session: None,
         }
     }
     
@@ -194,7 +201,11 @@ impl Player {
     }
 
     
-    pub fn send_message(&self, _msg: Message) -> Result<(), std::io::Error> {
+    pub async fn send_message(&self, msg: Message) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(session) = &self.session {
+            let mut session_guard = session.write().await;
+            session_guard.send_message(&msg).await?;
+        } 
         Ok(())
     }
     
@@ -252,12 +263,11 @@ impl Player {
     }
     
     pub fn set_position(&mut self, x: i16, y: i16) {
-        self.location.x = x;
-        self.location.y = y;
+        self.location.set_position(x, y);
     }
     
     pub fn get_position(&self) -> (i16, i16) {
-        (self.location.x, self.location.y)
+        self.location.get_position()
     }
     
     pub fn chat(&self, text: &str) {
@@ -283,10 +293,8 @@ impl Player {
         println!("Player {} disposed", self.name);
     }
     
-    // Fight methods
     pub fn set_fight(&mut self, _type_fight: u8, _type_target: u8) {
         self.is_fight = true;
-        // TODO: Implement fight logic
     }
     
     pub fn reset_fight(&mut self) {
@@ -312,5 +320,17 @@ impl Player {
     
     pub fn clear_notify(&mut self) {
         self.notify = None;
+    }
+
+    pub fn set_session(&mut self, session: Arc<RwLock<AsyncSession>>) {
+        self.session = Some(session);
+    }
+
+    pub fn set_zone(&mut self, zone: Zone) {
+        self.zone = Some(zone);
+    }
+
+    pub fn clear_zone(&mut self) {
+        self.zone = None;
     }
 }

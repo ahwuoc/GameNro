@@ -1,10 +1,9 @@
 use crate::data::DataGame;
-use crate::map::zone_manager::ZoneManager;
-use crate::map::Zone;
 use crate::network::async_net::message::Message;
 use crate::network::async_net::session::AsyncSession;
 use crate::player::Player as RtPlayer;
 use crate::services::IntrinsicService;
+use crate::msg_write;
 
 pub struct PlayerInfoService;
 
@@ -32,24 +31,24 @@ impl PlayerInfoService {
         let speed: u8 = 10;
 
         let mut msg = Message::new_for_writing(-42);
-        msg.write_long(hp_max)?; // hpg
-        msg.write_long(mp_max)?; // mpg
-        msg.write_long(damage)?; // dameg
-        msg.write_long(hp_max)?; // hpMax
-        msg.write_long(mp_max)?; // mpMax
-        msg.write_long(hp)?; // hp
-        msg.write_long(mp)?; // mp
-        msg.write_byte(speed as i8)?; // speed
-        msg.write_byte(20)?; // reserved
-        msg.write_byte(20)?; // reserved
-        msg.write_byte(1)?; // reserved
-        msg.write_long(damage)?; // dame
-        msg.write_long(defense)?; // def
-        msg.write_byte(crit as i8)?; // crit
-        msg.write_long(power)?; // tiemNang
-        msg.write_short(0)?; // reserved
-        msg.write_long(0)?; // defg (reserved)
-        msg.write_byte(0)?; // critg (reserved)
+        msg_write!(msg, write_long(hp_max)); // hpg
+        msg_write!(msg, write_long(mp_max)); // mpg
+        msg_write!(msg, write_long(damage)); // dameg
+        msg_write!(msg, write_long(hp_max)); // hpMax
+        msg_write!(msg, write_long(mp_max)); // mpMax
+        msg_write!(msg, write_long(hp)); // hp
+        msg_write!(msg, write_long(mp)); // mp
+        msg_write!(msg, write_byte(speed as i8)); // speed
+        msg_write!(msg, write_byte(20)); // reserved
+        msg_write!(msg, write_byte(20)); // reserved
+        msg_write!(msg, write_byte(1)); // reserved
+        msg_write!(msg, write_long(damage)); // dame
+        msg_write!(msg, write_long(defense)); // def
+        msg_write!(msg, write_byte(crit as i8)); // crit
+        msg_write!(msg, write_long(power)); // tiemNang
+        msg_write!(msg, write_short(0)); // reserved
+        msg_write!(msg, write_long(0)); // defg (reserved)
+        msg_write!(msg, write_byte(0)); // critg (reserved)
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -62,31 +61,19 @@ impl PlayerInfoService {
         println!("Sending task main info");
 
         let mut msg = Message::new_for_writing(40);
-        msg.write_short(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // taskMain.id
-        msg.write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // taskMain.index
-        msg.write_utf("Nhiệm vụ chính[1]")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // taskMain.name + "[" + taskMain.id + "]"
-        msg.write_utf("Chi tiết nhiệm vụ chính")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // taskMain.detail
-        msg.write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // subTasks.size()
+        msg_write!(msg, write_short(1)); // taskMain.id
+        msg_write!(msg, write_byte(0)); // taskMain.index
+        msg_write!(msg, write_utf("Nhiệm vụ chính[1]")); // taskMain.name + "[" + taskMain.id + "]"
+        msg_write!(msg, write_utf("Chi tiết nhiệm vụ chính")); // taskMain.detail
+        msg_write!(msg, write_byte(1)); // subTasks.size()
 
-        // Sub task info
-        msg.write_utf("Nhiệm vụ phụ")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // stm.name
-        msg.write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // stm.npcId
-        msg.write_short(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // stm.mapId
-        msg.write_utf("Thông báo nhiệm vụ")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // stm.notify
+        msg_write!(msg, write_utf("Nhiệm vụ phụ")); // stm.name
+        msg_write!(msg, write_byte(1)); // stm.npcId
+        msg_write!(msg, write_short(1)); // stm.mapId
+        msg_write!(msg, write_utf("Thông báo nhiệm vụ")); // stm.notify
 
-        msg.write_short(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // current subTask count
-        msg.write_short(10)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // stm.maxCount
+        msg_write!(msg, write_short(0)); // current subTask count
+        msg_write!(msg, write_short(10)); // stm.maxCount
 
         msg.finalize_write();
         session.send_message(&msg).await?;
@@ -94,25 +81,19 @@ impl PlayerInfoService {
     }
     /// Clear map (-22)
     pub async fn clear_map(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Clearing map");
-
         let mut msg = Message::new_for_writing(-22);
         msg.finalize_write();
         session.send_message(&msg).await?;
-
         Ok(())
     }
 
-    /// Send clan info (-53) - matches Java ClanService.sendMyClan()
     pub async fn send_clan_info(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Sending clan info");
 
         let mut msg = Message::new_for_writing(-53);
-        // For now, send -1 to indicate no clan
-        msg.write_int(-1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // clan.id or -1 if no clan
+        msg_write!(msg, write_int(-1)); // clan.id or -1 if no clan
 
         msg.finalize_write();
         session.send_message(&msg).await?;
@@ -127,8 +108,7 @@ impl PlayerInfoService {
         println!("Sending max stamina");
 
         let mut msg = Message::new_for_writing(-69);
-        msg.write_int(100)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // max stamina
+        msg_write!(msg, write_int(100)); // max stamina
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -142,37 +122,32 @@ impl PlayerInfoService {
         println!("Sending current stamina");
 
         let mut msg = Message::new_for_writing(-68);
-        msg.write_int(100)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // current stamina
+        msg_write!(msg, write_int(100)); // current stamina
         msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())
     }
 
-    /// Send pet info (-107) - matches Java Service.sendHavePet()
     pub async fn send_pet_info(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Sending pet info");
         let mut msg = Message::new_for_writing(-107);
-        msg.write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // has pet (0 = no pet, 1 = has pet)
+        msg_write!(msg, write_byte(0)); 
         msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())
     }
 
-    /// Send top rank info (-119)
     pub async fn send_top_rank_info(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Sending top rank info");
 
         let mut msg = Message::new_for_writing(-119);
-        msg.write_utf("1630679754740_-119_r")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_utf("1630679754740_-119_r"));
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -184,8 +159,7 @@ impl PlayerInfoService {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut msg = Message::new_for_writing(-50);
-        msg.write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // notification count
+        msg_write!(msg, write_byte(0)); // notification count
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -196,8 +170,7 @@ impl PlayerInfoService {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut msg = Message::new_for_writing(-70);
-        msg.write_utf("Chào mừng đến với GameNro!")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_utf("Chào mừng đến với GameNro!"));
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -210,8 +183,7 @@ impl PlayerInfoService {
         println!("Sending time skill info");
 
         let mut msg = Message::new_for_writing(-30);
-        msg.write_byte(62)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // sub command
+        msg_write!(msg, write_byte(62)); // sub command
         msg.finalize_write();
         session.send_message(&msg).await?;
 
@@ -233,17 +205,17 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-30);
         msg.write_byte(0)?;
         msg.write_int(player.id as i32)?;
-        msg.write_byte(1)?; // taskMain.id (placeholder)
-        msg.write_byte(player.gender as i8)?; // gender
-        msg.write_short(player.head)?; // head (base)
-        msg.write_utf(&player.name)?; // name
-        msg.write_byte(0)?; // cPK
+        msg.write_byte(1)?; 
+        msg.write_byte(player.gender as i8)?; 
+        msg.write_short(player.head)?;
+        msg.write_utf(&player.name)?; 
+        msg.write_byte(0)?; 
         msg.write_byte(player.type_pk as i8)?; // typePk
         msg.write_long(player.n_point.power as i64)?; // power
-        msg.write_short(0)?; // reserved
-        msg.write_short(0)?; // reserved
-        msg.write_byte(player.gender as i8)?; // gender again
-        msg.write_byte(0)?; // skills count - TODO: Add actual skills
+        msg.write_short(0)?; 
+        msg.write_short(0)?; 
+        msg.write_byte(player.gender as i8)?;
+        msg.write_byte(0)?;
         if session.get_version() >= 214 && session.get_version() < 231 {
             msg.write_long(player.inventory.get_gold())?;
         } else {
@@ -301,8 +273,6 @@ impl PlayerInfoService {
                 }
             }
         }
-        println!("[PLAYER_BLOB] Total bag items sent: {}", bag_items_sent);
-
         let box_len = (player.inventory.items_box.len().min(255)) as i8;
         msg.write_byte(box_len)?;
         
@@ -343,41 +313,32 @@ impl PlayerInfoService {
         msg.write_byte(0)?; // isNewMember
         msg.write_short(0)?; // aura
         msg.write_byte(0)?; // eff front
-
         msg.finalize_write();
         session.send_message(&msg).await?;
-        
-        println!("[PLAYER_BLOB] Player blob sent successfully for {} (ID: {}) - Total items: Body={}, Bag={}, Box={}", 
-                 player.name, player.id, body_items_sent, bag_items_sent, box_items_sent);
+   
         Ok(())
     }
+
+
+    
     pub async fn send_cai_trang(
         session: &mut AsyncSession,
         _player: &RtPlayer,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut message = Message::new_for_writing(-90);
-        message
-            .write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        message
-            .write_int(_player.id as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(message, write_byte(1));
+        msg_write!(message, write_int(_player.id as i32));
         let head = _player.get_head();
         let body = _player.get_body();
         let leg = _player.get_leg();
-        message
-            .write_short(head)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        message
-            .write_short(body)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        message
-            .write_short(leg)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        message
-            .write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        // Self::send_mess_all_player_in_map(session, message.clone()).await?;
+        msg_write!(message, write_short(head));
+        msg_write!(message, write_short(body));
+        msg_write!(message, write_short(leg));
+        msg_write!(message, write_byte(0));
+        let player = session.get_player().cloned().ok_or("Player not set")?;
+        if let Some(zone) = &player.zone {
+            zone.send_message_to_all_players(message.clone()).await?;
+        }
         session.send_message(&message).await?;
         Ok(())
     }
@@ -396,7 +357,9 @@ impl PlayerInfoService {
         msg.write_long(_player.n_point.hp as i64)?;
         msg.write_byte(0)?;
         msg.write_long(_player.n_point.hp_max as i64)?;
-        Self::send_mess_all_player_in_map(_session, msg).await?;
+        if let Some(zone) = &_player.zone {
+            zone.send_message_to_all_players(msg).await?;
+        }
         Ok(())
     }
     pub async fn send_all_player_info(
@@ -441,14 +404,8 @@ impl PlayerInfoService {
 
         // -50 thông tin bảng thông báo
         Self::send_notification_tab(session).await?;
-
-        {
-            // TODO: Implement zone management with ZoneManager instance
-            // For now, skip zone operations until ZoneManager is properly integrated
-            println!("Zone operations skipped - TODO: implement with ZoneManager");
-        }
+        crate::services::ZoneService::load_player_to_best_zone(player.clone(), session).await?;
         Self::send_cai_trang(session, &player).await?;
-        // -70 thông báo bigmessage
         Self::send_big_message(session).await?;
 
         // last time use skill
@@ -460,26 +417,5 @@ impl PlayerInfoService {
         println!("All player info sent successfully");
         Ok(())
     }
-
-    pub async fn send_mess_all_player_in_map(
-        session: &mut AsyncSession,
-        mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let player = session.get_player().cloned().ok_or("Player not set")?;
-        msg.finalize_write();
-        println!("send_mess_all_player_in_map - TODO: implement with ZoneManager");
-        Ok(())
-    }
-
-    pub async fn send_mess_another_not_me_in_map(
-        session: &mut AsyncSession,
-        except_player_id: u64,
-        mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        msg.finalize_write();
-        let player = session.get_player().cloned().ok_or("Player not set")?;
-        // TODO: Implement with ZoneManager instance
-        println!("send_mess_another_not_me_in_map - TODO: implement with ZoneManager");
-        Ok(())
-    }
+ 
 }

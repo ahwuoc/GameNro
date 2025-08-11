@@ -3,25 +3,24 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use crate::map::Map;
-use crate::map::zone::ZoneManager;
+
 use crate::entities::map_template::Model as MapTemplate;
 
 pub struct MapManager {
     maps: Arc<RwLock<HashMap<i32, Map>>>,
-    zone_manager: ZoneManager,
 }
 
 impl MapManager {
     pub fn new() -> Self {
         Self {
             maps: Arc::new(RwLock::new(HashMap::new())),
-            zone_manager: ZoneManager::new(),
         }
     }
 
     pub async fn create_map(&self, template: &MapTemplate) -> Result<(), Box<dyn std::error::Error>> {
         let map = Map::from_template(template);
-        map.init_zones(&self.zone_manager).await?;
+        let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
+        map.init_zones(&zone_manager).await?;
         let mut maps = self.maps.write().await;
         maps.insert(map.map_id, map);
         Ok(())
@@ -37,9 +36,7 @@ impl MapManager {
         maps.values().cloned().collect()
     }
 
-    pub fn get_zone_manager(&self) -> &ZoneManager {
-        &self.zone_manager
-    }
+
 
     pub async fn update_all_maps(&self) -> Result<(), Box<dyn std::error::Error>> {
         let maps = self.maps.read().await;
@@ -135,7 +132,6 @@ impl Clone for MapManager {
     fn clone(&self) -> Self {
         Self {
             maps: Arc::clone(&self.maps),
-            zone_manager: self.zone_manager.clone(),
         }
     }
 }
