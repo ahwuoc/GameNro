@@ -29,7 +29,6 @@ impl Item {
         }
     }
 
-    /// Create item from template ID
     pub fn from_template_id(template_id: i32, template: ItemTemplate) -> Self {
         Self {
             template: Some(template),
@@ -42,7 +41,6 @@ impl Item {
         }
     }
 
-    /// Create item with template and quantity
     pub fn with_template(template: ItemTemplate, quantity: i32) -> Self {
         Self {
             template: Some(template),
@@ -264,8 +262,6 @@ impl Item {
             false
         }
     }
-
-    /// Check if item is Da Nang Cap (Upgrade Stone)
     pub fn is_da_nang_cap(&self) -> bool {
         if let Some(ref template) = self.template {
             template.id >= 1087 && template.id <= 1089
@@ -282,114 +278,25 @@ impl Item {
             false
         }
     }
-
-    /// Check if item is Sach Tuyet Ky (Ultimate Book)
-    pub fn is_sach_tuyet_ky(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id == 1093
-        } else {
-            false
-        }
-    }
-
-    /// Check if item is Sach Tuyet Ky 2 (Ultimate Book 2)
-    pub fn is_sach_tuyet_ky2(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id == 1094
-        } else {
-            false
-        }
-    }
-
-    /// Get item type name
-    pub fn type_name(&self) -> String {
-        if let Some(ref template) = self.template {
-            match template.r#type {
-                0 => "Trang Bi".to_string(),
-                1 => "Vu Khi".to_string(),
-                2 => "Giap".to_string(),
-                3 => "Quan".to_string(),
-                4 => "Giay".to_string(),
-                5 => "Rong".to_string(),
-                6 => "Ngoc".to_string(),
-                7 => "Thuoc".to_string(),
-                8 => "Vat Pham".to_string(),
-                9 => "Cong Thuc".to_string(),
-                10 => "Sach".to_string(),
-                11 => "Trang Suc".to_string(),
-                12 => "Bao Ve".to_string(),
-                13 => "Bao Ve".to_string(),
-                14 => "Bao Ve".to_string(),
-                15 => "Bao Ve".to_string(),
-                16 => "Bao Ve".to_string(),
-                17 => "Bao Ve".to_string(),
-                18 => "Bao Ve".to_string(),
-                19 => "Bao Ve".to_string(),
-                20 => "Bao Ve".to_string(),
-                21 => "Bao Ve".to_string(),
-                22 => "Bao Ve".to_string(),
-                23 => "Bao Ve".to_string(),
-                24 => "Bao Ve".to_string(),
-                25 => "Bao Ve".to_string(),
-                26 => "Bao Ve".to_string(),
-                27 => "Bao Ve".to_string(),
-                28 => "Bao Ve".to_string(),
-                29 => "Bao Ve".to_string(),
-                30 => "Bao Ve".to_string(),
-                31 => "Bao Ve".to_string(),
-                32 => "Bao Ve".to_string(),
-                33 => "Bao Ve".to_string(),
-                34 => "Bao Ve".to_string(),
-                35 => "Bao Ve".to_string(),
-                _ => "Khac".to_string(),
-            }
-        } else {
-            "Khac".to_string()
-        }
-    }
-
-    /// Get item planet name (not available in template)
-    pub fn type_hanh_tinh(&self) -> String {
-        // Planet ID not available in item_template
-        "Khac".to_string()
-    }
-
-    /// Get item level (not available in template)
-    pub fn get_level(&self) -> Option<i32> {
-        None // Level not available in item_template
-    }
-
-    /// Get item icon ID
     pub fn get_icon_id(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.icon_id as i32)
     }
 
-    /// Get item part
     pub fn get_part(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.part as i32)
     }
 
-    /// Get item gold cost
     pub fn get_gold(&self) -> Option<i64> {
         self.template.as_ref().map(|t| t.gold as i64)
     }
 
-    /// Get item gem cost
     pub fn get_gem(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.gem as i32)
     }
-
-    /// Get item ruby cost (not available in template)
-    pub fn get_ruby(&self) -> Option<i32> {
-        None // Ruby not available in item_template
-    }
-
-    /// Get item strength requirement
     pub fn get_str_require(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.power_require as i32)
     }
 
-    /// Check if player can use this item based on strength requirement
     pub fn can_use(&self, player_str: i32) -> bool {
         if let Some(str_require) = self.get_str_require() {
             player_str >= str_require
@@ -397,8 +304,6 @@ impl Item {
             true
         }
     }
-
-    /// Get item description
     pub fn get_description(&self) -> String {
         if let Some(ref template) = self.template {
             template.description.clone()
@@ -406,13 +311,9 @@ impl Item {
             String::new()
         }
     }
-
-    /// Get item gender requirement
     pub fn get_gender(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.gender as i32)
     }
-
-    /// Check if item matches gender requirement
     pub fn matches_gender(&self, player_gender: i32) -> bool {
         if let Some(item_gender) = self.get_gender() {
             item_gender == -1 || item_gender == player_gender

@@ -7,6 +7,7 @@ use crate::services::player_info_service;
 use sea_orm::*;
 use chrono;
 use crate::map::zone_manager::ZoneManager;
+use std::io;
 
 pub struct AsyncController;
 
@@ -19,33 +20,47 @@ impl AsyncController {
         
         match cmd {
             -27 => {
-                session.send_key_async().await?;
+                if let Err(e) = session.send_key_async().await {
+                    eprintln!("Error sending key: {}", e);
+                }
                 session.set_sent_key(true); 
-                DataGame::send_version_res(session).await?;
+                if let Err(e) = DataGame::send_version_res(session).await {
+                    eprintln!("Error sending version res: {}", e);
+                }
                 Ok(())
             },
             -29 => {
-                Self::handle_message_not_login(session, _data).await
+                Self::handle_message_not_login(session, _data).await?;
+                Ok(())
             },
             -74 => {
-                Self::handle_get_image_source(session, _data).await
+                Self::handle_get_image_source(session, _data).await?;
+                Ok(())
             },
             -93 => {
-                Self::handle_not_login(session, _data).await
+                Self::handle_not_login(session, _data).await?;
+                Ok(())
             },
             -28 => {
-                Self::handle_message_not_map(session, _data).await
+                Self::handle_message_not_map(session, _data).await?;
+                Ok(())
             },
+            44 => {
+                Self::handle_chat_map(session, _data).await?;
+                Ok(())
+            }
             -87 => {
-                DataGame::update_data(session).await?;
+                if let Err(e) = DataGame::update_data(session).await {
+                    eprintln!("Error updating data: {}", e);
+                }
                 Ok(())
             },
             -39=>{
 
                 Ok(())
             },
-            -7=>{
-                //move player
+            -7 => {
+                Self::handle_player_move(session, _data).await?;
                 Ok(())
             }
             -63=>{
@@ -55,7 +70,9 @@ impl AsyncController {
             -67 => {
                 if _data.len() >= 4 {
                     let id = i32::from_be_bytes([_data[0], _data[1], _data[2], _data[3]]);
-                    crate::data::data_game::DataGame::send_icon(session, id).await?;
+                    if let Err(e) = crate::data::data_game::DataGame::send_icon(session, id).await {
+                        eprintln!("Error sending icon: {}", e);
+                    }
                 } else {
                     println!("-67 missing id, len={}", _data.len());
                 }
@@ -209,27 +226,27 @@ impl AsyncController {
 
     async fn handle_login_authentication(session: &mut AsyncSession, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
         let god_gk = GodGK::get_instance();
-        let account_result = {
+        let account_result: Result<Option<account::Model>, Box<dyn std::error::Error + Send + Sync>> = {
             let db = {
                 let god_gk_guard = god_gk.lock().unwrap();
                 god_gk_guard.db.clone()
             };
             
             if let Some(db) = db {
-                if let Some(account) = db.get_account(username).await? {
+                if let Some(account) = db.get_account(username).await.map_err(|_| "Database error")? {
                     if account.password == password {
                         if account.ban == 1 {
-                            return Err(DbErr::Custom("Tài khoản đã bị khóa".to_string()).into());
+                            return Err("Tài khoản đã bị khóa".into());
                         }
-                        Ok::<Option<account::Model>, Box<dyn std::error::Error + Send + Sync>>(Some(account))
+                        Ok(Some(account))
                     } else {
-                        Err(DbErr::Custom("Sai mật khẩu".to_string()).into())
+                        Err("Sai mật khẩu".into())
                     }
                 } else {
-                    Err(DbErr::Custom("Tài khoản không tồn tại".to_string()).into())
+                    Err("Tài khoản không tồn tại".into())
                 }
             } else {
-                Err(DbErr::Custom("Database not initialized".to_string()).into())
+                Err("Database not initialized".into())
             }
         };
         match account_result {
@@ -266,11 +283,31 @@ impl AsyncController {
                         session.set_user_id(account.id);
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| format!("Failed to build runtime player: {}", e))?;
-                        session.set_player(rt_player);
+                        // Add player to zone first
+                        let mut player_with_zone = rt_player.clone();
+                        {
+                            let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
+                            if let Some(zone) = zone_manager.get_best_zone(player_with_zone.map_id as i32).await {
+                                println!("[LOGIN] Adding player {} to zone {}_{}", player_with_zone.name, player_with_zone.map_id, player_with_zone.zone_id);
+                                player_with_zone.set_zone(zone);
+                            } else {
+                                println!("[LOGIN] No zone found for map {}, creating default zone", player_with_zone.map_id);
+                                let default_zone = crate::map::Zone::new(player_with_zone.map_id as i32, player_with_zone.zone_id as i32, 100);
+                                player_with_zone.set_zone(default_zone);
+                            }
+                        }
+                        
+                        session.set_player(player_with_zone.clone());
+                        
+                        // Add player to PLAYER_SERVICE
+                        {
+                            let player_service = crate::player::player_service::PLAYER_SERVICE.write().await;
+                            player_service.add_player(player_with_zone).await;
+                        }
+                        
                         Self::send_login_success_data(session).await?;
                     }
                     Ok(None) => {
-                        println!("No player found, switching to character creation");
                         session.set_user_id(account.id);
                         Self::switch_to_create_char(session).await?;
                     }
@@ -281,11 +318,9 @@ impl AsyncController {
                 }
             }
             Ok(None) => {
-                println!("Authentication failed for user: {}", username);
                 return Err("Invalid credentials".into());
             }
             Err(e) => {
-                println!("Authentication error: {:?}", e);
                 return Err(format!("Authentication error: {:?}", e).into());
             }
         }
@@ -299,7 +334,6 @@ impl AsyncController {
         DataGame::send_version_game(session).await?;
         DataGame::send_data_item_bg(session).await?;
         Self::send_player_info(session).await?;
-        
         Ok(())
     }
     
@@ -311,7 +345,6 @@ impl AsyncController {
         Ok(())
     }
 
-    //hanlder send player info
     async fn send_player_info(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
         crate::services::player_info_service::PlayerInfoService::send_all_player_info(session).await?;
         Ok(())
@@ -359,7 +392,7 @@ impl AsyncController {
             return Err("Invalid character name".into());
         }
 
-        if Self::is_name_taken(&name).await? {
+        if Self::is_name_taken(&name).await.map_err(|_| "Name check failed")? {
             return Err("Character name already taken".into());
         }
 
@@ -367,7 +400,6 @@ impl AsyncController {
             return Err("Character name not allowed".into());
         }
 
-        // Create new player
         let account_id = session.get_user_id().unwrap_or(0);
         let god_gk = GodGK::get_instance();
         
@@ -432,7 +464,7 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_message_not_map(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_message_not_map(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error >> {
         if data.len() < 1 {
             return Err("Invalid data length for -28 command".into());
         }
@@ -453,7 +485,7 @@ impl AsyncController {
                 Ok(())
             },
             8 => {
-                DataGame::update_item(session).await?;
+                crate::data::ItemData::update_item(session).await?;
                 Ok(())
             },
             10 => {
@@ -461,7 +493,7 @@ impl AsyncController {
                 Ok(())
             },
             13 => {
-                Self::handle_client_ok(session).await?;
+                Self::handle_client_ok_enhanced(session).await?;
                 Ok(())
             },
             _ => {
@@ -470,26 +502,70 @@ impl AsyncController {
             }
         }
     }
-
-    async fn handle_client_ok(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error >> {
         let player = session.get_player().cloned().ok_or("Player not set")?;
         player_info_service::PlayerInfoService::send_player_blob(session, &player).await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
         
-        println!("Client ok initialization completed");
+        println!("Client ok enhanced initialization completed");
         Ok(())
     }
     fn is_valid_name(name: &str) -> bool {
-        // TODO: Implement name validation
         name.len() >= 3 && name.len() <= 20
     }
-    async fn is_name_taken(_name: &str) -> Result<bool, Box<dyn std::error::Error>> {
-        // TODO: Implement name taken checkE
+    async fn is_name_taken(_name: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         Ok(false)
     }
-
     fn is_ignored_name(_name: &str) -> bool {
         false
+    }
+    async fn handle_chat_map(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error >> {
+        if let Some(player) = session.get_player() {
+            if data.is_empty() {
+                return Err("Chat message data is empty".into());
+            }
+            let message = String::from_utf8_lossy(&data).to_string();
+            let mut msg = crate::network::async_net::message::Message::new_for_writing(44);
+            msg.write_utf(&format!("{}: {}", player.name, message))?;   
+            if let Some(zone) = &player.zone {
+                zone.send_message_to_all_players(msg).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_player_move(session: &mut AsyncSession, data: Vec<u8>) -> Result<(), Box<dyn std::error::Error >> {
+        let mut offset = 0;
+        let flag = data[offset];
+        offset += 1;
+        
+        if data.len() < offset + 2 {
+            return Ok(());
+        }
+        
+        let to_x = i16::from_be_bytes([data[offset], data[offset + 1]]);
+        offset += 2;
+        
+        let to_y = if data.len() >= offset + 2 {
+            i16::from_be_bytes([data[offset], data[offset + 1]])
+        } else {
+            session.get_player().map(|p| p.get_position().1).unwrap_or(0)
+        };
+        
+        if let Some(player) = session.get_player() {
+            let player_id = player.id;
+            if let Some(mut player) = crate::player::player_service::PLAYER_SERVICE.read().await.get_player(player_id).await {
+                if let Err(_) = crate::player::player_service::PLAYER_SERVICE.read().await.player_move(&mut player, to_x, to_y).await {
+                    return Ok(());
+                }
+                
+                crate::player::player_service::PLAYER_SERVICE.write().await.update_player(player_id, |p| {
+                    *p = player;
+                }).await;
+            }
+        }
+
+        Ok(())
     }
 }
 

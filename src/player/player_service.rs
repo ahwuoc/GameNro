@@ -5,6 +5,7 @@ use crate::map::Zone;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use once_cell::sync::Lazy;
 
 pub struct PlayerService {
     players: Arc<RwLock<HashMap<u64, Player>>>,
@@ -75,6 +76,22 @@ impl PlayerService {
         }).await
     }
 
+    pub async fn player_move(&self, player: &mut Player, to_x: i16, to_y: i16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if player.is_die || player.zone.is_none() {
+            return Ok(());
+        }
+
+        if to_x < 0 || to_y < 0 || to_x > 1000 || to_y > 1000 {
+            return Ok(());
+        }
+
+        player.set_position(to_x, to_y);
+        
+        use crate::map::map_service::MapService;
+        let _ = MapService::get_instance().send_player_move(player).await;
+        Ok(())
+    }
+
     pub async fn change_player_map(&self, player_id: u64, map_id: u32, zone_id: u32, x: i16, y: i16) -> bool {
         self.update_player(player_id, |player| {
             player.map_id = map_id;
@@ -82,8 +99,6 @@ impl PlayerService {
             player.set_position(x, y);
         }).await
     }
-
-    // Communication methods
     pub async fn send_message_to_player(&self, player_id: u64, msg: Message) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(player) = self.get_player(player_id).await {
             // TODO: Implement actual message sending
@@ -161,3 +176,7 @@ impl PlayerService {
         removed_count
     }
 }
+
+pub static PLAYER_SERVICE: Lazy<Arc<RwLock<PlayerService>>> = Lazy::new(|| {
+    Arc::new(RwLock::new(PlayerService::new()))
+});

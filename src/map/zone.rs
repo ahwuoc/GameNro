@@ -8,9 +8,9 @@ use crate::entities::item_template::Model as ItemMap;
 use crate::network::async_net::session::AsyncSession;
 use crate::network::async_net::message::Message;
 use crate::map::map_manager::MAP_MANAGER;
+use crate::services::MessageService;
 
 
-#[derive(Debug)]
 pub struct Zone {
     pub map_id: i32,
     pub zone_id: i32,
@@ -20,9 +20,6 @@ pub struct Zone {
     pub mobs: Arc<RwLock<Vec<RtMob>>>,
     pub items: Arc<RwLock<Vec<ItemMap>>>,
     
-    // Zone state
-    pub is_empty: Arc<RwLock<bool>>,
-    pub is_full: Arc<RwLock<bool>>,
 }
 
 impl Zone {
@@ -35,8 +32,6 @@ impl Zone {
             players: Arc::new(RwLock::new(HashMap::new())),
             mobs: Arc::new(RwLock::new(Vec::new())),
             items: Arc::new(RwLock::new(Vec::new())),
-            is_empty: Arc::new(RwLock::new(true)),
-            is_full: Arc::new(RwLock::new(false)),
         }
     }
 
@@ -57,23 +52,11 @@ impl Zone {
 
     pub async fn add_player(&self, player: Player) -> Result<(), Box<dyn std::error::Error>> {
         let mut players = self.players.write().await;
-        
         if players.len() >= self.max_player as usize {
             return Err("Zone is full".into());
         }
-
         let player_id = player.id;
         players.insert(player_id, player);
-        
-        // Update empty state
-        let mut is_empty = self.is_empty.write().await;
-        *is_empty = players.is_empty();
-        
-        // Update full state
-        let mut is_full = self.is_full.write().await;
-        *is_full = players.len() >= self.max_player as usize;
-        
-        println!("Player {} added to zone {} (map {})", player_id, self.zone_id, self.map_id);
         Ok(())
     }
 
@@ -81,13 +64,7 @@ impl Zone {
         let mut players = self.players.write().await;
         
         if players.remove(&player_id).is_some() {
-            let mut is_empty = self.is_empty.write().await;
-            *is_empty = players.is_empty();
-            
-            let mut is_full = self.is_full.write().await;
-            *is_full = players.len() >= self.max_player as usize;
-            
-            println!("Player {} removed from zone {} (map {})", player_id, self.zone_id, self.map_id);
+            // Player removed successfully
         }
         
         Ok(())
@@ -123,14 +100,12 @@ impl Zone {
     pub async fn add_item(&self, item: ItemMap) -> Result<(), Box<dyn std::error::Error>> {
         let mut items = self.items.write().await;
         items.push(item);
-        println!("Item added to zone {} (map {})", self.zone_id, self.map_id);
         Ok(())
     }
 
     pub async fn remove_item(&self, item_id: i32) -> Result<(), Box<dyn std::error::Error>> {
         let mut items = self.items.write().await;
         items.retain(|item| item.id != item_id);
-        println!("Item {} removed from zone {} (map {})", item_id, self.zone_id, self.map_id);
         Ok(())
     }
 
@@ -155,7 +130,6 @@ impl Zone {
         
         Ok(())
     }
-
     pub async fn get_zone_info(&self) -> ZoneInfo {
         let players = self.players.read().await;
         let mobs = self.mobs.read().await;
@@ -171,32 +145,32 @@ impl Zone {
         }
     }
 
-    /// Broadcast a message to all players currently in this zone
+    pub fn to_zone_info(&self, current_players: i32, mob_count: i32, item_count: i32) -> ZoneInfo {
+        ZoneInfo {
+            map_id: self.map_id,
+            zone_id: self.zone_id,
+            max_player: self.max_player,
+            current_players,
+            mob_count,
+            item_count,
+        }
+    }
+
     pub async fn send_message_to_all_players(
         &self,
-        mut msg: Message,
+        msg: Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        msg.finalize_write();
         let players = self.players.read().await;
-        for player in players.values() {
-            let _ = player.send_message(msg.clone());
-        }
-        Ok(())
+        MessageService::send_to_all_players(&players, msg).await
     }
 
     pub async fn send_message_to_other_players(
         &self,
         except_player_id: u64,
-        mut msg: Message,
+        msg: Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        msg.finalize_write();
         let players = self.players.read().await;
-        for (pid, player) in players.iter() {
-            if *pid != except_player_id {
-                let _ = player.send_message(msg.clone());
-            }
-        }
-        Ok(())
+        MessageService::send_to_other_players(&players, except_player_id, msg).await
     }
     pub async fn load_me_to_another(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
         let players_guard = self.players.read().await;
@@ -251,6 +225,32 @@ impl Zone {
         }
         Ok(())
     }
+
+    /// Load a player into this zone and send map info
+    pub async fn load_player_to_zone(
+        &self,
+        mut player: Player,
+        session: &mut crate::network::async_net::session::AsyncSession,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Set zone for player
+        player.set_zone(self.clone());
+        
+        // Add player to zone
+        self.add_player(player.clone()).await?;
+        
+        // Send map info to player
+        self.map_info(session, player.id).await?;
+        
+        // Load other players to this player
+        self.load_another_to_me(player.id).await?;
+        
+        // Load this player to others
+        self.load_me_to_another(player.id).await?;
+        
+        Ok(())
+    }
+
+
 
     fn build_player_info_message(pl_info: &Player) -> Message {
         let mut msg = Message::new_for_writing(-5);
@@ -310,7 +310,9 @@ impl Zone {
    
     pub async fn map_info(&self, session: &mut AsyncSession, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
         let players = self.players.read().await;
-        let Some(player) = players.get(&player_id) else { return Ok(()); };
+        let Some(player) = players.get(&player_id) else { 
+            return Ok(()); 
+        };
 
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             let mgr = MAP_MANAGER.read().await;
@@ -363,7 +365,7 @@ impl Zone {
                 0
             }
         };
-        let _ = wp_count; // silence unused warning
+        let _ = wp_count; 
         // Load Mobs
         {
             let mobs_guard = self.mobs.read().await;
@@ -446,88 +448,6 @@ pub struct ZoneInfo {
     pub item_count: i32,
 }
 
-pub struct ZoneManager {
-    zones: Arc<RwLock<HashMap<String, Zone>>>,
-}
-
-impl ZoneManager {
-    pub fn new() -> Self {
-        Self {
-            zones: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub async fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> Result<(), Box<dyn std::error::Error>> {
-        let zone_key = format!("{}_{}", map_id, zone_id);
-        let zone = Zone::new(map_id, zone_id, max_player);
-        let mut zones = self.zones.write().await;
-        zones.insert(zone_key, zone);
-        Ok(())
-    }
-    pub async fn get_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
-        let zone_key = format!("{}_{}", map_id, zone_id);
-        let zones = self.zones.read().await;
-        zones.get(&zone_key).cloned()
-    }
-    pub async fn get_best_zone(&self, map_id: i32) -> Option<Zone> {
-        let zones = self.zones.read().await;
-        let mut best_zone: Option<&Zone> = None;
-        let mut min_players = i32::MAX;
-        for (key, zone) in zones.iter() {
-            if key.starts_with(&format!("{}_", map_id)) {
-                let player_count = zone.get_num_players().await as i32;
-                if player_count < min_players && player_count < zone.max_player {
-                    min_players = player_count;
-                    best_zone = Some(zone);
-                }
-            }
-        }
-        
-        best_zone.cloned()
-    }
-
-    pub async fn get_zones_for_map(&self, map_id: i32) -> Vec<Zone> {
-        let zones = self.zones.read().await;
-        
-        zones
-            .iter()
-            .filter(|(key, _)| key.starts_with(&format!("{}_", map_id)))
-            .map(|(_, zone)| zone.clone())
-            .collect()
-    }
-
-    pub async fn send_message_to_all_players_in_map(
-        &self,
-        map_id: i32,
-        mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        msg.finalize_write();
-        let zones = self.get_zones_for_map(map_id).await;
-        for zone in zones.into_iter() {
-            zone.send_message_to_all_players(msg.clone()).await?;
-        }
-        Ok(())
-    }
-
-    pub async fn send_message_to_other_players_in_map(
-        &self,
-        map_id: i32,
-        except_player_id: u64,
-        mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        msg.finalize_write();
-        let zones = self.get_zones_for_map(map_id).await;
-        for zone in zones.into_iter() {
-            zone
-                .send_message_to_other_players(except_player_id, msg.clone())
-                .await?;
-        }
-        Ok(())
-    }
-}
-
-pub static ZONE_MANAGER: Lazy<RwLock<ZoneManager>> = Lazy::new(|| RwLock::new(ZoneManager::new()));
-
 impl Clone for Zone {
     fn clone(&self) -> Self {
         Self {
@@ -537,16 +457,6 @@ impl Clone for Zone {
             players: Arc::clone(&self.players),
             mobs: Arc::clone(&self.mobs),
             items: Arc::clone(&self.items),
-            is_empty: Arc::clone(&self.is_empty),
-            is_full: Arc::clone(&self.is_full),
-        }
-    }
-}
-
-impl Clone for ZoneManager {
-    fn clone(&self) -> Self {
-        Self {
-            zones: Arc::clone(&self.zones),
         }
     }
 }

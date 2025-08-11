@@ -248,7 +248,6 @@ impl Inventory {
         self.train_armor = None;
     }
 
-    /// Dispose inventory (cleanup)
     pub fn dispose(&mut self) {
         self.clear_all_items();
         self.gift_codes.clear();

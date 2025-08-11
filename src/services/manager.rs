@@ -1,5 +1,9 @@
+use crate::item::ItemManager;
+use crate::map::MapDao;
 use crate::utils::Database;
 use crate::map::map_manager::MAP_MANAGER;
+use crate::item::item_dao::ItemDao;
+use crate::mob::mob_dao::MobDao;
 use tokio::time::{sleep, Duration};
 use sea_orm::{EntityTrait, DatabaseBackend, Statement, TryGetable, QueryResult, ConnectionTrait};
 use serde_json::Value as JsonValue;
@@ -9,12 +13,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 
-use crate::entities::{item_template, map_template};
+use crate::entities::{item_template, item_option_template, map_template};
 use crate::entities::npc_template;
 use crate::entities::mob_template;
 use crate::entities::skill_template;
 use crate::entities::intrinsic;
 use crate::mob::MobService;
+use crate::item::item_time_service::ItemTimeService;
+use crate::npc::NpcService;
+use crate::npc::NpcManager;
 
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| {
     Arc::new(Mutex::new(Manager::new()))
@@ -27,15 +34,21 @@ pub struct Manager {
     pub skill_templates: Vec<skill_template::Model>,
     pub intrinsic_templates: Vec<intrinsic::Model>,
     pub item_templates:Vec<item_template::Model>,
+    pub item_option_templates: Vec<item_option_template::Model>,
+    pub item_templates_by_id: HashMap<i32, item_template::Model>,
     pub map_templates_by_id: HashMap<i32, map_template::Model>,
     pub npc_templates_by_id: HashMap<i32, npc_template::Model>,
     pub mob_templates_by_id: HashMap<i32, mob_template::Model>,
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub intrinsic_templates_by_id: HashMap<i32, intrinsic::Model>,
+    pub item_option_templates_by_id: HashMap<i32, item_option_template::Model>,
     pub map_waypoints: HashMap<i32, Vec<crate::map::map::WayPoint>>, 
     pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>, 
     pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>, 
     pub mob_service: MobService,
+    pub item_time_service: ItemTimeService,
+    pub npc_service: NpcService,
+    pub npc_manager: NpcManager,
     database: Option<Database>,
 }
 
@@ -46,9 +59,12 @@ impl Manager {
             npc_templates: Vec::new(),
             mob_templates: Vec::new(),
             item_templates:Vec::new(),
+            item_option_templates: Vec::new(),
+            item_templates_by_id: HashMap::new(),
             skill_templates: Vec::new(),
             intrinsic_templates: Vec::new(),
             map_templates_by_id: HashMap::new(),
+            item_option_templates_by_id: HashMap::new(),
             npc_templates_by_id: HashMap::new(),
             mob_templates_by_id: HashMap::new(),
             skill_templates_by_id: HashMap::new(),
@@ -57,6 +73,9 @@ impl Manager {
             map_mobs: HashMap::new(),
             map_npcs: HashMap::new(),
             mob_service: MobService::new(),
+            item_time_service: ItemTimeService::new(),
+            npc_service: NpcService::new(),
+            npc_manager: NpcManager::new(),
             database: None,
         }
     }
@@ -76,6 +95,7 @@ impl Manager {
         self.load_mob_templates().await?;
         self.load_skill_templates().await?;
         self.load_intrinsic_templates().await?;
+        self.npc_service.init(self.npc_templates.clone());
         if let Err(e) = self.load_part_update_data().await {
             eprintln!("Failed to load part update data: {:?}", e);
         }
@@ -213,95 +233,26 @@ impl Manager {
             let map_templates = map_template::Entity::find().all(&database.connection).await?;
             self.map_templates = map_templates.clone();
             for template in map_templates {
-                // Cache by id
                 self.map_templates_by_id.insert(template.id, template.clone());
+                let waypoints_data = MapDao::load_map_waypoints(&database.connection, template.id).await?;
+                let mut waypoints = Vec::new();
+                for wp in waypoints_data {
+                    let map_wp = crate::map::map::WayPoint::new(
+                        wp.min_x, wp.min_y, wp.max_x, wp.max_y,
+                        wp.is_enter, wp.is_offline, wp.name,
+                        wp.go_map, wp.go_x, wp.go_y
+                    );
+                    waypoints.push(map_wp);
+                }
+                self.map_waypoints.insert(template.id, waypoints);
 
-                // Parse waypoints JSON (string may contain escaped arrays)
-                if !template.waypoints.is_empty() {
-                    let cleaned = template.waypoints
-                        .replace("[\"[", "[[")
-                        .replace("]\"]", "]]")
-                        .replace("\",\"", ",");
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                        let mut list = Vec::new();
-                        if let Some(arr) = json.as_array() {
-                            for wpv in arr {
-                                if let Some(wp_arr) = wpv.as_array() {
-                                    if wp_arr.len() >= 10 {
-                                        let name = wp_arr[0].as_str().unwrap_or("").to_string();
-                                        let min_x = wp_arr[1].as_i64().unwrap_or(0) as i16;
-                                        let min_y = wp_arr[2].as_i64().unwrap_or(0) as i16;
-                                        let max_x = wp_arr[3].as_i64().unwrap_or(0) as i16;
-                                        let max_y = wp_arr[4].as_i64().unwrap_or(0) as i16;
-                                        let is_enter = (wp_arr[5].as_i64().unwrap_or(0) as i8) == 1;
-                                        let is_offline = (wp_arr[6].as_i64().unwrap_or(0) as i8) == 1;
-                                        let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
-                                        let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
-                                        let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
-                                        list.push(crate::map::map::WayPoint::new(min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map, go_x, go_y));
-                                    }
-                                }
-                            }
-                        }
-                        self.map_waypoints.insert(template.id, list);
-                    }
-                }
+                // Load mobs using MapDao
+                let mobs = MapDao::load_map_mobs(&database.connection, template.id).await?;
+                self.map_mobs.insert(template.id, mobs);
 
-                if !template.mobs.is_empty() {
-                    let cleaned = template.mobs.replace('\"', "");
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                        let mut list = Vec::new();
-                        if let Some(arr) = json.as_array() {
-                            for mv in arr {
-                                if let Some(ma) = mv.as_array() {
-                                    if ma.len() >= 5 {
-                                        let temp = ma[0].as_i64().unwrap_or(0) as i32;
-                                        let level = ma[1].as_i64().unwrap_or(1) as i32;
-                                        let hp = ma[2].as_i64().unwrap_or(0) as i32;
-                                        let x = ma[3].as_i64().unwrap_or(0) as i32;
-                                        let y = ma[4].as_i64().unwrap_or(0) as i32;
-                                        list.push((temp, level, hp, x, y));
-                                    }
-                                }
-                            }
-                        }
-                        self.map_mobs.insert(template.id, list);
-                    }
-                }
-                if !template.npcs.is_empty() {
-                    let cleaned = template.npcs.replace('\"', "");
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                        let mut list = Vec::new();
-                        if let Some(arr) = json.as_array() {
-                            for nv in arr {
-                                match nv {
-                                    serde_json::Value::Array(a) => {
-                                        if a.len() >= 3 {
-                                            let id = a[0].as_i64().unwrap_or(0) as i32;
-                                            let x = a[1].as_i64().unwrap_or(0) as i16;
-                                            let y = a[2].as_i64().unwrap_or(0) as i16;
-                                            list.push((id, x, y));
-                                        }
-                                    },
-                                    serde_json::Value::String(s) => {
-                                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(s) {
-                                            if let Some(a) = val.as_array() {
-                                                if a.len() >= 3 {
-                                                    let id = a[0].as_i64().unwrap_or(0) as i32;
-                                                    let x = a[1].as_i64().unwrap_or(0) as i16;
-                                                    let y = a[2].as_i64().unwrap_or(0) as i16;
-                                                    list.push((id, x, y));
-                                                }
-                                            }
-                                        }
-                                    },
-                                    _ => {}
-                                }
-                            }
-                        }
-                        self.map_npcs.insert(template.id, list);
-                    }
-                }
+                // Load NPCs using MapDao
+                let npcs = MapDao::load_map_npcs(&database.connection, template.id).await?;
+                self.map_npcs.insert(template.id, npcs);
             }
             
             println!("Loaded {} map templates", self.map_templates.len());
@@ -323,19 +274,10 @@ impl Manager {
         }
         Ok(())
     }
-    //load item templates
     async fn load_item_templates(&mut self)->Result<(),Box<dyn std::error::Error>>{
         if let Some(ref database) = self.database{
-            let item_templates = item_template::Entity::find().all(&database.connection).await?;
-            let item_option_templates = crate::entities::item_option_template::Entity::find().all(&database.connection).await?;
-            
-            let item_option_count = item_option_templates.len();
-            self.item_templates = item_templates.clone();
-            let item_service = crate::item::item_service::ItemService::get_instance();
-            item_service.init(item_templates, item_option_templates);
-            
-            println!("Loaded {} item templates and {} item option templates", 
-                     self.item_templates.len(), item_option_count);
+            let item_manager = crate::item::item_manager::ITEM_MANAGER.read().await;
+            item_manager.load_from_db(&database.connection).await?;
         }
         Ok(())
     }
@@ -343,13 +285,11 @@ impl Manager {
 
     async fn load_mob_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let mob_templates = mob_template::Entity::find().all(&database.connection).await?;
-            
+            let mob_templates = MobDao::load_all_mob_templates(&database.connection).await?;
             self.mob_templates = mob_templates.clone();
             for template in mob_templates {
                 self.mob_templates_by_id.insert(template.id, template);
             }
-            
             println!("Loaded {} mob templates", self.mob_templates.len());
         }
         Ok(())
@@ -410,5 +350,17 @@ impl Manager {
 
     pub fn get_mob_service(&self) -> &MobService {
         &self.mob_service
+    }
+
+    pub fn get_item_time_service(&self) -> &ItemTimeService {
+        &self.item_time_service
+    }
+
+    pub fn get_npc_service(&self) -> &NpcService {
+        &self.npc_service
+    }
+
+    pub fn get_npc_manager(&self) -> &NpcManager {
+        &self.npc_manager
     }
 }

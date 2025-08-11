@@ -10,6 +10,7 @@ use crate::network::async_net::session::AsyncSession;
 use crate::utils::Database as DbUtil;
 use sea_orm::EntityTrait;
 use serde_json::Value;
+use crate::msg_write;
 
 #[derive(Debug, Clone)]
 pub struct Skill {
@@ -133,8 +134,7 @@ impl DataGame {
 
         match std::fs::read(&file_path) {
             Ok(data) => {
-                msg.write(&data)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                msg_write!(msg, write(&data));
             }
             Err(_) => {
                 println!("Warning: Small version file not found: {}", file_path);
@@ -150,16 +150,11 @@ impl DataGame {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
-        msg.write_byte(4)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // vsData
-        msg.write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // vsMap
-        msg.write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // vsSkill
-        msg.write_byte(1)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // vsItem
-        msg.write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?; // padding
+        msg_write!(msg, write_byte(4)); // vsData
+        msg_write!(msg, write_byte(1)); // vsMap
+        msg_write!(msg, write_byte(1)); // vsSkill
+        msg_write!(msg, write_byte(1)); // vsItem
+        msg_write!(msg, write_byte(0)); // padding
 
         let standard_levels = [
             1000i64,
@@ -184,11 +179,9 @@ impl DataGame {
             100010000000,
         ];
 
-        msg.write_byte(standard_levels.len() as i8)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte(standard_levels.len() as i8));
         for &level in &standard_levels {
-            msg.write_long(level)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            msg_write!(msg, write_long(level));
         }
 
         msg.finalize_write();
@@ -202,8 +195,7 @@ impl DataGame {
         let mut msg = crate::network::async_net::message::Message::new_for_writing(-31);
         match std::fs::read("data/girlkun/item_bg_temp/item_bg_data") {
             Ok(data) => {
-                msg.write(&data)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                msg_write!(msg, write(&data));
             }
             Err(_) => {
                 println!("Warning: Item background data file not found");
@@ -249,44 +241,31 @@ impl DataGame {
 
         let mut msg = crate::network::async_net::message::Message::new_for_writing(-87);
 
-        msg.write_byte(80)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte(80));
 
         // Write dart data
-        msg.write_int(dart_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&dart_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(dart_data.len() as i32));
+        msg_write!(msg, write(&dart_data));
 
         // Write arrow data
-        msg.write_int(arrow_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&arrow_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(arrow_data.len() as i32));
+        msg_write!(msg, write(&arrow_data));
 
         // Write effect data
-        msg.write_int(effect_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&effect_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(effect_data.len() as i32));
+        msg_write!(msg, write(&effect_data));
 
         // Write image data
-        msg.write_int(image_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&image_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(image_data.len() as i32));
+        msg_write!(msg, write(&image_data));
 
         // Write part data
-        msg.write_int(part_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&part_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(part_data.len() as i32));
+        msg_write!(msg, write(&part_data));
 
         // Write skill data
-        msg.write_int(skill_data.len() as i32)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write(&skill_data)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_int(skill_data.len() as i32));
+        msg_write!(msg, write(&skill_data));
 
         msg.finalize_write();
         session.send_message_old(-87, msg.get_data()).await?;
@@ -295,8 +274,6 @@ impl DataGame {
     }
 
     pub async fn update_map(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Updating map data for client");
-
         let manager = crate::services::Manager::get_instance();
         let (map_templates, npc_templates, mob_templates) = {
             let manager_guard = manager.lock().unwrap();
@@ -307,46 +284,29 @@ impl DataGame {
             )
         };
         let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
-        msg.write_byte(6)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write_byte(80)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write_byte((map_templates.len() as u8) as i8)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte(6));
+        msg_write!(msg, write_byte(80));
+        msg_write!(msg, write_byte((map_templates.len() as u8) as i8));
         for template in &map_templates {
-            msg.write_utf(&template.name)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            msg_write!(msg, write_utf(&template.name));
         }
-        msg.write_byte((npc_templates.len() as u8) as i8)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte((npc_templates.len() as u8) as i8));
         for template in &npc_templates {
-            msg.write_utf(&template.name)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_short(template.head as i16)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_short(template.body as i16)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_short(template.leg as i16)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_byte(0)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            msg_write!(msg, write_utf(&template.name));
+            msg_write!(msg, write_short(template.head as i16));
+            msg_write!(msg, write_short(template.body as i16));
+            msg_write!(msg, write_short(template.leg as i16));
+            msg_write!(msg, write_byte(0));
             // padding
         }
-        msg.write_byte((mob_templates.len() as u8) as i8)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte((mob_templates.len() as u8) as i8));
         for template in &mob_templates {
-            msg.write_byte((template.r#type as u8) as i8)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_utf(&template.name)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_int(template.hp)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_byte((template.range_move as u8) as i8)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_byte((template.speed as u8) as i8)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_byte((template.dart_type as u8) as i8)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            msg_write!(msg, write_byte((template.r#type as u8) as i8));
+            msg_write!(msg, write_utf(&template.name));
+            msg_write!(msg, write_int(template.hp));
+            msg_write!(msg, write_byte((template.range_move as u8) as i8));
+            msg_write!(msg, write_byte((template.speed as u8) as i8));
+            msg_write!(msg, write_byte((template.dart_type as u8) as i8));
         }
         msg.finalize_write();
         session.send_message_old(-28, msg.get_data()).await?;
@@ -364,151 +324,68 @@ impl DataGame {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
-        msg.write_byte(7)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write_byte(60)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.write_byte(0)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte(7));
+        msg_write!(msg, write_byte(60));
+        msg_write!(msg, write_byte(0));
         let nclasses = load_skill_data().await?;
-        msg.write_byte(nclasses.len() as i8)
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        msg_write!(msg, write_byte(nclasses.len() as i8));
 
         for nclass in &nclasses {
-            msg.write_utf(&nclass.name)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-            msg.write_byte(nclass.skill_templates.len() as i8)
-                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            msg_write!(msg, write_utf(&nclass.name));
+            msg_write!(msg, write_byte(nclass.skill_templates.len() as i8));
 
             for skill_temp in &nclass.skill_templates {
-                msg.write_byte(skill_temp.id)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_utf(&skill_temp.name)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_byte(skill_temp.max_point as i8)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_byte(skill_temp.mana_use_type as i8)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_byte(skill_temp.r#type as i8)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_short(skill_temp.icon_id as i16)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_utf(&skill_temp.dam_info)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-                msg.write_utf("Nro Wars")
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                msg_write!(msg, write_byte(skill_temp.id));
+                msg_write!(msg, write_utf(&skill_temp.name));
+                msg_write!(msg, write_byte(skill_temp.max_point as i8));
+                msg_write!(msg, write_byte(skill_temp.mana_use_type as i8));
+                msg_write!(msg, write_byte(skill_temp.r#type as i8));
+                msg_write!(msg, write_short(skill_temp.icon_id as i16));
+                msg_write!(msg, write_utf(&skill_temp.dam_info));
+                msg_write!(msg, write_utf("Nro Wars"));
 
                 if skill_temp.id != 0 {
-                    msg.write_byte(skill_temp.skills.len() as i8)
-                        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                    msg_write!(msg, write_byte(skill_temp.skills.len() as i8));
                     for skill in &skill_temp.skills {
-                        msg.write_short(skill.skill_id).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(skill.point as i8).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_long(skill.pow_require).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.mana_use).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_int(skill.cool_down).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.dx).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.dy).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(skill.max_fight as i8).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.damage).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.price).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_utf(&skill.more_info).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
+                        msg_write!(msg, write_short(skill.skill_id));
+                        msg_write!(msg, write_byte(skill.point as i8));
+                        msg_write!(msg, write_long(skill.pow_require));
+                        msg_write!(msg, write_short(skill.mana_use));
+                        msg_write!(msg, write_int(skill.cool_down));
+                        msg_write!(msg, write_short(skill.dx));
+                        msg_write!(msg, write_short(skill.dy));
+                        msg_write!(msg, write_byte(skill.max_fight as i8));
+                        msg_write!(msg, write_short(skill.damage));
+                        msg_write!(msg, write_short(skill.price));
+                        msg_write!(msg, write_utf(&skill.more_info));
                     }
                 } else {
-                    // Add 2 empty skills 105, 106 for skill ID 0
-                    msg.write_byte((skill_temp.skills.len() + 2) as i8)
-                        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                    msg_write!(msg, write_byte((skill_temp.skills.len() + 2) as i8));
                     for skill in &skill_temp.skills {
-                        msg.write_short(skill.skill_id).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(skill.point as i8).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_long(skill.pow_require).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.mana_use).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_int(skill.cool_down).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.dx).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.dy).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(skill.max_fight as i8).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.damage).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(skill.price).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_utf(&skill.more_info).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
+                        msg_write!(msg, write_short(skill.skill_id));
+                        msg_write!(msg, write_byte(skill.point as i8));
+                        msg_write!(msg, write_long(skill.pow_require));
+                        msg_write!(msg, write_short(skill.mana_use));
+                        msg_write!(msg, write_int(skill.cool_down));
+                        msg_write!(msg, write_short(skill.dx));
+                        msg_write!(msg, write_short(skill.dy));
+                        msg_write!(msg, write_byte(skill.max_fight as i8));
+                        msg_write!(msg, write_short(skill.damage));
+                        msg_write!(msg, write_short(skill.price));
+                        msg_write!(msg, write_utf(&skill.more_info));
                     }
                     for i in 105..=106 {
-                        msg.write_short(i).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_long(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_int(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_byte(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_short(0).map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
-                        msg.write_utf("").map_err(|e| {
-                            Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                        })?;
+                        msg_write!(msg, write_short(i));
+                        msg_write!(msg, write_byte(0));
+                        msg_write!(msg, write_long(0));
+                        msg_write!(msg, write_short(0));
+                        msg_write!(msg, write_int(0));
+                        msg_write!(msg, write_short(0));
+                        msg_write!(msg, write_short(0));
+                        msg_write!(msg, write_byte(0));
+                        msg_write!(msg, write_short(0));
+                        msg_write!(msg, write_short(0));
+                        msg_write!(msg, write_utf(""));
                     }
                 }
             }
@@ -613,118 +490,8 @@ impl DataGame {
     }
    
     pub async fn update_item(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
-        let db = DbUtil::new().await.ok();
-
-        // 1) Send item option templates
-        {
-            let mut msg = Message::new_for_writing(-28);
-            msg.write_byte(8)?; // sub-cmd
-            msg.write_byte(1)?; // vsItem
-            msg.write_byte(0)?; // update option
-
-            let mut options_count: u8 = 0;
-            let mut options_payload: Vec<(String, i8)> = Vec::new();
-            if let Some(ref database) = db {
-                if let Ok(opts) = item_option_template::Entity::find()
-                    .all(&database.connection)
-                    .await
-                {
-                    options_count = (opts.len().min(255)) as u8;
-                    for opt in opts.into_iter().take(options_count as usize) {
-                        options_payload.push((opt.name, 0));
-                    }
-                }
-            }
-            msg.write_byte(options_count as i8)?;
-            for (name, typ) in options_payload.into_iter() {
-                msg.write_utf(&name)?;
-                msg.write_byte(typ)?;
-            }
-            msg.finalize_write();
-            session.send_message(&msg).await?;
-        }
-
-        {
-            let mut msg = Message::new_for_writing(-28);
-            msg.write_byte(8)?;
-            msg.write_byte(1)?; // vsItem
-            msg.write_byte(100)?; // update ArrHead2F
-
-            let mut arrays: Vec<Vec<i16>> = Vec::new();
-            if let Some(ref database) = db {
-                if let Ok(arrs) = array_head_2_frames::Entity::find()
-                    .all(&database.connection)
-                    .await
-                {
-                    for a in arrs {
-                        // Try parse JSON array first, else comma-separated
-                        let parsed: Vec<i16> = if let Ok(json_val) =
-                            serde_json::from_str::<serde_json::Value>(&a.data)
-                        {
-                            if let Some(arr) = json_val.as_array() {
-                                arr.iter()
-                                    .filter_map(|v| v.as_i64().map(|x| x as i16))
-                                    .collect()
-                            } else {
-                                Vec::new()
-                            }
-                        } else {
-                            a.data
-                                .split([',', ' '])
-                                .filter_map(|s| s.parse::<i16>().ok())
-                                .collect()
-                        };
-                        arrays.push(parsed);
-                    }
-                }
-            }
-            msg.write_short(arrays.len() as i16)?;
-            for arr in arrays.into_iter() {
-                msg.write_byte((arr.len().min(255)) as i8)?;
-                for val in arr.into_iter().take(255) {
-                    msg.write_short(val)?;
-                }
-            }
-            msg.finalize_write();
-            session.send_message(&msg).await?;
-        }
-
-        {
-            let mut msg = Message::new_for_writing(-28);
-            msg.write_byte(8)?;
-            msg.write_byte(1)?; // vsItem
-            msg.write_byte(1)?; // reload itemtemplate
-
-            let mut items: Vec<item_template::Model> = Vec::new();
-            if let Some(ref database) = db {
-                if let Ok(all) = item_template::Entity::find()
-                    .all(&database.connection)
-                    .await
-                {
-                    items = all;
-                }
-            }
-
-            let count = (items.len().min(750)) as i16;
-            msg.write_short(count)?;
-
-            for it in items.iter().take(count as usize) {
-                msg.write_byte((it.r#type as u8) as i8)?;
-                msg.write_byte((it.gender as u8) as i8)?;
-                msg.write_utf(&it.name)?;
-                msg.write_utf(&it.description)?;
-                msg.write_byte(0)?; 
-                msg.write_int(it.power_require as i32)?; 
-                msg.write_short(it.icon_id as i16)?;
-                msg.write_short(it.part as i16)?;
-                msg.write_boolean(it.is_up_to_up != 0)?;
-            }
-
-            msg.finalize_write();
-            session.send_message(&msg).await?;
-        }
-
-        Ok(())
+        // Delegate to ItemData module
+        crate::data::ItemData::update_item(session).await
     }
 
     pub async fn send_tile_set_info(
@@ -733,8 +500,7 @@ impl DataGame {
         match std::fs::read("data/girlkun/map/tile_set_info") {
             Ok(data) => {
                 let mut msg = Message::new_for_writing(-82);
-                msg.write(&data)
-                    .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                msg_write!(msg, write(&data));
                 msg.finalize_write();
                 session.send_message(&msg).await?;
             }
@@ -761,8 +527,8 @@ impl DataGame {
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
-         let link_data = env::var("GAME_LINK")
-        .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());
+        let link_data = env::var("GAME_LINK")
+            .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());
         let link_bytes = link_data.as_bytes();
         let mut data = vec![2];
         data.extend_from_slice(&(link_bytes.len() as u16).to_be_bytes());
@@ -903,6 +669,4 @@ fn parse_skills_json(skills_json: &str) -> Result<Vec<Skill>, Box<dyn std::error
     Ok(skills)
 }
 
-fn to_io(e: std::io::Error) -> io::Error {
-    e
-}
+

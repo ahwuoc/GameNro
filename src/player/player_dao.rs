@@ -5,11 +5,11 @@ use crate::player::player::Player;
 use crate::item::inventory::Inventory;
 use crate::player::n_point::NPoint;
 use crate::item::item_service::ItemService;
-// use crate::utils::Location; // not needed here
 use chrono::TimeZone;
 use serde_json::Value;
 
 pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
+    println!("[PLAYER_DAO] Starting from_entity for player: {} (ID: {})", model.name, model.id);
     let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
     p.head = model.head as i16;
     p.inventory = parse_inventory_json(&model.data_inventory)?;
@@ -30,8 +30,10 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
              p.inventory.items_body.len(), p.inventory.items_bag.len(), p.inventory.items_box.len());
     
     if p.inventory.items_body.len() == 11 {
-        let null_item = ItemService::get_instance().create_item_null();
+        let item_service = ItemService::new();
+        let null_item = item_service.create_item_null();
         p.inventory.items_body.push(null_item);
+        println!("[PLAYER_DAO] Added null item to body inventory, total: {} items", p.inventory.items_body.len());
     }
     Ok(p)
 }
@@ -100,7 +102,7 @@ fn parse_items_json(s: &str) -> Vec<RtItem> {
     let Some(arr) = v.as_array() else { 
         return Vec::new(); 
     };
-    let item_service = ItemService::get_instance();
+    let item_service = ItemService::new();
     let mut items: Vec<RtItem> = Vec::new();
     for (index, el) in arr.iter().enumerate() {
         let mut template_id_opt: Option<i32> = None;
@@ -218,7 +220,7 @@ fn parse_items_json(s: &str) -> Vec<RtItem> {
                 items.push(item_service.create_item_null());
             }
             Some(tid) => {
-                if let Some(template) = item_service.get_template(tid).cloned() {
+                if let Some(template) = item_service.get_template(tid) {
                     let mut item = RtItem::with_template(template, quantity);
                     for (opt_id, param) in options_acc {
                         item.add_option(RtItemOption::new(opt_id, param));

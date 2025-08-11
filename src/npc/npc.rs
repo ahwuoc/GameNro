@@ -149,16 +149,7 @@ impl NpcManager {
         }
     }
 
-    /// Get singleton instance
-    pub fn get_instance() -> &'static mut NpcManager {
-        static mut INSTANCE: Option<NpcManager> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(NpcManager::new());
-            }
-            INSTANCE.as_mut().unwrap()
-        }
-    }
+
 
     /// Add NPC to manager
     pub fn add_npc(&mut self, npc: Npc) {

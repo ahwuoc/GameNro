@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 use crate::map::Zone;
 
@@ -131,3 +132,5 @@ impl Clone for ZoneManager {
         }
     }
 }
+
+pub static ZONE_MANAGER: Lazy<RwLock<ZoneManager>> = Lazy::new(|| RwLock::new(ZoneManager::new()));

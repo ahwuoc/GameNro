@@ -4,58 +4,31 @@ use crate::item::item_option::ItemOption;
 use crate::entities::item_template::Model as ItemTemplate;
 use crate::entities::item_option_template::Model as ItemOptionTemplate;
 
-/// ItemService manages item creation, templates, and operations
 pub struct ItemService {
-    item_templates: HashMap<i32, ItemTemplate>,
-    item_option_templates: HashMap<i32, ItemOptionTemplate>,
 }
 
 impl ItemService {
     pub fn new() -> Self {
-        Self {
-            item_templates: HashMap::new(),
-            item_option_templates: HashMap::new(),
-        }
-    }
-
-    /// Get singleton instance
-    pub fn get_instance() -> &'static mut ItemService {
-        static mut INSTANCE: Option<ItemService> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(ItemService::new());
-            }
-            INSTANCE.as_mut().unwrap()
-        }
-    }
-
-    /// Initialize with templates
-    pub fn init(&mut self, item_templates: Vec<ItemTemplate>, item_option_templates: Vec<ItemOptionTemplate>) {
-        for template in item_templates {
-            self.item_templates.insert(template.id, template);
-        }
-        
-        for template in item_option_templates {
-            self.item_option_templates.insert(template.id, template);
-        }
-        
-        println!("ItemService initialized with {} item templates and {} option templates", 
-                self.item_templates.len(), self.item_option_templates.len());
+        Self {}
     }
 
     /// Get item template by ID
-    pub fn get_template(&self, id: i32) -> Option<&ItemTemplate> {
-        self.item_templates.get(&id)
+    pub fn get_template(&self, id: i32) -> Option<ItemTemplate> {
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_templates_by_id.get(&id).cloned()
     }
 
-    /// Get item option template by ID
-    pub fn get_item_option_template(&self, id: i32) -> Option<&ItemOptionTemplate> {
-        self.item_option_templates.get(&id)
+    pub fn get_item_option_template(&self, id: i32) -> Option<ItemOptionTemplate> {
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_option_templates_by_id.get(&id).cloned()
     }
 
-    /// Get item ID by icon ID
     pub fn get_item_id_by_icon(&self, icon_id: i32) -> Option<i32> {
-        for template in self.item_templates.values() {
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        for template in guard.item_templates.iter() {
             if template.icon_id == icon_id {
                 return Some(template.id);
             }
@@ -63,12 +36,10 @@ impl ItemService {
         None
     }
 
-    /// Create null item
     pub fn create_item_null(&self) -> Item {
         Item::new()
     }
 
-    /// Create new item from template ID
     pub fn create_new_item(&self, template_id: i32) -> Option<Item> {
         self.create_new_item_with_quantity(template_id, 1)
     }
@@ -165,23 +136,22 @@ impl ItemService {
         }
     }
 
-    /// Check if item is activation item
     pub fn is_item_activation(&self, _item: &Item) -> bool {
-        // TODO: Implement activation check logic
         false
     }
 
-    /// Get all item templates
-    pub fn get_all_item_templates(&self) -> &HashMap<i32, ItemTemplate> {
-        &self.item_templates
+    pub fn get_all_item_templates_count(&self) -> usize {
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_templates_by_id.len()
     }
 
-    /// Get all item option templates
-    pub fn get_all_item_option_templates(&self) -> &HashMap<i32, ItemOptionTemplate> {
-        &self.item_option_templates
+    pub fn get_all_item_option_templates_count(&self) -> usize {
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_option_templates_by_id.len()
     }
 
-    /// Check if item can be stacked
     pub fn can_item_stack(&self, template_id: i32, item_type: i32) -> bool {
         // Items that can be stacked
         template_id == 457 || template_id == 590 || template_id == 610 ||
@@ -193,11 +163,15 @@ impl ItemService {
 
     /// Get item template count
     pub fn get_item_template_count(&self) -> usize {
-        self.item_templates.len()
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_templates.len()
     }
 
     /// Get item option template count
     pub fn get_item_option_template_count(&self) -> usize {
-        self.item_option_templates.len()
+        let manager = crate::services::Manager::get_instance();
+        let guard = manager.lock().unwrap();
+        guard.item_option_templates.len()
     }
 }

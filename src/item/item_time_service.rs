@@ -13,17 +13,6 @@ impl ItemTimeService {
         }
     }
 
-    /// Get singleton instance
-    pub fn get_instance() -> &'static mut ItemTimeService {
-        static mut INSTANCE: Option<ItemTimeService> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(ItemTimeService::new());
-            }
-            INSTANCE.as_mut().unwrap()
-        }
-    }
-
     /// Get or create item time for player
     pub fn get_player_item_time(&mut self, player_id: i64) -> &mut ItemTime {
         if !self.player_item_times.contains_key(&player_id) {

@@ -9,6 +9,8 @@ mod data;
 mod models;
 mod utils;
 mod features;
+mod npc;
+mod macros;
 
 use std::io;
 
