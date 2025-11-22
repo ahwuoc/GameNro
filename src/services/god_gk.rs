@@ -1,11 +1,12 @@
-use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
-use crate::utils::Database;
+use crate::account::account_dao::AccountDao;
+use crate::database::DbManager;
 use crate::entities::{account, player};
+use once_cell::sync::Lazy;
 use sea_orm::*;
+use std::sync::{Arc, Mutex};
 
 pub struct GodGK {
-    pub db: Option<Database>,
+    pub db: Option<DatabaseConnection>,
     pub maintenance: bool,
     pub server_open_time: i64,
     pub maintenance_message: String,
@@ -21,17 +22,23 @@ impl GodGK {
         }
     }
 
-    pub async fn init_database(&mut self) -> Result<(), DbErr> {
-        let db = Database::new().await?;
-        db.test_connection().await?;
-        db.init_database().await?;
-        self.db = Some(db);
+    pub async fn init_database(
+        &mut self,
+        config: &crate::config::DatabaseConfig,
+    ) -> Result<(), anyhow::Error> {
+        let db_manager = DbManager::new(config).await?;
+        let pool = db_manager.get_pool().await?;
+        self.db = Some(pool);
         Ok(())
     }
 
-    pub async fn login_god_gk(&self, username: &str, password: &str) -> Result<Option<account::Model>, DbErr> {
+    pub async fn login_god_gk(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<Option<account::Model>, DbErr> {
         if let Some(db) = &self.db {
-            if let Some(account) = db.get_account(username).await? {
+            if let Some(account) = AccountDao::get_account(db, username).await? {
                 if account.password == password {
                     if account.ban == 1 {
                         return Err(DbErr::Custom("Tài khoản đã bị khóa".to_string()));
@@ -51,15 +58,23 @@ impl GodGK {
         }
     }
 
-    pub async fn get_player_by_account(&self, account_id: i32) -> Result<Option<player::Model>, DbErr> {
+    pub async fn get_player_by_account(
+        &self,
+        account_id: i32,
+    ) -> Result<Option<player::Model>, DbErr> {
         if let Some(db) = &self.db {
-            db.get_player_by_account_id(account_id).await
+            AccountDao::get_player_by_account_id(db, account_id).await
         } else {
             Err(DbErr::Custom("Database not initialized".to_string()))
         }
     }
 
-    pub async fn create_new_player(&self, account_id: i32, name: &str, gender: i32) -> Result<player::Model, DbErr> {
+    pub async fn create_new_player(
+        &self,
+        account_id: i32,
+        name: &str,
+        gender: i32,
+    ) -> Result<player::Model, DbErr> {
         if let Some(db) = &self.db {
             let player_data = player::ActiveModel {
                 account_id: Set(Some(account_id)),
@@ -120,18 +135,21 @@ impl GodGK {
                 ..Default::default()
             };
 
-            db.create_player(player_data).await
+            AccountDao::create_player(db, player_data).await
         } else {
             Err(DbErr::Custom("Database not initialized".to_string()))
         }
     }
 
-    pub async fn update_account_last_login(&self, account_id: i32) -> Result<account::Model, DbErr> {
+    pub async fn update_account_last_login(
+        &self,
+        account_id: i32,
+    ) -> Result<account::Model, DbErr> {
         if let Some(db) = &self.db {
-            if let Some(account_model) = db.get_account_by_id(account_id).await? {
+            if let Some(account_model) = account::Entity::find_by_id(account_id).one(db).await? {
                 let mut account_data = account_model.into_active_model();
                 account_data.last_time_login = Set(chrono::Utc::now());
-                db.update_account(account_data).await
+                AccountDao::update_account(db, account_data).await
             } else {
                 Err(DbErr::Custom("Account not found".to_string()))
             }
@@ -141,9 +159,7 @@ impl GodGK {
     }
 }
 
-static GOD_GK: Lazy<Arc<Mutex<GodGK>>> = Lazy::new(|| {
-    Arc::new(Mutex::new(GodGK::new()))
-});
+static GOD_GK: Lazy<Arc<Mutex<GodGK>>> = Lazy::new(|| Arc::new(Mutex::new(GodGK::new())));
 
 impl GodGK {
     pub fn get_instance() -> Arc<Mutex<GodGK>> {

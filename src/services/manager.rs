@@ -1,31 +1,31 @@
-use crate::item::ItemManager;
-use crate::map::MapDao;
-use crate::utils::Database;
+use crate::config::DatabaseConfig;
+use crate::database::DbManager;
 use crate::map::map_manager::MAP_MANAGER;
-use crate::item::item_dao::ItemDao;
+use crate::map::MapDao;
 use crate::mob::mob_dao::MobDao;
-use tokio::time::{sleep, Duration};
-use sea_orm::{EntityTrait, DatabaseBackend, Statement, TryGetable, QueryResult, ConnectionTrait};
+use once_cell::sync::Lazy;
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryResult, Statement,
+};
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
+use tokio::time::{sleep, Duration};
 
-use crate::entities::{item_template, item_option_template, map_template};
-use crate::entities::npc_template;
-use crate::entities::mob_template;
-use crate::entities::skill_template;
 use crate::entities::intrinsic;
-use crate::mob::MobService;
+use crate::entities::mob_template;
+use crate::entities::npc_template;
+use crate::entities::skill_template;
+use crate::entities::{item_option_template, item_template, map_template};
 use crate::item::item_time_service::ItemTimeService;
-use crate::npc::NpcService;
+use crate::mob::MobService;
 use crate::npc::NpcManager;
+use crate::npc::NpcService;
+use anyhow::Result;
 
-static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| {
-    Arc::new(Mutex::new(Manager::new()))
-});
+static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Manager::new())));
 
 pub struct Manager {
     pub map_templates: Vec<map_template::Model>,
@@ -33,7 +33,7 @@ pub struct Manager {
     pub mob_templates: Vec<mob_template::Model>,
     pub skill_templates: Vec<skill_template::Model>,
     pub intrinsic_templates: Vec<intrinsic::Model>,
-    pub item_templates:Vec<item_template::Model>,
+    pub item_templates: Vec<item_template::Model>,
     pub item_option_templates: Vec<item_option_template::Model>,
     pub item_templates_by_id: HashMap<i32, item_template::Model>,
     pub map_templates_by_id: HashMap<i32, map_template::Model>,
@@ -42,14 +42,14 @@ pub struct Manager {
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub intrinsic_templates_by_id: HashMap<i32, intrinsic::Model>,
     pub item_option_templates_by_id: HashMap<i32, item_option_template::Model>,
-    pub map_waypoints: HashMap<i32, Vec<crate::map::map::WayPoint>>, 
-    pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>, 
-    pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>, 
+    pub map_waypoints: HashMap<i32, Vec<crate::map::map::WayPoint>>,
+    pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>,
+    pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>,
     pub mob_service: MobService,
     pub item_time_service: ItemTimeService,
     pub npc_service: NpcService,
     pub npc_manager: NpcManager,
-    database: Option<Database>,
+    database: Option<DatabaseConnection>,
 }
 
 impl Manager {
@@ -58,7 +58,7 @@ impl Manager {
             map_templates: Vec::new(),
             npc_templates: Vec::new(),
             mob_templates: Vec::new(),
-            item_templates:Vec::new(),
+            item_templates: Vec::new(),
             item_option_templates: Vec::new(),
             item_templates_by_id: HashMap::new(),
             skill_templates: Vec::new(),
@@ -84,11 +84,15 @@ impl Manager {
         Arc::clone(&MANAGER)
     }
 
-    pub async fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let database = Database::new().await?;
+    pub async fn init(
+        &mut self,
+        db_config: &DatabaseConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let db_manager = DbManager::new(db_config).await?;
+        let database = db_manager.get_pool().await?;
         self.database = Some(database.clone());
-        self.mob_service.set_database(database.connection);
-        
+        self.mob_service.set_database(database.clone());
+
         self.load_item_templates().await?;
         self.load_map_templates().await?;
         self.load_npc_templates().await?;
@@ -103,25 +107,26 @@ impl Manager {
         Ok(())
     }
 
-    pub async fn init_maps_world(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn init_maps_world(&self) -> Result<()> {
         for template in &self.map_templates {
             {
                 let mgr = MAP_MANAGER.write().await;
-                mgr.create_map(template).await?;
-                mgr.load_tiles_for_map(template.id, template.tile_id as i32).await?;
+                mgr.create_map(template).await;
+                mgr.load_tiles_for_map(template.id, template.tile_id as i32)
+                    .await;
             }
 
             if let Some(wps) = self.map_waypoints.get(&template.id) {
                 if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
                     for wp in wps {
-                        map.add_waypoint(wp.clone()).await?;
+                        map.add_waypoint(wp.clone()).await;
                     }
                 }
             }
 
             if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
                 let specs = self.map_mobs.get(&template.id).cloned().unwrap_or_default();
-                map.init_mobs(&self.mob_templates_by_id, &specs).await?;
+                map.init_mobs(&self.mob_templates_by_id, &specs).await;
             }
 
             if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
@@ -134,7 +139,7 @@ impl Manager {
                         npc_x.push(*x);
                         npc_y.push(*y);
                     }
-                    map.init_npcs(&npc_ids, &npc_x, &npc_y).await?;
+                    map.init_npcs(&npc_ids, &npc_x, &npc_y).await;
                 }
             }
         }
@@ -152,19 +157,36 @@ impl Manager {
                     let _ = mgr.update_all_maps().await;
                 }
                 let elapsed_ms = start.elapsed().as_millis() as u64;
-                let sleep_ms = if elapsed_ms >= 1000 { 0 } else { 1000 - elapsed_ms };
+                let sleep_ms = if elapsed_ms >= 1000 {
+                    0
+                } else {
+                    1000 - elapsed_ms
+                };
                 sleep(Duration::from_millis(sleep_ms)).await;
             }
         });
     }
-    pub async fn load_part_update_data(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(ref database) = self.database else { return Ok(()); };
+    pub async fn load_part_update_data(&self) -> Result<()> {
+        let Some(ref database) = self.database else {
+            return Ok(());
+        };
 
-        let stmt = Statement::from_string(DatabaseBackend::MySql, "SELECT id, type, data FROM part".to_string());
-        let rows: Vec<QueryResult> = database.connection.query_all(stmt).await?;
+        let stmt = Statement::from_string(
+            DatabaseBackend::MySql,
+            "SELECT id, type, data FROM part".to_string(),
+        );
+        let rows: Vec<QueryResult> = database.query_all(stmt).await?;
 
-        struct PartDetail { icon_id: i16, dx: i8, dy: i8 }
-        struct Part { _id: i16, part_type: i8, details: Vec<PartDetail> }
+        struct PartDetail {
+            icon_id: i16,
+            dx: i8,
+            dy: i8,
+        }
+        struct Part {
+            _id: i16,
+            part_type: i8,
+            details: Vec<PartDetail>,
+        }
 
         let mut parts: Vec<Part> = Vec::new();
 
@@ -172,10 +194,9 @@ impl Manager {
             let id: i16 = row.try_get("", "id").unwrap_or(0);
             let part_type: i8 = row.try_get("", "type").unwrap_or(0);
             let data_str: String = row.try_get("", "data").unwrap_or_default();
-
-            // Clean escapes similar to Java replaceAll("\\\"", "")
             let cleaned = data_str.replace("\\\"", "");
-            let parsed: JsonValue = serde_json::from_str(&cleaned).unwrap_or(JsonValue::Array(vec![]));
+            let parsed: JsonValue =
+                serde_json::from_str(&cleaned).unwrap_or(JsonValue::Array(vec![]));
 
             let mut details: Vec<PartDetail> = Vec::new();
             if let Some(arr) = parsed.as_array() {
@@ -185,17 +206,22 @@ impl Manager {
                         Some(JsonValue::Array(a.clone()))
                     } else if let Some(s) = elem.as_str() {
                         serde_json::from_str::<JsonValue>(s).ok()
-                    } else { None };
+                    } else {
+                        None
+                    };
 
                     if let Some(JsonValue::Array(pd)) = arr_val_opt {
                         if pd.len() >= 3 {
-                            let icon_id = pd[0].as_i64()
+                            let icon_id = pd[0]
+                                .as_i64()
                                 .or_else(|| pd[0].as_str().and_then(|s| s.parse::<i64>().ok()))
                                 .unwrap_or(0) as i16;
-                            let dx = pd[1].as_i64()
+                            let dx = pd[1]
+                                .as_i64()
                                 .or_else(|| pd[1].as_str().and_then(|s| s.parse::<i64>().ok()))
                                 .unwrap_or(0) as i8;
-                            let dy = pd[2].as_i64()
+                            let dy = pd[2]
+                                .as_i64()
                                 .or_else(|| pd[2].as_str().and_then(|s| s.parse::<i64>().ok()))
                                 .unwrap_or(0) as i8;
                             details.push(PartDetail { icon_id, dx, dy });
@@ -204,10 +230,12 @@ impl Manager {
                 }
             }
 
-            parts.push(Part { _id: id, part_type, details });
+            parts.push(Part {
+                _id: id,
+                part_type,
+                details,
+            });
         }
-
-        // Serialize to file
         let dir = "data/girlkun/update_data";
         fs::create_dir_all(dir)?;
         let path = format!("{}/part", dir);
@@ -230,31 +258,39 @@ impl Manager {
 
     async fn load_map_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let map_templates = map_template::Entity::find().all(&database.connection).await?;
+            let map_templates = map_template::Entity::find().all(database).await?;
             self.map_templates = map_templates.clone();
             for template in map_templates {
-                self.map_templates_by_id.insert(template.id, template.clone());
-                let waypoints_data = MapDao::load_map_waypoints(&database.connection, template.id).await?;
+                self.map_templates_by_id
+                    .insert(template.id, template.clone());
+                let waypoints_data = MapDao::load_map_waypoints(&database, template.id).await?;
                 let mut waypoints = Vec::new();
                 for wp in waypoints_data {
                     let map_wp = crate::map::map::WayPoint::new(
-                        wp.min_x, wp.min_y, wp.max_x, wp.max_y,
-                        wp.is_enter, wp.is_offline, wp.name,
-                        wp.go_map, wp.go_x, wp.go_y
+                        wp.min_x,
+                        wp.min_y,
+                        wp.max_x,
+                        wp.max_y,
+                        wp.is_enter,
+                        wp.is_offline,
+                        wp.name,
+                        wp.go_map,
+                        wp.go_x,
+                        wp.go_y,
                     );
                     waypoints.push(map_wp);
                 }
                 self.map_waypoints.insert(template.id, waypoints);
 
                 // Load mobs using MapDao
-                let mobs = MapDao::load_map_mobs(&database.connection, template.id).await?;
+                let mobs = MapDao::load_map_mobs(&database, template.id).await?;
                 self.map_mobs.insert(template.id, mobs);
 
                 // Load NPCs using MapDao
-                let npcs = MapDao::load_map_npcs(&database.connection, template.id).await?;
+                let npcs = MapDao::load_map_npcs(&database, template.id).await?;
                 self.map_npcs.insert(template.id, npcs);
             }
-            
+
             println!("Loaded {} map templates", self.map_templates.len());
         }
         Ok(())
@@ -263,29 +299,28 @@ impl Manager {
     //load npc templates
     async fn load_npc_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let npc_templates = npc_template::Entity::find().all(&database.connection).await?;
-            
+            let npc_templates = npc_template::Entity::find().all(database).await?;
+
             self.npc_templates = npc_templates.clone();
             for template in npc_templates {
                 self.npc_templates_by_id.insert(template.id, template);
             }
-            
+
             println!("Loaded {} NPC templates", self.npc_templates.len());
         }
         Ok(())
     }
-    async fn load_item_templates(&mut self)->Result<(),Box<dyn std::error::Error>>{
-        if let Some(ref database) = self.database{
+    async fn load_item_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(ref database) = self.database {
             let item_manager = crate::item::item_manager::ITEM_MANAGER.read().await;
-            item_manager.load_from_db(&database.connection).await?;
+            item_manager.load_from_db(&database).await?;
         }
         Ok(())
     }
 
-
     async fn load_mob_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let mob_templates = MobDao::load_all_mob_templates(&database.connection).await?;
+            let mob_templates = MobDao::load_all_mob_templates(&database).await?;
             self.mob_templates = mob_templates.clone();
             for template in mob_templates {
                 self.mob_templates_by_id.insert(template.id, template);
@@ -297,13 +332,13 @@ impl Manager {
 
     async fn load_skill_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let skill_templates = skill_template::Entity::find().all(&database.connection).await?;
-            
+            let skill_templates = skill_template::Entity::find().all(database).await?;
+
             self.skill_templates = skill_templates.clone();
             for template in skill_templates {
                 self.skill_templates_by_id.insert(template.id, template);
             }
-            
+
             println!("Loaded {} skill templates", self.skill_templates.len());
         }
         Ok(())
@@ -311,14 +346,17 @@ impl Manager {
 
     async fn load_intrinsic_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref database) = self.database {
-            let intrinsic_templates = intrinsic::Entity::find().all(&database.connection).await?;
-            
+            let intrinsic_templates = intrinsic::Entity::find().all(database).await?;
+
             self.intrinsic_templates = intrinsic_templates.clone();
             for template in intrinsic_templates {
                 self.intrinsic_templates_by_id.insert(template.id, template);
             }
-            
-            println!("Loaded {} intrinsic templates", self.intrinsic_templates.len());
+
+            println!(
+                "Loaded {} intrinsic templates",
+                self.intrinsic_templates.len()
+            );
         }
         Ok(())
     }

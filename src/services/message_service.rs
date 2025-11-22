@@ -1,4 +1,4 @@
-use crate::network::async_net::message::Message;
+use crate::network::message::Message;
 use crate::player::player::Player;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -60,7 +60,7 @@ impl ZoneManager {
     pub async fn send_message_to_all_players_in_map(
         &self,
         map_id: i32,
-        mut msg: crate::network::async_net::message::Message,
+        mut msg: crate::network::message::Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
         msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;
@@ -74,7 +74,7 @@ impl ZoneManager {
         &self,
         map_id: i32,
         except_player_id: u64,
-        mut msg: crate::network::async_net::message::Message,
+        mut msg: crate::network::message::Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
         msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;

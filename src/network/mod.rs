@@ -1,9 +1,12 @@
 use tokio::net::TcpListener;
 use std::{env, io};
 use dotenv::dotenv;
-use crate::network::async_net::{session::AsyncSession, controller::AsyncController};
+use session::AsyncSession;
+use controller::AsyncController;
 
-pub mod async_net;
+pub mod session;
+pub mod controller;
+pub mod message;
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv().ok();
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());

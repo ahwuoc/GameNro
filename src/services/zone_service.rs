@@ -1,6 +1,6 @@
 use crate::map::Zone;
 use crate::player::Player;
-use crate::network::async_net::session::AsyncSession;
+use crate::network::session::AsyncSession;
 use crate::map::zone_manager::ZONE_MANAGER;
 
 pub struct ZoneService;
@@ -39,7 +39,7 @@ impl ZoneService {
     /// Send message to all players in a map
     pub async fn send_message_to_all_players_in_map(
         map_id: i32,
-        msg: crate::network::async_net::message::Message,
+        msg: crate::network::message::Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.send_message_to_all_players_in_map(map_id, msg).await
@@ -49,7 +49,7 @@ impl ZoneService {
     pub async fn send_message_to_other_players_in_map(
         map_id: i32,
         except_player_id: u64,
-        msg: crate::network::async_net::message::Message,
+        msg: crate::network::message::Message,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.send_message_to_other_players_in_map(map_id, except_player_id, msg).await

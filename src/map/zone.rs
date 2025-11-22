@@ -5,8 +5,8 @@ use tokio::sync::RwLock;
 use crate::player::player::Player;
 use crate::mob::RtMob;
 use crate::entities::item_template::Model as ItemMap;
-use crate::network::async_net::session::AsyncSession;
-use crate::network::async_net::message::Message;
+use crate::network::session::AsyncSession;
+use crate::network::message::Message;
 use crate::map::map_manager::MAP_MANAGER;
 use crate::services::MessageService;
 
@@ -230,7 +230,7 @@ impl Zone {
     pub async fn load_player_to_zone(
         &self,
         mut player: Player,
-        session: &mut crate::network::async_net::session::AsyncSession,
+        session: &mut crate::network::session::AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Set zone for player
         player.set_zone(self.clone());

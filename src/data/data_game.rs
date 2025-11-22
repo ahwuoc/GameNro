@@ -1,14 +1,8 @@
 use std::collections::HashMap;
-use std::io;
-use tokio::time::Duration;
 use dotenv::dotenv;
 use std::env;
-use crate::entities::{array_head_2_frames, item_option_template, item_template};
-use crate::entities::{nclass, skill_template};
-use crate::network::async_net::message::Message;
-use crate::network::async_net::session::AsyncSession;
-use crate::utils::Database as DbUtil;
-use sea_orm::EntityTrait;
+use crate::network::message::Message;
+use crate::network::session::AsyncSession;
 use serde_json::Value;
 use crate::msg_write;
 
@@ -128,7 +122,7 @@ impl DataGame {
     pub async fn send_small_version(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-77);
+        let mut msg = crate::network::message::Message::new_for_writing(-77);
         let zoom_level = session.zoom_level;
         let file_path = format!("data/girlkun/data_img_version/x{}/img_version", zoom_level);
 
@@ -149,7 +143,7 @@ impl DataGame {
     pub async fn send_version_game(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
+        let mut msg = crate::network::message::Message::new_for_writing(-28);
         msg_write!(msg, write_byte(4)); // vsData
         msg_write!(msg, write_byte(1)); // vsMap
         msg_write!(msg, write_byte(1)); // vsSkill
@@ -192,7 +186,7 @@ impl DataGame {
     pub async fn send_data_item_bg(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-31);
+        let mut msg = crate::network::message::Message::new_for_writing(-31);
         match std::fs::read("data/girlkun/item_bg_temp/item_bg_data") {
             Ok(data) => {
                 msg_write!(msg, write(&data));
@@ -239,7 +233,7 @@ impl DataGame {
             Err(_) => vec![],
         };
 
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-87);
+        let mut msg = crate::network::message::Message::new_for_writing(-87);
 
         msg_write!(msg, write_byte(80));
 
@@ -283,7 +277,7 @@ impl DataGame {
                 manager_guard.get_mob_templates().clone(),
             )
         };
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
+        let mut msg = crate::network::message::Message::new_for_writing(-28);
         msg_write!(msg, write_byte(6));
         msg_write!(msg, write_byte(80));
         msg_write!(msg, write_byte((map_templates.len() as u8) as i8));
@@ -323,7 +317,7 @@ impl DataGame {
     pub async fn update_skill(
         session: &mut AsyncSession,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut msg = crate::network::async_net::message::Message::new_for_writing(-28);
+        let mut msg = crate::network::message::Message::new_for_writing(-28);
         msg_write!(msg, write_byte(7));
         msg_write!(msg, write_byte(60));
         msg_write!(msg, write_byte(0));

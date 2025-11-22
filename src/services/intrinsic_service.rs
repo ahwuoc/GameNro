@@ -1,7 +1,7 @@
 use crate::models::{Intrinsic, IntrinsicPlayer};
 use crate::player::Player as RtPlayer;
-use crate::network::async_net::session::AsyncSession;
-use crate::network::async_net::message::Message;
+use crate::network::session::AsyncSession;
+use crate::network::message::Message;
 use crate::services::manager::Manager;
 use rand::Rng;
 

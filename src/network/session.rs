@@ -1,7 +1,7 @@
 use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpStream};
-use crate::network::async_net::message::Message;
+use super::message::Message;
 use crate::player::Player as RtPlayer;
 
 pub struct AsyncSession {
@@ -90,7 +90,6 @@ impl AsyncSession {
             size = u16::from_be_bytes(size_buf) as usize;
         }
 
-        // Payload
         let mut data = vec![0u8; size];
         if size > 0 {
             self.read_half.read_exact(&mut data).await?;
@@ -120,9 +119,9 @@ impl AsyncSession {
         if self.sent_key && SPECIAL_CMDS.contains(&msg.command) {
             // 3-byte size: write (xor_byte) - 128 for each
             let s = size as u32;
-            let b0 = (s & 0xFF) as u8;
-            let b1 = ((s >> 8) & 0xFF) as u8;
-            let b2 = ((s >> 16) & 0xFF) as u8;
+            let b0 = (s & 255) as u8;
+            let b1 = ((s >> 8) & 255) as u8;
+            let b2 = ((s >> 16) & 255) as u8;
             let mut out = [b0, b1, b2];
             for x in &mut out {
                 let enc = self.write_key(*x);

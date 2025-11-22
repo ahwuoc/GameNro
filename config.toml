@@ -1,0 +1,12 @@
+[server]
+listen_port = 14445
+listen_host = "0.0.0.0"
+
+[database]
+url = "mysql://user:password@localhost/gamenro"
+pool_size = 10
+max_connections = 20
+min_connections = 1
+[logging]
+level = "info"
+file = "logs/app.log"

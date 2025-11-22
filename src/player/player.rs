@@ -1,6 +1,6 @@
 use crate::map::Zone;
-use crate::network::async_net::message::Message;
-use crate::network::async_net::session::AsyncSession;
+use crate::network::message::Message;
+use crate::network::session::AsyncSession;
 use crate::player::n_point::NPoint;
 use crate::item::inventory::{self, Inventory};
 use crate::models::IntrinsicPlayer;

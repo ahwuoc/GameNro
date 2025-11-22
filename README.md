@@ -1,6 +1,8 @@
 # GameNro - Rust Game Server
 
-GameNro là một game server được viết bằng Rust, sử dụng SeaORM để tương tác với cơ sở dữ liệu MySQL và Tokio cho xử lý bất đồng bộ.
+GameNro là một dự án game server mạng được viết bằng Rust với mục đích học tập và trau dồi kỹ năng lập trình Rust. Dự án sử dụng SeaORM để tương tác với cơ sở dữ liệu MySQL và Tokio cho xử lý bất đồng bộ.
+
+> **Lưu ý**: Đây là dự án học tập nhằm mục đích rèn luyện và thể hiện kỹ năng lập trình Rust.
 
 ## Cấu trúc thư mục `src/`
 
@@ -85,11 +87,9 @@ GameNro là một game server được viết bằng Rust, sử dụng SeaORM đ
 - **`mod.rs`** - Module exports
 
 ### 📁 `network/` - Hệ thống mạng
-- **`async_net/`** - Network bất đồng bộ
-  - **`session.rs`** - Quản lý session
-  - **`controller.rs`** - Controller xử lý message
-  - **`message.rs`** - Định nghĩa message
-  - **`mod.rs`** - Module exports
+- **`session.rs`** - Quản lý session và kết nối client
+- **`controller.rs`** - Controller xử lý message từ client
+- **`message.rs`** - Định nghĩa protocol message
 - **`mod.rs`** - Module exports và server startup
 
 ### 📁 `player/` - Hệ thống người chơi
@@ -156,3 +156,17 @@ Dự án được thiết kế theo mô hình layered architecture:
 - **Utils Layer**: Tiện ích hỗ trợ
 
 Mỗi module được tổ chức theo nguyên tắc separation of concerns, giúp code dễ bảo trì và mở rộng.
+
+## Mục đích dự án
+
+Dự án này được phát triển với các mục tiêu học tập sau:
+
+- **Học Rust**: Nắm vững các khái niệm cốt lõi của Rust như ownership, borrowing, lifetimes
+- **Async Programming**: Thực hành lập trình bất đồng bộ với Tokio
+- **Database ORM**: Sử dụng SeaORM để làm việc với database
+- **Network Programming**: Xây dựng TCP server và xử lý protocol
+- **Architecture Design**: Thiết kế kiến trúc phần mềm theo mô hình layered
+- **Error Handling**: Xử lý lỗi hiệu quả với Result và anyhow
+- **Code Organization**: Tổ chức code theo module và crate structure
+
+Dự án này phục vụ mục đích học tập và thể hiện năng lực lập trình Rust trong việc xây dựng một hệ thống phức tạp.

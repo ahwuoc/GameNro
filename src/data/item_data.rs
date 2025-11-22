@@ -1,10 +1,9 @@
-use crate::network::async_net::session::AsyncSession;
-use crate::network::async_net::message::Message;
-use crate::utils::Database as DbUtil;
 use crate::entities::{array_head_2_frames, item_option_template, item_template};
-use sea_orm::EntityTrait;
-use serde_json::Value;
 use crate::msg_write;
+use crate::network::message::Message;
+use crate::network::session::AsyncSession;
+use crate::services::GodGK;
+use sea_orm::EntityTrait;
 
 pub struct ItemData;
 
@@ -18,9 +17,11 @@ impl ItemData {
         Ok(())
     }
 
-    async fn update_item_option_template(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
+    async fn update_item_option_template(
+        session: &mut AsyncSession,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Updating item option templates");
-        
+
         let mut msg = Message::new_for_writing(-28);
         msg_write!(msg, write_byte(8)); // sub-command
         msg_write!(msg, write_byte(1)); // vsItem version
@@ -31,61 +32,60 @@ impl ItemData {
             let manager_guard = manager.lock().unwrap();
             manager_guard.item_option_templates.clone()
         };
-        
+
         let options_count = (options.len().min(255)) as u8;
         msg_write!(msg, write_byte(options_count as i8));
-        
+
         for opt in options.iter().take(options_count as usize) {
             msg_write!(msg, write_utf(&opt.name));
             msg_write!(msg, write_byte(0)); // Assuming type is 0 for now
         }
-        
+
         msg.finalize_write();
         session.send_message(&msg).await?;
-        
+
         println!("Sent {} item option templates from cache", options_count);
         Ok(())
     }
 
-    async fn update_item_arr_head_2_f(session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
+    async fn update_item_arr_head_2_f(
+        session: &mut AsyncSession,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Updating item array head 2 frames");
-        
+
         let mut msg = Message::new_for_writing(-28);
         msg_write!(msg, write_byte(8)); // sub-command
         msg_write!(msg, write_byte(1)); // vsItem version
         msg_write!(msg, write_byte(100)); // update ArrHead2F
 
-        let db = DbUtil::new().await.ok();
+        let god_gk = GodGK::get_instance();
+        let god_gk_guard = god_gk.lock().unwrap();
         let mut arrays: Vec<Vec<i16>> = Vec::new();
-        
-        if let Some(ref database) = db {
-            if let Ok(arrs) = array_head_2_frames::Entity::find()
-                .all(&database.connection)
-                .await
-            {
+
+        if let Some(ref db) = god_gk_guard.db {
+            if let Ok(arrs) = array_head_2_frames::Entity::find().all(db).await {
                 for a in arrs {
                     // Try parse JSON array first, else comma-separated
-                    let parsed: Vec<i16> = if let Ok(json_val) =
-                        serde_json::from_str::<serde_json::Value>(&a.data)
-                    {
-                        if let Some(arr) = json_val.as_array() {
-                            arr.iter()
-                                .filter_map(|v| v.as_i64().map(|x| x as i16))
-                                .collect()
+                    let parsed: Vec<i16> =
+                        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&a.data) {
+                            if let Some(arr) = json_val.as_array() {
+                                arr.iter()
+                                    .filter_map(|v| v.as_i64().map(|x| x as i16))
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            }
                         } else {
-                            Vec::new()
-                        }
-                    } else {
-                        a.data
-                            .split([',', ' '])
-                            .filter_map(|s| s.parse::<i16>().ok())
-                            .collect()
-                    };
+                            a.data
+                                .split([',', ' '])
+                                .filter_map(|s| s.parse::<i16>().ok())
+                                .collect()
+                        };
                     arrays.push(parsed);
                 }
             }
         }
-        
+
         msg_write!(msg, write_short(arrays.len() as i16));
         for arr in &arrays {
             msg_write!(msg, write_byte((arr.len().min(255)) as i8));
@@ -93,17 +93,20 @@ impl ItemData {
                 msg_write!(msg, write_short(*val));
             }
         }
-        
+
         msg.finalize_write();
         session.send_message(&msg).await?;
-        
+
         println!("Sent {} array head 2 frames", arrays.len());
         Ok(())
     }
 
-    async fn update_item_template(session: &mut AsyncSession, count: i16) -> Result<(), Box<dyn std::error::Error>> {
+    async fn update_item_template(
+        session: &mut AsyncSession,
+        count: i16,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Updating item templates (count: {})", count);
-        
+
         let mut msg = Message::new_for_writing(-28);
         msg_write!(msg, write_byte(8)); // sub-command
         msg_write!(msg, write_byte(1)); // vsItem version
@@ -121,7 +124,7 @@ impl ItemData {
             msg_write!(msg, write_utf(&it.name));
             msg_write!(msg, write_utf(&it.description));
             msg_write!(msg, write_byte(0));
-            msg_write!(msg, write_int(it.power_require as i32)); 
+            msg_write!(msg, write_int(it.power_require as i32));
             msg_write!(msg, write_short(it.icon_id as i16));
             msg_write!(msg, write_short(it.part as i16));
             msg_write!(msg, write_boolean(it.is_up_to_up != 0));
@@ -129,14 +132,18 @@ impl ItemData {
 
         msg.finalize_write();
         session.send_message(&msg).await?;
-        
+
         println!("Sent {} item templates from cache", count);
         Ok(())
     }
 
-    async fn update_item_template_range(session: &mut AsyncSession, start: i16, end: i16) -> Result<(), Box<dyn std::error::Error>> {
+    async fn update_item_template_range(
+        session: &mut AsyncSession,
+        start: i16,
+        end: i16,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Updating item templates range ({} to {})", start, end);
-        
+
         let mut msg = Message::new_for_writing(-28);
         msg_write!(msg, write_byte(8)); // sub-command
         msg_write!(msg, write_byte(1)); // vsItem version
@@ -166,7 +173,7 @@ impl ItemData {
         }
         msg.finalize_write();
         session.send_message(&msg).await?;
-        
+
         println!("Sent {} additional item templates from cache", items_sent);
         Ok(())
     }
