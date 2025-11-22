@@ -87,7 +87,7 @@ impl Manager {
     pub async fn init(
         &mut self,
         db_config: &DatabaseConfig,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let db_manager = DbManager::new(db_config).await?;
         let database = db_manager.get_pool().await?;
         self.database = Some(database.clone());
@@ -256,7 +256,7 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_map_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_map_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let map_templates = map_template::Entity::find().all(database).await?;
             self.map_templates = map_templates.clone();
@@ -297,7 +297,7 @@ impl Manager {
     }
 
     //load npc templates
-    async fn load_npc_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_npc_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let npc_templates = npc_template::Entity::find().all(database).await?;
 
@@ -310,7 +310,7 @@ impl Manager {
         }
         Ok(())
     }
-    async fn load_item_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_item_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let item_manager = crate::item::item_manager::ITEM_MANAGER.read().await;
             item_manager.load_from_db(&database).await?;
@@ -318,7 +318,7 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_mob_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_mob_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let mob_templates = MobDao::load_all_mob_templates(&database).await?;
             self.mob_templates = mob_templates.clone();
@@ -330,7 +330,7 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_skill_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_skill_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let skill_templates = skill_template::Entity::find().all(database).await?;
 
@@ -344,7 +344,7 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_intrinsic_templates(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn load_intrinsic_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let intrinsic_templates = intrinsic::Entity::find().all(database).await?;
 

@@ -109,7 +109,7 @@ impl Map {
             last_update: Arc::new(RwLock::new(current_time)),
         }
     }
-    pub async fn init_zones(&self, zone_manager: &ZoneManager) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn init_zones(&self, zone_manager: &ZoneManager) -> anyhow::Result<()> {
         let n_zones = self.get_zone_count();
         let max_player = self.get_max_player_per_zone();
         let mut zones = self.zones.write().await;
@@ -125,7 +125,7 @@ impl Map {
         &self,
         mob_templates: &HashMap<i32, MobTemplate>,
         mob_specs: &[(i32, i32, i32, i32, i32)],
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
         for (zone_index, zone) in zones.iter().enumerate() {
             for (idx, (temp_id, level, hp, x, y)) in mob_specs.iter().cloned().enumerate() {
@@ -145,7 +145,7 @@ impl Map {
     }
 
     /// Initialize NPCs in the map
-    pub async fn init_npcs(&self, npc_ids: &[i32], npc_x: &[i16], npc_y: &[i16]) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn init_npcs(&self, npc_ids: &[i32], npc_x: &[i16], npc_y: &[i16]) -> anyhow::Result<()> {
         {
             let mut npcs = self.npcs.write().await;
             npcs.clear();
@@ -161,7 +161,7 @@ impl Map {
     }
 
     /// Add waypoint to map
-    pub async fn add_waypoint(&self, waypoint: WayPoint) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_waypoint(&self, waypoint: WayPoint) -> anyhow::Result<()> {
         let mut way_points = self.way_points.write().await;
         way_points.push(waypoint);
         Ok(())
@@ -211,7 +211,7 @@ impl Map {
     }
 
     /// Update map (called periodically)
-    pub async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update(&self) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
         
         // Update all zones

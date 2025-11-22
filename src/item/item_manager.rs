@@ -26,7 +26,7 @@ impl ItemManager {
     pub async fn load_from_db(
         &self,
         db: &DatabaseConnection,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let templates = ItemDao::get_all_item_templates(db).await?;
         let mut templates_lock = self.item_templates.write().await;
         

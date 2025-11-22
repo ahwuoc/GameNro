@@ -17,7 +17,7 @@ impl MapManager {
         }
     }
 
-    pub async fn create_map(&self, template: &MapTemplate) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn create_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
         let map = Map::from_template(template);
         let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
         map.init_zones(&zone_manager).await?;
@@ -38,7 +38,7 @@ impl MapManager {
 
 
 
-    pub async fn update_all_maps(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_all_maps(&self) -> anyhow::Result<()> {
         let maps = self.maps.read().await;
         
         for map in maps.values() {
@@ -52,7 +52,7 @@ impl MapManager {
         &self,
         map_id: i32,
         tile_id: i32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let mut maps = self.maps.write().await;
         if let Some(map) = maps.get_mut(&map_id) {
             if let Some((w, h, tile_map)) = crate::map::tile_loader::TileLoader::read_tile_map_file(map_id) {

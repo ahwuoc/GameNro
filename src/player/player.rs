@@ -201,7 +201,7 @@ impl Player {
     }
 
     
-    pub async fn send_message(&self, msg: Message) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_message(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(session) = &self.session {
             let mut session_guard = session.write().await;
             session_guard.send_message(&msg).await?;

@@ -15,7 +15,7 @@ impl ZoneManager {
         }
     }
 
-    pub async fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
         let zone_key = format!("{}_{}", map_id, zone_id);
         let zone = Zone::new(map_id, zone_id, max_player);
         let mut zones = self.zones.write().await;
@@ -61,7 +61,7 @@ impl ZoneManager {
         &self,
         map_id: i32,
         mut msg: crate::network::message::Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;
         for zone in zones.into_iter() {
@@ -75,7 +75,7 @@ impl ZoneManager {
         map_id: i32,
         except_player_id: u64,
         mut msg: crate::network::message::Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;
         for zone in zones.into_iter() {

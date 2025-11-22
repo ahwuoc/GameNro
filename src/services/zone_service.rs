@@ -10,7 +10,7 @@ impl ZoneService {
     pub async fn load_player_to_best_zone(
         player: Player,
         session: &mut AsyncSession,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
         if let Some(zone) = zone_manager.get_best_zone(player.map_id as i32).await {
             zone.load_player_to_zone(player, session).await?;
@@ -19,7 +19,7 @@ impl ZoneService {
     }
 
     /// Create a new zone for a map
-    pub async fn create_zone(map_id: i32, zone_id: i32, max_player: i32) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn create_zone(map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.create_zone(map_id, zone_id, max_player).await
     }
@@ -40,7 +40,7 @@ impl ZoneService {
     pub async fn send_message_to_all_players_in_map(
         map_id: i32,
         msg: crate::network::message::Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.send_message_to_all_players_in_map(map_id, msg).await
     }
@@ -50,7 +50,7 @@ impl ZoneService {
         map_id: i32,
         except_player_id: u64,
         msg: crate::network::message::Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.send_message_to_other_players_in_map(map_id, except_player_id, msg).await
     }

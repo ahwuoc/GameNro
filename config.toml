@@ -3,7 +3,11 @@ listen_port = 14445
 listen_host = "0.0.0.0"
 
 [database]
-url = "mysql://user:password@localhost/gamenro"
+host="localhost"
+port=3306
+user="root"
+password="ahwuocdz"
+db_name="nro_black"
 pool_size = 10
 max_connections = 20
 min_connections = 1

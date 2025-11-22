@@ -7,7 +7,7 @@ use controller::AsyncController;
 pub mod session;
 pub mod controller;
 pub mod message;
-pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn start_server() -> anyhow::Result<()> {
     dotenv().ok();
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = env::var("PORT").unwrap_or_else(|_| "14445".to_string());

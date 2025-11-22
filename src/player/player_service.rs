@@ -76,7 +76,7 @@ impl PlayerService {
         }).await
     }
 
-    pub async fn player_move(&self, player: &mut Player, to_x: i16, to_y: i16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn player_move(&self, player: &mut Player, to_x: i16, to_y: i16) -> anyhow::Result<()> {
         if player.is_die || player.zone.is_none() {
             return Ok(());
         }
@@ -99,7 +99,7 @@ impl PlayerService {
             player.set_position(x, y);
         }).await
     }
-    pub async fn send_message_to_player(&self, player_id: u64, msg: Message) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_message_to_player(&self, player_id: u64, msg: Message) -> anyhow::Result<()> {
         if let Some(player) = self.get_player(player_id).await {
             // TODO: Implement actual message sending
             println!("[PLAYER_SERVICE] Sending message to player {}", player_id);
@@ -107,7 +107,7 @@ impl PlayerService {
         Ok(())
     }
 
-    pub async fn broadcast_message(&self, msg: Message) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn broadcast_message(&self, msg: Message) -> anyhow::Result<()> {
         let players = self.get_all_players().await;
         for player in players {
             self.send_message_to_player(player.id, msg.clone()).await?;

@@ -225,7 +225,7 @@ impl MapService {
         }
     }
 
-    pub async fn send_player_move(&self, player: &Player) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn send_player_move(&self, player: &Player) -> anyhow::Result<()> {
         use crate::network::message::Message;
         let mut message = Message::new_for_writing(-7);
         message.write_int(player.id as i32)?;

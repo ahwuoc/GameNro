@@ -50,17 +50,17 @@ impl Zone {
         players.len()
     }
 
-    pub async fn add_player(&self, player: Player) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_player(&self, player: Player) -> anyhow::Result<()> {
         let mut players = self.players.write().await;
         if players.len() >= self.max_player as usize {
-            return Err("Zone is full".into());
+            return Err(anyhow::anyhow!("Zone is full"));
         }
         let player_id = player.id;
         players.insert(player_id, player);
         Ok(())
     }
 
-    pub async fn remove_player(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
         let mut players = self.players.write().await;
         
         if players.remove(&player_id).is_some() {
@@ -80,13 +80,13 @@ impl Zone {
         players.values().cloned().collect()
     }
 
-    pub async fn add_mob(&self, mob: RtMob) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
         let mut mobs = self.mobs.write().await;
         mobs.push(mob);
         Ok(())
     }
 
-    pub async fn remove_mob(&self, mob_id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn remove_mob(&self, mob_id: u64) -> anyhow::Result<()> {
         let mut mobs = self.mobs.write().await;
         mobs.retain(|mob| mob.id != mob_id);
         Ok(())
@@ -97,13 +97,13 @@ impl Zone {
         mobs.clone()
     }
 
-    pub async fn add_item(&self, item: ItemMap) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_item(&self, item: ItemMap) -> anyhow::Result<()> {
         let mut items = self.items.write().await;
         items.push(item);
         Ok(())
     }
 
-    pub async fn remove_item(&self, item_id: i32) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn remove_item(&self, item_id: i32) -> anyhow::Result<()> {
         let mut items = self.items.write().await;
         items.retain(|item| item.id != item_id);
         Ok(())
@@ -114,7 +114,7 @@ impl Zone {
         items.clone()
     }
 
-    pub async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update(&self) -> anyhow::Result<()> {
         let mut mobs = self.mobs.write().await;
         for mob in mobs.iter_mut() {
             // TODO: Implement mob update logic
@@ -159,7 +159,7 @@ impl Zone {
     pub async fn send_message_to_all_players(
         &self,
         msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let players = self.players.read().await;
         MessageService::send_to_all_players(&players, msg).await
     }
@@ -168,11 +168,11 @@ impl Zone {
         &self,
         except_player_id: u64,
         msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let players = self.players.read().await;
         MessageService::send_to_other_players(&players, except_player_id, msg).await
     }
-    pub async fn load_me_to_another(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
         let players_guard = self.players.read().await;
         if !players_guard.contains_key(&player_id) {
             return Ok(());
@@ -203,7 +203,7 @@ impl Zone {
     }
 
     
-    pub async fn load_another_to_me(&self, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
         let players_guard = self.players.read().await;
         let Some(receiver) = players_guard.get(&player_id).cloned() else { return Ok(()); };
         let others: Vec<Player> = players_guard
@@ -231,7 +231,7 @@ impl Zone {
         &self,
         mut player: Player,
         session: &mut crate::network::session::AsyncSession,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         // Set zone for player
         player.set_zone(self.clone());
         
@@ -308,7 +308,7 @@ impl Zone {
         msg
     }
    
-    pub async fn map_info(&self, session: &mut AsyncSession, player_id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn map_info(&self, session: &mut AsyncSession, player_id: u64) -> anyhow::Result<()> {
         let players = self.players.read().await;
         let Some(player) = players.get(&player_id) else { 
             return Ok(()); 

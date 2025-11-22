@@ -50,6 +50,8 @@ fn parse_inventory_json(s: &str) -> Result<Inventory, String> {
     Ok(inv)
 }
 
+
+
 fn parse_location_array(s: &str) -> Result<(i64, i64, i64), String> {
     if s.is_empty() { return Err("empty location".into()); }
     let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;

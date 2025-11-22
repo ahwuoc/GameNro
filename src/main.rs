@@ -5,7 +5,6 @@ mod database;
 mod entities;
 mod features;
 mod item;
-mod macros;
 mod map;
 mod mob;
 mod models;
@@ -26,11 +25,9 @@ async fn main() -> Result<()> {
         let manager = services::Manager::get_instance();
         let mut manager_guard = manager.lock().unwrap();
         if let Err(e) = manager_guard.init(&config.database).await {
-            eprintln!("Failed to initialize Manager: {:?}", e);
             return Err(anyhow::anyhow!("Manager initialization failed: {:?}", e));
         }
         if let Err(e) = manager_guard.init_maps_world().await {
-            eprintln!("Failed to init maps world: {:?}", e);
             return Err(anyhow::anyhow!("Map world init failed: {:?}", e));
         }
         manager_guard.start_map_update_task();
@@ -40,13 +37,11 @@ async fn main() -> Result<()> {
     {
         let mut god_gk_guard = god_gk.lock().unwrap();
         if let Err(e) = god_gk_guard.init_database(&config.database).await {
-            eprintln!("Failed to initialize database: {:?}", e);
             return Err(anyhow::anyhow!("Database initialization failed: {:?}", e));
         }
     }
     println!("Database initialized successfully!");
     if let Err(e) = network::start_server().await {
-        eprintln!("Server error: {:?}", e);
         return Err(anyhow::anyhow!("Server failed: {:?}", e));
     }
     Ok(())

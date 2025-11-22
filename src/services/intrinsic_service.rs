@@ -30,7 +30,7 @@ impl IntrinsicService {
             .map(|entity| Intrinsic::from_entity(entity))
     }
 
-    pub async fn send_info_intrinsic(&self, session: &mut AsyncSession, _player: &RtPlayer) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_info_intrinsic(&self, session: &mut AsyncSession, _player: &RtPlayer) -> anyhow::Result<()> {
         let player_intrinsic = IntrinsicPlayer::new();
         let mut msg = Message::new_for_writing(112);
         msg.write_byte(0).map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
@@ -44,7 +44,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_all_intrinsic(&self, session: &mut AsyncSession, player_gender: u8) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn show_all_intrinsic(&self, session: &mut AsyncSession, player_gender: u8) -> anyhow::Result<()> {
         let list_intrinsic = self.get_intrinsics(player_gender);
         let mut msg = Message::new_for_writing(112);
         
@@ -67,14 +67,14 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_menu(&self, _session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn show_menu(&self, _session: &mut AsyncSession) -> anyhow::Result<()> {
         // TODO: Implement NPC service menu creation
         // This would typically call NpcService to create a menu
         println!("Showing intrinsic menu");
         Ok(())
     }
 
-    pub async fn show_confirm_open(&self, _session: &mut AsyncSession, count_open: u8) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn show_confirm_open(&self, _session: &mut AsyncSession, count_open: u8) -> anyhow::Result<()> {
         let index = if count_open as usize >= Self::COST_OPEN.len() {
             Self::COST_OPEN.len() - 1
         } else {
@@ -87,7 +87,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_confirm_open_vip(&self, _session: &mut AsyncSession) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn show_confirm_open_vip(&self, _session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Confirming open intrinsic VIP with cost: 100 ngọc");
         // TODO: Implement NPC service menu creation
         Ok(())

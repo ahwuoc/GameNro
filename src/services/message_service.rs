@@ -10,7 +10,7 @@ impl MessageService {
     pub async fn send_to_all_players(
         players: &HashMap<u64, Player>,
         mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         msg.finalize_write();
         for player in players.values() {
             player.send_message(msg.clone()).await?;
@@ -22,7 +22,7 @@ impl MessageService {
         players: &HashMap<u64, Player>,
         except_player_id: u64,
         mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         msg.finalize_write();
         for (pid, player) in players.iter() {
             if *pid != except_player_id {
@@ -36,7 +36,7 @@ impl MessageService {
     pub async fn send_to_player(
         player: &Player,
         mut msg: Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         msg.finalize_write();
         player.send_message(msg).await?;
         Ok(())

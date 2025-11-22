@@ -2,7 +2,6 @@ use std::fs;
 
 use anyhow::Result;
 use serde::Deserialize;
-use serde_json::from_str;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -18,6 +17,7 @@ pub struct ServerConfig {
 pub struct DatabaseConfig {
     pub host: String,
     pub port: u16,
+    #[serde(alias = "user")]
     pub username: String,
     pub password: String,
     pub db_name: String,
@@ -30,7 +30,7 @@ impl Config {
     const PATH: &str = "./config.toml";
     pub fn load() -> Result<Self> {
         let content = fs::read_to_string(Self::PATH)?;
-        let config = from_str(&content)?;
+        let config = toml::from_str(&content)?;
         Ok(config)
     }
 }

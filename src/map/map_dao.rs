@@ -28,14 +28,14 @@ impl MapDao {
     pub async fn create_map_from_template(
         database: &DatabaseConnection,
         template: &map_template::Model,
-    ) -> Result<Map, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Map> {
         let map = Map::from_template(template);
         Ok(map)
     }
     pub async fn load_map_waypoints(
         database: &DatabaseConnection,
         map_id: i32,
-    ) -> Result<Vec<WayPoint>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Vec<WayPoint>> {
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;
@@ -80,7 +80,7 @@ impl MapDao {
     pub async fn load_map_mobs(
         database: &DatabaseConnection,
         map_id: i32,
-    ) -> Result<Vec<(i32, i32, i32, i32, i32)>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Vec<(i32, i32, i32, i32, i32)>> {
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;
@@ -115,7 +115,7 @@ impl MapDao {
     pub async fn load_map_npcs(
         database: &DatabaseConnection,
         map_id: i32,
-    ) -> Result<Vec<(i32, i16, i16)>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Vec<(i32, i16, i16)>> {
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;

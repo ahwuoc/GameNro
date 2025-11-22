@@ -104,7 +104,7 @@ impl MobService {
         }).await
     }
 
-    pub async fn send_mob_info(&self, session: &mut AsyncSession, mob: &RtMob) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_mob_info(&self, session: &mut AsyncSession, mob: &RtMob) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-32); // Assuming -32 is mob info command
         msg.write_int(mob.id as i32)?;
         msg.write_int(mob.template_id)?;
@@ -127,7 +127,7 @@ impl MobService {
         Ok(())
     }
 
-    pub async fn send_mobs_in_map(&self, session: &mut AsyncSession, map_id: u32, zone_id: u32) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_mobs_in_map(&self, session: &mut AsyncSession, map_id: u32, zone_id: u32) -> anyhow::Result<()> {
         let mobs = self.get_mobs_in_map(map_id, zone_id).await;
         let mob_count = mobs.len();
         

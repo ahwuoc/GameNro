@@ -27,7 +27,7 @@ impl MobDao {
         database: &DatabaseConnection,
         template_id: i32,
         mob_id: u64,
-    ) -> Result<Option<RtMob>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Option<RtMob>> {
         if let Some(template) = Self::load_mob_template(database, template_id).await? {
             let mob = RtMob::from_template(template, mob_id);
             Ok(Some(mob))
@@ -39,7 +39,7 @@ impl MobDao {
     pub async fn save_mob_state(
         database: &DatabaseConnection,
         mob: &RtMob,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         // TODO: Implement saving mob state to database if needed
         // This could be used for persistent mobs or mobs with state
         Ok(())
@@ -48,7 +48,7 @@ impl MobDao {
     pub async fn load_mob_state(
         database: &DatabaseConnection,
         mob_id: u64,
-    ) -> Result<Option<RtMob>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Option<RtMob>> {
         // TODO: Implement loading mob state from database if needed
         Ok(None)
     }

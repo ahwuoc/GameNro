@@ -1,15 +1,14 @@
 use crate::data::data_game::DataGame;
 use crate::entities::{account, player};
-use crate::map::zone_manager::ZoneManager;
-use crate::player::Player as RtPlayer;
 use crate::services::player_info_service;
-use account::account_dao;
-use anyhow::Result;
+use crate::services::GodGK;
+use crate::account::account_dao::AccountDao;
+use anyhow::{anyhow, Result};
 use chrono;
 use sea_orm::*;
-use super::session::AsyncSession;
-use super::message::Message;
 
+use super::message::Message;
+use super::session::AsyncSession;
 pub struct AsyncController;
 
 impl AsyncController {
@@ -88,7 +87,7 @@ impl AsyncController {
         data: Vec<u8>,
     ) -> Result<()> {
         if data.len() < 1 {
-            return Err("Invalid data length for -74 command".into());
+            return Err(anyhow!("Invalid data length for -74 command"))
         }
 
         let type_byte = data[0];
@@ -159,35 +158,35 @@ impl AsyncController {
                 let _is_gprs = data[pos] != 0;
                 pos += 1;
                 if pos + 4 > data.len() {
-                    return Err("Data too short for width".into());
+                    return Err(anyhow!("Data too short for width"));
                 }
                 let _width =
                     i32::from_be_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
                 pos += 4;
                 if pos + 4 > data.len() {
-                    return Err("Data too short for height".into());
+                    return Err(anyhow!("Data too short for height"));
                 }
                 let _height =
                     i32::from_be_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
                 pos += 4;
                 if pos >= data.len() {
-                    return Err("Data too short for is_qwerty".into());
+                    return Err(anyhow!("Data too short for is_qwerty"));
                 }
                 let _is_qwerty = data[pos] != 0;
                 pos += 1;
                 if pos >= data.len() {
-                    return Err("Data too short for is_touch".into());
+                    return Err(anyhow!("Data too short for is_touch"));
                 }
                 let _is_touch = data[pos] != 0;
                 pos += 1;
                 if pos + 2 > data.len() {
-                    return Err("Data too short for platform length".into());
+                    return Err(anyhow!("Data too short for platform length"));
                 }
                 let platform_len = u16::from_be_bytes([data[pos], data[pos + 1]]) as usize;
                 pos += 2;
 
                 if pos + platform_len > data.len() {
-                    return Err("Data too short for platform string".into());
+                    return Err(anyhow!("Data too short for platform string"));
                 }
                 let platform = String::from_utf8_lossy(&data[pos..pos + platform_len]).to_string();
                 pos += platform_len;
@@ -218,7 +217,7 @@ impl AsyncController {
         let version = i32::from_le_bytes([data[2], data[3], data[4], data[5]]);
 
         if data.len() < 6 + username_len + password_len {
-            return Err("Data too short".into());
+            return Err(anyhow!("Data too short"));
         }
         let username = String::from_utf8_lossy(&data[6..6 + username_len]).to_string();
         let password =
@@ -248,24 +247,23 @@ impl AsyncController {
             };
 
             if let Some(db) = db {
-                if let Some(account) = db
-                    .get_account(username)
+                if let Some(account) = AccountDao::get_account(&db, username)
                     .await
-                    .map_err(|_| "Database error")?
+                    .map_err(|_| anyhow!("Database error"))?
                 {
                     if account.password == password {
-                        if account.ban == 1 {
-                            return Err("Tài khoản đã bị khóa".into());
+                        if account.ban == true {
+                            return Err(anyhow!("Tài khoản đã bị khóa"));
                         }
                         Ok(Some(account))
                     } else {
-                        Err("Sai mật khẩu".into())
+                        Err(anyhow!("Sai mật khẩu"))
                     }
                 } else {
-                    Err("Tài khoản không tồn tại".into())
+                    Err(anyhow!("Tài khoản không tồn tại"))
                 }
             } else {
-                Err("Database not initialized".into())
+                Err(anyhow!("Database not initialized"))
             }
         };
         match account_result {
@@ -278,8 +276,8 @@ impl AsyncController {
 
                     if let Some(db) = db {
                         let mut account_data = account.clone().into_active_model();
-                        account_data.last_time_login = Set(chrono::Utc::now());
-                        db.update_account(account_data).await?;
+                        account_data.last_time_login = Set(chrono::Local::now().naive_local());
+                        AccountDao::update_account(&db, account_data).await?;
                     }
                 }
 
@@ -290,7 +288,7 @@ impl AsyncController {
                     };
 
                     if let Some(db) = db {
-                        db.get_player_by_account_id(account.id).await
+                        AccountDao::get_player_by_account_id(&db, account.id).await
                     } else {
                         Err(DbErr::Custom("Database not initialized".to_string()))
                     }
@@ -301,7 +299,7 @@ impl AsyncController {
                         println!("Player found, sending login success data");
                         session.set_user_id(account.id);
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
-                            .map_err(|e| format!("Failed to build runtime player: {}", e))?;
+                            .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                         // Add player to zone first
                         let mut player_with_zone = rt_player.clone();
                         {
@@ -348,15 +346,15 @@ impl AsyncController {
                     }
                     Err(e) => {
                         println!("Error getting player: {:?}", e);
-                        return Err(format!("Database error: {:?}", e).into());
+                        return Err(anyhow!("Database error: {:?}", e));
                     }
                 }
             }
             Ok(None) => {
-                return Err("Invalid credentials".into());
+                return Err(anyhow!("Invalid credentials"));
             }
             Err(e) => {
-                return Err(format!("Authentication error: {:?}", e).into());
+                return Err(anyhow!("Authentication error: {:?}", e));
             }
         }
 
@@ -417,12 +415,12 @@ impl AsyncController {
     ) -> Result<()> {
         if data.len() < 5 {
             // Need at least: [sub_cmd][name_len_2bytes][gender][hair]
-            return Err("Invalid data length".into());
+            return Err(anyhow!("Invalid data length"));
         }
 
         let sub_cmd = data[0];
         if sub_cmd != 2 {
-            return Err("Invalid sub command".into());
+            return Err(anyhow!("Invalid sub command"));
         }
 
         let name_len = u16::from_be_bytes([data[1], data[2]]) as usize;
@@ -435,24 +433,24 @@ impl AsyncController {
         );
 
         if data.len() < 5 + name_len {
-            return Err("Data too short for name".into());
+            return Err(anyhow!("Data too short for name"));
         }
 
         let name = String::from_utf8_lossy(&data[5..5 + name_len]).to_string();
 
         if !Self::is_valid_name(&name) {
-            return Err("Invalid character name".into());
+            return Err(anyhow!("Invalid character name"));
         }
 
         if Self::is_name_taken(&name)
             .await
-            .map_err(|_| "Name check failed")?
+            .map_err(|_| anyhow!("Name check failed"))?
         {
-            return Err("Character name already taken".into());
+            return Err(anyhow!("Character name already taken"));
         }
 
         if Self::is_ignored_name(&name) {
-            return Err("Character name not allowed".into());
+            return Err(anyhow!("Character name not allowed"));
         }
 
         let account_id = session.get_user_id().unwrap_or(0);
@@ -468,11 +466,9 @@ impl AsyncController {
                 let player_data = player::ActiveModel {
                     account_id: Set(Some(account_id)),
                     name: Set(name.to_string()),
-                    head: Set(hair), // Use hair as head
+                    head: Set(hair), 
                     gender: Set(gender),
-                    have_tennis_space_ship: Set(Some(0)),
-                    clan_id_sv1: Set(-1),
-                    clan_id_sv2: Set(-1),
+                    have_tennis_space_ship: Set(Some(true)),
                     data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
                     data_location: Set(r#"[0, 300, 336]"#.to_string()),
                     data_point: Set(
@@ -485,7 +481,6 @@ impl AsyncController {
                     items_box_lucky_round: Set(r#"[]"#.to_string()),
                     friends: Set(r#"[]"#.to_string()),
                     enemies: Set(r#"[]"#.to_string()),
-                    data_offtrain: Set(r#"[0, 0]"#.to_string()),
                     data_intrinsic: Set(r#"[]"#.to_string()),
                     data_item_time: Set(r#"[]"#.to_string()),
                     data_task: Set(r#"[]"#.to_string()),
@@ -496,7 +491,7 @@ impl AsyncController {
                     pet: Set(r#"[]"#.to_string()),
                     ..Default::default()
                 };
-                db.create_player(player_data).await
+                AccountDao::create_player(&db, player_data).await
             } else {
                 Err(DbErr::Custom("Database not initialized".to_string()))
             }
@@ -506,7 +501,7 @@ impl AsyncController {
             Ok(db_player) => {
                 println!("Character created successfully: {}", name);
                 let rt_player = crate::player::player_dao::from_entity(&db_player)
-                    .map_err(|e| format!("Failed to build runtime player: {}", e))?;
+                    .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                 session.set_player(rt_player);
                 let username = session.get_username().unwrap_or(&String::new()).clone();
                 let password = session.get_password().unwrap_or(&String::new()).clone();
@@ -514,7 +509,7 @@ impl AsyncController {
             }
             Err(e) => {
                 println!("Error creating character: {:?}", e);
-                return Err(format!("Failed to create character: {:?}", e).into());
+                return Err(anyhow!("Failed to create character: {:?}", e));
             }
         }
 
@@ -526,7 +521,7 @@ impl AsyncController {
         data: Vec<u8>,
     ) -> Result<()> {
         if data.len() < 1 {
-            return Err("Invalid data length for -28 command".into());
+            return Err(anyhow!("Invalid data length for -28 command"));
         }
 
         let sub_cmd = data[0];
@@ -560,32 +555,37 @@ impl AsyncController {
             }
         }
     }
+
     async fn handle_client_ok_enhanced(
         session: &mut AsyncSession,
     ) -> Result<()> {
-        let player = session.get_player().cloned().ok_or("Player not set")?;
+        let player = session.get_player().cloned().ok_or_else(|| anyhow!("Player not set"))?;
         player_info_service::PlayerInfoService::send_player_blob(session, &player).await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
 
         println!("Client ok enhanced initialization completed");
         Ok(())
     }
+
     fn is_valid_name(name: &str) -> bool {
         name.len() >= 3 && name.len() <= 20
     }
+
     async fn is_name_taken(_name: &str) -> Result<bool> {
         Ok(false)
     }
+
     fn is_ignored_name(_name: &str) -> bool {
         false
     }
+
     async fn handle_chat_map(
         session: &mut AsyncSession,
         data: Vec<u8>,
     ) -> Result<()> {
         if let Some(player) = session.get_player() {
             if data.is_empty() {
-                return Err("Chat message data is empty".into());
+                 return Err(anyhow!("Chat message data is empty"));
             }
             let message = String::from_utf8_lossy(&data).to_string();
             let mut msg = Message::new_for_writing(44);
