@@ -1,5 +1,6 @@
 //! `SeaORM` Entity. Generated manually from `account` table
 
+use chrono::Utc;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -8,18 +9,18 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    
+
     #[sea_orm(unique)]
     pub username: String,
-    
+
     pub password: String,
     pub email: String,
-    pub create_time: Option<chrono::NaiveDateTime>,
-    pub update_time: Option<chrono::NaiveDateTime>,
+    pub create_time: Option<chrono::DateTime<Utc>>,
+    pub update_time: Option<chrono::DateTime<Utc>>,
     pub ban: bool,
     pub is_admin: bool,
-    pub last_time_login: chrono::NaiveDateTime,
-    pub last_time_logout: chrono::NaiveDateTime,
+    pub last_time_login: Option<chrono::DateTime<Utc>>,
+    pub last_time_logout: Option<chrono::DateTime<Utc>>,
     pub ip_address: Option<String>,
     pub active: i32,
     pub thoi_vang: i32,

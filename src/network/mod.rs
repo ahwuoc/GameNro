@@ -1,16 +1,15 @@
 use tokio::net::TcpListener;
-use std::{env, io};
-use dotenv::dotenv;
 use session::AsyncSession;
 use controller::AsyncController;
+
+use crate::config::ServerConfig;
 
 pub mod session;
 pub mod controller;
 pub mod message;
-pub async fn start_server() -> anyhow::Result<()> {
-    dotenv().ok();
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("PORT").unwrap_or_else(|_| "14445".to_string());
+pub async fn start_server(config:&ServerConfig) -> anyhow::Result<()> {
+    let host = &config.listen_host;
+    let port = &config.listen_port;
     let addr = format!("{}:{}", host, port);
     let listener = TcpListener::bind(&addr).await?;
     println!("Server listening on {}", addr);
@@ -36,8 +35,8 @@ async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
     loop {
         match session.read_message().await {
             Ok(message) => {
-                if let Err(_) = AsyncController::handle_message(&mut session, message.command, message.data).await {
-                    eprintln!("Error handling message");
+                if let Err(e) = AsyncController::process(&mut session, message).await {
+                    eprintln!("Error handling message: {:?}", e);
                     break;
                 }
             }

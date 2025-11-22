@@ -60,9 +60,8 @@ impl ZoneManager {
     pub async fn send_message_to_all_players_in_map(
         &self,
         map_id: i32,
-        mut msg: crate::network::message::Message,
+        msg: crate::network::message::Message,
     ) -> anyhow::Result<()> {
-        msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;
         for zone in zones.into_iter() {
             zone.send_message_to_all_players(msg.clone()).await?;
@@ -74,9 +73,8 @@ impl ZoneManager {
         &self,
         map_id: i32,
         except_player_id: u64,
-        mut msg: crate::network::message::Message,
+        msg: crate::network::message::Message,
     ) -> anyhow::Result<()> {
-        msg.finalize_write();
         let zones = self.get_zones_for_map(map_id).await;
         for zone in zones.into_iter() {
             zone

@@ -38,7 +38,6 @@ impl ItemData {
             msg.write_byte(0)?; // Assuming type is 0 for now
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         println!("Sent {} item option templates from cache", options_count);
         Ok(())
@@ -96,7 +95,6 @@ impl ItemData {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         println!("Sent {} array head 2 frames", arrays.len());
         Ok(())
@@ -130,7 +128,6 @@ impl ItemData {
             msg.write_boolean(it.is_up_to_up != 0)?;
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         println!("Sent {} item templates from cache", count);
         Ok(())
@@ -171,7 +168,6 @@ impl ItemData {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         println!(
             "Sent {} additional item templates from cache",

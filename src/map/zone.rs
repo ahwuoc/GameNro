@@ -188,12 +188,10 @@ impl Zone {
             for receiver_id in target_and_receivers {
                 if let Some(receiver) = self.get_player(receiver_id).await {
                     let mut msg = Self::build_player_info_message(&info_player);
-                    msg.finalize_write();
                     let _ = receiver.send_message(msg);
 
                     if info_player.is_die() {
                         let mut death_msg = Self::build_player_death_message(&info_player);
-                        death_msg.finalize_write();
                         let _ = receiver.send_message(death_msg);
                     }
                 }
@@ -214,12 +212,10 @@ impl Zone {
 
         for other in others.into_iter() {
             let mut msg = Self::build_player_info_message(&other);
-            msg.finalize_write();
             let _ = receiver.send_message(msg.clone());
 
             if other.is_die() {
                 let mut death_msg = Self::build_player_death_message(&other);
-                death_msg.finalize_write();
                 let _ = receiver.send_message(death_msg);
             }
         }
@@ -253,7 +249,7 @@ impl Zone {
 
 
     fn build_player_info_message(pl_info: &Player) -> Message {
-        let mut msg = Message::new_for_writing(-5);
+        let mut msg = Message::new(-5);
         let id_i32 = pl_info.id as i32;
         let level_byte: i8 = 0; // TODO: compute real level
         let type_pk: i8 = pl_info.type_pk as i8;
@@ -267,7 +263,7 @@ impl Zone {
         let _ = msg.write_int(id_i32);
         let _ = msg.write_int(-1); // clan id (unknown)
         let _ = msg.write_byte(level_byte);
-        let _ = msg.write_boolean(false);
+        let _ = msg.write_bool(false);
         let _ = msg.write_byte(type_pk);
         let _ = msg.write_byte(gender);
         let _ = msg.write_byte(gender);
@@ -300,7 +296,7 @@ impl Zone {
     }
 
     fn build_player_death_message(pl_info: &Player) -> Message {
-        let mut msg = Message::new_for_writing(-8);
+        let mut msg = Message::new(-8);
         let _ = msg.write_int(pl_info.id as i32);
         let _ = msg.write_byte(0);
         let _ = msg.write_short(pl_info.location.x);
@@ -330,18 +326,18 @@ impl Zone {
             }
         };
 
-        let mut msg = Message::new_for_writing(-24);
+        let mut msg = Message::new(-24);
         // Map meta
-        msg.write_byte((self.map_id as u8) as i8)?; // mapId
-        msg.write_byte(planet_id)?;                 // planetId
-        msg.write_byte(tile_id)?;                   // tileId
-        msg.write_byte(bg_id)?;                     // bgId
-        msg.write_byte(map_type)?;                  // type
-        msg.write_utf(&map_name)?;                  // mapName
-        msg.write_byte((self.zone_id as u8) as i8)?; // zoneId
+        msg.write_byte((self.map_id as u8) as i8); // mapId
+        msg.write_byte(planet_id);                 // planetId
+        msg.write_byte(tile_id);                   // tileId
+        msg.write_byte(bg_id);                     // bgId
+        msg.write_byte(map_type);                  // type
+        msg.write_utf(&map_name);                  // mapName
+        msg.write_byte((self.zone_id as u8) as i8); // zoneId
         // Player position
-        msg.write_short(player.location.x)?;
-        msg.write_short(player.location.y)?;
+        msg.write_short(player.location.x);
+        msg.write_short(player.location.y);
 
         // Waypoints
         let wp_count: i8 = {
@@ -349,19 +345,19 @@ impl Zone {
             if let Some(map) = mgr.get_map(self.map_id).await {
                 let wps = map.way_points.read().await;
                 let count = (wps.len().min(127)) as i8;
-                msg.write_byte(count)?;
+                msg.write_byte(count);
                 for wp in wps.iter().take(count as usize) {
-                    msg.write_short(wp.min_x)?;
-                    msg.write_short(wp.min_y)?;
-                    msg.write_short(wp.max_x)?;
-                    msg.write_short(wp.max_y)?;
-                    msg.write_boolean(wp.is_enter)?;
+                    msg.write_short(wp.min_x);
+                    msg.write_short(wp.min_y);
+                    msg.write_short(wp.max_x);
+                    msg.write_short(wp.max_y);
+                    msg.write_boolean(wp.is_enter);
                     msg.write_boolean(wp.is_offline)?;
                     msg.write_utf(&wp.name)?;
                 }
                 count
             } else {
-                msg.write_byte(0)?;
+                msg.write_byte(0);
                 0
             }
         };
@@ -370,7 +366,7 @@ impl Zone {
         {
             let mobs_guard = self.mobs.read().await;
             let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
-            msg.write_byte(mob_count)?;
+            msg.write_byte(mob_count);
             for mob in mobs_guard.iter().take(mob_count as usize) {
                 // Java writes 5 booleans flags
                 msg.write_boolean(false)?; // is disable
@@ -379,19 +375,19 @@ impl Zone {
                 msg.write_boolean(false)?; // is ice
                 msg.write_boolean(false)?; // is wind
 
-                msg.write_byte((mob.template_id as u8) as i8)?;
-                msg.write_byte(0)?; // unknown reserved
-                msg.write_long(mob.hp as i64)?;
-                msg.write_byte((mob.level as u8) as i8)?;
-                msg.write_long(mob.max_hp as i64)?;
-                msg.write_short(mob.location.x as i16)?;
-                msg.write_short(mob.location.y as i16)?;
-                msg.write_byte((mob.status as u8) as i8)?;
-                msg.write_byte((mob.lv_mob as u8) as i8)?;
+                msg.write_byte((mob.template_id as u8) as i8);
+                msg.write_byte(0); // unknown reserved
+                msg.write_long(mob.hp as i64);
+                msg.write_byte((mob.level as u8) as i8);
+                msg.write_long(mob.max_hp as i64);
+                msg.write_short(mob.location.x as i16);
+                msg.write_short(mob.location.y as i16);
+                msg.write_byte((mob.status as u8) as i8);
+                msg.write_byte((mob.lv_mob as u8) as i8);
                 msg.write_boolean(false)?; // reserved
             }
         }
-        msg.write_byte(0)?;
+        msg.write_byte(0);
         {
            
             let (npcs_for_map, avatar_lookup) = {
@@ -406,31 +402,30 @@ impl Zone {
                 (npcs, avatars)
             };
             let count: i8 = (npcs_for_map.len().min(127)) as i8;
-            msg.write_byte(count)?;
+            msg.write_byte(count);
             for (id, x, y) in npcs_for_map.into_iter().take(count as usize) {
                 let status: i8 = 1; // default active
                 let avatar: i16 = avatar_lookup.get(&id).cloned().unwrap_or(0) as i16;
-                msg.write_byte(status)?;           // status
-                msg.write_short(x)?;               // cx
-                msg.write_short(y)?;               // cy
-                msg.write_byte(id as i8)?;         // tempId
-                msg.write_short(avatar)?;          // avatar
+                msg.write_byte(status);           // status
+                msg.write_short(x);               // cx
+                msg.write_short(y);               // cy
+                msg.write_byte(id as i8);         // tempId
+                msg.write_short(avatar);          // avatar
             }
         }
 
         // Items
-        msg.write_byte(0)?; // items count
+        msg.write_byte(0); // items count
 
         // bgItem and effItem
-        msg.write_short(0)?; // bgItem: short 0 if missing
-        msg.write_short(0)?; // effItem: short 0 if missing
+        msg.write_short(0); // bgItem: short 0 if missing
+        msg.write_short(0); // effItem: short 0 if missing
 
         // Trailer bytes
-        msg.write_byte(bg_type)?; // bgType from map template
-        msg.write_byte(0)?; // idSpaceShip (0 for now)
-        msg.write_byte(0)?; // reserved 0
+        msg.write_byte(bg_type); // bgType from map template
+        msg.write_byte(0); // idSpaceShip (0 for now)
+        msg.write_byte(0); // reserved 0
 
-        msg.finalize_write();
         drop(players);
         session.send_message(&msg).await?;
         Ok(())

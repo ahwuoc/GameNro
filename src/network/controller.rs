@@ -1,10 +1,12 @@
+use crate::account::account_dao::AccountDao;
+use crate::constant::cmd::cmd;
 use crate::data::data_game::DataGame;
 use crate::entities::{account, player};
 use crate::services::player_info_service;
 use crate::services::GodGK;
-use crate::account::account_dao::AccountDao;
 use anyhow::{anyhow, Result};
-use chrono;
+use bytes::Buf;
+use chrono::{self, Utc};
 use sea_orm::*;
 
 use super::message::Message;
@@ -12,85 +14,79 @@ use super::session::AsyncSession;
 pub struct AsyncController;
 
 impl AsyncController {
-    pub async fn handle_message(session: &mut AsyncSession, cmd: i8, _data: Vec<u8>) -> Result<()> {
+    pub async fn process(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
         println!("=== CLIENT MESSAGE ===");
-        println!("Command: {}", cmd);
-        println!("Data length: {} bytes", _data.len());
+        println!("Command: {}", msg.command);
+        println!("Data length: {} bytes", msg.data.len());
         println!("=====================");
 
-        match cmd {
-            -27 => {
+        match msg.command {
+            cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {
-                    eprintln!("Error sending key: {}", e);
+                    println!("Error sending key {}", e);
                 }
                 session.set_sent_key(true);
                 if let Err(e) = DataGame::send_version_res(session).await {
-                    eprintln!("Error sending version res: {}", e);
+                    println!("Error sending version res {}", e);
                 }
                 Ok(())
             }
-            -29 => {
-                Self::handle_message_not_login(session, _data).await?;
+            cmd::NOT_LOGIN => {
+                Self::handle_message_not_login(session, msg).await?;
                 Ok(())
             }
-            -74 => {
-                Self::handle_get_image_source(session, _data).await?;
+            cmd::GET_IMAGES_SOURCE => {
+                Self::handle_get_image_source(session, msg).await?;
                 Ok(())
             }
             -93 => {
-                Self::handle_not_login(session, _data).await?;
+                Self::handle_not_login(session, msg).await?;
                 Ok(())
             }
             -28 => {
-                Self::handle_message_not_map(session, _data).await?;
+                Self::handle_message_not_map(session, msg).await?;
                 Ok(())
             }
             44 => {
-                Self::handle_chat_map(session, _data).await?;
+                Self::handle_chat_map(session, msg).await?;
                 Ok(())
             }
             -87 => {
                 if let Err(e) = DataGame::update_data(session).await {
-                    eprintln!("Error updating data: {}", e);
+                    println!("Error updating data {}s", e);
                 }
                 Ok(())
             }
             -39 => Ok(()),
             -7 => {
-                Self::handle_player_move(session, _data).await?;
+                Self::handle_player_move(session, msg).await?;
                 Ok(())
             }
-            -63 => {
-                //flag bag
-                Ok(())
-            }
+            -63 => Ok(()),
             -67 => {
-                if _data.len() >= 4 {
-                    let id = i32::from_be_bytes([_data[0], _data[1], _data[2], _data[3]]);
+                if msg.data.len() >= 4 {
+                    let id = msg.read_int()?;
                     if let Err(e) = crate::data::data_game::DataGame::send_icon(session, id).await {
-                        eprintln!("Error sending icon: {}", e);
+                        println!("Error sending icon {}s", e);
                     }
                 } else {
-                    println!("-67 missing id, len={}", _data.len());
+                    println!("-67 missing id, len={}", msg.data.len());
                 }
                 Ok(())
             }
             _ => {
-                println!("Unknown command: {}", cmd);
+                println!("Unknown command: {}", msg.command);
                 Ok(())
             }
         }
     }
 
-    async fn handle_get_image_source(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
-        if data.len() < 1 {
-            return Err(anyhow!("Invalid data length for -74 command"))
+    async fn handle_get_image_source(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        if msg.data.len() < 1 {
+            return Err(anyhow!("Invalid data length for -74 command"));
         }
 
-        let type_byte = data[0];
+        let type_byte = msg.read_byte()?;
         println!("Handling -74 command with type: {}", type_byte);
 
         match type_byte {
@@ -110,94 +106,50 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_message_not_login(session: &mut AsyncSession, data: Vec<u8>) -> Result<()> {
-        let sub_cmd = data[0];
+    async fn handle_message_not_login(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        if msg.data.is_empty() {
+            return Err(anyhow!("data empty"));
+        }
+        let sub_cmd = msg.read_byte()?;
         println!("Handling -29 sub-command: {}", sub_cmd);
         match sub_cmd {
             0 => {
-                if data.len() < 5 {
-                    return Err(anyhow::anyhow!("invalid data length for login"));
-                }
-                let mut pos = 1;
-                if pos + 2 > data.len() {
-                    return Err(anyhow::anyhow!("data too short for username length"));
-                }
-                let username_len = u16::from_be_bytes([data[pos], data[pos + 1]]) as usize;
-                pos += 2;
+                let username = msg.read_utf()?;
+                let password = msg.read_utf()?;
 
-                if pos + username_len > data.len() {
-                    return Err(anyhow::anyhow!("data too short for username"));
-                }
-                let username = String::from_utf8_lossy(&data[pos..pos + username_len]).to_string();
-                pos += username_len;
+                println!("Login request: username={}", username);
 
-                if pos + 2 > data.len() {
-                    return Err(anyhow::anyhow!("data too short for password length"));
-                }
-                let password_len = u16::from_be_bytes([data[pos], data[pos + 1]]) as usize;
-                pos += 2;
-
-                if pos + password_len > data.len() {
-                    return Err(anyhow::anyhow!("data too short for password"));
-                }
-                let password = String::from_utf8_lossy(&data[pos..pos + password_len]).to_string();
                 session.set_credentials(username.clone(), password.clone());
+
                 Self::handle_login_authentication(session, &username, &password).await?;
             }
             2 => {
-                if data.len() < 15 {
-                    return Err(anyhow::anyhow!("invalid data length for client type"));
+                if msg.data.len() < 15 {
+                    return Err(anyhow!("invalid data length for client type"));
                 }
-                let mut pos = 1;
 
-                let _client_type = data[pos];
-                pos += 1;
+                let _client_type = msg.read_byte()?;
+                let zoom_level = msg.read_byte()?;
+                let _is_gprs = msg.read_byte()? != 0;
+                let _width = msg.read_int()?;
+                let _height = msg.read_int()?;
+                let _is_qwerty = msg.read_byte()? != 0;
+                let _is_touch = msg.read_byte()? != 0;
+                let platform = msg.read_utf()?;
 
-                let zoom_level = data[pos];
-                pos += 1;
-                let _is_gprs = data[pos] != 0;
-                pos += 1;
-                if pos + 4 > data.len() {
-                    return Err(anyhow!("Data too short for width"));
-                }
-                let _width =
-                    i32::from_be_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
-                pos += 4;
-                if pos + 4 > data.len() {
-                    return Err(anyhow!("Data too short for height"));
-                }
-                let _height =
-                    i32::from_be_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
-                pos += 4;
-                if pos >= data.len() {
-                    return Err(anyhow!("Data too short for is_qwerty"));
-                }
-                let _is_qwerty = data[pos] != 0;
-                pos += 1;
-                if pos >= data.len() {
-                    return Err(anyhow!("Data too short for is_touch"));
-                }
-                let _is_touch = data[pos] != 0;
-                pos += 1;
-                if pos + 2 > data.len() {
-                    return Err(anyhow!("Data too short for platform length"));
-                }
-                let platform_len = u16::from_be_bytes([data[pos], data[pos + 1]]) as usize;
-                pos += 2;
-
-                if pos + platform_len > data.len() {
-                    return Err(anyhow!("Data too short for platform string"));
-                }
-                let platform = String::from_utf8_lossy(&data[pos..pos + platform_len]).to_string();
-                pos += platform_len;
+                // version parse
                 if let Some(version_part) = platform.split('|').nth(1) {
                     let version_str = version_part.replace(".", "");
                     if let Ok(version) = version_str.parse::<i32>() {
                         session.set_version(version);
-                        println!("Parsed version: {}", version);
+                        println!("Client platform={} version={}", platform, version);
+                    } else {
+                        println!("Invalid client version string: {}", version_str);
                     }
                 }
-                session.zoom_level = zoom_level;
+
+                session.zoom_level = zoom_level as u8;
+
                 DataGame::send_link_ip(session).await?;
             }
             _ => {
@@ -207,22 +159,16 @@ impl AsyncController {
 
         Ok(())
     }
+    async fn handle_not_login(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        let username_len = msg.read_byte()? as usize;
+        let password_len = msg.read_byte()? as usize;
+        let version = msg.read_int()?;
 
-    async fn handle_not_login(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
-        let username_len = data[0] as usize;
-        let password_len = data[1] as usize;
-        let version = i32::from_le_bytes([data[2], data[3], data[4], data[5]]);
-
-        if data.len() < 6 + username_len + password_len {
+        if msg.data.len() < username_len + password_len {
             return Err(anyhow!("Data too short"));
         }
-        let username = String::from_utf8_lossy(&data[6..6 + username_len]).to_string();
-        let password =
-            String::from_utf8_lossy(&data[6 + username_len..6 + username_len + password_len])
-                .to_string();
+        let username = msg.read_utf()?;
+        let password = msg.read_utf()?;
         println!(
             "Login attempt - Username: {}, Version: {}",
             username, version
@@ -249,7 +195,7 @@ impl AsyncController {
             if let Some(db) = db {
                 if let Some(account) = AccountDao::get_account(&db, username)
                     .await
-                    .map_err(|_| anyhow!("Database error"))?
+                    .map_err(|e| anyhow!("Database error: {:?}", e))?
                 {
                     if account.password == password {
                         if account.ban == true {
@@ -276,7 +222,7 @@ impl AsyncController {
 
                     if let Some(db) = db {
                         let mut account_data = account.clone().into_active_model();
-                        account_data.last_time_login = Set(chrono::Local::now().naive_local());
+                        account_data.last_time_login = Set(Some(Utc::now()));
                         AccountDao::update_account(&db, account_data).await?;
                     }
                 }
@@ -361,9 +307,7 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn send_login_success_data(
-        session: &mut AsyncSession,
-    ) -> Result<()> {
+    async fn send_login_success_data(session: &mut AsyncSession) -> Result<()> {
         DataGame::send_small_version(session).await?;
         Self::send_message_93(session).await?;
         DataGame::send_version_game(session).await?;
@@ -373,34 +317,26 @@ impl AsyncController {
     }
 
     async fn send_message_93(session: &mut AsyncSession) -> Result<()> {
-        let mut msg = Message::new_for_writing(-93);
-        msg.write_utf("1630679752231_-93_r")
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-        msg.finalize_write();
+        let mut msg = Message::new(-93);
+        msg.write_utf("1630679752231_-93_r")?;
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    async fn send_player_info(
-        session: &mut AsyncSession,
-    ) -> Result<()> {
+    async fn send_player_info(session: &mut AsyncSession) -> Result<()> {
         crate::services::player_info_service::PlayerInfoService::send_all_player_info(session)
             .await?;
         Ok(())
     }
 
-    async fn send_welcome_message(
-        session: &mut AsyncSession,
-    ) -> Result<()> {
+    async fn send_welcome_message(session: &mut AsyncSession) -> Result<()> {
         let welcome_msg = "Chào mừng bạn đến với GameNro!";
         let msg_bytes = welcome_msg.as_bytes().to_vec();
         session.send_message_old(10, msg_bytes).await?;
         Ok(())
     }
 
-    async fn switch_to_create_char(
-        session: &mut AsyncSession,
-    ) -> Result<()> {
+    async fn switch_to_create_char(session: &mut AsyncSession) -> Result<()> {
         DataGame::send_data_item_bg(session).await?;
         DataGame::send_version_game(session).await?;
         DataGame::send_tile_set_info(session).await?;
@@ -409,34 +345,22 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_create_char(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
-        if data.len() < 5 {
+    async fn handle_create_char(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        if msg.data.len() < 5 {
             // Need at least: [sub_cmd][name_len_2bytes][gender][hair]
             return Err(anyhow!("Invalid data length"));
         }
 
-        let sub_cmd = data[0];
+        let sub_cmd = msg.read_byte()?;
         if sub_cmd != 2 {
             return Err(anyhow!("Invalid sub command"));
         }
 
-        let name_len = u16::from_be_bytes([data[1], data[2]]) as usize;
-        let gender = data[3] as i32;
-        let hair = data[4] as i32;
+        let name = msg.read_utf()?;
+        let gender = msg.read_byte()? as i32;
+        let hair = msg.read_byte()? as i32;
 
-        println!(
-            "DEBUG: name_len: {}, gender: {}, hair: {}",
-            name_len, gender, hair
-        );
-
-        if data.len() < 5 + name_len {
-            return Err(anyhow!("Data too short for name"));
-        }
-
-        let name = String::from_utf8_lossy(&data[5..5 + name_len]).to_string();
+        println!("DEBUG: name: {}, gender: {}, hair: {}", name, gender, hair);
 
         if !Self::is_valid_name(&name) {
             return Err(anyhow!("Invalid character name"));
@@ -466,7 +390,7 @@ impl AsyncController {
                 let player_data = player::ActiveModel {
                     account_id: Set(Some(account_id)),
                     name: Set(name.to_string()),
-                    head: Set(hair), 
+                    head: Set(hair),
                     gender: Set(gender),
                     have_tennis_space_ship: Set(Some(true)),
                     data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
@@ -516,19 +440,16 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_message_not_map(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
-        if data.len() < 1 {
+    async fn handle_message_not_map(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        if msg.data.len() < 1 {
             return Err(anyhow!("Invalid data length for -28 command"));
         }
 
-        let sub_cmd = data[0];
+        let sub_cmd = msg.read_byte()?;
         println!("Handling -28 sub-command: {}", sub_cmd);
 
         match sub_cmd {
-            2 => Self::handle_create_char(session, data).await,
+            2 => Self::handle_create_char(session, msg).await,
             6 => {
                 DataGame::update_map(session).await?;
                 Ok(())
@@ -542,7 +463,8 @@ impl AsyncController {
                 Ok(())
             }
             10 => {
-                DataGame::send_map_temp(session, data[1]).await?;
+                let map_id = msg.read_byte()?;
+                DataGame::send_map_temp(session, map_id as u8).await?;
                 Ok(())
             }
             13 => {
@@ -556,10 +478,11 @@ impl AsyncController {
         }
     }
 
-    async fn handle_client_ok_enhanced(
-        session: &mut AsyncSession,
-    ) -> Result<()> {
-        let player = session.get_player().cloned().ok_or_else(|| anyhow!("Player not set"))?;
+    async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> Result<()> {
+        let player = session
+            .get_player()
+            .cloned()
+            .ok_or_else(|| anyhow!("Player not set"))?;
         player_info_service::PlayerInfoService::send_player_blob(session, &player).await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
 
@@ -579,16 +502,13 @@ impl AsyncController {
         false
     }
 
-    async fn handle_chat_map(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
+    async fn handle_chat_map(session: &mut AsyncSession, msg: Message) -> Result<()> {
         if let Some(player) = session.get_player() {
-            if data.is_empty() {
-                 return Err(anyhow!("Chat message data is empty"));
+            if msg.data.is_empty() {
+                return Err(anyhow!("Chat message data is empty"));
             }
-            let message = String::from_utf8_lossy(&data).to_string();
-            let mut msg = Message::new_for_writing(44);
+            let message = String::from_utf8_lossy(&msg.data).to_string();
+            let mut msg = Message::new(44);
             msg.write_utf(&format!("{}: {}", player.name, message))?;
             if let Some(zone) = &player.zone {
                 zone.send_message_to_all_players(msg).await?;
@@ -597,23 +517,16 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_player_move(
-        session: &mut AsyncSession,
-        data: Vec<u8>,
-    ) -> Result<()> {
-        let mut offset = 0;
-        let flag = data[offset];
-        offset += 1;
+    async fn handle_player_move(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+        let _flag = msg.read_byte()?;
 
-        if data.len() < offset + 2 {
+        if msg.data.len() < 2 {
             return Ok(());
         }
 
-        let to_x = i16::from_be_bytes([data[offset], data[offset + 1]]);
-        offset += 2;
-
-        let to_y = if data.len() >= offset + 2 {
-            i16::from_be_bytes([data[offset], data[offset + 1]])
+        let to_x = msg.read_short()?;
+        let to_y = if msg.data.len() >= 2 {
+            msg.read_short()?
         } else {
             session
                 .get_player()

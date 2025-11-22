@@ -100,7 +100,7 @@ impl AsyncSession {
             }
         }
 
-        Ok(Message::new(cmd, data))
+        Ok(Message::with_data(cmd, data))
     }
 
     pub async fn send_message(&mut self, msg: &Message) -> io::Result<()> {
@@ -140,12 +140,12 @@ impl AsyncSession {
 
         if self.sent_key {
             let mut encrypted = Vec::with_capacity(data.len());
-            for &b in &data {
+            for &b in data {
                 encrypted.push(self.write_key(b));
             }
             self.write_half.write_all(&encrypted).await?;
         } else {
-            self.write_half.write_all(&data).await?;
+            self.write_half.write_all(data).await?;
         }
 
         self.write_half.flush().await
@@ -164,12 +164,12 @@ impl AsyncSession {
             payload.push(self.keys[i] ^ self.keys[i - 1]);
         }
 
-        let msg = Message::new(-27, payload);
+        let msg = Message::with_data(-27, payload);
         self.send_message(&msg).await
     }
 
     pub async fn send_message_old(&mut self, command: i8, data: Vec<u8>) -> io::Result<()> {
-        let msg = Message::new(command, data);
+        let msg = Message::with_data(command, data);
         self.send_message(&msg).await
     }
 
@@ -179,10 +179,6 @@ impl AsyncSession {
 
     pub fn get_player(&self) -> Option<&RtPlayer> {
         self.player.as_ref()
-    }
-
-    pub fn get_player_mut(&mut self) -> Option<&mut RtPlayer> {
-        self.player.as_mut()
     }
 
     pub fn set_user_id(&mut self, user_id: i32) {
@@ -205,29 +201,12 @@ impl AsyncSession {
     pub fn get_password(&self) -> Option<&String> {
         self.password.as_ref()
     }
-
-    pub fn set_admin(&mut self, is_admin: bool) {
-        self.is_admin = is_admin;
-    }
-
-    pub fn is_admin(&self) -> bool {
-        self.is_admin
-    }
-
     pub fn set_version(&mut self, version: i32) {
         self.version = version;
     }
 
     pub fn get_version(&self) -> i32 {
         self.version
-    }
-
-    pub fn set_vnd(&mut self, vnd: i32) {
-        self.vnd = vnd;
-    }
-
-    pub fn get_vnd(&self) -> i32 {
-        self.vnd
     }
 }
 

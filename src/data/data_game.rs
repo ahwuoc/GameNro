@@ -1,9 +1,10 @@
-use std::collections::HashMap;
-use dotenv::dotenv;
-use std::env;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
+use dotenv::dotenv;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::env;
+use std::fs;
 
 #[derive(Debug, Clone)]
 pub struct Skill {
@@ -43,9 +44,7 @@ pub struct NClass {
 pub struct DataGame;
 
 impl DataGame {
-    pub async fn send_size_res(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_size_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending size response");
         let zoom_level = session.zoom_level;
         let res_path = format!("data/girlkun/res/x{}", zoom_level);
@@ -66,7 +65,6 @@ impl DataGame {
         let mut msg = Message::new_for_writing(-74);
         msg.write_byte(1)?; // type = 1 for size response
         msg.write_short(file_count as i16)?; // file count as short
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())
@@ -84,12 +82,11 @@ impl DataGame {
                         if let Some(file_name) = file_path.file_name() {
                             if let Some(name_str) = file_name.to_str() {
                                 if let Ok(content) = std::fs::read(&file_path) {
-                                    let mut msg = Message::new_for_writing(-74);
+                                    let mut msg = Message::new(-74);
                                     msg.write_byte(2)?; // type: send file
                                     msg.write_utf(name_str)?; // file name
                                     msg.write_int(content.len() as i32)?; // file size
                                     msg.write(&content)?; // file content
-                                    msg.finalize_write();
                                     session.send_message(&msg).await?;
                                     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
                                 }
@@ -104,28 +101,22 @@ impl DataGame {
         let mut msg = Message::new_for_writing(-74);
         msg.write_byte(3)?; // type: finish
         msg.write_int(752012)?; // version or checksum
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())
     }
 
-    pub async fn send_version_res(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_version_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-74);
         msg.write_byte(0)?; // type: version
         msg.write_int(752012)?; // version number
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())
     }
 
-    pub async fn send_small_version(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-77);
+    pub async fn send_small_version(session: &mut AsyncSession) -> anyhow::Result<()> {
+        let mut msg = Message::new(-77);
         let zoom_level = session.zoom_level;
         let file_path = format!("data/girlkun/data_img_version/x{}/img_version", zoom_level);
 
@@ -138,14 +129,11 @@ impl DataGame {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    pub async fn send_version_game(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_version_game(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-28);
         msg.write_byte(4)?; // vsData
         msg.write_byte(1)?; // vsMap
@@ -182,14 +170,11 @@ impl DataGame {
             msg.write_long(level)?;
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    pub async fn send_data_item_bg(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_data_item_bg(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-31);
 
         match std::fs::read("data/girlkun/item_bg_temp/item_bg_data") {
@@ -201,7 +186,6 @@ impl DataGame {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -266,7 +250,6 @@ impl DataGame {
         msg.write_int(skill_data.len() as i32)?;
         msg.write(&skill_data)?;
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         println!("Update data sent successfully");
@@ -314,7 +297,6 @@ impl DataGame {
             msg.write_byte((template.dart_type as u8) as i8)?;
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         println!(
@@ -326,9 +308,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn update_skill(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn update_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-28);
         msg.write_byte(7)?;
         msg.write_byte(60)?;
@@ -398,24 +378,19 @@ impl DataGame {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    pub async fn send_map_temp(
-        session: &mut AsyncSession,
-        map_id: u8,
-    ) -> anyhow::Result<()> {
+    pub async fn send_map_temp(session: &mut AsyncSession, map_id: u8) -> anyhow::Result<()> {
         let file_path = format!("data/girlkun/map/tile_map_data/{}", map_id);
 
-        match std::fs::read(&file_path) {
+        match fs::read(&file_path) {
             Ok(data) => {
                 if data.len() < 2 {
                     let mut msg = Message::new_for_writing(-28);
                     msg.write_byte(0)?;
                     msg.write_byte(0)?;
-                    msg.finalize_write();
                     session.send_message(&msg).await?;
                     return Ok(());
                 }
@@ -433,14 +408,12 @@ impl DataGame {
                 let mut msg = Message::new_for_writing(-28);
                 msg.write_byte(10)?;
                 msg.write(to_send)?;
-                msg.finalize_write();
                 session.send_message(&msg).await?;
             }
             Err(_) => {
                 let mut msg = Message::new_for_writing(-28);
                 msg.write_byte(0)?;
                 msg.write_byte(0)?;
-                msg.finalize_write();
                 session.send_message(&msg).await?;
             }
         }
@@ -448,17 +421,13 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_skill_data(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_skill_data(session: &mut AsyncSession) -> anyhow::Result<()> {
         let skill_data = b"skill_data".to_vec();
         session.send_message_old(-72, skill_data).await?;
         Ok(())
     }
 
-    pub async fn send_item_data(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_item_data(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending item data");
         let item_data = b"item_data".to_vec();
         session.send_message_old(-73, item_data).await?;
@@ -466,10 +435,7 @@ impl DataGame {
     }
 
     /// Send icon (-67) like Java DataGame.sendIcon
-    pub async fn send_icon(
-        session: &mut AsyncSession,
-        id: i32,
-    ) -> anyhow::Result<()> {
+    pub async fn send_icon(session: &mut AsyncSession, id: i32) -> anyhow::Result<()> {
         let zoom_level = session.zoom_level;
         let file_path = format!("data/girlkun/icon/x{}/{}.png", zoom_level, id);
 
@@ -488,7 +454,6 @@ impl DataGame {
             }
         }
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -498,20 +463,16 @@ impl DataGame {
         crate::data::ItemData::update_item(session).await
     }
 
-    pub async fn send_tile_set_info(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_tile_set_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         match std::fs::read("data/girlkun/map/tile_set_info") {
             Ok(data) => {
                 let mut msg = Message::new_for_writing(-82);
                 msg.write(&data)?;
-                msg.finalize_write();
                 session.send_message(&msg).await?;
             }
             Err(_) => {
                 println!("Warning: Tile set info file not found");
                 let mut msg = Message::new_for_writing(-82);
-                msg.finalize_write();
                 session.send_message(&msg).await?;
             }
         }
@@ -519,18 +480,14 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_client_ok(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_client_ok(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending client OK");
         let ok_data = b"ok".to_vec();
         session.send_message_old(-75, ok_data).await?;
         Ok(())
     }
 
-    pub async fn send_link_ip(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
+    pub async fn send_link_ip(session: &mut AsyncSession) -> anyhow::Result<()> {
         dotenv().ok();
         let link_data = env::var("GAME_LINK")
             .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());
@@ -539,7 +496,6 @@ impl DataGame {
         msg.write_byte(2)?;
         msg.write_utf(&link_data)?;
         msg.write_byte(1)?;
-        msg.finalize_write();
         session.send_message(&msg).await?;
 
         Ok(())

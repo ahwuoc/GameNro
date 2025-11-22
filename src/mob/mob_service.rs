@@ -105,7 +105,7 @@ impl MobService {
     }
 
     pub async fn send_mob_info(&self, session: &mut AsyncSession, mob: &RtMob) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-32); // Assuming -32 is mob info command
+        let mut msg = Message::new(-32); 
         msg.write_int(mob.id as i32)?;
         msg.write_int(mob.template_id)?;
         msg.write_utf(&mob.name)?;
@@ -120,7 +120,6 @@ impl MobService {
         msg.write_short(mob.get_y())?;
         msg.write_byte(if mob.is_alive { 1 } else { 0 })?;
         
-        msg.finalize_write();
         session.send_message(&msg).await?;
         
         println!("[MOB_SERVICE] Sent mob info for {} (ID: {})", mob.name, mob.id);

@@ -50,7 +50,6 @@ impl PlayerInfoService {
         msg.write_long(0)?; // defg (reserved)
         msg.write_byte(0)?; // critg (reserved)
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -73,7 +72,6 @@ impl PlayerInfoService {
         msg.write_short(0)?; // current subTask count
         msg.write_short(10)?; // stm.maxCount
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -81,7 +79,6 @@ impl PlayerInfoService {
     /// Clear map (-22)
     pub async fn clear_map(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new_for_writing(-22);
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -92,7 +89,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-53);
         msg.write_int(-1)?; // clan.id or -1 if no clan
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -104,7 +100,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-69);
         msg.write_int(100)?; // max stamina
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -116,7 +111,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-68);
         msg.write_int(100)?; // current stamina
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -125,7 +119,6 @@ impl PlayerInfoService {
         println!("Sending pet info");
         let mut msg = Message::new_for_writing(-107);
         msg.write_byte(0)?;
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -136,7 +129,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-119);
         msg.write_utf("1630679754740_-119_r")?;
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -146,7 +138,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-50);
         msg.write_byte(0)?; // notification count
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -156,7 +147,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-70);
         msg.write_utf("Chào mừng đến với GameNro!")?;
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -167,7 +157,6 @@ impl PlayerInfoService {
         let mut msg = Message::new_for_writing(-30);
         msg.write_byte(62)?; // sub command
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -301,7 +290,6 @@ impl PlayerInfoService {
         msg.write_short(0)?; // aura
         msg.write_byte(0)?; // eff front
 
-        msg.finalize_write();
         session.send_message(&msg).await?;
         Ok(())
     }

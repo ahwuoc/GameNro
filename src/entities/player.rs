@@ -1,5 +1,6 @@
 //! `SeaORM` Entity. Generated manually from `player` table
 
+use chrono::Utc;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +39,7 @@ pub struct Model {
     pub pet: String,
     pub data_black_ball: String,
     pub data_side_task: String,
-    pub create_time: chrono::NaiveDateTime,
+    pub create_time: chrono::DateTime<Utc>,
     pub notify: Option<String>,
     pub baovetaikhoan: String,
     pub captcha: String,
@@ -68,7 +69,7 @@ pub struct Model {
     #[sea_orm(column_name = "dataTaskBadges")]
     pub data_task_badges: Option<String>,
     #[sea_orm(column_name = "firstTimeLogin")]
-    pub first_time_login: chrono::NaiveDateTime,
+    pub first_time_login: chrono::DateTime<Utc>,
     #[sea_orm(column_name = "BoughtSkill")]
     pub bought_skill: Option<String>,
     #[sea_orm(column_name = "LearnSkill")]

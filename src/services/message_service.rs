@@ -11,7 +11,6 @@ impl MessageService {
         players: &HashMap<u64, Player>,
         mut msg: Message,
     ) -> anyhow::Result<()> {
-        msg.finalize_write();
         for player in players.values() {
             player.send_message(msg.clone()).await?;
         }
@@ -23,7 +22,6 @@ impl MessageService {
         except_player_id: u64,
         mut msg: Message,
     ) -> anyhow::Result<()> {
-        msg.finalize_write();
         for (pid, player) in players.iter() {
             if *pid != except_player_id {
                 let _ = player.send_message(msg.clone()).await;
@@ -37,7 +35,6 @@ impl MessageService {
         player: &Player,
         mut msg: Message,
     ) -> anyhow::Result<()> {
-        msg.finalize_write();
         player.send_message(msg).await?;
         Ok(())
     }

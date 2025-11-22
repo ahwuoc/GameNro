@@ -1,35 +1,21 @@
 use crate::account::account_dao::AccountDao;
-use crate::database::DbManager;
 use crate::entities::{account, player};
+use chrono::Utc;
 use once_cell::sync::Lazy;
 use sea_orm::*;
 use std::sync::{Arc, Mutex};
 
 pub struct GodGK {
     pub db: Option<DatabaseConnection>,
-    pub maintenance: bool,
-    pub server_open_time: i64,
-    pub maintenance_message: String,
 }
 
 impl GodGK {
     pub fn new() -> Self {
-        GodGK {
-            db: None,
-            maintenance: false,
-            server_open_time: 0,
-            maintenance_message: "Server đang bảo trì".to_string(),
-        }
+        GodGK { db: None }
     }
 
-    pub async fn init_database(
-        &mut self,
-        config: &crate::config::DatabaseConfig,
-    ) -> Result<(), anyhow::Error> {
-        let db_manager = DbManager::new(config).await?;
-        let pool = db_manager.get_pool().await?;
-        self.db = Some(pool);
-        Ok(())
+    pub fn set_database(&mut self, db: DatabaseConnection) {
+        self.db = Some(db);
     }
 
     pub async fn login_god_gk(
@@ -42,9 +28,6 @@ impl GodGK {
                 if account.password == password {
                     if account.ban {
                         return Err(DbErr::Custom("Tài khoản đã bị khóa".to_string()));
-                    }
-                    if self.maintenance {
-                        return Err(DbErr::Custom(self.maintenance_message.clone()));
                     }
                     Ok(Some(account))
                 } else {
@@ -104,7 +87,7 @@ impl GodGK {
                 pet: Set(r#"[]"#.to_string()),
                 data_black_ball: Set(r#"[]"#.to_string()),
                 data_side_task: Set(r#"[]"#.to_string()),
-                create_time: Set(chrono::Local::now().naive_local()),
+                create_time: Set(Utc::now()),
                 notify: Set(None),
                 baovetaikhoan: Set(r#"[]"#.to_string()),
                 captcha: Set(r#"[]"#.to_string()),
@@ -130,7 +113,7 @@ impl GodGK {
                 data_event: Set(None),
                 data_badges: Set(None),
                 data_task_badges: Set(None),
-                first_time_login: Set(chrono::Local::now().naive_local()),
+                first_time_login: Set(Utc::now()),
                 bought_skill: Set(None),
                 learn_skill: Set(None),
                 daily_gift: Set(None),
@@ -150,7 +133,7 @@ impl GodGK {
         if let Some(db) = &self.db {
             if let Some(account_model) = account::Entity::find_by_id(account_id).one(db).await? {
                 let mut account_data = account_model.into_active_model();
-                account_data.last_time_login = Set(chrono::Local::now().naive_local());
+                account_data.last_time_login = Set(Some(Utc::now()));
                 AccountDao::update_account(db, account_data).await
             } else {
                 Err(DbErr::Custom("Account not found".to_string()))
