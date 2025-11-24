@@ -19,7 +19,7 @@ impl ItemData {
         session: &mut AsyncSession,
     ) -> anyhow::Result<()> {
         println!("Updating item option templates");
-        let mut msg = Message::new_for_writing(-28);
+        let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(1)?; // vsItem version
         msg.write_byte(0)?; // update option
@@ -47,7 +47,7 @@ impl ItemData {
         session: &mut AsyncSession,
     ) -> anyhow::Result<()> {
         println!("Updating item array head 2 frames");
-        let mut msg = Message::new_for_writing(-28);
+        let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(1)?; // vsItem version
         msg.write_byte(100)?; // update ArrHead2F
@@ -105,7 +105,7 @@ impl ItemData {
         count: i16,
     ) -> anyhow::Result<()> {
         println!("Updating item templates (count: {})", count);
-        let mut msg = Message::new_for_writing(-28);
+        let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(1)?; // vsItem version
         msg.write_byte(1)?; // reload itemtemplate
@@ -139,7 +139,7 @@ impl ItemData {
         end: i16,
     ) -> anyhow::Result<()> {
         println!("Updating item templates range ({} to {})", start, end);
-        let mut msg = Message::new_for_writing(-28);
+        let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(1)?; // vsItem version
         msg.write_byte(2)?; // add itemtemplate

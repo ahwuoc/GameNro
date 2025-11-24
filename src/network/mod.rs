@@ -1,13 +1,13 @@
-use tokio::net::TcpListener;
-use session::AsyncSession;
 use controller::AsyncController;
+use session::AsyncSession;
+use tokio::net::TcpListener;
 
 use crate::config::ServerConfig;
 
-pub mod session;
 pub mod controller;
 pub mod message;
-pub async fn start_server(config:&ServerConfig) -> anyhow::Result<()> {
+pub mod session;
+pub async fn start_server(config: &ServerConfig) -> anyhow::Result<()> {
     let host = &config.listen_host;
     let port = &config.listen_port;
     let addr = format!("{}:{}", host, port);
@@ -46,7 +46,7 @@ async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
             }
         }
     }
-    
+
     println!("Connection closed");
     Ok(())
 }

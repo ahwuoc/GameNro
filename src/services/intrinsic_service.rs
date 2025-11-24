@@ -53,7 +53,7 @@ impl IntrinsicService {
         player_gender: u8,
     ) -> Result<()> {
         let list_intrinsic = self.get_intrinsics(player_gender);
-        let mut msg = Message::new_for_writing(112);
+        let mut msg = Message::new(112);
 
         msg.write_byte(1);
         msg.write_byte(1); // count tab

@@ -30,7 +30,7 @@ impl PlayerInfoService {
         let power = n.power as i64;
         let speed: u8 = 10;
 
-        let mut msg = Message::new_for_writing(-42);
+        let mut msg = Message::new(-42);
         msg.write_long(hp_max)?; // hpg
         msg.write_long(mp_max)?; // mpg
         msg.write_long(damage)?; // dameg
@@ -57,7 +57,7 @@ impl PlayerInfoService {
     pub async fn send_task_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending task main info");
 
-        let mut msg = Message::new_for_writing(40);
+        let mut msg = Message::new(40);
         msg.write_short(1)?; // taskMain.id
         msg.write_byte(0)?; // taskMain.index
         msg.write_utf("Nhiệm vụ chính[1]")?; // taskMain.name + "[" + taskMain.id + "]"
@@ -78,7 +78,7 @@ impl PlayerInfoService {
 
     /// Clear map (-22)
     pub async fn clear_map(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-22);
+        let mut msg = Message::new(-22);
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -86,7 +86,7 @@ impl PlayerInfoService {
     pub async fn send_clan_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending clan info");
 
-        let mut msg = Message::new_for_writing(-53);
+        let mut msg = Message::new(-53);
         msg.write_int(-1)?; // clan.id or -1 if no clan
 
         session.send_message(&msg).await?;
@@ -97,7 +97,7 @@ impl PlayerInfoService {
     pub async fn send_max_stamina(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending max stamina");
 
-        let mut msg = Message::new_for_writing(-69);
+        let mut msg = Message::new(-69);
         msg.write_int(100)?; // max stamina
 
         session.send_message(&msg).await?;
@@ -108,7 +108,7 @@ impl PlayerInfoService {
     pub async fn send_current_stamina(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending current stamina");
 
-        let mut msg = Message::new_for_writing(-68);
+        let mut msg = Message::new(-68);
         msg.write_int(100)?; // current stamina
 
         session.send_message(&msg).await?;
@@ -117,7 +117,7 @@ impl PlayerInfoService {
 
     pub async fn send_pet_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending pet info");
-        let mut msg = Message::new_for_writing(-107);
+        let mut msg = Message::new(-107);
         msg.write_byte(0)?;
         session.send_message(&msg).await?;
         Ok(())
@@ -126,7 +126,7 @@ impl PlayerInfoService {
     pub async fn send_top_rank_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending top rank info");
 
-        let mut msg = Message::new_for_writing(-119);
+        let mut msg = Message::new(-119);
         msg.write_utf("1630679754740_-119_r")?;
 
         session.send_message(&msg).await?;
@@ -135,7 +135,7 @@ impl PlayerInfoService {
 
     /// Send notification tab (-50)
     pub async fn send_notification_tab(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-50);
+        let mut msg = Message::new(-50);
         msg.write_byte(0)?; // notification count
 
         session.send_message(&msg).await?;
@@ -144,7 +144,7 @@ impl PlayerInfoService {
 
     /// Send big message (-70)
     pub async fn send_big_message(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-70);
+        let mut msg = Message::new(-70);
         msg.write_utf("Chào mừng đến với GameNro!")?;
 
         session.send_message(&msg).await?;
@@ -154,7 +154,7 @@ impl PlayerInfoService {
     pub async fn send_time_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending time skill info");
 
-        let mut msg = Message::new_for_writing(-30);
+        let mut msg = Message::new(-30);
         msg.write_byte(62)?; // sub command
 
         session.send_message(&msg).await?;
@@ -173,7 +173,7 @@ impl PlayerInfoService {
         session: &mut AsyncSession,
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-30);
+        let mut msg = Message::new(-30);
         msg.write_byte(0)?;
         msg.write_int(player.id as i32)?;
         msg.write_byte(1)?;
@@ -298,7 +298,7 @@ impl PlayerInfoService {
         session: &mut AsyncSession,
         _player: &RtPlayer,
     ) -> anyhow::Result<()> {
-        let mut message = Message::new_for_writing(-90);
+        let mut message = Message::new(-90);
         message.write_byte(1)?;
         message.write_int(_player.id as i32)?;
 
@@ -329,7 +329,7 @@ impl PlayerInfoService {
         _session: &mut AsyncSession,
         _player: &RtPlayer,
     ) -> anyhow::Result<()> {
-        let mut msg = Message::new_for_writing(-30);
+        let mut msg = Message::new(-30);
         msg.write_byte(0)?;
         msg.write_int(_player.id as i32)?;
         msg.write_long(_player.n_point.hp as i64)?;

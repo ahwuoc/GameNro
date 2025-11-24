@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use crate::map::map::Map;
-use crate::map::zone::Zone;
 use crate::map::waypoint::WayPoint;
+use crate::map::zone::Zone;
 use crate::player::Player;
+use std::collections::HashMap;
 pub struct MapService {
     // Service state
     initialized: bool,
@@ -170,14 +170,16 @@ impl MapService {
 
     /// Get maps by planet ID
     pub fn get_maps_by_planet(&self, planet_id: i32) -> Vec<&Map> {
-        self.maps.values()
+        self.maps
+            .values()
             .filter(|map| map.planet_id == planet_id)
             .collect()
     }
 
     /// Get maps by type
     pub fn get_maps_by_type(&self, map_type: i32) -> Vec<&Map> {
-        self.maps.values()
+        self.maps
+            .values()
             .filter(|map| map.r#type == map_type)
             .collect()
     }
@@ -227,14 +229,14 @@ impl MapService {
 
     pub async fn send_player_move(&self, player: &Player) -> anyhow::Result<()> {
         use crate::network::message::Message;
-        let mut message = Message::new_for_writing(-7);
+        let mut message = Message::new(-7);
         message.write_int(player.id as i32)?;
         message.write_short(player.get_position().0)?;
         message.write_short(player.get_position().1)?;
         if let Some(zone) = &player.zone {
             let _ = zone.send_message_to_all_players(message).await;
         }
-        
+
         Ok(())
     }
 }

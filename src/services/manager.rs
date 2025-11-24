@@ -84,12 +84,8 @@ impl Manager {
         Arc::clone(&MANAGER)
     }
 
-    pub async fn init(
-        &mut self,
-        db_config: &DatabaseConfig,
-    ) -> anyhow::Result<()> {
-        let db_manager = DbManager::new(db_config).await?;
-        let database = db_manager.get_pool().await?;
+    pub async fn init(&mut self) -> anyhow::Result<()> {
+        let database = DbManager::get_pool();
         self.database = Some(database.clone());
         self.mob_service.set_database(database.clone());
 

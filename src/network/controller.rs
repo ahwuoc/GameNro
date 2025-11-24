@@ -1,11 +1,10 @@
 use crate::account::account_dao::AccountDao;
 use crate::constant::cmd::cmd;
 use crate::data::data_game::DataGame;
-use crate::entities::{account, player};
-use crate::services::player_info_service;
+use crate::entities::{account, comment, player, resources};
 use crate::services::GodGK;
+use crate::services::{player_info_service, ServiceHandles};
 use anyhow::{anyhow, Result};
-use bytes::Buf;
 use chrono::{self, Utc};
 use sea_orm::*;
 
@@ -17,7 +16,7 @@ impl AsyncController {
     pub async fn process(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
         println!("=== CLIENT MESSAGE ===");
         println!("Command: {}", msg.command);
-        println!("Data length: {} bytes", msg.data.len());
+        println!("Data length: {} bytes", msg.payload.len());
         println!("=====================");
 
         match msg.command {
@@ -64,13 +63,13 @@ impl AsyncController {
             }
             -63 => Ok(()),
             -67 => {
-                if msg.data.len() >= 4 {
+                if msg.payload.len() >= 4 {
                     let id = msg.read_int()?;
                     if let Err(e) = crate::data::data_game::DataGame::send_icon(session, id).await {
                         println!("Error sending icon {}s", e);
                     }
                 } else {
-                    println!("-67 missing id, len={}", msg.data.len());
+                    println!("-67 missing id, len={}", msg.payload.len());
                 }
                 Ok(())
             }
@@ -82,7 +81,7 @@ impl AsyncController {
     }
 
     async fn handle_get_image_source(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
-        if msg.data.len() < 1 {
+        if msg.payload.len() < 1 {
             return Err(anyhow!("Invalid data length for -74 command"));
         }
 
@@ -107,7 +106,7 @@ impl AsyncController {
     }
 
     async fn handle_message_not_login(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
-        if msg.data.is_empty() {
+        if msg.payload.is_empty() {
             return Err(anyhow!("data empty"));
         }
         let sub_cmd = msg.read_byte()?;
@@ -124,7 +123,7 @@ impl AsyncController {
                 Self::handle_login_authentication(session, &username, &password).await?;
             }
             2 => {
-                if msg.data.len() < 15 {
+                if msg.payload.len() < 15 {
                     return Err(anyhow!("invalid data length for client type"));
                 }
 
@@ -164,7 +163,7 @@ impl AsyncController {
         let password_len = msg.read_byte()? as usize;
         let version = msg.read_int()?;
 
-        if msg.data.len() < username_len + password_len {
+        if msg.payload.len() < username_len + password_len {
             return Err(anyhow!("Data too short"));
         }
         let username = msg.read_utf()?;
@@ -193,20 +192,23 @@ impl AsyncController {
             };
 
             if let Some(db) = db {
-                if let Some(account) = AccountDao::get_account(&db, username)
-                    .await
-                    .map_err(|e| anyhow!("Database error: {:?}", e))?
-                {
+                if let Some(account) = AccountDao::get_account(&db, username).await? {
                     if account.password == password {
                         if account.ban == true {
-                            return Err(anyhow!("Tài khoản đã bị khóa"));
+                            let text = "Tài khoản của bạn đã bị khóa do vi phạm quy định của game.";
+                            ServiceHandles::send_message_alert(session, text).await?;
+                            return Ok(());
                         }
                         Ok(Some(account))
                     } else {
-                        Err(anyhow!("Sai mật khẩu"))
+                        let text = "Sai mật khẩu";
+                        ServiceHandles::send_message_alert(session, text).await?;
+                        return Ok(());
                     }
                 } else {
-                    Err(anyhow!("Tài khoản không tồn tại"))
+                    let text = "Tài khoản không tồn tại";
+                    ServiceHandles::send_message_alert(session, text).await?;
+                    return Ok(());
                 }
             } else {
                 Err(anyhow!("Database not initialized"))
@@ -246,7 +248,6 @@ impl AsyncController {
                         session.set_user_id(account.id);
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
-                        // Add player to zone first
                         let mut player_with_zone = rt_player.clone();
                         {
                             let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
@@ -346,7 +347,7 @@ impl AsyncController {
     }
 
     async fn handle_create_char(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
-        if msg.data.len() < 5 {
+        if msg.payload.len() < 5 {
             // Need at least: [sub_cmd][name_len_2bytes][gender][hair]
             return Err(anyhow!("Invalid data length"));
         }
@@ -441,7 +442,7 @@ impl AsyncController {
     }
 
     async fn handle_message_not_map(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
-        if msg.data.len() < 1 {
+        if msg.payload.len() < 1 {
             return Err(anyhow!("Invalid data length for -28 command"));
         }
 
@@ -504,10 +505,10 @@ impl AsyncController {
 
     async fn handle_chat_map(session: &mut AsyncSession, msg: Message) -> Result<()> {
         if let Some(player) = session.get_player() {
-            if msg.data.is_empty() {
+            if msg.payload.is_empty() {
                 return Err(anyhow!("Chat message data is empty"));
             }
-            let message = String::from_utf8_lossy(&msg.data).to_string();
+            let message = String::from_utf8_lossy(&msg.payload).to_string();
             let mut msg = Message::new(44);
             msg.write_utf(&format!("{}: {}", player.name, message))?;
             if let Some(zone) = &player.zone {
@@ -520,12 +521,12 @@ impl AsyncController {
     async fn handle_player_move(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
         let _flag = msg.read_byte()?;
 
-        if msg.data.len() < 2 {
+        if msg.payload.len() < 2 {
             return Ok(());
         }
 
         let to_x = msg.read_short()?;
-        let to_y = if msg.data.len() >= 2 {
+        let to_y = if msg.payload.len() >= 2 {
             msg.read_short()?
         } else {
             session

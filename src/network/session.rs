@@ -1,8 +1,8 @@
+use super::message::Message;
+use crate::player::Player as RtPlayer;
 use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpStream};
-use super::message::Message;
-use crate::player::Player as RtPlayer;
 
 pub struct AsyncSession {
     pub keys: Vec<u8>,
@@ -22,6 +22,7 @@ pub struct AsyncSession {
 }
 
 impl AsyncSession {
+    pub const SEPICAL_CMDS: [i8; 7] = [-32, -66, -74, 11, -67, -87, 66];
     pub fn new(stream: TcpStream) -> Self {
         let (read_half, write_half) = stream.into_split();
         Self {
@@ -103,8 +104,10 @@ impl AsyncSession {
         Ok(Message::with_data(cmd, data))
     }
 
+    pub fn check_special_cmd(&self, cmd: i8) -> bool {
+        Self::SEPICAL_CMDS.contains(&cmd)
+    }
     pub async fn send_message(&mut self, msg: &Message) -> io::Result<()> {
-        // Command
         if self.sent_key {
             let enc = self.write_key(msg.command as u8);
             self.write_half.write_all(&[enc]).await?;
@@ -115,9 +118,7 @@ impl AsyncSession {
         let data = msg.get_data();
         let size = data.len();
 
-        const SPECIAL_CMDS: [i8; 7] = [-32, -66, -74, 11, -67, -87, 66];
-        if self.sent_key && SPECIAL_CMDS.contains(&msg.command) {
-            // 3-byte size: write (xor_byte) - 128 for each
+        if self.sent_key && self.check_special_cmd(msg.command) {
             let s = size as u32;
             let b0 = (s & 255) as u8;
             let b1 = ((s >> 8) & 255) as u8;
@@ -129,8 +130,8 @@ impl AsyncSession {
             }
             self.write_half.write_all(&out).await?;
         } else if self.sent_key {
-            let hi = ((size >> 8) & 0xFF) as u8;
-            let lo = (size & 0xFF) as u8;
+            let hi = ((size >> 8) & 255) as u8;
+            let lo = (size & 255) as u8;
             let out = [self.write_key(hi), self.write_key(lo)];
             self.write_half.write_all(&out).await?;
         } else {
@@ -150,8 +151,6 @@ impl AsyncSession {
 
         self.write_half.flush().await
     }
-
-    
 
     pub async fn send_key_async(&mut self) -> io::Result<()> {
         let n = self.keys.len();
@@ -209,5 +208,3 @@ impl AsyncSession {
         self.version
     }
 }
-
-
