@@ -167,11 +167,6 @@ impl AsyncSession {
         self.send_message(&msg).await
     }
 
-    pub async fn send_message_old(&mut self, command: i8, data: Vec<u8>) -> io::Result<()> {
-        let msg = Message::with_data(command, data);
-        self.send_message(&msg).await
-    }
-
     pub fn set_player(&mut self, player: RtPlayer) {
         self.player = Some(player);
     }

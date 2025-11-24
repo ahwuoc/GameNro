@@ -1,9 +1,14 @@
+use std::process::Command;
+
 use crate::account::account_dao::AccountDao;
+use crate::account::account_services::AccountServices;
 use crate::constant::cmd::cmd;
 use crate::data::data_game::DataGame;
+use crate::database::DbManager;
 use crate::entities::{account, comment, player, resources};
-use crate::services::GodGK;
+use crate::player::player_service::PLAYER_SERVICE;
 use crate::services::{player_info_service, ServiceHandles};
+use crate::services::{GodGK, PlayerInfoService};
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
@@ -185,67 +190,30 @@ impl AsyncController {
         password: &str,
     ) -> Result<()> {
         let god_gk = GodGK::get_instance();
+        let pool = DbManager::get_pool();
         let account_result: Result<Option<account::Model>> = {
-            let db = {
-                let god_gk_guard = god_gk.lock().unwrap();
-                god_gk_guard.db.clone()
-            };
-
-            if let Some(db) = db {
-                if let Some(account) = AccountDao::get_account(&db, username).await? {
-                    if account.password == password {
-                        if account.ban == true {
-                            let text = "Tài khoản của bạn đã bị khóa do vi phạm quy định của game.";
-                            ServiceHandles::send_message_alert(session, text).await?;
-                            return Ok(());
-                        }
-                        Ok(Some(account))
-                    } else {
-                        let text = "Sai mật khẩu";
-                        ServiceHandles::send_message_alert(session, text).await?;
-                        return Ok(());
-                    }
-                } else {
-                    let text = "Tài khoản không tồn tại";
-                    ServiceHandles::send_message_alert(session, text).await?;
+            match AccountServices::login(&pool, username, password).await {
+                Ok(account) => Ok(Some(account)),
+                Err(e) => {
+                    let text = e.to_string();
+                    ServiceHandles::send_message_alert(session, &text).await?;
                     return Ok(());
                 }
-            } else {
-                Err(anyhow!("Database not initialized"))
             }
         };
         match account_result {
             Ok(Some(account)) => {
+                let account_id = account.id;
                 {
-                    let db = {
-                        let god_gk_guard: std::sync::MutexGuard<'_, GodGK> = god_gk.lock().unwrap();
-                        god_gk_guard.db.clone()
-                    };
-
-                    if let Some(db) = db {
-                        let mut account_data = account.clone().into_active_model();
-                        account_data.last_time_login = Set(Some(Utc::now()));
-                        AccountDao::update_account(&db, account_data).await?;
-                    }
+                    let mut account_data = account.into_active_model();
+                    account_data.last_time_login = Set(Some(Utc::now()));
+                    AccountDao::update_account(&pool, account_data).await?;
                 }
-
-                let player_result = {
-                    let db = {
-                        let god_gk_guard = god_gk.lock().unwrap();
-                        god_gk_guard.db.clone()
-                    };
-
-                    if let Some(db) = db {
-                        AccountDao::get_player_by_account_id(&db, account.id).await
-                    } else {
-                        Err(DbErr::Custom("Database not initialized".to_string()))
-                    }
-                };
+                let player_result = AccountDao::get_player_by_account_id(&pool, account_id).await;
 
                 match player_result {
                     Ok(Some(db_player)) => {
-                        println!("Player found, sending login success data");
-                        session.set_user_id(account.id);
+                        session.set_user_id(account_id);
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                         let mut player_with_zone = rt_player.clone();
@@ -255,12 +223,6 @@ impl AsyncController {
                                 .get_best_zone(player_with_zone.map_id as i32)
                                 .await
                             {
-                                println!(
-                                    "[LOGIN] Adding player {} to zone {}_{}",
-                                    player_with_zone.name,
-                                    player_with_zone.map_id,
-                                    player_with_zone.zone_id
-                                );
                                 player_with_zone.set_zone(zone);
                             } else {
                                 println!(
@@ -277,18 +239,15 @@ impl AsyncController {
                         }
 
                         session.set_player(player_with_zone.clone());
-
-                        // Add player to PLAYER_SERVICE
                         {
-                            let player_service =
-                                crate::player::player_service::PLAYER_SERVICE.write().await;
+                            let player_service = PLAYER_SERVICE.write().await;
                             player_service.add_player(player_with_zone).await;
                         }
 
                         Self::send_login_success_data(session).await?;
                     }
                     Ok(None) => {
-                        session.set_user_id(account.id);
+                        session.set_user_id(account_id);
                         Self::switch_to_create_char(session).await?;
                     }
                     Err(e) => {
@@ -313,7 +272,7 @@ impl AsyncController {
         Self::send_message_93(session).await?;
         DataGame::send_version_game(session).await?;
         DataGame::send_data_item_bg(session).await?;
-        Self::send_player_info(session).await?;
+        PlayerInfoService::send_all_player_info(session).await?;
         Ok(())
     }
 
@@ -324,24 +283,10 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn send_player_info(session: &mut AsyncSession) -> Result<()> {
-        crate::services::player_info_service::PlayerInfoService::send_all_player_info(session)
-            .await?;
-        Ok(())
-    }
-
-    async fn send_welcome_message(session: &mut AsyncSession) -> Result<()> {
-        let welcome_msg = "Chào mừng bạn đến với GameNro!";
-        let msg_bytes = welcome_msg.as_bytes().to_vec();
-        session.send_message_old(10, msg_bytes).await?;
-        Ok(())
-    }
-
     async fn switch_to_create_char(session: &mut AsyncSession) -> Result<()> {
         DataGame::send_data_item_bg(session).await?;
         DataGame::send_version_game(session).await?;
         DataGame::send_tile_set_info(session).await?;
-        session.send_message_old(-93, vec![2]).await?;
         DataGame::update_data(session).await?;
         Ok(())
     }

@@ -420,15 +420,17 @@ impl DataGame {
     }
 
     pub async fn send_skill_data(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let skill_data = b"skill_data".to_vec();
-        session.send_message_old(-72, skill_data).await?;
+        let mut response = Message::new(-72);
+        response.write_byte(0)?;
+        session.send_message(&response).await?;
         Ok(())
     }
 
     pub async fn send_item_data(session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("Sending item data");
-        let item_data = b"item_data".to_vec();
-        session.send_message_old(-73, item_data).await?;
+        let mut response = Message::new(-73);
+        response.write_byte(0)?;
+        session.send_message(&response).await?;
+
         Ok(())
     }
 
@@ -479,8 +481,9 @@ impl DataGame {
 
     pub async fn send_client_ok(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending client OK");
-        let ok_data = b"ok".to_vec();
-        session.send_message_old(-75, ok_data).await?;
+        let mut response = Message::new(-75);
+        response.write_byte(0)?;
+        session.send_message(&response).await?;
         Ok(())
     }
 

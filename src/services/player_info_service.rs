@@ -2,53 +2,34 @@ use crate::data::DataGame;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::player::Player as RtPlayer;
-use crate::services::IntrinsicService;
+use crate::services::{IntrinsicService, ZoneService};
 
 pub struct PlayerInfoService;
 
 impl PlayerInfoService {
-    pub async fn player(
-        session: &mut AsyncSession,
-        player: &RtPlayer,
-    ) -> anyhow::Result<()> {
-        Ok(())
-    }
-
     pub async fn send_point_info(
         session: &mut AsyncSession,
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
-        println!("Sending point info");
-        let n = &player.n_point;
-        let hp_max = n.hp_max as i64;
-        let mp_max = n.mp_max as i64;
-        let hp = n.hp as i64;
-        let mp = n.mp as i64;
-        let damage = n.damage as i64;
-        let defense = n.defense as i64;
-        let crit = (n.crit.min(255)) as u8;
-        let power = n.power as i64;
-        let speed: u8 = 10;
-
         let mut msg = Message::new(-42);
-        msg.write_long(hp_max)?; // hpg
-        msg.write_long(mp_max)?; // mpg
-        msg.write_long(damage)?; // dameg
-        msg.write_long(hp_max)?; // hpMax
-        msg.write_long(mp_max)?; // mpMax
-        msg.write_long(hp)?; // hp
-        msg.write_long(mp)?; // mp
-        msg.write_byte(speed as i8)?; // speed
+        msg.write_int(player.n_point.base_hp)?; // hpg
+        msg.write_int(player.n_point.base_mp)?; // mpg
+        msg.write_int(player.n_point.base_dame)?; // dameg
+        msg.write_int(player.n_point.max_hp)?; // hpMax
+        msg.write_int(player.n_point.max_mp)?; // mpMax
+        msg.write_int(player.n_point.final_hp)?; // hp
+        msg.write_int(player.n_point.final_mp)?; // mp
+        msg.write_byte(player.n_point.speed)?; // speed
         msg.write_byte(20)?; // reserved
         msg.write_byte(20)?; // reserved
         msg.write_byte(1)?; // reserved
-        msg.write_long(damage)?; // dame
-        msg.write_long(defense)?; // def
-        msg.write_byte(crit as i8)?; // crit
-        msg.write_long(power)?; // tiemNang
-        msg.write_short(0)?; // reserved
-        msg.write_long(0)?; // defg (reserved)
-        msg.write_byte(0)?; // critg (reserved)
+        msg.write_int(player.n_point.final_dame)?; // dame
+        msg.write_int(player.n_point.final_def)?; // def
+        msg.write_byte(player.n_point.final_crit)?; // crit
+        msg.write_long(player.n_point.tiem_nang)?; // tiemNang
+        msg.write_short(100)?; // reserved
+        msg.write_int(player.n_point.base_def)?; // defg (reserved)
+        msg.write_byte(player.n_point.base_crit)?; // critg (reserved)
 
         session.send_message(&msg).await?;
         Ok(())
@@ -332,9 +313,9 @@ impl PlayerInfoService {
         let mut msg = Message::new(-30);
         msg.write_byte(0)?;
         msg.write_int(_player.id as i32)?;
-        msg.write_long(_player.n_point.hp as i64)?;
+        msg.write_int(_player.n_point.base_hp)?;
         msg.write_byte(0)?;
-        msg.write_long(_player.n_point.hp_max as i64)?;
+        msg.write_int(_player.n_point.max_hp)?;
 
         if let Some(zone) = &_player.zone {
             zone.send_message_to_all_players(msg).await?;
@@ -387,8 +368,7 @@ impl PlayerInfoService {
 
         // -50 thông tin bảng thông báo
         Self::send_notification_tab(session).await?;
-
-        crate::services::ZoneService::load_player_to_best_zone(player.clone(), session).await?;
+        ZoneService::load_player_to_best_zone(player.clone(), session).await?;
 
         Self::send_cai_trang(session, &player).await?;
 
