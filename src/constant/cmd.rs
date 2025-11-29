@@ -4,4 +4,5 @@ pub mod cmd {
     pub const NOT_LOGIN: i8 = -29;
     pub const GET_IMAGES_SOURCE: i8 = -74;
     pub const SEND_ALTER_MESSAGE: i8 = -26;
+    pub const CHAT: i8 = 44;
 }

@@ -123,15 +123,6 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    /// Send big message (-70)
-    pub async fn send_big_message(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let mut msg = Message::new(-70);
-        msg.write_utf("Chào mừng đến với GameNro!")?;
-
-        session.send_message(&msg).await?;
-        Ok(())
-    }
-
     pub async fn send_time_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending time skill info");
 
@@ -158,15 +149,15 @@ impl PlayerInfoService {
         msg.write_byte(0)?;
         msg.write_int(player.id as i32)?;
         msg.write_byte(1)?;
-        msg.write_byte(player.gender as i8)?;
+        msg.write_byte(player.gender)?;
         msg.write_short(player.head)?;
         msg.write_utf(&player.name)?;
         msg.write_byte(0)?;
-        msg.write_byte(player.type_pk as i8)?; // typePk
-        msg.write_long(player.n_point.power as i64)?; // power
+        msg.write_byte(player.type_pk)?; // typePk
+        msg.write_long(player.n_point.power)?; // power
         msg.write_short(0)?;
         msg.write_short(0)?;
-        msg.write_byte(player.gender as i8)?;
+        msg.write_byte(player.gender)?;
         msg.write_byte(0)?;
 
         if session.get_version() >= 214 && session.get_version() < 231 {
@@ -261,7 +252,6 @@ impl PlayerInfoService {
         msg.write_int(333)?; // delta time
         msg.write_byte(if player.is_new_member { 1 } else { 0 })?;
 
-        // Add missing data like Java server
         msg.write_short(514)?; // char info id - con chim thông báo
         msg.write_short(515)?; // char info id
         msg.write_short(537)?; // char info id
@@ -283,12 +273,9 @@ impl PlayerInfoService {
         message.write_byte(1)?;
         message.write_int(_player.id as i32)?;
 
-        let head = _player.get_head();
-        let body = _player.get_body();
-        let leg = _player.get_leg();
-        message.write_short(head)?;
-        message.write_short(body)?;
-        message.write_short(leg)?;
+        message.write_short(_player.get_head())?;
+        message.write_short(_player.get_body())?;
+        message.write_short(_player.get_leg())?;
         message.write_byte(0)?;
 
         let player = session
@@ -306,23 +293,6 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_player_info(
-        _session: &mut AsyncSession,
-        _player: &RtPlayer,
-    ) -> anyhow::Result<()> {
-        let mut msg = Message::new(-30);
-        msg.write_byte(0)?;
-        msg.write_int(_player.id as i32)?;
-        msg.write_int(_player.n_point.base_hp)?;
-        msg.write_byte(0)?;
-        msg.write_int(_player.n_point.max_hp)?;
-
-        if let Some(zone) = &_player.zone {
-            zone.send_message_to_all_players(msg).await?;
-        }
-        Ok(())
-    }
-
     pub async fn send_all_player_info(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending all player info");
 
@@ -330,10 +300,11 @@ impl PlayerInfoService {
             .get_player()
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Player not set"))?;
+        DataGame::send_data_item_bg(session).await?;
 
+        //-82
         DataGame::send_tile_set_info(session).await?;
 
-        // 112 my info intrinsic
         let intrinsic_service: IntrinsicService = IntrinsicService;
         intrinsic_service
             .send_info_intrinsic(session, &player)
@@ -372,9 +343,6 @@ impl PlayerInfoService {
 
         Self::send_cai_trang(session, &player).await?;
 
-        Self::send_big_message(session).await?;
-
-        // last time use skill
         Self::send_time_skill(session).await?;
 
         // clear vt sk

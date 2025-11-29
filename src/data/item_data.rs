@@ -139,6 +139,27 @@ impl ItemData {
         end: i16,
     ) -> anyhow::Result<()> {
         println!("Updating item templates range ({} to {})", start, end);
+        
+        let manager = crate::services::manager::Manager::get_instance();
+        let items_by_id = {
+            let manager_guard = manager.lock().unwrap();
+            manager_guard.item_templates_by_id.clone()
+        };
+
+        // Check if there are any items in the range first
+        let mut items_in_range = Vec::new();
+        for id in start..end {
+            if let Some(item) = items_by_id.get(&(id as i32)) {
+                items_in_range.push(item);
+            }
+        }
+
+        // Only send message if there are items to send
+        if items_in_range.is_empty() {
+            println!("No items found in range {} to {}, skipping", start, end);
+            return Ok(());
+        }
+
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(1)?; // vsItem version
@@ -146,32 +167,22 @@ impl ItemData {
         msg.write_short(start)?;
         msg.write_short(end)?;
 
-        let manager = crate::services::manager::Manager::get_instance();
-        let items_by_id = {
-            let manager_guard = manager.lock().unwrap();
-            manager_guard.item_templates_by_id.clone()
-        };
-
-        let mut items_sent = 0;
-        for id in start..end {
-            if let Some(item) = items_by_id.get(&(id as i32)) {
-                msg.write_byte((item.r#type as u8) as i8)?;
-                msg.write_byte((item.gender as u8) as i8)?;
-                msg.write_utf(&item.name)?;
-                msg.write_utf(&item.description)?;
-                msg.write_byte(0)?;
-                msg.write_int(item.power_require as i32)?;
-                msg.write_short(item.icon_id as i16)?;
-                msg.write_short(item.part as i16)?;
-                msg.write_boolean(item.is_up_to_up != 0)?;
-                items_sent += 1;
-            }
+        for item in &items_in_range {
+            msg.write_byte((item.r#type as u8) as i8)?;
+            msg.write_byte((item.gender as u8) as i8)?;
+            msg.write_utf(&item.name)?;
+            msg.write_utf(&item.description)?;
+            msg.write_byte(0)?;
+            msg.write_int(item.power_require as i32)?;
+            msg.write_short(item.icon_id as i16)?;
+            msg.write_short(item.part as i16)?;
+            msg.write_boolean(item.is_up_to_up != 0)?;
         }
 
         session.send_message(&msg).await?;
         println!(
             "Sent {} additional item templates from cache",
-            items_sent
+            items_in_range.len()
         );
         Ok(())
     }

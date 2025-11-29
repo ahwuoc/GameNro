@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
+use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item::Item;
 use crate::item::item_option::ItemOption;
-use crate::entities::item_template::Model as ItemTemplate;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct ItemMap {
@@ -34,7 +34,7 @@ impl ItemMap {
         } else {
             false
         };
-        
+
         let is_namec_ball = if let Some(ref template) = template {
             Self::is_namec_ball_template(template.id)
         } else {
@@ -47,7 +47,11 @@ impl ItemMap {
             quantity,
             x,
             y,
-            player_id: if player_id != -1 { player_id.abs() } else { player_id },
+            player_id: if player_id != -1 {
+                player_id.abs()
+            } else {
+                player_id
+            },
             options: Vec::new(),
             create_time: current_time,
             clan_id: -1,
@@ -73,7 +77,7 @@ impl ItemMap {
         }
     }
 
-    pub fn get_item_id(&self) -> i32 {
+    pub fn get_item_id(&self) -> i16 {
         if let Some(ref template) = self.item_template {
             template.id
         } else {
@@ -157,7 +161,6 @@ impl ItemMap {
     }
 
     pub fn get_content(&self) -> String {
-        // TODO: Implement content generation
         String::new()
     }
 
@@ -165,7 +168,7 @@ impl ItemMap {
         self.options.push(option);
     }
 
-    pub fn get_option_param(&self, option_id: i32) -> i32 {
+    pub fn get_option_param(&self, option_id: i8) -> i16 {
         for option in &self.options {
             if option.get_option_id() == option_id {
                 return option.get_param();
@@ -174,7 +177,7 @@ impl ItemMap {
         0
     }
 
-    pub fn has_option(&self, option_id: i32) -> bool {
+    pub fn has_option(&self, option_id: i8) -> bool {
         for option in &self.options {
             if option.get_option_id() == option_id {
                 return true;
@@ -191,25 +194,20 @@ impl ItemMap {
         self.options.clear();
     }
 
-    pub fn is_black_ball_template(template_id: i32) -> bool {
+    pub fn is_black_ball_template(template_id: i16) -> bool {
         let black_ball_ids = vec![
-            86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
-            96, 97, 98, 99, 100, 101, 102, 103, 104, 105
+            86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
         ];
         black_ball_ids.contains(&template_id)
     }
 
-    pub fn is_namec_ball_template(template_id: i32) -> bool {
-        let namec_ball_ids = vec![
-            106, 107, 108, 109, 110, 111, 112, 113, 114, 115
-        ];
+    pub fn is_namec_ball_template(template_id: i16) -> bool {
+        let namec_ball_ids = vec![106, 107, 108, 109, 110, 111, 112, 113, 114, 115];
         namec_ball_ids.contains(&template_id)
     }
 
-    pub fn is_valuable_item(template_id: i32) -> bool {
-        let valuable_ids = vec![
-            200, 201, 202, 203, 204, 205, 206, 207, 208, 209
-        ];
+    pub fn is_valuable_item(template_id: i16) -> bool {
+        let valuable_ids = vec![200, 201, 202, 203, 204, 205, 206, 207, 208, 209];
         valuable_ids.contains(&template_id)
     }
 

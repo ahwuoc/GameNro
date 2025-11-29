@@ -1,6 +1,5 @@
-use crate::map::Zone;
+use crate::constant::cmd;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
 use crate::player::Player;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -21,6 +20,40 @@ impl PlayerService {
     pub async fn add_player(&self, player: Player) {
         let mut players = self.players.write().await;
         players.insert(player.id, player);
+    }
+
+    pub async fn kick_old_session_if_exists(&self, player_id: u64) -> bool {
+        let old_session = {
+            let mut players = self.players.write().await;
+            if let Some(old_player) = players.remove(&player_id) {
+                println!("[KICK] Removed old player {} from service", player_id);
+                old_player.session.clone() // Clone Arc, không phải session
+            } else {
+                println!("[KICK] No old session found for player {}", player_id);
+                return false;
+            }
+        };
+        if let Some(session_arc) = old_session {
+            tokio::spawn(async move {
+                println!("[KICK] Attempting to send kick message...");
+
+                // Tạo message trước
+                let mut response = Message::new(cmd::cmd::SEND_ALTER_MESSAGE);
+                if let Err(e) = response.write_utf("Tai khoan da dang nhap o 1 noi khac") {
+                    println!("[KICK] Failed to write message: {:?}", e);
+                    return;
+                }
+
+                // Gửi message
+                let mut session = session_arc.write().await;
+                match session.send_message(&response).await {
+                    Ok(_) => println!("[KICK] ✅ Kick message sent successfully"),
+                    Err(e) => println!("[KICK] ❌ Failed to send kick message: {:?}", e),
+                }
+            });
+        }
+
+        true
     }
 
     pub async fn remove_player(&self, player_id: u64) -> bool {
@@ -48,156 +81,12 @@ impl PlayerService {
         }
     }
 
-    // Combat methods
-    pub async fn damage_player(&self, player_id: u64, damage: u64, piercing: bool) -> u64 {
-        self.update_player(player_id, |player| {
-            player.injured(damage, piercing);
-        })
-        .await;
-        damage
-    }
-
-    pub async fn heal_player(&self, player_id: u64, amount: u64) -> bool {
-        //  Todo
-        true
-    }
-
-    pub async fn revive_player(&self, player_id: u64) -> bool {
-        self.update_player(player_id, |player| {
-            player.revive();
-        })
-        .await
-    }
-
     // Movement methods
     pub async fn move_player(&self, player_id: u64, x: i16, y: i16) -> bool {
         self.update_player(player_id, |player| {
             player.set_position(x, y);
         })
         .await
-    }
-
-    pub async fn player_move(
-        &self,
-        player: &mut Player,
-        to_x: i16,
-        to_y: i16,
-    ) -> anyhow::Result<()> {
-        if player.is_die || player.zone.is_none() {
-            return Ok(());
-        }
-
-        if to_x < 0 || to_y < 0 || to_x > 1000 || to_y > 1000 {
-            return Ok(());
-        }
-
-        player.set_position(to_x, to_y);
-
-        use crate::map::map_service::MapService;
-        let _ = MapService::get_instance().send_player_move(player).await;
-        Ok(())
-    }
-
-    pub async fn change_player_map(
-        &self,
-        player_id: u64,
-        map_id: u32,
-        zone_id: u32,
-        x: i16,
-        y: i16,
-    ) -> bool {
-        self.update_player(player_id, |player| {
-            player.map_id = map_id;
-            player.zone_id = zone_id;
-            player.set_position(x, y);
-        })
-        .await
-    }
-    pub async fn send_message_to_player(&self, player_id: u64, msg: Message) -> anyhow::Result<()> {
-        if let Some(player) = self.get_player(player_id).await {
-            // TODO: Implement actual message sending
-            println!("[PLAYER_SERVICE] Sending message to player {}", player_id);
-        }
-        Ok(())
-    }
-
-    pub async fn broadcast_message(&self, msg: Message) -> anyhow::Result<()> {
-        let players = self.get_all_players().await;
-        for player in players {
-            self.send_message_to_player(player.id, msg.clone()).await?;
-        }
-        Ok(())
-    }
-
-    // Player info methods
-    pub async fn get_player_count(&self) -> usize {
-        let players = self.players.read().await;
-        players.len()
-    }
-
-    pub async fn get_online_players(&self) -> Vec<Player> {
-        let players = self.players.read().await;
-        players
-            .values()
-            .filter(|player| player.is_pl())
-            .cloned()
-            .collect()
-    }
-
-    pub async fn get_players_in_map(&self, map_id: u32) -> Vec<Player> {
-        let players = self.players.read().await;
-        players
-            .values()
-            .filter(|player| player.map_id == map_id)
-            .cloned()
-            .collect()
-    }
-
-    pub async fn get_players_in_zone(&self, map_id: u32, zone_id: u32) -> Vec<Player> {
-        let players = self.players.read().await;
-        players
-            .values()
-            .filter(|player| player.map_id == map_id && player.zone_id == zone_id)
-            .cloned()
-            .collect()
-    }
-
-    // Admin methods
-    pub async fn set_player_admin(&self, player_id: u64, is_admin: bool) -> bool {
-        self.update_player(player_id, |player| {
-            player.is_admin = is_admin;
-        })
-        .await
-    }
-
-    pub async fn kick_player(&self, player_id: u64) -> bool {
-        if let Some(player) = self.get_player(player_id).await {
-            println!(
-                "[PLAYER_SERVICE] Kicking player {} ({})",
-                player.name, player_id
-            );
-            self.remove_player(player_id).await
-        } else {
-            false
-        }
-    }
-
-    // Cleanup methods
-    pub async fn cleanup_disconnected_players(&self) -> usize {
-        let mut players = self.players.write().await;
-        let initial_count = players.len();
-
-        players.retain(|_, player| player.session_id.is_some());
-
-        let removed_count = initial_count - players.len();
-        if removed_count > 0 {
-            println!(
-                "[PLAYER_SERVICE] Cleaned up {} disconnected players",
-                removed_count
-            );
-        }
-
-        removed_count
     }
 }
 

@@ -41,8 +41,8 @@ pub struct Player {
     pub type_pk: i8,
 
     // Zone/Map
-    pub zone_id: u32,
-    pub map_id: u32,
+    pub zone_id: i32,
+    pub map_id: i32,
     pub last_time_use_option: u64,
     pub last_time_revived: u64,
 

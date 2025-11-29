@@ -1,7 +1,4 @@
-use crate::entities::item_option_template::Model as ItemOptionTemplate;
 use crate::entities::item_template::Model as ItemTemplate;
-use crate::item;
-use crate::item::Item;
 use crate::item::ItemDao;
 use crate::item::ItemService;
 use once_cell::sync::Lazy;
@@ -11,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct ItemManager {
-    item_templates: Arc<RwLock<HashMap<i32, ItemTemplate>>>,
+    item_templates: Arc<RwLock<HashMap<i16, ItemTemplate>>>,
     item_service: ItemService,
 }
 
@@ -22,14 +19,11 @@ impl ItemManager {
             item_service: ItemService::new(),
         }
     }
-    
-    pub async fn load_from_db(
-        &self,
-        db: &DatabaseConnection,
-    ) -> anyhow::Result<()> {
+
+    pub async fn load_from_db(&self, db: &DatabaseConnection) -> anyhow::Result<()> {
         let templates = ItemDao::get_all_item_templates(db).await?;
         let mut templates_lock = self.item_templates.write().await;
-        
+
         for template in templates {
             templates_lock.insert(template.id, template);
         }
@@ -41,7 +35,7 @@ impl ItemManager {
         templates.values().cloned().collect()
     }
 }
-   
+
 pub static ITEM_MANAGER: Lazy<RwLock<ItemManager>> = Lazy::new(|| RwLock::new(ItemManager::new()));
 
 impl Clone for ItemManager {

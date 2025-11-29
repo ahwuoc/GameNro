@@ -1,57 +1,32 @@
-use std::collections::HashMap;
+use crate::entities::player;
+use crate::item;
 use crate::item::inventory::Inventory;
 use crate::item::item::Item;
+use crate::network::message::Message;
+use crate::player::Player;
+use std::sync::Mutex;
 
-/// InventoryService manages inventory operations
-pub struct InventoryService {
-    // Service state
-    initialized: bool,
-}
+use once_cell::sync::Lazy;
+
+static INVENTORY_SERVICE: Lazy<Mutex<InventoryService>> =
+    Lazy::new(|| Mutex::new(InventoryService));
+pub struct InventoryService;
 
 impl InventoryService {
-    pub fn new() -> Self {
-        Self {
-            initialized: false,
-        }
+    pub fn get_instance() -> std::sync::MutexGuard<'static, InventoryService> {
+        INVENTORY_SERVICE.lock().unwrap()
     }
 
-    pub fn get_instance() -> &'static mut InventoryService {
-        static mut INSTANCE: Option<InventoryService> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(InventoryService::new());
-            }
-            INSTANCE.as_mut().unwrap()
-        }
-    }
-
-    /// Initialize service
-    pub fn init(&mut self) {
-        self.initialized = true;
-        println!("InventoryService initialized");
-    }
-
-    /// Check if service is initialized
-    pub fn is_initialized(&self) -> bool {
-        self.initialized
-    }
-
-    /// Add item to player's bag
     pub fn add_item_to_bag(&self, inventory: &mut Inventory, item: Item) -> bool {
         inventory.add_item_bag(item)
     }
 
-    /// Add item to player's body
     pub fn add_item_to_body(&self, inventory: &mut Inventory, item: Item) -> bool {
         inventory.add_item_body(item)
     }
-
-    /// Add item to player's box
     pub fn add_item_to_box(&self, inventory: &mut Inventory, item: Item) -> bool {
         inventory.add_item_box(item)
     }
-
-    /// Remove item from bag by index
     pub fn remove_item_from_bag(&self, inventory: &mut Inventory, index: usize) -> Option<Item> {
         inventory.remove_item_bag(index)
     }
@@ -67,27 +42,44 @@ impl InventoryService {
     }
 
     /// Get item from bag by index
-    pub fn get_item_from_bag<'a>(&self, inventory: &'a Inventory, index: usize) -> Option<&'a Item> {
+    pub fn get_item_from_bag<'a>(
+        &self,
+        inventory: &'a Inventory,
+        index: usize,
+    ) -> Option<&'a Item> {
         inventory.get_item_bag(index)
     }
 
     /// Get item from body by index
-    pub fn get_item_from_body<'a>(&self, inventory: &'a Inventory, index: usize) -> Option<&'a Item> {
+    pub fn get_item_from_body<'a>(
+        &self,
+        inventory: &'a Inventory,
+        index: usize,
+    ) -> Option<&'a Item> {
         inventory.get_item_body(index)
     }
 
     /// Get item from box by index
-    pub fn get_item_from_box<'a>(&self, inventory: &'a Inventory, index: usize) -> Option<&'a Item> {
+    pub fn get_item_from_box<'a>(
+        &self,
+        inventory: &'a Inventory,
+        index: usize,
+    ) -> Option<&'a Item> {
         inventory.get_item_box(index)
     }
 
     /// Get item count by template ID
-    pub fn get_item_count_by_id(&self, inventory: &Inventory, template_id: i32) -> i32 {
+    pub fn get_item_count_by_id(&self, inventory: &Inventory, template_id: i16) -> i32 {
         inventory.get_item_count_by_id(template_id)
     }
 
     /// Subtract item quantity by template ID
-    pub fn sub_quantity_item_by_id(&self, inventory: &mut Inventory, template_id: i32, quantity: i32) -> bool {
+    pub fn sub_quantity_item_by_id(
+        &self,
+        inventory: &mut Inventory,
+        template_id: i16,
+        quantity: i32,
+    ) -> bool {
         inventory.sub_quantity_item_by_id(template_id, quantity)
     }
 
@@ -166,16 +158,17 @@ impl InventoryService {
         inventory.clear_all_items();
     }
 
-    /// Dispose inventory
-    pub fn dispose_inventory(&self, inventory: &mut Inventory) {
-        inventory.dispose();
-    }
-
     /// Find item index in bag
-    pub fn find_item_index_in_bag(&self, inventory: &Inventory, target_item: &Item) -> Option<usize> {
+    pub fn find_item_index_in_bag(
+        &self,
+        inventory: &Inventory,
+        target_item: &Item,
+    ) -> Option<usize> {
         for (index, item) in inventory.items_bag.iter().enumerate() {
             if item.is_not_null_item() && target_item.is_not_null_item() {
-                if let (Some(item_id), Some(target_id)) = (item.get_template_id(), target_item.get_template_id()) {
+                if let (Some(item_id), Some(target_id)) =
+                    (item.get_template_id(), target_item.get_template_id())
+                {
                     if item_id == target_id && item.quantity == target_item.quantity {
                         return Some(index);
                     }
@@ -184,14 +177,47 @@ impl InventoryService {
         }
         None
     }
-
-    /// Check if inventory has specific item
-    pub fn has_item(&self, inventory: &Inventory, template_id: i32) -> bool {
-        inventory.get_item_count_by_id(template_id) > 0
+    pub fn send_item_bag_to_client(pl: &mut Player) -> anyhow::Result<()> {
+        let mut response = Message::new(-36);
+        response.write_byte(0);
+        response.write_byte(pl.inventory.items_bag.len() as i8);
+        for item in &pl.inventory.items_bag {
+            if item.is_not_null_item() {
+                continue;
+            }
+            response.write_short(item.get_template_id().unwrap_or(1));
+            response.write_int(item.quantity);
+            response.write_utf(&item.get_description());
+            response.write_utf(&item.get_content())?;
+            response.write_byte(item.item_options.len() as i8);
+            for option in &item.item_options {
+                response.write_byte(option.option_id);
+                response.write_short(option.param);
+            }
+        }
+        pl.send_message(response);
+        Ok(())
     }
+    pub fn send_item_body_to_client(pl: &mut Player) -> anyhow::Result<()> {
+        let mut response = Message::new(-37);
+        response.write_byte(0);
+        response.write_short(pl.get_head());
+        response.write_byte(pl.inventory.items_body.len() as i8);
+        for item in &pl.inventory.items_body {
+            if item.is_not_null_item() {
+                continue;
+            };
+            response.write_short(item.get_template_id().unwrap_or(1));
+            response.write_int(item.quantity);
+            response.write_utf(&item.get_description());
+            response.write_utf(&item.get_content());
+            for option in &item.item_options {
+                response.write_byte(option.option_id);
+                response.write_short(option.param);
+            }
+        }
+        pl.send_message(response);
 
-    /// Check if inventory has enough items
-    pub fn has_enough_items(&self, inventory: &Inventory, template_id: i32, quantity: i32) -> bool {
-        inventory.get_item_count_by_id(template_id) >= quantity
+        Ok(())
     }
 }

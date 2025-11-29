@@ -1,12 +1,11 @@
-use crate::map::Zone;
-use crate::player::Player;
-use crate::network::session::AsyncSession;
 use crate::map::zone_manager::ZONE_MANAGER;
+use crate::map::Zone;
+use crate::network::session::AsyncSession;
+use crate::player::Player;
 
 pub struct ZoneService;
 
 impl ZoneService {
-    /// Load player into the best available zone for their map
     pub async fn load_player_to_best_zone(
         player: Player,
         session: &mut AsyncSession,
@@ -42,7 +41,9 @@ impl ZoneService {
         msg: crate::network::message::Message,
     ) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
-        zone_manager.send_message_to_all_players_in_map(map_id, msg).await
+        zone_manager
+            .send_message_to_all_players_in_map(map_id, msg)
+            .await
     }
 
     /// Send message to other players in a map (excluding one player)
@@ -52,7 +53,9 @@ impl ZoneService {
         msg: crate::network::message::Message,
     ) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
-        zone_manager.send_message_to_other_players_in_map(map_id, except_player_id, msg).await
+        zone_manager
+            .send_message_to_other_players_in_map(map_id, except_player_id, msg)
+            .await
     }
 
     /// Get total players in a map

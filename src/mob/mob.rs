@@ -6,18 +6,18 @@ pub struct RtMob {
     pub id: u64,
     pub template_id: i32,
     pub name: String,
-    pub level: i32,
+    pub level: i8,
     pub hp: i32,
     pub max_hp: i32,
     pub mp: i32,
     pub max_mp: i32,
     pub location: Location,
-    pub map_id: u32,
-    pub zone_id: u32,
+    pub map_id: i32,
+    pub zone_id: i32,
     pub is_alive: bool,
     pub template: Option<MobTemplate>,
-    pub status: i32,
-    pub lv_mob: i32,
+    pub status: i8,
+    pub lv_mob: i8,
 }
 
 impl RtMob {
@@ -44,7 +44,7 @@ impl RtMob {
     pub fn from_template(template: MobTemplate, id: u64) -> Self {
         let mut mob = Self::new(id, template.id, template.name.clone());
         mob.template = Some(template.clone());
-        mob.level = 1; 
+        mob.level = 1;
         mob.max_hp = template.hp;
         mob.hp = template.hp;
         mob.max_mp = 50;
@@ -87,7 +87,7 @@ impl RtMob {
         self.mp = (self.mp + amount).min(self.max_mp);
     }
 
-    pub fn set_location(&mut self, map_id: u32, zone_id: u32, x: i16, y: i16) {
+    pub fn set_location(&mut self, map_id: i32, zone_id: i32, x: i16, y: i16) {
         self.map_id = map_id;
         self.zone_id = zone_id;
         self.location.set_map(map_id, zone_id);
@@ -102,11 +102,11 @@ impl RtMob {
         self.location.y
     }
 
-    pub fn get_map_id(&self) -> u32 {
+    pub fn get_map_id(&self) -> i32 {
         self.map_id
     }
 
-    pub fn get_zone_id(&self) -> u32 {
+    pub fn get_zone_id(&self) -> i32 {
         self.zone_id
     }
 }

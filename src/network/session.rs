@@ -202,4 +202,11 @@ impl AsyncSession {
     pub fn get_version(&self) -> i32 {
         self.version
     }
+
+    /// Force shutdown connection (để kick client)
+    pub async fn shutdown(&mut self) -> io::Result<()> {
+        // Shutdown write half
+        self.write_half.shutdown().await?;
+        Ok(())
+    }
 }

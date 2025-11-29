@@ -4,7 +4,6 @@ use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::{self, AsyncSession};
 use crate::player::player::Player;
-use crate::services::MessageService;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,7 +19,6 @@ pub struct Zone {
 }
 
 impl Zone {
-    /// Create a new zone
     pub fn new(map_id: i32, zone_id: i32, max_player: i32) -> Self {
         Self {
             map_id,
@@ -100,7 +98,7 @@ impl Zone {
         Ok(())
     }
 
-    pub async fn remove_item(&self, item_id: i32) -> anyhow::Result<()> {
+    pub async fn remove_item(&self, item_id: i16) -> anyhow::Result<()> {
         let mut items = self.items.write().await;
         items.retain(|item| item.id != item_id);
         Ok(())
@@ -144,7 +142,22 @@ impl Zone {
 
     pub async fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
         let players = self.players.read().await;
-        MessageService::send_to_all_players(&players, msg).await
+        Ok(())
+    }
+
+    pub async fn send_message_all_player_in_map(
+        &self,
+        player: &Player,
+        msg: Message,
+    ) -> anyhow::Result<()> {
+        if player.zone.is_none() {
+            return Ok(());
+        }
+        let players = self.players.read().await;
+        for pl in players.values() {
+            let _ = pl.send_message(msg.clone()).await;
+        }
+        Ok(())
     }
 
     pub async fn send_message_to_other_players(
@@ -153,8 +166,14 @@ impl Zone {
         msg: Message,
     ) -> anyhow::Result<()> {
         let players = self.players.read().await;
-        MessageService::send_to_other_players(&players, except_player_id, msg).await
+        for (player_id, player) in players.iter() {
+            if *player_id != except_player_id {
+                let _ = player.send_message(msg.clone()).await;
+            }
+        }
+        Ok(())
     }
+
     pub async fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
         let players_guard = self.players.read().await;
         if !players_guard.contains_key(&player_id) {
@@ -188,6 +207,7 @@ impl Zone {
         Ok(())
     }
 
+    // gui tat ca player cho toi
     pub async fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
         let players_guard = self.players.read().await;
         let Some(receiver) = players_guard.get(&player_id).cloned() else {
@@ -359,14 +379,14 @@ impl Zone {
                 msg.write_boolean(false)?; // is wind
 
                 msg.write_byte((mob.template_id as u8) as i8);
-                msg.write_byte(0); // unknown reserved
-                msg.write_long(mob.hp as i64);
-                msg.write_byte((mob.level as u8) as i8);
-                msg.write_long(mob.max_hp as i64);
-                msg.write_short(mob.location.x as i16);
-                msg.write_short(mob.location.y as i16);
-                msg.write_byte((mob.status as u8) as i8);
-                msg.write_byte((mob.lv_mob as u8) as i8);
+                msg.write_byte(0);
+                msg.write_int(mob.hp);
+                msg.write_byte(mob.level);
+                msg.write_int(mob.max_hp);
+                msg.write_short(mob.location.x);
+                msg.write_short(mob.location.y);
+                msg.write_byte(mob.status);
+                msg.write_byte(mob.lv_mob);
                 msg.write_boolean(false)?; // reserved
             }
         }

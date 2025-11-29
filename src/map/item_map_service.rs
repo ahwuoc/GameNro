@@ -1,10 +1,8 @@
-use std::collections::HashMap;
+use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item::Item;
 use crate::item::item_option::ItemOption;
-use crate::entities::item_template::Model as ItemTemplate;
 use crate::map::item_map::ItemMap;
-
-
+use std::collections::HashMap;
 
 /// ItemMapService manages item maps on the map
 pub struct ItemMapService {
@@ -40,23 +38,17 @@ impl ItemMapService {
         y: i32,
         player_id: i64,
     ) -> ItemMap {
-        let item_map = ItemMap::new(
-            self.next_item_map_id,
-            template,
-            quantity,
-            x,
-            y,
-            player_id,
-        );
-        
-        self.item_maps.insert(self.next_item_map_id, item_map.clone());
+        let item_map = ItemMap::new(self.next_item_map_id, template, quantity, x, y, player_id);
+
+        self.item_maps
+            .insert(self.next_item_map_id, item_map.clone());
         self.next_item_map_id += 1;
-        
+
         // Reset ID counter if it gets too large
         if self.next_item_map_id >= 2000000000 {
             self.next_item_map_id = 1;
         }
-        
+
         item_map
     }
 
@@ -83,26 +75,26 @@ impl ItemMapService {
     }
 
     /// Check if item is black ball
-    pub fn is_black_ball(&self, template_id: i32) -> bool {
+    pub fn is_black_ball(&self, template_id: i16) -> bool {
         ItemMap::is_black_ball_template(template_id)
     }
 
     /// Check if item is namec ball
-    pub fn is_namec_ball(&self, template_id: i32) -> bool {
+    pub fn is_namec_ball(&self, template_id: i16) -> bool {
         ItemMap::is_namec_ball_template(template_id)
     }
 
     /// Get item maps in area
     pub fn get_item_maps_in_area(&self, x: i32, y: i32, radius: i32) -> Vec<&ItemMap> {
         let mut items = Vec::new();
-        
+
         for item_map in self.item_maps.values() {
             let distance = ((item_map.x - x).pow(2) + (item_map.y - y).pow(2)) as f64;
             if distance.sqrt() <= radius as f64 {
                 items.push(item_map);
             }
         }
-        
+
         items
     }
 

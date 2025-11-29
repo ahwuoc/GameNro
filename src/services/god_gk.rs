@@ -18,29 +18,6 @@ impl GodGK {
         self.db = Some(db);
     }
 
-    pub async fn login_god_gk(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<Option<account::Model>, DbErr> {
-        if let Some(db) = &self.db {
-            if let Some(account) = AccountDao::get_account(db, username).await? {
-                if account.password == password {
-                    if account.ban {
-                        return Err(DbErr::Custom("Tài khoản đã bị khóa".to_string()));
-                    }
-                    Ok(Some(account))
-                } else {
-                    Err(DbErr::Custom("Sai mật khẩu".to_string()))
-                }
-            } else {
-                Err(DbErr::Custom("Tài khoản không tồn tại".to_string()))
-            }
-        } else {
-            Err(DbErr::Custom("Database not initialized".to_string()))
-        }
-    }
-
     pub async fn get_player_by_account(
         &self,
         account_id: i32,

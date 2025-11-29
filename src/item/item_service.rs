@@ -1,18 +1,12 @@
-use std::collections::HashMap;
-use crate::item::item::Item;
-use crate::item::item_option::ItemOption;
-use crate::entities::item_template::Model as ItemTemplate;
 use crate::entities::item_option_template::Model as ItemOptionTemplate;
-
-pub struct ItemService {
-}
-
+use crate::entities::item_template::Model as ItemTemplate;
+use crate::item::item::Item;
+pub struct ItemService {}
 impl ItemService {
     pub fn new() -> Self {
         Self {}
     }
 
-    /// Get item template by ID
     pub fn get_template(&self, id: i32) -> Option<ItemTemplate> {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
@@ -25,7 +19,7 @@ impl ItemService {
         guard.item_option_templates_by_id.get(&id).cloned()
     }
 
-    pub fn get_item_id_by_icon(&self, icon_id: i32) -> Option<i32> {
+    pub fn get_item_id_by_icon(&self, icon_id: i32) -> Option<i16> {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         for template in guard.item_templates.iter() {
@@ -44,7 +38,6 @@ impl ItemService {
         self.create_new_item_with_quantity(template_id, 1)
     }
 
-    /// Create new item with quantity
     pub fn create_new_item_with_quantity(&self, template_id: i32, quantity: i32) -> Option<Item> {
         if let Some(template) = self.get_template(template_id) {
             Some(Item::with_template(template.clone(), quantity))
@@ -86,22 +79,23 @@ impl ItemService {
     /// Random SKH (Special Item) ID based on gender
     pub fn random_skh_id(&self, gender: i32) -> i32 {
         let adjusted_gender = if gender == 3 { 2 } else { gender };
-        
+
         let options = vec![
             vec![128, 129, 127], // Male
             vec![130, 131, 132], // Female
             vec![133, 135, 134], // Neutral
         ];
-        
+
         let skh_v1 = 25; // 25% chance
         let skh_v2 = 35; // 35% chance
-        let skh_c = 40;  // 40% chance
-        
+        let skh_c = 40; // 40% chance
+
         let random = (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis() % 100) as i32;
-        
+            .as_millis()
+            % 100) as i32;
+
         let skh_id = if random <= skh_v1 {
             0
         } else if random <= skh_v1 + skh_v2 {
@@ -111,8 +105,10 @@ impl ItemService {
         } else {
             0
         };
-        
-        if adjusted_gender < options.len() as i32 && skh_id < options[adjusted_gender as usize].len() as i32 {
+
+        if adjusted_gender < options.len() as i32
+            && skh_id < options[adjusted_gender as usize].len() as i32
+        {
             options[adjusted_gender as usize][skh_id as usize]
         } else {
             127 // Default
@@ -154,11 +150,20 @@ impl ItemService {
 
     pub fn can_item_stack(&self, template_id: i32, item_type: i32) -> bool {
         // Items that can be stacked
-        template_id == 457 || template_id == 590 || template_id == 610 ||
-        item_type == 14 || item_type == 933 || item_type == 934 ||
-        template_id == 537 || template_id == 538 || item_type == 539 ||
-        item_type == 541 || item_type == 542 || template_id == 2069 ||
-        item_type == 540 || (template_id >= 1268 && template_id <= 1273)
+        template_id == 457
+            || template_id == 590
+            || template_id == 610
+            || item_type == 14
+            || item_type == 933
+            || item_type == 934
+            || template_id == 537
+            || template_id == 538
+            || item_type == 539
+            || item_type == 541
+            || item_type == 542
+            || template_id == 2069
+            || item_type == 540
+            || (template_id >= 1268 && template_id <= 1273)
     }
 
     /// Get item template count

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::item::item::Item;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Inventory {
@@ -158,8 +158,7 @@ impl Inventory {
         self.items_box.get(index)
     }
 
-    /// Get item count by template ID from bag
-    pub fn get_item_count_by_id(&self, template_id: i32) -> i32 {
+    pub fn get_item_count_by_id(&self, template_id: i16) -> i32 {
         let mut count = 0;
         for item in &self.items_bag {
             if item.is_not_null_item() {
@@ -173,11 +172,10 @@ impl Inventory {
         count
     }
 
-    /// Subtract item quantity by template ID
-    pub fn sub_quantity_item_by_id(&mut self, template_id: i32, quantity: i32) -> bool {
+    pub fn sub_quantity_item_by_id(&mut self, template_id: i16, quantity: i32) -> bool {
         let mut remaining = quantity;
         let mut i = 0;
-        
+
         while i < self.items_bag.len() && remaining > 0 {
             let item = &mut self.items_bag[i];
             if item.is_not_null_item() {
@@ -200,7 +198,7 @@ impl Inventory {
                 i += 1;
             }
         }
-        
+
         remaining == 0
     }
 
@@ -246,11 +244,6 @@ impl Inventory {
         self.items_box.clear();
         self.items_box_crack_ball.clear();
         self.train_armor = None;
-    }
-
-    pub fn dispose(&mut self) {
-        self.clear_all_items();
-        self.gift_codes.clear();
     }
 }
 

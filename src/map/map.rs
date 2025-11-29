@@ -1,14 +1,13 @@
+use crate::entities::map_template::Model as MapTemplate;
+use crate::entities::mob_template::Model as MobTemplate;
+use crate::map::zone::Zone;
+use crate::map::zone_manager::ZoneManager;
+use crate::mob::RtMob;
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use once_cell::sync::Lazy;
-use chrono::{DateTime, Utc};
-use crate::map::zone::Zone;
-use crate::map::zone_manager::ZoneManager;
-use crate::mob::RtMob;
-use crate::entities::map_template::Model as MapTemplate;
-use crate::entities::mob_template::Model as MobTemplate;
 
 #[derive(Debug, Clone)]
 pub struct WayPoint {
@@ -66,18 +65,18 @@ pub struct Map {
     pub r#type: i32,
     pub zone_count: i32,
     pub max_player: i32,
-    
+
     // Map dimensions
     pub map_width: i32,
     pub map_height: i32,
     pub tile_map: Vec<Vec<i32>>,
     pub tile_top: Vec<i32>,
-    
+
     // Map content
     pub zones: Arc<RwLock<Vec<Zone>>>,
     pub way_points: Arc<RwLock<Vec<WayPoint>>>,
     pub npcs: Arc<RwLock<Vec<i32>>>,
-    
+
     // Map state
     pub is_active: Arc<RwLock<bool>>,
     pub last_update: Arc<RwLock<DateTime<Utc>>>,
@@ -86,7 +85,7 @@ pub struct Map {
 impl Map {
     pub fn from_template(template: &MapTemplate) -> Self {
         let current_time = Utc::now();
-        
+
         Self {
             map_id: template.id,
             map_name: template.name.clone(),
@@ -99,7 +98,7 @@ impl Map {
             zone_count: template.zones as i32,
             max_player: template.max_player as i32,
             map_width: 0,
-            map_height: 0, 
+            map_height: 0,
             tile_map: Vec::new(),
             tile_top: Vec::new(),
             zones: Arc::new(RwLock::new(Vec::new())),
@@ -130,13 +129,20 @@ impl Map {
         for (zone_index, zone) in zones.iter().enumerate() {
             for (idx, (temp_id, level, hp, x, y)) in mob_specs.iter().cloned().enumerate() {
                 if let Some(template) = mob_templates.get(&temp_id) {
-                    let mut mob = RtMob::from_template(
-                        template.clone(),
-                        idx as u64,
+                    let mut mob = RtMob::from_template(template.clone(), idx as u64);
+                    mob.set_location(
+                        self.map_id,
+                        zone_index.try_into().unwrap(),
+                        x as i16,
+                        y as i16,
                     );
-                    mob.set_location(self.map_id as u32, zone_index as u32, x as i16, y as i16);
-                    if level > 0 { mob.level = level; }
-                    if hp > 0 { mob.max_hp = hp; mob.hp = hp; }
+                    if level > 0 {
+                        mob.level = level as i8;
+                    }
+                    if hp > 0 {
+                        mob.max_hp = hp;
+                        mob.hp = hp;
+                    }
                     zone.add_mob(mob).await?;
                 }
             }
@@ -145,7 +151,12 @@ impl Map {
     }
 
     /// Initialize NPCs in the map
-    pub async fn init_npcs(&self, npc_ids: &[i32], npc_x: &[i16], npc_y: &[i16]) -> anyhow::Result<()> {
+    pub async fn init_npcs(
+        &self,
+        npc_ids: &[i32],
+        npc_x: &[i16],
+        npc_y: &[i16],
+    ) -> anyhow::Result<()> {
         {
             let mut npcs = self.npcs.write().await;
             npcs.clear();
@@ -170,13 +181,13 @@ impl Map {
     /// Get waypoint at position
     pub async fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
         let way_points = self.way_points.read().await;
-        
+
         for waypoint in way_points.iter() {
             if waypoint.contains_position(x, y) {
                 return Some(waypoint.clone());
             }
         }
-        
+
         None
     }
 
@@ -189,10 +200,10 @@ impl Map {
     /// Get best zone for player (least populated)
     pub async fn get_best_zone(&self) -> Option<Zone> {
         let zones = self.zones.read().await;
-        
+
         let mut best_zone: Option<&Zone> = None;
         let mut min_players = i32::MAX;
-        
+
         for zone in zones.iter() {
             let player_count = zone.get_num_players().await as i32;
             if player_count < min_players && player_count < zone.max_player {
@@ -200,7 +211,7 @@ impl Map {
                 best_zone = Some(zone);
             }
         }
-        
+
         best_zone.cloned()
     }
 
@@ -213,16 +224,16 @@ impl Map {
     /// Update map (called periodically)
     pub async fn update(&self) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
-        
+
         // Update all zones
         for zone in zones.iter() {
             zone.update().await?;
         }
-        
+
         // Update last update time
         let mut last_update = self.last_update.write().await;
         *last_update = Utc::now();
-        
+
         Ok(())
     }
 
@@ -242,7 +253,7 @@ impl Map {
         let zones = self.zones.read().await;
         let way_points = self.way_points.read().await;
         let npcs = self.npcs.read().await;
-        
+
         MapInfo {
             map_id: self.map_id,
             map_name: self.map_name.clone(),
@@ -259,8 +270,12 @@ impl Map {
             npc_count: npcs.len() as i32,
         }
     }
-    fn get_zone_count(&self) -> i32 { self.zone_count.max(1) }
-    fn get_max_player_per_zone(&self) -> i32 { self.max_player.max(1) }
+    fn get_zone_count(&self) -> i32 {
+        self.zone_count.max(1)
+    }
+    fn get_max_player_per_zone(&self) -> i32 {
+        self.max_player.max(1)
+    }
 }
 
 /// Map information for client
@@ -280,8 +295,6 @@ pub struct MapInfo {
     pub way_point_count: i32,
     pub npc_count: i32,
 }
-
-
 
 impl Clone for Map {
     fn clone(&self) -> Self {
@@ -311,11 +324,15 @@ impl Clone for Map {
 fn read_tile_map_file(map_id: i32) -> Option<(i32, i32, Vec<Vec<i32>>)> {
     let path = format!("data/girlkun/map/tile_map_data/{}", map_id);
     let data = fs::read(&path).ok()?;
-    if data.len() < 2 { return None; }
+    if data.len() < 2 {
+        return None;
+    }
     let w = data[0] as usize;
     let h = data[1] as usize;
     let expected = 2 + w * h;
-    if data.len() < expected { return None; }
+    if data.len() < expected {
+        return None;
+    }
     let mut tiles: Vec<Vec<i32>> = Vec::with_capacity(h);
     let mut idx = 2;
     for _row in 0..h {
@@ -333,5 +350,3 @@ fn read_tile_top_file(tile_id: i32) -> Option<Vec<i32>> {
     let data = fs::read(&path).ok()?;
     Some(data.into_iter().map(|b| b as i32).collect())
 }
-
-

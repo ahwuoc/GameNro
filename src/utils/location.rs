@@ -4,8 +4,8 @@ use std::time::SystemTime;
 pub struct Location {
     pub x: i16,
     pub y: i16,
-    pub map_id: u32,
-    pub zone_id: u32,
+    pub map_id: i32,
+    pub zone_id: i32,
     pub last_time_player_move: u64,
 }
 
@@ -19,7 +19,7 @@ impl Location {
             last_time_player_move: 0,
         }
     }
-    
+
     pub fn set_position(&mut self, x: i16, y: i16) {
         self.x = x;
         self.y = y;
@@ -28,22 +28,19 @@ impl Location {
             .unwrap()
             .as_millis() as u64;
     }
-    
-    pub fn set_map(&mut self, map_id: u32, zone_id: u32) {
+
+    pub fn set_map(&mut self, map_id: i32, zone_id: i32) {
         self.map_id = map_id;
         self.zone_id = zone_id;
     }
-    
+
     pub fn get_position(&self) -> (i16, i16) {
         (self.x, self.y)
     }
-    
-    pub fn get_map(&self) -> (u32, u32) {
+
+    pub fn get_map(&self) -> (i32, i32) {
         (self.map_id, self.zone_id)
     }
-    
-    pub fn update(&mut self) {
-        // Update location-specific logic if needed
-        // Currently no specific update logic required
-    }
+
+    pub fn update(&mut self) {}
 }

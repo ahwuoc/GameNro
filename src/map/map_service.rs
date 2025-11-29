@@ -1,6 +1,7 @@
 use crate::map::map::Map;
 use crate::map::waypoint::WayPoint;
 use crate::map::zone::Zone;
+use crate::network::message::Message;
 use crate::player::Player;
 use std::collections::HashMap;
 pub struct MapService {
@@ -228,13 +229,12 @@ impl MapService {
     }
 
     pub async fn send_player_move(&self, player: &Player) -> anyhow::Result<()> {
-        use crate::network::message::Message;
         let mut message = Message::new(-7);
         message.write_int(player.id as i32)?;
         message.write_short(player.get_position().0)?;
         message.write_short(player.get_position().1)?;
         if let Some(zone) = &player.zone {
-            let _ = zone.send_message_to_all_players(message).await;
+            zone.send_message_to_all_players(message).await?;
         }
 
         Ok(())

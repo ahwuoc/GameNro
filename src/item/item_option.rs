@@ -1,26 +1,23 @@
 #[derive(Debug, Clone)]
 pub struct ItemOption {
-    pub option_id: i32,
-    pub param: i32,
+    pub option_id: i8,
+    pub param: i16,
 }
 
 impl ItemOption {
-    pub fn new(option_id: i32, param: i32) -> Self {
-        Self {
-            option_id,
-            param,
-        }
+    pub fn new(option_id: i8, param: i16) -> Self {
+        Self { option_id, param }
     }
 
-    pub fn get_option_id(&self) -> i32 {
+    pub fn get_option_id(&self) -> i8 {
         self.option_id
     }
 
-    pub fn get_param(&self) -> i32 {
+    pub fn get_param(&self) -> i16 {
         self.param
     }
 
-    pub fn set_param(&mut self, param: i32) {
+    pub fn set_param(&mut self, param: i16) {
         self.param = param;
     }
 

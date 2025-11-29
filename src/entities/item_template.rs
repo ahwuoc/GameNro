@@ -6,7 +6,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "item_template")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: i32,
+    pub id: i16,
     #[sea_orm(column_name = "TYPE")]
     pub r#type: i32,
     pub gender: i16,

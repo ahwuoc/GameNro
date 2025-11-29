@@ -73,7 +73,7 @@ impl Item {
     }
 
     /// Get item template ID
-    pub fn get_template_id(&self) -> Option<i32> {
+    pub fn get_template_id(&self) -> Option<i16> {
         self.template.as_ref().map(|t| t.id)
     }
 
@@ -83,7 +83,7 @@ impl Item {
     }
 
     /// Get option parameter by option ID
-    pub fn get_option_param(&self, option_id: i32) -> i32 {
+    pub fn get_option_param(&self, option_id: i8) -> i16 {
         for option in &self.item_options {
             if option.get_option_id() == option_id {
                 return option.get_param();
@@ -93,7 +93,7 @@ impl Item {
     }
 
     /// Check if item has specific option
-    pub fn has_option(&self, option_id: i32) -> bool {
+    pub fn has_option(&self, option_id: i8) -> bool {
         for option in &self.item_options {
             if option.get_option_id() == option_id {
                 return true;
@@ -108,20 +108,16 @@ impl Item {
     }
 
     /// Add option parameter
-    pub fn add_option_param(&mut self, option_id: i32, param: i32) {
+    pub fn add_option_param(&mut self, option_id: i8, param: i16) {
         for option in &mut self.item_options {
             if option.get_option_id() == option_id {
                 option.set_param(option.get_param() + param);
                 return;
             }
         }
-        // If option doesn't exist, create new one
-        // This would need ItemOptionTemplate lookup
-        // For now, just add with default template
     }
 
-    /// Subtract option parameter
-    pub fn sub_option_param(&mut self, option_id: i32, param: i32) {
+    pub fn sub_option_param(&mut self, option_id: i8, param: i16) {
         for option in &mut self.item_options {
             if option.get_option_id() == option_id {
                 option.set_param((option.get_param() - param).max(0));
@@ -187,18 +183,6 @@ impl Item {
         }
     }
 
-    /// Check if item is SKH (Special Item)
-    pub fn is_skh(&self) -> bool {
-        for option in &self.item_options {
-            let option_id = option.get_option_id();
-            if option_id >= 127 && option_id <= 135 {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Check if item is Trang Bi An (Hidden Equipment)
     pub fn is_trang_bi_an(&self) -> bool {
         for option in &self.item_options {
             let option_id = option.get_option_id();

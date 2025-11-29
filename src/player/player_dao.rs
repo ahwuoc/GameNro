@@ -64,7 +64,7 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         p.n_point.final_mp = data_point.pl_mp;
     }
     if let Ok((map_id, x, y)) = parse_location_array(&model.data_location) {
-        p.map_id = map_id as u32;
+        p.map_id = map_id as i32;
         p.zone_id = 0;
         p.location.set_map(p.map_id, p.zone_id);
         p.location.set_position(x as i16, y as i16);
@@ -116,12 +116,7 @@ fn parse_location_array(s: &str) -> Result<(i64, i64, i64), String> {
     if s.is_empty() {
         return Err("empty location".into());
     }
-    let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
-    let arr = v.as_array().ok_or("location not array")?;
-    let map_id = arr.get(0).and_then(|x| x.as_i64()).ok_or("no map id")?;
-    let x = arr.get(1).and_then(|x| x.as_i64()).ok_or("no x")?;
-    let y = arr.get(2).and_then(|x| x.as_i64()).ok_or("no y")?;
-    Ok((map_id, x, y))
+    serde_json::from_str::<(i64, i64, i64)>(s).map_err(|e| e.to_string())
 }
 
 fn parse_point_array(s: &str) -> Result<PointData> {
@@ -339,7 +334,7 @@ fn parse_items_json(s: &str) -> Vec<RtItem> {
                 if let Some(template) = item_service.get_template(tid) {
                     let mut item = RtItem::with_template(template, quantity);
                     for (opt_id, param) in options_acc {
-                        item.add_option(RtItemOption::new(opt_id, param));
+                        item.add_option(RtItemOption::new(opt_id as i8, param as i16));
                     }
                     if let Some(ms) = create_time_ms {
                         if let Some(dt) = chrono::Utc.timestamp_millis_opt(ms).single() {

@@ -77,9 +77,7 @@ impl ZoneManager {
     ) -> anyhow::Result<()> {
         let zones = self.get_zones_for_map(map_id).await;
         for zone in zones.into_iter() {
-            zone
-                .send_message_to_other_players(except_player_id, msg.clone())
-                .await?;
+            zone.send_message_to_other_players(except_player_id, msg.clone()).await?;
         }
         Ok(())
     }
