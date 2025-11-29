@@ -233,15 +233,6 @@ impl Player {
             .unwrap()
             .as_millis() as u64;
     }
-
-    pub fn set_position(&mut self, x: i16, y: i16) {
-        self.location.set_position(x, y);
-    }
-
-    pub fn get_position(&self) -> (i16, i16) {
-        self.location.get_position()
-    }
-
     pub fn chat(&self, text: &str) {
         println!("[{}]: {}", self.name, text);
     }

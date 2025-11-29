@@ -1,3 +1,4 @@
+use crate::item::item_manager;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::services::GodGK;
@@ -110,8 +111,8 @@ impl ItemData {
         msg.write_byte(1)?; // vsItem version
         msg.write_byte(1)?; // reload itemtemplate
 
-        let item_manager = crate::item::item_manager::ITEM_MANAGER.read().await;
-        let items = item_manager.get_all_templates().await;
+    
+        let items = item_manager::get_all_templates();
         let count = (items.len().min(count as usize)) as i16;
 
         msg.write_short(count)?;

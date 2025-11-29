@@ -45,10 +45,6 @@ impl Inventory {
         }
     }
 
-    pub fn get_gem_and_ruby(&self) -> i32 {
-        self.gem + self.ruby
-    }
-
     pub fn get_gem(&self) -> i32 {
         self.gem
     }

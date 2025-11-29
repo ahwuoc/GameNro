@@ -16,7 +16,6 @@ pub struct Item {
 }
 
 impl Item {
-    /// Create a new empty item
     pub fn new() -> Self {
         Self {
             template: None,

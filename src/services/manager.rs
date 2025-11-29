@@ -1,5 +1,6 @@
 use crate::config::DatabaseConfig;
 use crate::database::DbManager;
+use crate::item::item_manager;
 use crate::map::map_manager::MAP_MANAGER;
 use crate::map::MapDao;
 use crate::mob::mob_dao::MobDao;
@@ -89,7 +90,7 @@ impl Manager {
         self.database = Some(database.clone());
         self.mob_service.set_database(database.clone());
 
-        self.load_item_templates().await?;
+        item_manager::load_item_templates(&database).await?;
         self.load_map_templates().await?;
         self.load_npc_templates().await?;
         self.load_mob_templates().await?;
@@ -306,13 +307,7 @@ impl Manager {
         }
         Ok(())
     }
-    async fn load_item_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let item_manager = crate::item::item_manager::ITEM_MANAGER.read().await;
-            item_manager.load_from_db(&database).await?;
-        }
-        Ok(())
-    }
+   
 
     async fn load_mob_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {

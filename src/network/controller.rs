@@ -6,7 +6,6 @@ use crate::database::DbManager;
 use crate::entities::{account, player};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
-use crate::player::player_service::{self, PLAYER_SERVICE};
 use crate::services::{player_info_service, ServiceHandles};
 use crate::services::{GodGK, PlayerInfoService};
 use anyhow::{anyhow, Result};
@@ -89,16 +88,6 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            13 => {
-                if let Some(pl) = session.get_player().cloned() {
-                    PlayerInfoService::send_player_blob(session, &pl).await?;
-                    PlayerInfoService::send_cai_trang(session, &pl).await?;
-                    if let Some(zone) = pl.zone.as_ref() {
-                        zone.load_another_to_me(pl.id).await?;
-                    }
-                }
-                Ok(())
-            }
             _ => {
                 println!("Unknown command: {}", msg.command);
                 Ok(())
@@ -135,18 +124,8 @@ impl AsyncController {
             0 => {
                 let username = msg.read_utf()?;
                 let password = msg.read_utf()?;
-
-                println!("Login request: username={}", username);
-
-                // Check if client info (version) has been set
-                if session.get_version() == 0 {
-                    println!("Warning: Client attempting login without setting version info");
-                    // Set default version if not set
                     session.set_version(240);
-                }
-
                 session.set_credentials(username.clone(), password.clone());
-
                 Self::handle_login_authentication(
                     session,
                     &username,
@@ -157,8 +136,6 @@ impl AsyncController {
             }
             
             2 => {
-                println!("Sub-cmd 2: payload remaining before read: {}", msg.payload.remaining());
-                
                 let _client_type = msg.read_byte()?;
                 let zoom_level = msg.read_byte()?;
                 let _is_gprs = msg.read_byte()? != 0;
@@ -285,10 +262,6 @@ impl AsyncController {
                             (&*SESSION_MANAGER)
                                 .add_session(player_id as i64, session_arc.clone())
                                 .await;
-
-                           
-                            let player_service = PLAYER_SERVICE.write().await;
-                            player_service.add_player(player_with_zone).await;
                         }
                         Self::send_login_success_data(session).await?;
                     }
@@ -381,7 +354,7 @@ impl AsyncController {
                 let player_data = player::ActiveModel {
                     account_id: Set(Some(account_id)),
                     name: Set(name.to_string()),
-                    head: Set(hair),
+                    head: Set(hair as i16),
                     gender: Set(gender),
                     have_tennis_space_ship: Set(Some(true)),
                     data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
@@ -475,12 +448,12 @@ impl AsyncController {
         }
     }
 
-    async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> Result<()> {
+    async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> anyhow::Result<()> {
         let player = session
             .get_player()
             .cloned()
-            .ok_or_else(|| anyhow!("Player not set"))?;
-        player_info_service::PlayerInfoService::send_player_blob(session, &player).await?;
+            .ok_or(anyhow!("Player not set"))?;
+        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player).await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
 
         println!("Client ok enhanced initialization completed");
@@ -506,14 +479,6 @@ impl AsyncController {
 
         if let Some(player) = session.get_player() {
             let player_id = player.id;
-            if let Some(_player) = player_service::PLAYER_SERVICE
-                .read()
-                .await
-                .get_player(player_id)
-                .await
-            {
-                // TODO: Implement player movement logic
-            }
         }
 
         Ok(())

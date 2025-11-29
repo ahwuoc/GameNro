@@ -309,7 +309,7 @@ impl DataGame {
     pub async fn update_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(7)?;
-        msg.write_byte(60)?;
+        msg.write_byte(1)?;
         msg.write_byte(0)?;
 
         let nclasses = load_skill_data().await?;
@@ -322,10 +322,10 @@ impl DataGame {
             for skill_temp in &nclass.skill_templates {
                 msg.write_byte(skill_temp.id)?;
                 msg.write_utf(&skill_temp.name)?;
-                msg.write_byte(skill_temp.max_point as i8)?;
-                msg.write_byte(skill_temp.mana_use_type as i8)?;
-                msg.write_byte(skill_temp.r#type as i8)?;
-                msg.write_short(skill_temp.icon_id as i16)?;
+                msg.write_byte(skill_temp.max_point)?;
+                msg.write_byte(skill_temp.mana_use_type)?;
+                msg.write_byte(skill_temp.r#type)?;
+                msg.write_short(skill_temp.icon_id)?;
                 msg.write_utf(&skill_temp.dam_info)?;
                 msg.write_utf("Nro Wars")?;
 
@@ -333,13 +333,13 @@ impl DataGame {
                     msg.write_byte(skill_temp.skills.len() as i8)?;
                     for skill in &skill_temp.skills {
                         msg.write_short(skill.skill_id)?;
-                        msg.write_byte(skill.point as i8)?;
+                        msg.write_byte(skill.point)?;
                         msg.write_long(skill.pow_require)?;
                         msg.write_short(skill.mana_use)?;
                         msg.write_int(skill.cool_down)?;
                         msg.write_short(skill.dx)?;
                         msg.write_short(skill.dy)?;
-                        msg.write_byte(skill.max_fight as i8)?;
+                        msg.write_byte(skill.max_fight)?;
                         msg.write_short(skill.damage)?;
                         msg.write_short(skill.price)?;
                         msg.write_utf(&skill.more_info)?;
@@ -348,13 +348,13 @@ impl DataGame {
                     msg.write_byte((skill_temp.skills.len() + 2) as i8)?;
                     for skill in &skill_temp.skills {
                         msg.write_short(skill.skill_id)?;
-                        msg.write_byte(skill.point as i8)?;
+                        msg.write_byte(skill.point)?;
                         msg.write_long(skill.pow_require)?;
                         msg.write_short(skill.mana_use)?;
                         msg.write_int(skill.cool_down)?;
                         msg.write_short(skill.dx)?;
                         msg.write_short(skill.dy)?;
-                        msg.write_byte(skill.max_fight as i8)?;
+                        msg.write_byte(skill.max_fight)?;
                         msg.write_short(skill.damage)?;
                         msg.write_short(skill.price)?;
                         msg.write_utf(&skill.more_info)?;

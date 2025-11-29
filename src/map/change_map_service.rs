@@ -17,8 +17,8 @@ impl ChangeMapService {
         player: &mut Player,
         map_id: i32,
         zone_id: i32,
-        x: i32,
-        y: i32,
+        x: i16,
+        y: i16,
     ) -> bool {
         let map_service = MapService::get_instance();
 
@@ -29,10 +29,10 @@ impl ChangeMapService {
             false
         }
     }
-    pub fn change_map_to_zone(&self, player: &mut Player, zone: &Zone, x: i32, y: i32) {
+    pub fn change_map_to_zone(&self, player: &mut Player, zone: &Zone, x: i16, y: i16) {
         self.exit_map(player);
-        let nx: i16 = if x != -1 { x as i16 } else { player.location.x };
-        let ny: i16 = if y != -1 { y as i16 } else { player.location.y };
+        let nx = if x != -1 { x } else { player.location.x };
+        let ny  = if y != -1 { y } else { player.location.y };
         player.location.set_position(nx, ny);
         self.go_to_map(player, zone);
     }
@@ -52,7 +52,7 @@ impl ChangeMapService {
                 .map(|m| m.map_width)
                 .unwrap_or(2000);
             let usable: u32 = (map_width.max(200) - 200) as u32;
-            let final_x = if x != -1 {
+            let final_x: i32 = if x != -1 {
                 x
             } else {
                 use std::time::SystemTime;
@@ -63,7 +63,7 @@ impl ChangeMapService {
                 100 + (seed % usable) as i32
             };
 
-            self.change_map_to_zone(player, zone, final_x, 100);
+            self.change_map_to_zone(player, zone, final_x as i16, 100);
             true
         } else {
             false
@@ -74,7 +74,7 @@ impl ChangeMapService {
         let map_service = MapService::get_instance();
         if let Some(waypoint) = map_service.get_waypoint_player_in(player) {
             if let Some(zone) = map_service.get_map_can_join(player, waypoint.go_map, -1) {
-                self.change_map_to_zone(player, zone, waypoint.go_x as i32, waypoint.go_y as i32);
+                self.change_map_to_zone(player, zone, waypoint.go_x , waypoint.go_y );
                 return true;
             }
         }

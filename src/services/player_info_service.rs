@@ -133,43 +133,43 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_player_blob(
+   pub async fn sub_command_30(sub_command: i8) -> anyhow::Result<Message> {
+        let mut msg = Message::new(-30);  
+        msg.write_byte(sub_command)?;
+        Ok(msg)
+   }
+
+   pub async fn send_player_blob_internal(
         session: &mut AsyncSession,
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
-        Self::send_player_blob_internal(session, player).await?;
-        Ok(())
-    }
+        let mut msg = Self::sub_command_30(0).await?;
+        
+        // Basic player info
+        msg.write_int(player.id as i32)?; // charID
+        msg.write_byte(0)?; // ctaskId
+        msg.write_byte(player.gender)?; // cgender
+        msg.write_short(player.head)?; // head
+        msg.write_utf(&player.name)?; // cName
+        msg.write_byte(0)?; // cPk
+        msg.write_byte(player.type_pk)?; // cTypePk
+        msg.write_long(player.n_point.power)?; // cPower
+        // applyCharLevelPercent() - client method call, no data read
+        msg.write_short(0)?; // eff5BuffHp
+        msg.write_short(0)?; // eff5BuffMp
+        msg.write_byte(0)?; // nClass index (GameScr.nClasss[...])
+        
+        // Skills - client expects to read skills here
+        msg.write_byte(0)?; // number of skills (sbyte b2)
+        // No skills to write since we wrote 0
+        
+        // Currency - client always reads xu as long
+        msg.write_long(player.inventory.get_gold())?; // xu 
+        msg.write_int(player.inventory.get_ruby())?; // luongKhoa
+        msg.write_int(player.inventory.get_gem())?; // luong
 
-    async fn send_player_blob_internal(
-        session: &mut AsyncSession,
-        player: &RtPlayer,
-    ) -> anyhow::Result<()> {
-        let mut msg = Message::new(-30);
-        msg.write_byte(0)?;
-        msg.write_int(player.id as i32)?;
-        msg.write_byte(1)?;
-        msg.write_byte(player.gender)?;
-        msg.write_short(player.head)?;
-        msg.write_utf(&player.name)?;
-        msg.write_byte(0)?;
-        msg.write_byte(player.type_pk)?; // typePk
-        msg.write_long(player.n_point.power)?; // power
-        msg.write_short(0)?;
-        msg.write_short(0)?;
-        msg.write_byte(player.gender)?;
-        msg.write_byte(0)?;
-
-        if session.get_version() >= 214 && session.get_version() < 231 {
-            msg.write_long(player.inventory.get_gold())?;
-        } else {
-            msg.write_int(player.inventory.get_gold() as i32)?;
-        }
-
-        msg.write_int(player.inventory.get_ruby())?;
-        msg.write_int(player.inventory.get_gem())?;
-
-        let body_len = (player.inventory.items_body.len().min(255)) as i8;
+        // Body items
+        let body_len = player.inventory.items_body.len() as i8;
         msg.write_byte(body_len)?;
 
         for item in player.inventory.items_body.iter().take(body_len as usize) {
@@ -177,7 +177,7 @@ impl PlayerInfoService {
                 msg.write_short(-1)?;
             } else {
                 if let Some(tpl) = &item.template {
-                    msg.write_short(tpl.id as i16)?;
+                    msg.write_short(tpl.id)?;
                 } else {
                     msg.write_short(-1)?;
                 }
@@ -185,8 +185,8 @@ impl PlayerInfoService {
                 msg.write_utf(&item.get_info())?;
                 msg.write_utf(&item.get_content())?;
 
-                let opts_len = (item.item_options.len().min(255)) as i8;
-                msg.write_byte(opts_len)?;
+                let opts_len = (item.item_options.len().min(255)) as u8;
+                msg.write_byte(opts_len as i8)?;
                 for opt in item.item_options.iter().take(opts_len as usize) {
                     msg.write_byte(opt.get_option_id() as i8)?;
                     msg.write_short(opt.get_param() as i16)?;
@@ -194,6 +194,7 @@ impl PlayerInfoService {
             }
         }
 
+        // Bag items
         let bag_len = (player.inventory.items_bag.len().min(255)) as i8;
         msg.write_byte(bag_len)?;
 
@@ -219,6 +220,7 @@ impl PlayerInfoService {
             }
         }
 
+        // Box items
         let box_len = (player.inventory.items_box.len().min(255)) as i8;
         msg.write_byte(box_len)?;
 
@@ -244,22 +246,23 @@ impl PlayerInfoService {
             }
         }
 
-        msg.write_short(0)?;
-        msg.write_short(514)?;
-        msg.write_short(515)?;
-        msg.write_short(537)?;
-        msg.write_byte(0)?; // fusion flag
-        msg.write_int(333)?; // delta time
-        msg.write_byte(if player.is_new_member { 1 } else { 0 })?;
-
-        msg.write_short(514)?; // char info id - con chim thông báo
-        msg.write_short(515)?; // char info id
-        msg.write_short(537)?; // char info id
-        msg.write_byte(0)?; // fusion type (0 = non-fusion)
-        msg.write_int(333)?; // deltatime
-        msg.write_byte(0)?; // isNewMember
-        msg.write_short(0)?; // aura
-        msg.write_byte(0)?; // eff front
+        // Head/Avatar data
+        msg.write_short(0)?; // num17 - number of head/avatar pairs
+        // No head/avatar data since we wrote 0
+        
+        // Character info IDs for gender
+        msg.write_short(514)?; // charId[gender][0]
+        msg.write_short(515)?; // charId[gender][1] 
+        msg.write_short(537)?; // charId[gender][2]
+        
+        msg.write_byte(0)?; // isNhapThe (0 = false, 1 = true)
+        msg.write_int(333)?; // deltaTime (server time)
+        msg.write_byte(if player.is_new_member { 1 } else { 0 })?; // isNewMember
+        
+        // Additional effects (version dependent)
+        msg.write_short(0)?; // idAuraEff
+        msg.write_byte(0)?; // idEff_Set_Item
+        msg.write_short(0)?; // idHat
 
         session.send_message(&msg).await?;
         Ok(())
@@ -320,7 +323,7 @@ impl PlayerInfoService {
         Self::clear_map(session).await?;
 
         // -30 sub 0 player blob
-        Self::send_player_blob(session, &player).await?;
+        Self::send_player_blob_internal(session, &player).await?;
 
         // -53 my clan
         Self::send_clan_info(session).await?;

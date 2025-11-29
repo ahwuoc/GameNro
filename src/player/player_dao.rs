@@ -4,11 +4,13 @@ use crate::item::item_option::ItemOption as RtItemOption;
 use crate::item::item_service::ItemService;
 use crate::player::n_point::NPoint;
 use crate::player::player::Player;
-use crate::{data, entities};
+use crate::{data, entities, item};
 use anyhow::Result;
 use chrono::TimeZone;
-use serde::Deserialize;
+use chrono::format::Item;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing_subscriber::layer;
 
 #[derive(Debug, Deserialize, Default)]
 struct PointData {
@@ -41,37 +43,85 @@ struct PointData {
     #[serde(default)]
     pl_mp: i32,
 }
+#[derive(Debug, Deserialize, Default)]
+pub struct InventoryData {
+    #[serde(default)]
+    gold: i64,
+    #[serde(default)]
+    gem: i32,
+    #[serde(default)]
+    ruby: i32,
+}
 pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
     println!(
         "[PLAYER_DAO] Starting from_entity for player: {} (ID: {})",
         model.name, model.id
     );
     let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
-    p.head = model.head as i16;
-    p.inventory = parse_inventory_json(&model.data_inventory)?;
-    if let Ok(data_point) = parse_point_array(&model.data_point) {
-        p.n_point.base_crit = data_point.crit_goc;
-        p.n_point.base_dame = data_point.damege_goc;
-        p.n_point.base_def = data_point.defen_goc;
-        p.n_point.limit_power = data_point.limit_power;
-        p.n_point.tiem_nang = data_point.tiem_nang;
-        p.n_point.max_satamina = data_point.max_stamina;
-        p.n_point.base_satamina = data_point.stamina;
-        p.n_point.base_hp = data_point.hp_goc;
-        p.n_point.base_mp = data_point.mp_goc;
-        p.n_point.power = data_point.power;
-        p.n_point.final_hp = data_point.pl_hp;
-        p.n_point.final_mp = data_point.pl_mp;
+    match parse_inventory_array(&model.data_inventory) {
+        Ok(data_inventory) => {
+            p.inventory.gold = data_inventory.gold;
+            p.inventory.ruby = data_inventory.ruby;
+            p.inventory.gem = data_inventory.gem;
+        }
+        Err(e) => {
+            println!("Failed to parse inventory data: {}", e);
+        }
     }
-    if let Ok((map_id, x, y)) = parse_location_array(&model.data_location) {
-        p.map_id = map_id as i32;
-        p.zone_id = 0;
-        p.location.set_map(p.map_id, p.zone_id);
-        p.location.set_position(x as i16, y as i16);
+    p.head = model.head;
+    match parse_point_array(&model.data_point) {
+        Ok(data_point) => {
+            p.n_point.base_crit = data_point.crit_goc;
+            p.n_point.base_dame = data_point.damege_goc;
+            p.n_point.base_def = data_point.defen_goc;
+            p.n_point.limit_power = data_point.limit_power;
+            p.n_point.tiem_nang = data_point.tiem_nang;
+            p.n_point.max_satamina = data_point.max_stamina;
+            p.n_point.base_satamina = data_point.stamina;
+            p.n_point.base_hp = data_point.hp_goc;
+            p.n_point.base_mp = data_point.mp_goc;
+            p.n_point.power = data_point.power;
+            p.n_point.final_hp = data_point.pl_hp;
+            p.n_point.final_mp = data_point.pl_mp;
+        }
+        Err(e) => {
+            println!("Failed to parse point data: {}", e);
+        }
     }
-    p.inventory.items_body = parse_items_json(&model.items_body);
-    p.inventory.items_bag = parse_items_json(&model.items_bag);
-    p.inventory.items_box = parse_items_json(&model.items_box);
+    match parse_location_array(&model.data_location) {
+        Ok((map_id, x, y)) => {
+            p.map_id = map_id;
+            p.zone_id = 0;
+            p.location.set_map(p.map_id, p.zone_id);
+            p.location.set_position(x, y);
+        }
+        Err(e) => {
+            println!("Failed to parse location data: {}", e);
+        }
+    }
+
+    let items_body = parser_item_raw(&model.items_body);
+    for item_data in items_body {
+        if item_data.template_id != -1 {
+            if let Some(mut item) = ItemService::create_new_item_with_quantity(item_data.template_id, item_data.quantity) {
+                for (opt_id, param) in item_data.options {
+                    item.add_option_param(opt_id, param);
+                }
+                p.inventory.items_body.push(item);
+            }
+        } else {
+            println!("item null");
+            p.inventory.items_body.push(ItemService::create_item_null());
+        }
+    }
+    if p.inventory.items_body.len() == 11 {
+        let null_item = ItemService::create_item_null();
+        p.inventory.items_body.push(null_item);
+        println!(
+            "[PLAYER_DAO] Added null item to body inventory, total: {} items",
+            p.inventory.items_body.len()
+        );
+    }
 
     println!(
         "[PLAYER_DAO] Parsed inventory - Body: {} items, Bag: {} items, Box: {} items",
@@ -79,277 +129,74 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         p.inventory.items_bag.len(),
         p.inventory.items_box.len()
     );
-
-    if p.inventory.items_body.len() == 11 {
-        let item_service = ItemService::new();
-        let null_item = item_service.create_item_null();
-        p.inventory.items_body.push(null_item);
-        println!(
-            "[PLAYER_DAO] Added null item to body inventory, total: {} items",
-            p.inventory.items_body.len()
-        );
-    }
     Ok(p)
 }
 
-fn parse_inventory_json(s: &str) -> Result<Inventory, String> {
-    if s.is_empty() {
-        return Ok(Inventory::new());
-    }
-    let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
-    let mut inv = Inventory::new();
-    if let Some(obj) = v.as_object() {
-        if let Some(gold) = obj.get("gold").and_then(|x| x.as_i64()) {
-            inv.gold = gold;
-        }
-        if let Some(gem) = obj.get("gem").and_then(|x| x.as_i64()) {
-            inv.gem = gem as i32;
-        }
-        if let Some(ruby) = obj.get("ruby").and_then(|x| x.as_i64()) {
-            inv.ruby = ruby as i32;
-        }
-    }
-    Ok(inv)
-}
-
-fn parse_location_array(s: &str) -> Result<(i64, i64, i64), String> {
+fn parse_location_array(s: &str) -> anyhow::Result<(i32, i16, i16), String> {
     if s.is_empty() {
         return Err("empty location".into());
     }
-    serde_json::from_str::<(i64, i64, i64)>(s).map_err(|e| e.to_string())
+    serde_json::from_str::<(i32, i16, i16)>(s).map_err(|e| e.to_string())
 }
 
-fn parse_point_array(s: &str) -> Result<PointData> {
+fn parse_point_array(s: &str) -> anyhow::Result<PointData> {
     let data: PointData = serde_json::from_str(s)
         .map_err(|e| anyhow::anyhow!("Failed to parse point data: {}", e))?;
     Ok(data)
 }
 
-fn parse_items_json(s: &str) -> Vec<RtItem> {
-    if s.is_empty() {
-        return Vec::new();
-    }
-    let parsed: serde_json::Result<serde_json::Value> = serde_json::from_str(s);
-    if parsed.is_err() {
-        return Vec::new();
-    }
-    let v = parsed.unwrap();
-    let Some(arr) = v.as_array() else {
-        return Vec::new();
-    };
-    let item_service = ItemService::new();
-    let mut items: Vec<RtItem> = Vec::new();
-    for (index, el) in arr.iter().enumerate() {
-        let mut template_id_opt: Option<i32> = None;
-        let mut quantity: i32 = 1;
-        let mut options_acc: Vec<(i32, i32)> = Vec::new();
-        let mut create_time_ms: Option<i64> = None;
-        if let Some(item_str) = el.as_str() {
-            if let Ok(item_array) = serde_json::from_str::<serde_json::Value>(item_str) {
-                if let Some(item_arr) = item_array.as_array() {
-                    if item_arr.len() >= 4 {
-                        if let Some(tid) = item_arr[0].as_i64() {
-                            template_id_opt = Some(tid as i32);
-                        }
-                        if let Some(q) = item_arr[1].as_i64() {
-                            quantity = q as i32;
-                        }
-                        if let Some(opts_str) = item_arr[2].as_str() {
-                            if let Ok(opts_array) =
-                                serde_json::from_str::<serde_json::Value>(opts_str)
-                            {
-                                if let Some(opts_arr) = opts_array.as_array() {
-                                    for opt in opts_arr {
-                                        if let Some(opt_str) = opt.as_str() {
-                                            if let Ok(opt_array) =
-                                                serde_json::from_str::<serde_json::Value>(opt_str)
-                                            {
-                                                if let Some(opt_arr) = opt_array.as_array() {
-                                                    if opt_arr.len() >= 2 {
-                                                        let opt_id =
-                                                            opt_arr[0].as_i64().unwrap_or(0) as i32;
-                                                        let opt_param =
-                                                            opt_arr[1].as_i64().unwrap_or(0) as i32;
-                                                        options_acc.push((opt_id, opt_param));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if let Some(ct) = item_arr[3].as_i64() {
-                            create_time_ms = Some(ct);
-                        }
-                    }
-                }
-            }
-        } else if let Some(obj) = el.as_object() {
-            if let Some(tid) = obj.get("template_id").and_then(|x| x.as_i64()) {
-                template_id_opt = Some(tid as i32);
-            } else if let Some(tid) = obj.get("id").and_then(|x| x.as_i64()) {
-                template_id_opt = Some(tid as i32);
-            }
-            if let Some(q) = obj.get("quantity").and_then(|x| x.as_i64()) {
-                quantity = q as i32;
-            } else if let Some(q) = obj.get("q").and_then(|x| x.as_i64()) {
-                quantity = q as i32;
-            }
-
-            if let Some(opts) = obj.get("options").and_then(|x| x.as_array()) {
-                for opt in opts {
-                    if let Some(oobj) = opt.as_object() {
-                        let id_opt = oobj.get("id").or_else(|| oobj.get("option_id"));
-                        let param_opt = oobj.get("param").or_else(|| oobj.get("p"));
-                        if let (Some(idv), Some(pv)) = (
-                            id_opt.and_then(|x| x.as_i64()),
-                            param_opt.and_then(|x| x.as_i64()),
-                        ) {
-                            options_acc.push((idv as i32, pv as i32));
-                        }
-                    } else if let Some(t) = opt.as_array() {
-                        if t.len() >= 2 {
-                            let idv = t.get(0).and_then(|x| x.as_i64()).unwrap_or(0) as i32;
-                            let pv = t.get(1).and_then(|x| x.as_i64()).unwrap_or(0) as i32;
-                            options_acc.push((idv, pv));
-                        }
-                    }
-                }
-            }
-            if let Some(ct) = obj.get("create_time").and_then(|x| x.as_i64()) {
-                create_time_ms = Some(ct);
-            }
-        } else if let Some(t) = el.as_array() {
-            if !t.is_empty() {
-                let tid_v = t.get(0).map(|x| {
-                    if let Some(n) = x.as_i64() {
-                        n
-                    } else {
-                        x.as_str().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0)
-                    }
-                });
-                if let Some(tid) = tid_v {
-                    template_id_opt = Some(tid as i32);
-                }
-                if let Some(q) = t.get(1).and_then(|x| {
-                    if let Some(n) = x.as_i64() {
-                        Some(n)
-                    } else {
-                        x.as_str().and_then(|s| s.parse::<i64>().ok())
-                    }
-                }) {
-                    quantity = q as i32;
-                }
-
-                if let Some(opt_field) = t.get(2) {
-                    if let Some(sopts) = opt_field.as_str() {
-                        let cleaned = sopts.replace('"', "");
-                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                            if let Some(oarr) = val.as_array() {
-                                for o in oarr {
-                                    if let Some(a) = o.as_array() {
-                                        if a.len() >= 2 {
-                                            let oid = a
-                                                .get(0)
-                                                .and_then(|x| {
-                                                    if let Some(n) = x.as_i64() {
-                                                        Some(n)
-                                                    } else {
-                                                        x.as_str()
-                                                            .and_then(|s| s.parse::<i64>().ok())
-                                                    }
-                                                })
-                                                .unwrap_or(0)
-                                                as i32;
-                                            let prm = a
-                                                .get(1)
-                                                .and_then(|x| {
-                                                    if let Some(n) = x.as_i64() {
-                                                        Some(n)
-                                                    } else {
-                                                        x.as_str()
-                                                            .and_then(|s| s.parse::<i64>().ok())
-                                                    }
-                                                })
-                                                .unwrap_or(0)
-                                                as i32;
-                                            options_acc.push((oid, prm));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else if let Some(oarr) = opt_field.as_array() {
-                        for o in oarr {
-                            if let Some(a) = o.as_array() {
-                                if a.len() >= 2 {
-                                    let oid = a
-                                        .get(0)
-                                        .and_then(|x| {
-                                            if let Some(n) = x.as_i64() {
-                                                Some(n)
-                                            } else {
-                                                x.as_str().and_then(|s| s.parse::<i64>().ok())
-                                            }
-                                        })
-                                        .unwrap_or(0)
-                                        as i32;
-                                    let prm = a
-                                        .get(1)
-                                        .and_then(|x| {
-                                            if let Some(n) = x.as_i64() {
-                                                Some(n)
-                                            } else {
-                                                x.as_str().and_then(|s| s.parse::<i64>().ok())
-                                            }
-                                        })
-                                        .unwrap_or(0)
-                                        as i32;
-                                    options_acc.push((oid, prm));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if let Some(ctv) = t.get(3) {
-                    create_time_ms = if let Some(n) = ctv.as_i64() {
-                        Some(n)
-                    } else {
-                        ctv.as_str().and_then(|s| s.parse::<i64>().ok())
-                    };
-                }
-            }
-        } else if let Some(tid) = el.as_i64() {
-            template_id_opt = Some(tid as i32);
-        }
-
-        match template_id_opt {
-            Some(tid) if tid == -1 => {
-                items.push(item_service.create_item_null());
-            }
-            Some(tid) => {
-                if let Some(template) = item_service.get_template(tid) {
-                    let mut item = RtItem::with_template(template, quantity);
-                    for (opt_id, param) in options_acc {
-                        item.add_option(RtItemOption::new(opt_id as i8, param as i16));
-                    }
-                    if let Some(ms) = create_time_ms {
-                        if let Some(dt) = chrono::Utc.timestamp_millis_opt(ms).single() {
-                            item.create_time = dt;
-                        }
-                    }
-                    items.push(item);
-                } else {
-                    items.push(item_service.create_item_null());
-                }
-            }
-            None => {
-                println!("[PARSE_ITEMS] Element {}: No template ID found", index);
-            }
-        }
-    }
-    items
+struct ItemDataParsed {
+    template_id: i16,
+    quantity: i32,
+    options: Vec<(i8, i16)>,
+    created: i64,
 }
+
+fn parser_item_raw(raw: &str) -> Vec<ItemDataParsed> {
+    let Ok(level_1) = serde_json::from_str::<Vec<String>>(raw) else { return vec![]; };
+
+    level_1.into_iter().filter_map(|s| {
+        // Layer 1
+        let arr1: Vec<serde_json::Value> = serde_json::from_str(&s).ok()?;
+        if arr1.len() < 4 { return None; }
+
+        let tid = arr1[0].as_i64()? as i16;
+        let qty = arr1[1].as_i64()? as i32;
+
+        // Layer 2
+        let layer2_str = arr1[2].as_str().unwrap_or("[]");
+        let Ok(layer_2) = serde_json::from_str::<Vec<String>>(layer2_str) else { return None; };
+
+        // Layer 3
+        let mut options = Vec::new();
+        for opt in layer_2 {
+            if let Ok(v) = serde_json::from_str::<Vec<i64>>(&opt) {
+                if v.len() >= 2 {
+                    options.push((v[0] as i8, v[1] as i16));
+                }
+            }
+        }
+
+        let created = arr1[3].as_i64()?;
+
+        Some(ItemDataParsed {
+            template_id: tid,
+            quantity: qty,
+            options,
+            created,
+        })
+    }).collect()
+}
+
+fn parse_inventory_array(s: &str) -> anyhow::Result<InventoryData> {
+    if s.is_empty() {
+        return Ok(InventoryData::default());
+    }
+    let array: Vec<i64> = serde_json::from_str(s)
+        .map_err(|e| anyhow::anyhow!("Failed to parse inventory array: {}", e))?;
+    Ok(InventoryData {
+        gold: array[0],
+        gem: array[1] as i32,
+        ruby: array[2] as i32,
+    })
+ }

@@ -14,7 +14,7 @@ pub struct Model {
     pub account_id: Option<i32>,
     
     pub name: String,
-    pub head: i32,
+    pub head: i16,
     pub gender: i32,
     pub have_tennis_space_ship: Option<bool>,
     pub clan_id: i32,

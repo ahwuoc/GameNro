@@ -1,48 +1,26 @@
-use crate::entities::item_template::Model as ItemTemplate;
-use crate::item::ItemDao;
-use crate::item::ItemService;
+use std::clone;
+
+use crate::{entities::item_template::Model as ItemTemplate, item::ItemDao};
 use once_cell::sync::Lazy;
-use sea_orm::DatabaseConnection;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use sea_orm::{Database, DatabaseConnection};
+use dashmap::{self, DashMap};
 
-pub struct ItemManager {
-    item_templates: Arc<RwLock<HashMap<i16, ItemTemplate>>>,
-    item_service: ItemService,
+
+static ITEM_TEMPLATES:Lazy<DashMap<i16,ItemTemplate>> = Lazy::new(||DashMap::new());
+
+
+pub async fn load_item_templates(db:&DatabaseConnection)->anyhow::Result<()>{
+    let itemplates = ItemDao::get_all_item_templates(db).await?;
+    for itemplate in itemplates{
+         ITEM_TEMPLATES.insert(itemplate.id, itemplate);
+    }
+    Ok(())
 }
 
-impl ItemManager {
-    pub fn new() -> Self {
-        Self {
-            item_templates: Arc::new(RwLock::new(HashMap::new())),
-            item_service: ItemService::new(),
-        }
-    }
-
-    pub async fn load_from_db(&self, db: &DatabaseConnection) -> anyhow::Result<()> {
-        let templates = ItemDao::get_all_item_templates(db).await?;
-        let mut templates_lock = self.item_templates.write().await;
-
-        for template in templates {
-            templates_lock.insert(template.id, template);
-        }
-        Ok(())
-    }
-
-    pub async fn get_all_templates(&self) -> Vec<crate::entities::item_template::Model> {
-        let templates = self.item_templates.read().await;
-        templates.values().cloned().collect()
-    }
+pub fn get_item_template(id:i16)->Option<ItemTemplate>{
+    ITEM_TEMPLATES.get(&id).map(|v|v.clone())
 }
 
-pub static ITEM_MANAGER: Lazy<RwLock<ItemManager>> = Lazy::new(|| RwLock::new(ItemManager::new()));
-
-impl Clone for ItemManager {
-    fn clone(&self) -> Self {
-        Self {
-            item_templates: Arc::clone(&self.item_templates),
-            item_service: ItemService::new(),
-        }
-    }
+pub fn get_all_templates() -> Vec<ItemTemplate> {
+    ITEM_TEMPLATES.iter().map(|kv| kv.value().clone()).collect()
 }

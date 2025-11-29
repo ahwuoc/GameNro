@@ -1,25 +1,10 @@
-use crate::entities::item_option_template::Model as ItemOptionTemplate;
-use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item::Item;
-pub struct ItemService {}
+use crate::item::item_manager;
+pub struct ItemService;
+
 impl ItemService {
-    pub fn new() -> Self {
-        Self {}
-    }
 
-    pub fn get_template(&self, id: i32) -> Option<ItemTemplate> {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_templates_by_id.get(&id).cloned()
-    }
-
-    pub fn get_item_option_template(&self, id: i32) -> Option<ItemOptionTemplate> {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_option_templates_by_id.get(&id).cloned()
-    }
-
-    pub fn get_item_id_by_icon(&self, icon_id: i32) -> Option<i16> {
+    pub fn get_item_id_by_icon(icon_id: i32) -> Option<i16> {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         for template in guard.item_templates.iter() {
@@ -30,54 +15,33 @@ impl ItemService {
         None
     }
 
-    pub fn create_item_null(&self) -> Item {
+    pub fn create_item_null() -> Item {
         Item::new()
     }
 
-    pub fn create_new_item(&self, template_id: i32) -> Option<Item> {
-        self.create_new_item_with_quantity(template_id, 1)
+    pub fn create_new_item(template_id: i16) -> Option<Item> {
+        Self::create_new_item_with_quantity(template_id, 1)
     }
 
-    pub fn create_new_item_with_quantity(&self, template_id: i32, quantity: i32) -> Option<Item> {
-        if let Some(template) = self.get_template(template_id) {
-            Some(Item::with_template(template.clone(), quantity))
-        } else {
+    pub fn create_new_item_with_quantity(template_id: i16, quantity: i32) -> Option<Item> {
+        if let Some(item_template) = item_manager::get_item_template(template_id){
+              Some(Item::with_template(item_template.clone(), quantity))
+        }else{
             println!("Warning: Item template not found for ID: {}", template_id);
             None
         }
     }
 
     /// Copy item
-    pub fn copy_item(&self, item: &Item) -> Item {
+    pub fn copy_item(item: &Item) -> Item {
         item.clone_item()
     }
 
-    /// Create item with activation set
-    pub fn create_item_set_kich_hoat(&self, template_id: i32, quantity: i32) -> Option<Item> {
-        if let Some(mut item) = self.create_new_item_with_quantity(template_id, quantity) {
-            // Add activation options
-            item.set_content(item.get_content());
-            item.info = item.get_info();
-            Some(item)
-        } else {
-            None
-        }
-    }
 
-    /// Create item for destruction
-    pub fn create_item_do_huy_diet(&self, template_id: i32, quantity: i32) -> Option<Item> {
-        if let Some(mut item) = self.create_new_item_with_quantity(template_id, quantity) {
-            // Add destruction options
-            item.set_content(item.get_content());
-            item.info = item.get_info();
-            Some(item)
-        } else {
-            None
-        }
-    }
+
 
     /// Random SKH (Special Item) ID based on gender
-    pub fn random_skh_id(&self, gender: i32) -> i32 {
+    pub fn random_skh_id(gender: i32) -> i32 {
         let adjusted_gender = if gender == 3 { 2 } else { gender };
 
         let options = vec![
@@ -116,7 +80,7 @@ impl ItemService {
     }
 
     /// Get option ID for SKH
-    pub fn option_id_skh(&self, skh_id: i32) -> i32 {
+    pub fn option_id_skh(skh_id: i32) -> i32 {
         // Map SKH ID to option ID
         match skh_id {
             127 => 30, // SKH V1
@@ -132,23 +96,23 @@ impl ItemService {
         }
     }
 
-    pub fn is_item_activation(&self, _item: &Item) -> bool {
+    pub fn is_item_activation(_item: &Item) -> bool {
         false
     }
 
-    pub fn get_all_item_templates_count(&self) -> usize {
+    pub fn get_all_item_templates_count() -> usize {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         guard.item_templates_by_id.len()
     }
 
-    pub fn get_all_item_option_templates_count(&self) -> usize {
+    pub fn get_all_item_option_templates_count() -> usize {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         guard.item_option_templates_by_id.len()
     }
 
-    pub fn can_item_stack(&self, template_id: i32, item_type: i32) -> bool {
+    pub fn can_item_stack(template_id: i32, item_type: i32) -> bool {
         // Items that can be stacked
         template_id == 457
             || template_id == 590
@@ -167,14 +131,14 @@ impl ItemService {
     }
 
     /// Get item template count
-    pub fn get_item_template_count(&self) -> usize {
+    pub fn get_item_template_count() -> usize {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         guard.item_templates.len()
     }
 
     /// Get item option template count
-    pub fn get_item_option_template_count(&self) -> usize {
+    pub fn get_item_option_template_count() -> usize {
         let manager = crate::services::Manager::get_instance();
         let guard = manager.lock().unwrap();
         guard.item_option_templates.len()

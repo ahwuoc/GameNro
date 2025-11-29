@@ -19,7 +19,6 @@ pub use inventory::Inventory;
 pub use inventory_service::InventoryService;
 pub use item::Item;
 pub use item_dao::ItemDao;
-pub use item_manager::ItemManager;
 pub use item_option::ItemOption;
 pub use item_service::ItemService;
 pub use item_time::ItemTime;

@@ -34,7 +34,7 @@ impl Location {
         self.zone_id = zone_id;
     }
 
-    pub fn get_position(&self) -> (i16, i16) {
+    pub fn get_position(&self) -> (i16,i16) {
         (self.x, self.y)
     }
 
