@@ -44,7 +44,12 @@ pub struct NClass {
 pub struct DataGame;
 
 impl DataGame {
-    pub const VES: i32 = 752012;
+    pub const VS_Res:i32 = 1;
+    pub const VS_DATA:i8 = 9;
+    pub const VS_MAP:i8 = 2;
+    pub const VS_ITEM:i8 = 9;
+    pub const VS_SKILL:i8 = 1;
+    pub const MAX_Small_Version:i16 = 32767;
     pub const STANDARD_LEVELS: [i64; 20] = [
         1000i64,
         3000,
@@ -121,7 +126,7 @@ impl DataGame {
         }
         let mut msg = Message::new(-74);
         msg.write_byte(3)?; // type: finish
-        msg.write_int(Self::VES)?; // version or checksum
+        msg.write_int(Self::VS_Res)?; // version or checksum
         session.send_message(&msg).await?;
 
         Ok(())
@@ -129,8 +134,8 @@ impl DataGame {
 
     pub async fn send_version_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-74);
-        msg.write_byte(0)?; // type: version
-        msg.write_int(Self::VES)?; // version number
+        msg.write_byte(0)?; 
+        msg.write_int(Self::VS_Res)?;
         session.send_message(&msg).await?;
 
         Ok(())
@@ -156,10 +161,11 @@ impl DataGame {
 
     pub async fn send_version_game(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(4)?; // vsData
-        msg.write_byte(1)?; // vsMap
-        msg.write_byte(1)?; // vsSkill
-        msg.write_byte(1)?; // vsItem
+        msg.write_byte(4); //sub command
+        msg.write_byte(Self::VS_DATA)?; // vsData
+        msg.write_byte(Self::VS_MAP)?; // vsMap
+        msg.write_byte(Self::VS_SKILL)?; // vsSkill
+        msg.write_byte(Self::VS_ITEM)?; // vsItem
         msg.write_byte(0)?; // padding
 
         msg.write_byte(Self::STANDARD_LEVELS.len() as i8)?;

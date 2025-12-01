@@ -3,44 +3,21 @@ use crate::item::item_manager;
 pub struct ItemService;
 
 impl ItemService {
-
-    pub fn get_item_id_by_icon(icon_id: i32) -> Option<i16> {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        for template in guard.item_templates.iter() {
-            if template.icon_id == icon_id {
-                return Some(template.id);
-            }
-        }
-        None
-    }
-
     pub fn create_item_null() -> Item {
         Item::new()
     }
-
     pub fn create_new_item(template_id: i16) -> Option<Item> {
         Self::create_new_item_with_quantity(template_id, 1)
     }
 
     pub fn create_new_item_with_quantity(template_id: i16, quantity: i32) -> Option<Item> {
-        if let Some(item_template) = item_manager::get_item_template(template_id){
+        if let Some(item_template) = item_manager::get(template_id){
               Some(Item::with_template(item_template.clone(), quantity))
         }else{
             println!("Warning: Item template not found for ID: {}", template_id);
             None
         }
     }
-
-    /// Copy item
-    pub fn copy_item(item: &Item) -> Item {
-        item.clone_item()
-    }
-
-
-
-
-    /// Random SKH (Special Item) ID based on gender
     pub fn random_skh_id(gender: i32) -> i32 {
         let adjusted_gender = if gender == 3 { 2 } else { gender };
 
@@ -100,11 +77,6 @@ impl ItemService {
         false
     }
 
-    pub fn get_all_item_templates_count() -> usize {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_templates_by_id.len()
-    }
 
     pub fn get_all_item_option_templates_count() -> usize {
         let manager = crate::services::Manager::get_instance();
@@ -129,18 +101,5 @@ impl ItemService {
             || item_type == 540
             || (template_id >= 1268 && template_id <= 1273)
     }
-
-    /// Get item template count
-    pub fn get_item_template_count() -> usize {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_templates.len()
-    }
-
-    /// Get item option template count
-    pub fn get_item_option_template_count() -> usize {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_option_templates.len()
-    }
+  
 }

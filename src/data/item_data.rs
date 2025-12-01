@@ -1,4 +1,7 @@
-use crate::item::item_manager;
+use std::any::Any;
+
+use crate::data::data_game;
+use crate::item::{item_manager, option_template_manager};
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::services::GodGK;
@@ -8,49 +11,36 @@ pub struct ItemData;
 
 impl ItemData {
     pub async fn update_item(session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("ItemData::update_item called");
         Self::update_item_option_template(session).await?;
         Self::update_item_arr_head_2_f(session).await?;
         Self::update_item_template(session, 750).await?;
-        Self::update_item_template_range(session, 750, 751).await?;
+        Self::update_item_template_range(
+            session,
+            750,
+            item_manager::get_all().len() as i16,
+        )
+        .await?;
         Ok(())
     }
 
-    async fn update_item_option_template(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
-        println!("Updating item option templates");
+    async fn update_item_option_template(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
-        msg.write_byte(1)?; // vsItem version
-        msg.write_byte(0)?; // update option
-
-        let manager = crate::services::manager::Manager::get_instance();
-        let options = {
-            let manager_guard = manager.lock().unwrap();
-            manager_guard.item_option_templates.clone()
-        };
-
-        let options_count = (options.len().min(255)) as u8;
-        msg.write_byte(options_count as i8)?;
-
-        for opt in options.iter().take(options_count as usize) {
+        msg.write_byte(data_game::DataGame::VS_ITEM)?;
+        msg.write_byte(0)?;
+        msg.write_byte(option_template_manager::get_all().len() as i8)?;
+        for opt in option_template_manager::get_all().iter() {
             msg.write_utf(&opt.name)?;
-            msg.write_byte(0)?; // Assuming type is 0 for now
+            msg.write_byte(0)?;
         }
-
         session.send_message(&msg).await?;
-        println!("Sent {} item option templates from cache", options_count);
         Ok(())
     }
 
-    async fn update_item_arr_head_2_f(
-        session: &mut AsyncSession,
-    ) -> anyhow::Result<()> {
-        println!("Updating item array head 2 frames");
+    async fn update_item_arr_head_2_f(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
-        msg.write_byte(1)?; // vsItem version
+        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
         msg.write_byte(100)?; // update ArrHead2F
 
         let god_gk = GodGK::get_instance();
@@ -67,7 +57,6 @@ impl ItemData {
                 .await
             {
                 for a in arrs {
-                    // Try parse JSON array first, else comma-separated
                     let parsed: Vec<i16> =
                         if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&a.data) {
                             if let Some(arr) = json_val.as_array() {
@@ -95,42 +84,30 @@ impl ItemData {
                 msg.write_short(*val)?;
             }
         }
-
         session.send_message(&msg).await?;
-        println!("Sent {} array head 2 frames", arrays.len());
         Ok(())
     }
 
-    async fn update_item_template(
-        session: &mut AsyncSession,
-        count: i16,
-    ) -> anyhow::Result<()> {
-        println!("Updating item templates (count: {})", count);
+    async fn update_item_template(session: &mut AsyncSession, count: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
-        msg.write_byte(1)?; // vsItem version
+        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
         msg.write_byte(1)?; // reload itemtemplate
-
-    
-        let items = item_manager::get_all_templates();
-        let count = (items.len().min(count as usize)) as i16;
-
         msg.write_short(count)?;
-
-        for it in items.iter().take(count as usize) {
-            msg.write_byte((it.r#type as u8) as i8)?;
-            msg.write_byte((it.gender as u8) as i8)?;
-            msg.write_utf(&it.name)?;
-            msg.write_utf(&it.description)?;
-            msg.write_byte(0)?;
-            msg.write_int(it.power_require as i32)?;
-            msg.write_short(it.icon_id as i16)?;
-            msg.write_short(it.part as i16)?;
-            msg.write_boolean(it.is_up_to_up != 0)?;
+        for id in 0..count {
+            if let Some(item_template) = item_manager::get(id) {
+                msg.write_byte(item_template.r#type as i8)?;
+                msg.write_byte(item_template.gender as i8)?;
+                msg.write_utf(&item_template.name)?;
+                msg.write_utf(&item_template.description)?;
+                msg.write_byte(0)?;
+                msg.write_int(item_template.power_require)?;
+                msg.write_short(item_template.icon_id as i16)?;
+                msg.write_short(item_template.part as i16)?;
+                msg.write_boolean(item_template.is_up_to_up != 0)?;
+            }
         }
-
         session.send_message(&msg).await?;
-        println!("Sent {} item templates from cache", count);
         Ok(())
     }
 
@@ -139,52 +116,27 @@ impl ItemData {
         start: i16,
         end: i16,
     ) -> anyhow::Result<()> {
-        println!("Updating item templates range ({} to {})", start, end);
-        
-        let manager = crate::services::manager::Manager::get_instance();
-        let items_by_id = {
-            let manager_guard = manager.lock().unwrap();
-            manager_guard.item_templates_by_id.clone()
-        };
-
-        // Check if there are any items in the range first
-        let mut items_in_range = Vec::new();
-        for id in start..end {
-            if let Some(item) = items_by_id.get(&(id as i32)) {
-                items_in_range.push(item);
-            }
-        }
-
-        // Only send message if there are items to send
-        if items_in_range.is_empty() {
-            println!("No items found in range {} to {}, skipping", start, end);
-            return Ok(());
-        }
-
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
-        msg.write_byte(1)?; // vsItem version
+        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
         msg.write_byte(2)?; // add itemtemplate
         msg.write_short(start)?;
         msg.write_short(end)?;
 
-        for item in &items_in_range {
-            msg.write_byte((item.r#type as u8) as i8)?;
-            msg.write_byte((item.gender as u8) as i8)?;
-            msg.write_utf(&item.name)?;
-            msg.write_utf(&item.description)?;
-            msg.write_byte(0)?;
-            msg.write_int(item.power_require as i32)?;
-            msg.write_short(item.icon_id as i16)?;
-            msg.write_short(item.part as i16)?;
-            msg.write_boolean(item.is_up_to_up != 0)?;
+        for id in start..end {
+            if let Some(item) = item_manager::get(id) {
+                msg.write_byte(item.r#type as i8)?;
+                msg.write_byte(item.gender as i8)?;
+                msg.write_utf(&item.name)?;
+                msg.write_utf(&item.description)?;
+                msg.write_byte(0)?;
+                msg.write_int(item.power_require as i32)?;
+                msg.write_short(item.icon_id as i16)?;
+                msg.write_short(item.part as i16)?;
+                msg.write_boolean(item.is_up_to_up != 0)?;
+            }
         }
-
         session.send_message(&msg).await?;
-        println!(
-            "Sent {} additional item templates from cache",
-            items_in_range.len()
-        );
         Ok(())
     }
 }

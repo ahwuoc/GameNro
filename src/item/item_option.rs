@@ -4,11 +4,11 @@ pub struct ItemOption {
     pub param: i16,
 }
 
-impl ItemOption {
-    pub fn new(option_id: i8, param: i16) -> Self {
-        Self { option_id, param }
-    }
+impl ItemOption {  
 
+    pub fn new(option_id:i8,param:i16)->Self{
+         Self { option_id, param }
+    }
     pub fn get_option_id(&self) -> i8 {
         self.option_id
     }
@@ -80,64 +80,4 @@ impl ItemOption {
     pub fn is_skill_option(&self) -> bool {
         matches!(self.option_id, 11..=15)
     }
-
-    pub fn get_option_type(&self) -> OptionType {
-        match self.option_id {
-            0 => OptionType::None,
-            1..=2 => OptionType::Resource,
-            3..=4 => OptionType::Combat,
-            5..=9 => OptionType::Stat,
-            10..=15 => OptionType::Skill,
-            _ => OptionType::Unknown,
-        }
-    }
-
-    pub fn get_option_rarity(&self) -> OptionRarity {
-        match self.param {
-            0..=10 => OptionRarity::Common,
-            11..=25 => OptionRarity::Uncommon,
-            26..=50 => OptionRarity::Rare,
-            51..=100 => OptionRarity::Epic,
-            _ => OptionRarity::Legendary,
-        }
-    }
-
-    pub fn is_legendary_option(&self) -> bool {
-        self.get_option_rarity() == OptionRarity::Legendary
-    }
-
-    pub fn is_epic_option(&self) -> bool {
-        self.get_option_rarity() == OptionRarity::Epic
-    }
-
-    pub fn is_rare_option(&self) -> bool {
-        self.get_option_rarity() == OptionRarity::Rare
-    }
-
-    pub fn is_uncommon_option(&self) -> bool {
-        self.get_option_rarity() == OptionRarity::Uncommon
-    }
-
-    pub fn is_common_option(&self) -> bool {
-        self.get_option_rarity() == OptionRarity::Common
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OptionType {
-    None,
-    Resource,
-    Combat,
-    Stat,
-    Skill,
-    Unknown,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OptionRarity {
-    Common,
-    Uncommon,
-    Rare,
-    Epic,
-    Legendary,
 }

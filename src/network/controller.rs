@@ -1,6 +1,7 @@
 use crate::account::account_dao::AccountDao;
 use crate::account::account_services::AccountServices;
 use crate::constant::cmd::cmd;
+use crate::data::ItemData;
 use crate::data::data_game::DataGame;
 use crate::database::DbManager;
 use crate::entities::{account, player};
@@ -9,7 +10,6 @@ use crate::network::SESSION_MANAGER;
 use crate::services::{player_info_service, ServiceHandles};
 use crate::services::{GodGK, PlayerInfoService};
 use anyhow::{anyhow, Result};
-use bytes::Buf;
 use chrono::{self, Utc};
 use sea_orm::*;
 use std::sync::Arc;
@@ -323,9 +323,6 @@ impl AsyncController {
         let name = msg.read_utf()?;
         let gender = msg.read_byte()? as i32;
         let hair = msg.read_byte()? as i32;
-
-        println!("DEBUG: name: {}, gender: {}, hair: {}", name, gender, hair);
-
         if !Self::is_valid_name(&name) {
             return Err(anyhow!("Invalid character name"));
         }
@@ -409,14 +406,13 @@ impl AsyncController {
 
         Ok(())
     }
-
+    
     async fn handle_message_not_map(
         session: &mut AsyncSession,
         mut msg: Message,
         session_arc: Arc<RwLock<AsyncSession>>,
     ) -> Result<()> {
         let sub_cmd = msg.read_byte()?;
-        println!("Handling -28 sub-command: {}", sub_cmd);
 
         match sub_cmd {
             2 => Self::handle_create_char(session, msg, session_arc).await,
@@ -429,7 +425,7 @@ impl AsyncController {
                 Ok(())
             }
             8 => {
-                crate::data::ItemData::update_item(session).await?;
+                ItemData::update_item(session).await?;
                 Ok(())
             }
             10 => {

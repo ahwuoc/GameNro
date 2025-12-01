@@ -8,7 +8,6 @@ use std::collections::HashMap;
 pub struct Item {
     pub template: Option<ItemTemplate>,
     pub info: String,
-    pub content: String,
     pub quantity: i32,
     pub quantity_gd: i32,
     pub item_options: Vec<ItemOption>,
@@ -20,20 +19,7 @@ impl Item {
         Self {
             template: None,
             info: String::new(),
-            content: String::new(),
             quantity: 0,
-            quantity_gd: 0,
-            item_options: Vec::new(),
-            create_time: Utc::now(),
-        }
-    }
-
-    pub fn from_template_id(template_id: i32, template: ItemTemplate) -> Self {
-        Self {
-            template: Some(template),
-            info: String::new(),
-            content: String::new(),
-            quantity: 1,
             quantity_gd: 0,
             item_options: Vec::new(),
             create_time: Utc::now(),
@@ -44,7 +30,6 @@ impl Item {
         Self {
             template: Some(template),
             info: String::new(),
-            content: String::new(),
             quantity,
             quantity_gd: 0,
             item_options: Vec::new(),
@@ -60,15 +45,6 @@ impl Item {
     /// Check if item is null (no template)
     pub fn is_null_item(&self) -> bool {
         self.template.is_none()
-    }
-
-    /// Get item name
-    pub fn get_name(&self) -> String {
-        if let Some(ref template) = self.template {
-            template.name.clone()
-        } else {
-            String::new()
-        }
     }
 
     /// Get item template ID
@@ -140,20 +116,6 @@ impl Item {
         option_strings.join("\n")
     }
 
-    /// Clone item
-    pub fn clone_item(&self) -> Self {
-        Self {
-            template: self.template.clone(),
-            info: self.info.clone(),
-            content: self.content.clone(),
-            quantity: self.quantity,
-            quantity_gd: self.quantity_gd,
-            item_options: self.item_options.clone(),
-            create_time: Utc::now(),
-        }
-    }
-
-    /// Get item info
     pub fn get_info(&self) -> String {
         if let Some(ref template) = self.template {
             format!("{} - {}", template.name, self.get_option_info())
@@ -163,72 +125,15 @@ impl Item {
     }
 
     /// Get item content
-    pub fn get_content(&self) -> String {
-        self.content.clone()
+pub fn get_content(&self) -> String {
+    if let Some(strpower) = self.get_str_require() {
+        format!("Yeu cau suc manh {:?}", strpower)
+    } else {
+        "OKem".to_string()
     }
+}
 
-    /// Set item content
-    pub fn set_content(&mut self, content: String) {
-        self.content = content;
-    }
 
-    /// Check if item can be enhanced (Pha Le Hoa)
-    pub fn can_pha_le_hoa(&self) -> bool {
-        if let Some(ref template) = self.template {
-            (template.r#type < 5 || template.r#type == 32)
-                && (template.id == 1418 || template.id == 1429)
-        } else {
-            false
-        }
-    }
-
-    pub fn is_trang_bi_an(&self) -> bool {
-        for option in &self.item_options {
-            let option_id = option.get_option_id();
-            if option_id >= 34 && option_id <= 36 {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Check if item is DTS (Special Item Type)
-    pub fn is_dts(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id >= 1048 && template.id <= 1062
-        } else {
-            false
-        }
-    }
-
-    /// Check if item is DTL (Special Item Type)
-    pub fn is_dtl(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id >= 555 && template.id <= 567
-        } else {
-            false
-        }
-    }
-
-    /// Check if item is DHD (Special Item Type)
-    pub fn is_dhd(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id >= 650 && template.id <= 662
-        } else {
-            false
-        }
-    }
-
-    /// Check if item is Manh TS (Special Item Type)
-    pub fn is_manh_ts(&self) -> bool {
-        if let Some(ref template) = self.template {
-            template.id >= 1066 && template.id <= 1070
-        } else {
-            false
-        }
-    }
-
-    /// Check if item is Cong Thuc VIP (VIP Recipe)
     pub fn is_cong_thuc_vip(&self) -> bool {
         if let Some(ref template) = self.template {
             template.id >= 1084 && template.id <= 1086

@@ -10,7 +10,7 @@ pub mod inventory;
 pub mod inventory_service;
 pub mod item_time;
 pub mod item_time_service;
-
+pub mod option_template_manager;
 // Item utilities
 pub mod item_utils;
 

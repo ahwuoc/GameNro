@@ -40,47 +40,6 @@ impl SessionManager {
         removed
     }
 
-    pub async fn get_session(&self, player_id: i64) -> Option<SessionArc> {
-        let sessions = self.sessions.read().await;
-        sessions.get(&player_id).cloned()
-    }
-    pub async fn send_to_player(&self, player_id: i64, msg: &Message) -> anyhow::Result<()> {
-        let session_arc = {
-            let sessions = self.sessions.read().await;
-            sessions.get(&player_id).cloned()
-        };
-
-        if let Some(session_arc) = session_arc {
-            let mut session = session_arc.write().await;
-            session.send_message(msg).await?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!(
-                "Session not found for player {}",
-                player_id
-            ))
-        }
-    }
-    pub async fn send_to_players(&self, player_ids: &[i64], msg: &Message) {
-        for &player_id in player_ids {
-            if let Err(e) = self.send_to_player(player_id, msg).await {
-                println!(
-                    "[SESSION_MANAGER] Failed to send to player {}: {:?}",
-                    player_id, e
-                );
-            }
-        }
-    }
-    pub async fn broadcast(&self, msg: &Message) {
-        let sessions = {
-            let sessions_guard = self.sessions.read().await;
-            sessions_guard.values().cloned().collect::<Vec<_>>()
-        };
-        for session in sessions {
-            let mut session = session.write().await;
-            session.send_message(msg).await;
-        }
-    }
     pub async fn kick_player(&self, player_id: i64, reason: &str) -> bool {
         let session_arc = {
             let mut sessions = self.sessions.write().await;

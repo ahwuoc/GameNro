@@ -1,6 +1,6 @@
 use crate::config::DatabaseConfig;
 use crate::database::DbManager;
-use crate::item::item_manager;
+use crate::item::{item_manager, option_template_manager};
 use crate::map::map_manager::MAP_MANAGER;
 use crate::map::MapDao;
 use crate::mob::mob_dao::MobDao;
@@ -19,7 +19,7 @@ use crate::entities::intrinsic;
 use crate::entities::mob_template;
 use crate::entities::npc_template;
 use crate::entities::skill_template;
-use crate::entities::{item_option_template, item_template, map_template};
+use crate::entities::{item_option_template, map_template};
 use crate::item::item_time_service::ItemTimeService;
 use crate::mob::MobService;
 use crate::npc::NpcManager;
@@ -34,9 +34,6 @@ pub struct Manager {
     pub mob_templates: Vec<mob_template::Model>,
     pub skill_templates: Vec<skill_template::Model>,
     pub intrinsic_templates: Vec<intrinsic::Model>,
-    pub item_templates: Vec<item_template::Model>,
-    pub item_option_templates: Vec<item_option_template::Model>,
-    pub item_templates_by_id: HashMap<i32, item_template::Model>,
     pub map_templates_by_id: HashMap<i32, map_template::Model>,
     pub npc_templates_by_id: HashMap<i32, npc_template::Model>,
     pub mob_templates_by_id: HashMap<i32, mob_template::Model>,
@@ -59,9 +56,6 @@ impl Manager {
             map_templates: Vec::new(),
             npc_templates: Vec::new(),
             mob_templates: Vec::new(),
-            item_templates: Vec::new(),
-            item_option_templates: Vec::new(),
-            item_templates_by_id: HashMap::new(),
             skill_templates: Vec::new(),
             intrinsic_templates: Vec::new(),
             map_templates_by_id: HashMap::new(),
@@ -90,8 +84,9 @@ impl Manager {
         self.database = Some(database.clone());
         self.mob_service.set_database(database.clone());
 
-        item_manager::load_item_templates(&database).await?;
+        item_manager::load(&database).await?;
         self.load_map_templates().await?;
+        option_template_manager::load(&database).await?;
         self.load_npc_templates().await?;
         self.load_mob_templates().await?;
         self.load_skill_templates().await?;
@@ -366,9 +361,6 @@ impl Manager {
 
     pub fn get_skill_templates(&self) -> &Vec<skill_template::Model> {
         &self.skill_templates
-    }
-    pub fn get_item_templates(&self) -> &Vec<item_template::Model> {
-        &self.item_templates
     }
     pub fn get_intrinsic_templates(&self) -> &Vec<intrinsic::Model> {
         &self.intrinsic_templates

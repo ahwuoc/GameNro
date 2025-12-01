@@ -1,5 +1,4 @@
 use crate::item::item::Item;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Inventory {
@@ -139,17 +138,14 @@ impl Inventory {
         }
     }
 
-    /// Get item from bag by index
     pub fn get_item_bag(&self, index: usize) -> Option<&Item> {
         self.items_bag.get(index)
     }
 
-    /// Get item from body by index
     pub fn get_item_body(&self, index: usize) -> Option<&Item> {
         self.items_body.get(index)
     }
 
-    /// Get item from box by index
     pub fn get_item_box(&self, index: usize) -> Option<&Item> {
         self.items_box.get(index)
     }
