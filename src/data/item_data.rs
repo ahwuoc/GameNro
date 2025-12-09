@@ -22,14 +22,14 @@ impl ItemData {
         .await?;
         Ok(())
     }
-
     async fn update_item_option_template(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; // sub-command
+        msg.write_byte(8)?; 
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
         msg.write_byte(0)?;
         msg.write_byte(option_template_manager::get_all().len() as i8)?;
         for opt in option_template_manager::get_all().iter() {
+            println!("send client option => {} {}",opt.id, opt.name);
             msg.write_utf(&opt.name)?;
             msg.write_byte(0)?;
         }
@@ -39,9 +39,9 @@ impl ItemData {
 
     async fn update_item_arr_head_2_f(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; // sub-command
-        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
-        msg.write_byte(50 as i8)?; // update ArrHead2F
+        msg.write_byte(8)?; 
+        msg.write_byte(data_game::DataGame::VS_ITEM)?; 
+        msg.write_byte(50 as i8)?; 
 
         let god_gk = GodGK::get_instance();
         let db = {

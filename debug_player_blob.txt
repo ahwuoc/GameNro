@@ -4407,3 +4407,343 @@ Message ID: -30, Sub command: 0
 27. idHat (short): 0
 === END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
 
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+1. charID (int): 7
+2. ctaskId (byte): 0
+3. cgender (byte): 0
+4. head (short): 27
+5. cName (UTF): 'sadsa'
+6. cPk (byte): 0
+7. cTypePk (byte): 0
+8. cPower (long): 2000
+9. eff5BuffHp (short): 0
+10. eff5BuffMp (short): 0
+11. nClass (byte): 0
+12. skills_count (byte): 0
+13. xu (long): 2000
+14. luongKhoa (int): 0
+15. body_items_count (byte): 11
+18. head_avatar_count (short): 0
+19. charId[gender][0] (short): 514
+20. charId[gender][1] (short): 515
+21. charId[gender][2] (short): 537
+22. isNhapThe (byte): 0
+23. deltaTime (int): 333
+24. isNewMember (byte): 1
+25. idAuraEff (short): 0
+26. idEff_Set_Item (byte): 0
+27. idHat (short): 0
+=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0
+=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===
+Message ID: -30, Sub command: 0

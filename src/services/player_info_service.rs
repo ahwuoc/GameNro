@@ -162,56 +162,30 @@ impl PlayerInfoService {
 
         // Basic player info
         msg.write_int(player.id as i32)?; // charID
-        Self::debug_write_to_file(&format!("1. charID (int): {}", player.id));
         msg.write_byte(0)?; // ctaskId
-        Self::debug_write_to_file(&format!("2. ctaskId (byte): 0"));
-
         msg.write_byte(player.gender)?; // cgender
-        Self::debug_write_to_file(&format!("3. cgender (byte): {}", player.gender));
-
         msg.write_short(player.head)?; // head
-        Self::debug_write_to_file(&format!("4. head (short): {}", player.head));
-
         msg.write_utf(&player.name)?; // cName
-        Self::debug_write_to_file(&format!("5. cName (UTF): '{}'", player.name));
-
         msg.write_byte(0)?; // cPk
-        Self::debug_write_to_file(&format!("6. cPk (byte): 0"));
 
         msg.write_byte(player.type_pk)?; // cTypePk
-        Self::debug_write_to_file(&format!("7. cTypePk (byte): {}", player.type_pk));
 
         msg.write_long(player.n_point.power)?; // cPower
-        Self::debug_write_to_file(&format!("8. cPower (long): {}", player.n_point.power));
-        // applyCharLevelPercent() - client method call, no data read
         msg.write_short(0)?; // eff5BuffHp
-        Self::debug_write_to_file(&format!("9. eff5BuffHp (short): 0"));
-
         msg.write_short(0)?; // eff5BuffMp
-        Self::debug_write_to_file(&format!("10. eff5BuffMp (short): 0"));
 
         msg.write_byte(0)?; // nClass index (GameScr.nClasss[...])
-        Self::debug_write_to_file(&format!("11. nClass (byte): 0"));
 
         // Skills - client expects to read skills here
         msg.write_byte(0)?; // number of skills (sbyte b2)
-        Self::debug_write_to_file(&format!("12. skills_count (byte): 0"));
-        // No skills to write since we wrote 0
 
         // Currency - client always reads xu as long
         msg.write_long(player.inventory.get_gold())?; // xu
-        Self::debug_write_to_file(&format!("13. xu (long): {}", player.inventory.get_gold()));
-
         msg.write_int(player.inventory.get_ruby())?; // luongKhoa
-        Self::debug_write_to_file(&format!(
-            "14. luongKhoa (int): {}",
-            player.inventory.get_ruby()
-        ));
         msg.write_int(player.inventory.get_gem())?; // luong
 
         // Body items
         let body_len = (player.inventory.items_body.len().min(255)) as i8;
-        Self::debug_write_to_file(&format!("15. body_items_count (byte): {}", body_len));
         msg.write_byte(body_len)?;
         for item in player
             .inventory
@@ -229,12 +203,15 @@ impl PlayerInfoService {
                     msg.write_utf(&item.get_content())?;
                     if item.item_options.is_empty() {
                         msg.write_byte(1)?;
-                        msg.write_byte(1)?;
-                        msg.write_short(0)?;
+                        msg.write_byte(73)?;
+                        msg.write_short(1)?;
                     } else {
                         let opts_len = item.item_options.len() as i8;
                         msg.write_byte(opts_len)?;
                         for opt in item.item_options.iter() {
+                            if opt.get_option_id() == 47 {
+                                println!("send client {}",opt.get_name());
+                            }
                             msg.write_byte(opt.get_option_id())?;
                             msg.write_short(opt.get_param())?;
                         }
@@ -317,40 +294,15 @@ impl PlayerInfoService {
         }
         DataGame::send_head_to_client(&mut msg).await?;
         msg.write_short(player.get_head())?; // num17 - number of head/avatar pairs
-        Self::debug_write_to_file(&format!("18. head_avatar_count (short): 0"));
-        // Character info IDs for gender
         msg.write_short(514)?; // charId[gender][0]
-        Self::debug_write_to_file(&format!("19. charId[gender][0] (short): 514"));
-
         msg.write_short(515)?; // charId[gender][1]
-        Self::debug_write_to_file(&format!("20. charId[gender][1] (short): 515"));
-
         msg.write_short(537)?; // charId[gender][2]
-        Self::debug_write_to_file(&format!("21. charId[gender][2] (short): 537"));
-
         msg.write_byte(0)?; // isNhapThe (0 = false, 1 = true)
-        Self::debug_write_to_file(&format!("22. isNhapThe (byte): 0"));
-
         msg.write_int(333)?; // deltaTime (server time)
-        Self::debug_write_to_file(&format!("23. deltaTime (int): 333"));
-
         msg.write_byte(if player.is_new_member { 1 } else { 0 })?; // isNewMember
-        Self::debug_write_to_file(&format!(
-            "24. isNewMember (byte): {}",
-            if player.is_new_member { 1 } else { 0 }
-        ));
-
-        // Additional effects (version dependent)
-        msg.write_short(0)?; // idAuraEff
-        Self::debug_write_to_file(&format!("25. idAuraEff (short): 0"));
-
+            msg.write_short(0)?; // idAuraEff
         msg.write_byte(0)?; // idEff_Set_Item
-        Self::debug_write_to_file(&format!("26. idEff_Set_Item (byte): 0"));
-
         msg.write_short(0)?; // idHat
-        Self::debug_write_to_file(&format!("27. idHat (short): 0"));
-
-        Self::debug_write_to_file("=== END SEND_PLAYER_BLOB_INTERNAL DEBUG ===\n");
 
         session.send_message(&msg).await?;
         Ok(())

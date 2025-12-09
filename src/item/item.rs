@@ -89,17 +89,18 @@ impl Item {
 
     /// Get all option strings
     pub fn get_option_info(&self) -> String {
-        let mut option_strings = Vec::new();
+        // let mut option_strings = Vec::new();
 
-        for option in &self.item_options {
-            // Skip certain option IDs (72, 73, 102, 107)
-            let option_id = option.get_option_id();
-            if option_id != 72 && option_id != 73 && option_id != 102 && option_id != 107 {
-                option_strings.push(option.get_option_description());
-            }
-        }
+        // for option in &self.item_options {
+         
+        //     let option_id = option.get_option_id();
+        //     if option_id != 72 && option_id != 73 && option_id != 102 && option_id != 107 {
+        //         option_strings.push(option.get_option_description());
+        //     }
+        // }
 
-        option_strings.join("\n")
+        // option_strings.join("\n")
+        "todos".to_string()
     }
 
     pub fn get_info(&self) -> String {
