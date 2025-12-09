@@ -213,12 +213,10 @@ impl PlayerInfoService {
         let body_len = (player.inventory.items_body.len().min(255)) as i8;
         Self::debug_write_to_file(&format!("15. body_items_count (byte): {}", body_len));
         msg.write_byte(body_len)?;
-
-        for (index, item) in player
+        for item in player
             .inventory
             .items_body
             .iter()
-            .enumerate()
             .take(body_len as usize)
         {
             if item.is_null_item() {
@@ -230,13 +228,13 @@ impl PlayerInfoService {
                     msg.write_utf(&item.get_info())?;
                     msg.write_utf(&item.get_content())?;
                     if item.item_options.is_empty() {
-                        msg.write_byte(1);
-                        msg.write_byte(1);
-                        msg.write_short(0);
+                        msg.write_byte(1)?;
+                        msg.write_byte(1)?;
+                        msg.write_short(0)?;
                     } else {
                         let opts_len = item.item_options.len() as i8;
                         msg.write_byte(opts_len)?;
-                        for (opt_index, opt) in item.item_options.iter().enumerate() {
+                        for opt in item.item_options.iter() {
                             msg.write_byte(opt.get_option_id())?;
                             msg.write_short(opt.get_param())?;
                         }
@@ -317,6 +315,7 @@ impl PlayerInfoService {
                 }
             }
         }
+        DataGame::send_head_to_client(&mut msg).await?;
         msg.write_short(player.get_head())?; // num17 - number of head/avatar pairs
         Self::debug_write_to_file(&format!("18. head_avatar_count (short): 0"));
         // Character info IDs for gender

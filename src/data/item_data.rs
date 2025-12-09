@@ -41,7 +41,7 @@ impl ItemData {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?; // sub-command
         msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
-        msg.write_byte(100)?; // update ArrHead2F
+        msg.write_byte(50 as i8)?; // update ArrHead2F
 
         let god_gk = GodGK::get_instance();
         let db = {

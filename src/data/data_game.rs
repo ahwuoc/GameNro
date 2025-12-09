@@ -1,5 +1,6 @@
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
+use crate::services::head_avatar_manager;
 use dotenv::dotenv;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -73,6 +74,15 @@ impl DataGame {
         100010000000,
     ];
 
+    pub async fn send_head_to_client(msg:&mut Message)->anyhow::Result<()>{
+           let head_avatars = head_avatar_manager::get_all();
+           msg.write_short(head_avatars.len() as i16)?;
+           for head  in head_avatars.iter(){
+                 msg.write_short(head.head_id as i16)?;
+                 msg.write_short(head.avatar_id as i16)?;
+           }
+           Ok(())
+    }
     pub async fn send_size_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending size response");
         let zoom_level = session.zoom_level;
@@ -272,7 +282,7 @@ impl DataGame {
         };
 
         let mut msg = Message::new(-28);
-        msg.write_byte(6)?;
+        msg.write_byte(Self::VS_MAP)?;
         msg.write_byte(80)?;
         msg.write_byte((map_templates.len() as u8) as i8)?;
 
@@ -284,9 +294,9 @@ impl DataGame {
 
         for template in &npc_templates {
             msg.write_utf(&template.name)?;
-            msg.write_short(template.head as i16)?;
-            msg.write_short(template.body as i16)?;
-            msg.write_short(template.leg as i16)?;
+            msg.write_short(template.head)?;
+            msg.write_short(template.body)?;
+            msg.write_short(template.leg)?;
             msg.write_byte(0)?; // padding
         }
 
@@ -440,26 +450,21 @@ impl DataGame {
         Ok(())
     }
 
-    /// Send icon (-67) like Java DataGame.sendIcon
     pub async fn send_icon(session: &mut AsyncSession, id: i32) -> anyhow::Result<()> {
         let zoom_level = session.zoom_level;
-        let file_path = format!("data/girlkun/icon/x{}/{}.png", zoom_level, id);
-
+        let file_path = format!("data/girlkun/icon/x{}/{}.png",zoom_level,id);
         let mut msg = Message::new(-67);
-
-        match std::fs::read(&file_path) {
-            Ok(icon) => {
-                msg.write_int(id)?;
-                msg.write_int(icon.len() as i32)?;
-                msg.write(&icon)?;
-            }
-            Err(_) => {
-                // Send empty payload for missing icon
-                msg.write_int(id)?;
-                msg.write_int(0)?;
-            }
+        match std::fs::read(&file_path){
+              Ok(icon) =>{
+                   msg.write_int(id)?;
+                   msg.write_int(icon.len() as i32)?;
+                   msg.write(&icon)?;
+              }
+               Err(_) =>{
+                    msg.write_int(id)?;
+                    msg.write_int(0)?
+               } 
         }
-
         session.send_message(&msg).await?;
         Ok(())
     }

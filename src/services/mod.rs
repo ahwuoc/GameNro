@@ -4,7 +4,7 @@ pub mod manager;
 pub mod player_info_service;
 pub mod services;
 pub mod zone_service;
-
+pub mod head_avatar_manager;
 pub use god_gk::GodGK;
 pub use intrinsic_service::IntrinsicService;
 pub use manager::Manager;

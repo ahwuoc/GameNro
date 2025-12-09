@@ -109,17 +109,18 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
                 item_data.template_id as i16,
                 item_data.quantity,
             ) {
+                println!("item id {:?}", item.get_name());
                 for (opt_id, param) in item_data.options {
+                    println!("option id:{} item id:{}",opt_id,param );
                     item.add_option_param(opt_id, param);
                 }
                 p.inventory.items_body.push(item);
-                
             }
-        }else{
+        } else {
             p.inventory.items_body.push(ItemService::create_item_null());
         }
     }
-    
+
     // Load bag items - only push non-null items
     let items_bags = parser_item_raw(&model.items_bag);
     for items_bag in items_bags {
@@ -128,17 +129,16 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
                 items_bag.template_id as i16,
                 items_bag.quantity,
             ) {
-                for (opt_id, param) in items_bag.options {
-                    item.add_option_param(opt_id, param);
+                for (opt_id, opt_param) in items_bag.options {
+                    item.add_option_param(opt_id, opt_param);
                 }
                 p.inventory.items_bag.push(item);
-                
             }
-        }else{
+        } else {
             p.inventory.items_bag.push(ItemService::create_item_null());
         }
     }
-    
+
     // Load box items - only push non-null items
     let items_boxs = parser_item_raw(&model.items_box);
     for item_box in items_boxs {
@@ -151,9 +151,8 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
                     item.add_option_param(opt_id, param);
                 }
                 p.inventory.items_box.push(item);
-                
             }
-        }else{
+        } else {
             p.inventory.items_box.push(ItemService::create_item_null());
         }
     }

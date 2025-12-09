@@ -9,9 +9,9 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(column_name = "NAME")]
     pub name: String,
-    pub head: i32,
-    pub body: i32,
-    pub leg: i32,
+    pub head: i16,
+    pub body: i16,
+    pub leg: i16,
     pub avatar: Option<i32>,
 }
 

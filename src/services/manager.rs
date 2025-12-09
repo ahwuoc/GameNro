@@ -4,6 +4,7 @@ use crate::item::{item_manager, option_template_manager};
 use crate::map::map_manager::MAP_MANAGER;
 use crate::map::MapDao;
 use crate::mob::mob_dao::MobDao;
+use crate::services::head_avatar_manager;
 use once_cell::sync::Lazy;
 use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryResult, Statement,
@@ -24,7 +25,7 @@ use crate::item::item_time_service::ItemTimeService;
 use crate::mob::MobService;
 use crate::npc::NpcManager;
 use crate::npc::NpcService;
-use anyhow::Result;
+use anyhow::{Ok, Result};
 
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Manager::new())));
 
@@ -87,6 +88,7 @@ impl Manager {
         item_manager::load(&database).await?;
         self.load_map_templates().await?;
         option_template_manager::load(&database).await?;
+        head_avatar_manager::load(&database).await?;
         self.load_npc_templates().await?;
         self.load_mob_templates().await?;
         self.load_skill_templates().await?;
@@ -140,21 +142,23 @@ impl Manager {
         Ok(())
     }
 
-    pub fn start_map_update_task(&self) {
-        tokio::spawn(async move {
-            loop {
+    pub fn start_map_update_task(&self){
+        std::thread::spawn(move||{
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            loop{
+
                 let start = std::time::Instant::now();
-                {
-                    let mgr = MAP_MANAGER.read().await;
-                    let _ = mgr.update_all_maps().await;
-                }
+                runtime.block_on(async {
+                     let mgr = MAP_MANAGER.read().await;
+                     let _ = mgr.update_all_maps();
+                });
                 let elapsed_ms = start.elapsed().as_millis() as u64;
-                let sleep_ms = if elapsed_ms >= 1000 {
+                 let sleep_ms = if elapsed_ms >= 1000{
                     0
-                } else {
+                 }else{
                     1000 - elapsed_ms
-                };
-                sleep(Duration::from_millis(sleep_ms)).await;
+                 };
+                 std::thread::sleep(Duration::from_millis(sleep_ms));
             }
         });
     }

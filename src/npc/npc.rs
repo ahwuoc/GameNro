@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use crate::{
+    entities::npc_template::Model as NpcTemplate, network::{message::Message, session::AsyncSession}, utils::Location
+};
 use chrono::{DateTime, Utc};
-use crate::{entities::npc_template::Model as NpcTemplate, utils::Location};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct BaseMenu {
@@ -8,6 +10,8 @@ pub struct BaseMenu {
     pub npc_say: String,
     pub menu_select: Vec<String>,
 }
+
+
 
 impl BaseMenu {
     pub fn new(npc_id: i32, npc_say: String, menu_select: Vec<String>) -> Self {
@@ -60,7 +64,7 @@ impl Npc {
     pub fn from_template(template: &NpcTemplate, map_id: i32, x: i32, y: i32) -> Self {
         Self {
             map_id,
-            status: 1, 
+            status: 1,
             location: {
                 let mut loc = Location::new();
                 loc.set_position(x as i16, y as i16);
@@ -76,20 +80,17 @@ impl Npc {
         if text.is_empty() {
             return;
         }
-        
+
         let text = &text[1..]; // Remove first character
         let parts: Vec<&str> = text.split('|').collect();
-        
+
         if parts.is_empty() {
             return;
         }
-        
+
         let npc_say = parts[0].replace("<>", "\n");
-        let menu_select: Vec<String> = parts[1..]
-            .iter()
-            .map(|s| s.replace("<>", "\n"))
-            .collect();
-        
+        let menu_select: Vec<String> = parts[1..].iter().map(|s| s.replace("<>", "\n")).collect();
+
         self.base_menu = Some(BaseMenu::new(self.temp_id, npc_say, menu_select));
     }
 
@@ -113,17 +114,21 @@ impl Npc {
         self.base_menu.as_ref()
     }
 
-    /// Check if NPC can be opened by player
-    pub fn can_open_npc(&self, _player_id: i64) -> bool {
-        // TODO: Implement player-specific checks
-        true
+    pub async fn open_base_menu(session: &mut AsyncSession) -> anyhow::Result<()> {
+        
+        let mut msg = Message::new(-32);
+        msg.write_short(14)?;
+        msg.write_utf("Ta co the giup gi cho nguoi")?;
+        msg.write_byte(1)?;
+        msg.write_utf("Tu choi")?;
+        session.send_message(&msg).await?;
+        Ok(())
     }
-
-    /// Update NPC
     pub fn update(&mut self) {
-        // Basic update logic
-        // TODO: Implement NPC-specific update logic
+   
+   
     }
+    
 
     /// Check if NPC is in range of player
     pub fn is_in_range(&self, player_x: i32, player_y: i32, range: i32) -> bool {
@@ -137,7 +142,7 @@ impl Npc {
 
 /// NpcManager manages all NPCs in the game
 pub struct NpcManager {
-    npcs: HashMap<i32, Npc>, // npc_id -> Npc
+    npcs: HashMap<i32, Npc>,             // npc_id -> Npc
     npcs_by_map: HashMap<i32, Vec<i32>>, // map_id -> Vec<npc_id>
 }
 
@@ -149,13 +154,11 @@ impl NpcManager {
         }
     }
 
-
-
     /// Add NPC to manager
     pub fn add_npc(&mut self, npc: Npc) {
         let npc_id = npc.temp_id;
         self.npcs.insert(npc_id, npc.clone());
-        
+
         // Add to map index
         let map_npcs = self.npcs_by_map.entry(npc.map_id).or_insert_with(Vec::new);
         map_npcs.push(npc_id);
@@ -168,7 +171,9 @@ impl NpcManager {
 
     /// Get NPC by ID and map
     pub fn get_npc_by_id_and_map(&self, npc_id: i32, map_id: i32) -> Option<&Npc> {
-        self.npcs.values().find(|npc| npc.temp_id == npc_id && npc.map_id == map_id)
+        self.npcs
+            .values()
+            .find(|npc| npc.temp_id == npc_id && npc.map_id == map_id)
     }
 
     /// Get NPCs by map

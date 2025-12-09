@@ -17,6 +17,9 @@ impl ItemOption {
         self.param
     }
 
+    pub fn new_null()->Self{
+        Self { option_id: 73, param: 0 }
+    }
     pub fn set_param(&mut self, param: i16) {
         self.param = param;
     }

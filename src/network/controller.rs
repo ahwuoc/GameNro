@@ -1,19 +1,21 @@
 use crate::account::account_dao::AccountDao;
 use crate::account::account_services::AccountServices;
 use crate::constant::cmd::cmd;
-use crate::data::ItemData;
 use crate::data::data_game::DataGame;
+use crate::data::ItemData;
 use crate::database::DbManager;
 use crate::entities::{account, player};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
-use crate::services::{player_info_service, ServiceHandles};
+use crate::npc;
+use crate::services::{self, ServiceHandles, player_info_service};
 use crate::services::{GodGK, PlayerInfoService};
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing_subscriber::registry::Data;
 
 use super::message::Message;
 use super::session::AsyncSession;
@@ -52,6 +54,21 @@ impl AsyncController {
                 Self::handle_not_login(session, msg, session_arc).await?;
                 Ok(())
             }
+            -67 => {
+                match msg.read_int() {
+                    Ok(id) => {
+                        DataGame::send_icon(session, id).await?;
+                    }
+                    Err(e) => {
+                        print!("Error -67 {:?}",e);
+                    }
+                }
+                Ok(())
+            }
+            33 =>{
+                npc::Npc::open_base_menu(session).await?;
+                Ok(())  
+            }
             -28 => {
                 Self::handle_message_not_map(session, msg, session_arc).await?;
                 Ok(())
@@ -67,9 +84,7 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -38 => {
-                Ok(())
-            }
+            -38 => Ok(()),
             -39 => {
                 if let Some(player) = session.get_player() {
                     ChangeMapService::finish_load_map(&player).await?;
@@ -124,7 +139,7 @@ impl AsyncController {
             0 => {
                 let username = msg.read_utf()?;
                 let password = msg.read_utf()?;
-                    session.set_version(240);
+                session.set_version(240);
                 session.set_credentials(username.clone(), password.clone());
                 Self::handle_login_authentication(
                     session,
@@ -134,7 +149,7 @@ impl AsyncController {
                 )
                 .await?;
             }
-            
+
             2 => {
                 let _client_type = msg.read_byte()?;
                 let zoom_level = msg.read_byte()?;
@@ -253,7 +268,10 @@ impl AsyncController {
                                 .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
                                 .await;
 
-                            println!("[LOGIN] Old session kicked, allowing new login for player {}", player_id);
+                            println!(
+                                "[LOGIN] Old session kicked, allowing new login for player {}",
+                                player_id
+                            );
                         }
 
                         player_with_zone.session = Some(session_arc.clone());
@@ -406,7 +424,7 @@ impl AsyncController {
 
         Ok(())
     }
-    
+
     async fn handle_message_not_map(
         session: &mut AsyncSession,
         mut msg: Message,
@@ -433,6 +451,11 @@ impl AsyncController {
                 DataGame::send_map_temp(session, map_id as u8).await?;
                 Ok(())
             }
+            7 => {
+                //Sell item
+                Ok(())
+            }
+
             13 => {
                 Self::handle_client_ok_enhanced(session).await?;
                 Ok(())
@@ -443,7 +466,6 @@ impl AsyncController {
             }
         }
     }
-
     async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> anyhow::Result<()> {
         let player = session
             .get_player()
@@ -471,7 +493,7 @@ impl AsyncController {
     async fn handle_player_move(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
         let _can_fly = msg.read_byte()?;
         let _to_x = msg.read_short()?;
-        let _to_y = msg.read_short()?;
+        // let _to_y = msg.read_short()?;
 
         if let Some(player) = session.get_player() {
             let player_id = player.id;

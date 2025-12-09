@@ -1,8 +1,6 @@
-use crate::entities::item_option_template::Model as ItemOptionTemplate;
 use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item_option::ItemOption;
 use chrono::{DateTime, Utc};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -52,44 +50,32 @@ impl Item {
         self.template.as_ref().map(|t| t.id)
     }
 
-    /// Get item type
-    pub fn get_type(&self) -> Option<i32> {
-        self.template.as_ref().map(|t| t.r#type as i32)
-    }
-
-    /// Get option parameter by option ID
-    pub fn get_option_param(&self, option_id: i8) -> i16 {
-        for option in &self.item_options {
-            if option.get_option_id() == option_id {
-                return option.get_param();
-            }
-        }
-        0
-    }
-
-    /// Check if item has specific option
-    pub fn has_option(&self, option_id: i8) -> bool {
-        for option in &self.item_options {
-            if option.get_option_id() == option_id {
-                return true;
-            }
-        }
-        false
-    }
-
     /// Add option to item
     pub fn add_option(&mut self, option: ItemOption) {
         self.item_options.push(option);
     }
 
-    /// Add option parameter
     pub fn add_option_param(&mut self, option_id: i8, param: i16) {
+        // First check if option already exists
         for option in &mut self.item_options {
             if option.get_option_id() == option_id {
                 option.set_param(option.get_param() + param);
                 return;
             }
         }
+
+        // If option doesn't exist, validate and create new one
+        if Self::is_valid_option_id(option_id) {
+            self.item_options.push(ItemOption::new(option_id, param));
+        } else {
+            println!("Warning: Invalid option ID {} for item", option_id);
+        }
+    }
+
+    /// Check if option ID is valid
+    fn is_valid_option_id(option_id: i8) -> bool {
+        use crate::item::option_template_manager;
+        option_template_manager::get(option_id).is_some()
     }
 
     pub fn sub_option_param(&mut self, option_id: i8, param: i16) {
@@ -125,14 +111,14 @@ impl Item {
     }
 
     /// Get item content
-pub fn get_content(&self) -> String {
-    if let Some(strpower) = self.get_str_require() {
-        format!("Yeu cau suc manh {:?}", strpower)
-    } else {
-        "OKem".to_string()
+    pub fn get_content(&self) -> String {
+        if let Some(strpower) = self.get_str_require() {
+            format!("Yeu cau suc manh {:?}", strpower)
+        } else {
+            "OKem".to_string()
+        }
     }
-}
-
+   
 
     pub fn is_cong_thuc_vip(&self) -> bool {
         if let Some(ref template) = self.template {
@@ -183,6 +169,9 @@ pub fn get_content(&self) -> String {
     }
     pub fn get_str_require(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.power_require as i32)
+    }
+    pub fn get_name(&self)->Option<&str>{
+        self.template.as_ref().map(|t|t.name.as_str())
     }
 
     pub fn can_use(&self, player_str: i32) -> bool {
