@@ -231,8 +231,6 @@ impl MapService {
     pub async fn send_player_move(&self, player: &Player) -> anyhow::Result<()> {
         let mut message = Message::new(-7);
         message.write_int(player.id as i32)?;
-        // message.write_short(player.location.get_position().0)?;
-        // message.write_short(player.location.get_position().1)?;
         if let Some(zone) = &player.zone {
             zone.send_message_to_all_players(message).await?;
         }

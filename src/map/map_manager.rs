@@ -1,137 +1,89 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
+use dashmap::DashMap;
 use crate::map::Map;
-
 use crate::entities::map_template::Model as MapTemplate;
 
-pub struct MapManager {
-    maps: Arc<RwLock<HashMap<i32, Map>>>,
+static MAPS: Lazy<DashMap<i32, Map>> = Lazy::new(|| DashMap::new());
+
+pub async fn create_map(template: &MapTemplate) -> anyhow::Result<()> {
+    let map = Map::from_template(template);
+    let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
+    map.init_zones(&zone_manager).await?;
+    MAPS.insert(map.map_id, map);
+    Ok(())
 }
 
-impl MapManager {
-    pub fn new() -> Self {
-        Self {
-            maps: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub async fn create_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
-        let map = Map::from_template(template);
-        let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
-        map.init_zones(&zone_manager).await?;
-        let mut maps = self.maps.write().await;
-        maps.insert(map.map_id, map);
-        Ok(())
-    }
-
-    pub async fn get_map(&self, map_id: i32) -> Option<Map> {
-        let maps = self.maps.read().await;
-        maps.get(&map_id).cloned()
-    }
-
-    pub async fn get_all_maps(&self) -> Vec<Map> {
-        let maps = self.maps.read().await;
-        maps.values().cloned().collect()
-    }
-
-
-
-    pub async fn update_all_maps(&self) -> anyhow::Result<()> {
-        let maps = self.maps.read().await;
-        
-        for map in maps.values() {
-            map.update().await?;
-        }
-        
-        Ok(())
-    }
-
-    pub async fn load_tiles_for_map(
-        &self,
-        map_id: i32,
-        tile_id: i32,
-    ) -> anyhow::Result<()> {
-        let mut maps = self.maps.write().await;
-        if let Some(map) = maps.get_mut(&map_id) {
-            if let Some((w, h, tile_map)) = crate::map::tile_loader::TileLoader::read_tile_map_file(map_id) {
-                map.map_width = w;
-                map.map_height = h;
-                map.tile_map = tile_map;
-            }
-            if let Some(tile_top) = crate::map::tile_loader::TileLoader::read_tile_top_file(tile_id) {
-                map.tile_top = tile_top;
-            }
-        }
-        Ok(())
-    }
-
-    pub async fn get_maps_by_planet(&self, planet_id: i32) -> Vec<Map> {
-        let maps = self.maps.read().await;
-        maps.values()
-            .filter(|map| map.planet_id == planet_id)
-            .cloned()
-            .collect()
-    }
-
-    pub async fn get_maps_by_type(&self, map_type: i32) -> Vec<Map> {
-        let maps = self.maps.read().await;
-        maps.values()
-            .filter(|map| map.r#type == map_type)
-            .cloned()
-            .collect()
-    }
-
-    pub async fn get_map_by_name(&self, name: &str) -> Option<Map> {
-        let maps = self.maps.read().await;
-        for map in maps.values() {
-            if map.map_name == name {
-                return Some(map.clone());
-            }
-        }
-        None
-    }
-
-    pub async fn remove_map(&self, map_id: i32) -> bool {
-        let mut maps = self.maps.write().await;
-        maps.remove(&map_id).is_some()
-    }
-
-    pub async fn get_map_count(&self) -> usize {
-        let maps = self.maps.read().await;
-        maps.len()
-    }
-
-    pub async fn clear_all_maps(&self) {
-        let mut maps = self.maps.write().await;
-        maps.clear();
-    }
-
-    pub async fn is_map_exists(&self, map_id: i32) -> bool {
-        let maps = self.maps.read().await;
-        maps.contains_key(&map_id)
-    }
-
-    pub async fn get_active_maps(&self) -> Vec<Map> {
-        let maps = self.maps.read().await;
-        let mut active_maps = Vec::new();
-        for map in maps.values() {
-            if map.is_active().await {
-                active_maps.push(map.clone());
-            }
-        }
-        active_maps
-    }
+pub fn get_map(map_id: i32) -> Option<Map> {
+    MAPS.get(&map_id).map(|v| v.clone())
 }
 
-// Global map manager
-pub static MAP_MANAGER: Lazy<RwLock<MapManager>> = Lazy::new(|| RwLock::new(MapManager::new()));
+pub fn get_all_maps() -> Vec<Map> {
+    MAPS.iter().map(|kv| kv.value().clone()).collect()
+}
 
-impl Clone for MapManager {
-    fn clone(&self) -> Self {
-        Self {
-            maps: Arc::clone(&self.maps),
+pub async fn update_all_maps() -> anyhow::Result<()> {
+    for map in MAPS.iter() {
+        map.value().update().await?;
+    }
+    Ok(())
+}
+
+pub fn load_tiles_for_map(map_id: i32, tile_id: i32) -> anyhow::Result<()> {
+    if let Some(mut map) = MAPS.get_mut(&map_id) {
+        if let Some((w, h, tile_map)) = crate::map::tile_loader::TileLoader::read_tile_map_file(map_id) {
+            map.map_width = w;
+            map.map_height = h;
+            map.tile_map = tile_map;
+        }
+        if let Some(tile_top) = crate::map::tile_loader::TileLoader::read_tile_top_file(tile_id) {
+            map.tile_top = tile_top;
         }
     }
+    Ok(())
+}
+
+pub fn get_maps_by_planet(planet_id: i32) -> Vec<Map> {
+    MAPS.iter()
+        .filter(|kv| kv.value().planet_id == planet_id)
+        .map(|kv| kv.value().clone())
+        .collect()
+}
+
+pub fn get_maps_by_type(map_type: i32) -> Vec<Map> {
+    MAPS.iter()
+        .filter(|kv| kv.value().r#type == map_type)
+        .map(|kv| kv.value().clone())
+        .collect()
+}
+
+pub fn get_map_by_name(name: &str) -> Option<Map> {
+    MAPS.iter()
+        .find(|kv| kv.value().map_name == name)
+        .map(|kv| kv.value().clone())
+}
+
+pub fn remove_map(map_id: i32) -> bool {
+    MAPS.remove(&map_id).is_some()
+}
+
+pub fn get_map_count() -> usize {
+    MAPS.len()
+}
+
+pub fn clear_all_maps() {
+    MAPS.clear();
+}
+
+pub fn is_map_exists(map_id: i32) -> bool {
+    MAPS.contains_key(&map_id)
+}
+
+pub async fn get_active_maps() -> Vec<Map> {
+    let mut active_maps = Vec::new();
+    for map in MAPS.iter() {
+        if map.value().is_active().await {
+            active_maps.push(map.value().clone());
+        }
+    }
+    active_maps
 }

@@ -68,12 +68,9 @@ impl MapUtils {
         target_x: i16,
         target_y: i16,
     ) -> Option<Vec<(i16, i16)>> {
-        // Simple pathfinding - direct line if possible
         if Self::is_direct_path_clear(map, start_x, start_y, target_x, target_y) {
             return Some(vec![(target_x, target_y)]);
         }
-        
-        // TODO: Implement A* pathfinding
         None
     }
 

@@ -175,6 +175,10 @@ impl AsyncSession {
         self.player.as_ref()
     }
 
+    pub fn take_player(&mut self) -> Option<RtPlayer> {
+        self.player.take()
+    }
+
     pub fn set_user_id(&mut self, user_id: i32) {
         self.user_id = Some(user_id);
     }

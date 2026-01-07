@@ -20,7 +20,6 @@ pub use item_map::ItemMap;
 pub use item_map_service::ItemMapService;
 pub use map::Map;
 pub use map_dao::MapDao;
-pub use map_manager::MapManager;
 pub use map_service::MapService;
 pub use map_utils::MapUtils;
 pub use tile_loader::TileLoader;
@@ -29,3 +28,4 @@ pub use zone::Zone;
 pub use zone_manager::ZoneManager;
 
 pub mod change_map_service;
+pub use change_map_service::{ChangeMapService, ChangeMapType, SpaceShipType};

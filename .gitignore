@@ -39,4 +39,4 @@ logs/
 
 # Data files (if needed)
 /data/
-/src_java/
+# /src_java/

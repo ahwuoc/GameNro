@@ -1,21 +1,21 @@
 #[derive(Debug, Clone)]
 pub struct NPoint {
-    pub base_hp: i32,
-    pub base_mp: i32,
-    pub base_dame: i32,
-    pub base_def: i32,
-    pub base_crit: i8,
-    pub base_satamina: i16,
+    pub hpg: i32,
+    pub mpg: i32,
+    pub dameg: i32,
+    pub defg: i32,
+    pub critg: i8,
+    pub stamina: i16,
 
-    pub final_hp: i32,
-    pub final_mp: i32,
-    pub final_dame: i32,
-    pub final_def: i32,
-    pub final_crit: i8,
+    pub hp: i32,
+    pub mp: i32,
+    pub dame: i32,
+    pub def: i32,
+    pub crit: i8,
 
-    pub max_hp: i32,
-    pub max_mp: i32,
-    pub max_satamina: i16,
+    pub hp_max: i32,
+    pub mp_max: i32,
+    pub max_stamina: i16,
 
     pub speed: i8,
     pub power: i64,
@@ -26,32 +26,32 @@ pub struct NPoint {
 impl NPoint {
     pub fn new() -> Self {
         NPoint {
-            base_hp: 100,
-            base_mp: 100,
-            base_dame: 10,
-            base_def: 5,
-            base_crit: 1,
-            final_crit: 1,
-            final_dame: 1,
-            final_def: 1,
-            final_hp: 1,
-            final_mp: 1,
-            max_hp: 1,
-            max_mp: 1,
+            hpg: 100,
+            mpg: 100,
+            dameg: 10,
+            defg: 5,
+            critg: 1,
+            crit: 1,
+            dame: 1,
+            def: 1,
+            hp: 1,
+            mp: 1,
+            hp_max: 1,
+            mp_max: 1,
             speed: 8,
             power: 1,
             tiem_nang: 1,
             limit_power: 1,
-            base_satamina: 1,
-            max_satamina: 1,
+            stamina: 1,
+            max_stamina: 1,
         }
     }
     pub fn update(&mut self) {
-        if self.final_hp > self.max_hp {
-            self.final_hp = self.max_hp;
+        if self.hp > self.hp_max {
+            self.hp = self.hp_max;
         }
-        if self.final_mp > self.max_mp {
-            self.final_mp = self.max_mp;
+        if self.mp > self.mp_max {
+            self.mp = self.mp_max;
         }
     }
 }

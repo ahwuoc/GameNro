@@ -1,5 +1,5 @@
 use crate::entities::item_template::Model as ItemMap;
-use crate::map::map_manager::MAP_MANAGER;
+use crate::map::map_manager;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::{self, AsyncSession};
@@ -272,10 +272,10 @@ impl Zone {
         let _ = msg.write_byte(pl_target.gender);
         let _ = msg.write_short(pl_target.get_head());
         let _ = msg.write_utf(pl_target.get_name());
-        let _ = msg.write_int(pl_target.n_point.final_hp);
-        let _ = msg.write_int(pl_target.n_point.max_hp);
-        let _ = msg.write_short(pl_target.get_body()); // bo0dy
-        let _ = msg.write_short(pl_target.get_leg()); // leg
+        let _ = msg.write_int(pl_target.n_point.hp);
+        let _ = msg.write_int(pl_target.n_point.hp_max);
+        let _ = msg.write_short(pl_target.get_body());
+        let _ = msg.write_short(pl_target.get_leg());
         let _ = msg.write_byte(0); // flag bag
         let _ = msg.write_byte(-1); // unknown
         let _ = msg.write_short(pl_target.location.x);
@@ -314,8 +314,7 @@ impl Zone {
         };
 
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
-            let mgr = MAP_MANAGER.read().await;
-            if let Some(map) = mgr.get_map(self.map_id).await {
+            if let Some(map) = map_manager::get_map(self.map_id) {
                 (
                     map.planet_id as i8,
                     map.tile_id as i8,
@@ -344,8 +343,7 @@ impl Zone {
 
         // Waypoints
         let wp_count: i8 = {
-            let mgr = MAP_MANAGER.read().await;
-            if let Some(map) = mgr.get_map(self.map_id).await {
+            if let Some(map) = map_manager::get_map(self.map_id) {
                 let wps = map.way_points.read().await;
                 let count = (wps.len().min(127)) as i8;
                 msg.write_byte(count);
@@ -423,16 +421,44 @@ impl Zone {
         // Items
         msg.write_byte(0); // items count
 
-        // bgItem and effItem
-        msg.write_short(0); // bgItem: short 0 if missing
-        msg.write_short(0); // effItem: short 0 if missing
+        // bgItem - read from file data/girlkun/map/item_bg_map_data/{mapId}
+        {
+            let bg_item_path = format!("data/girlkun/map/item_bg_map_data/{}", self.map_id);
+            match std::fs::read(&bg_item_path) {
+                Ok(data) => {
+                    let _ = msg.write(&data);
+                }
+                Err(_) => {
+                    // If file doesn't exist, write short 0
+                    msg.write_short(0)?;
+                }
+            }
+        }
+        
+        // effItem - read from file data/girlkun/map/eff_map/{mapId}
+        {
+            let eff_item_path = format!("data/girlkun/map/eff_map/{}", self.map_id);
+            match std::fs::read(&eff_item_path) {
+                Ok(data) => {
+                    let _ = msg.write(&data);
+                }
+                Err(_) => {
+                    // If file doesn't exist, write short 0
+                    msg.write_short(0)?;
+                }
+            }
+        }
 
         // Trailer bytes
         msg.write_byte(bg_type); // bgType from map template
-        msg.write_byte(0); // idSpaceShip (0 for now)
-        msg.write_byte(0); // reserved 0
+        msg.write_byte(0); // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
+        msg.write_byte(if self.map_id == 148 { 1 } else { 0 }); // special flag for map 148
 
         drop(players);
+        
+        println!("[MAP_INFO] Sending map_info for map {} zone {} to player {}, message size: {} bytes", 
+            self.map_id, self.zone_id, player_id, msg.get_data().len());
+        
         session.send_message(&msg).await?;
         Ok(())
     }

@@ -55,9 +55,10 @@ pub struct Player {
     pub zone: Option<Zone>,
     pub is_admin: bool,
     pub admin_key: bool,
-
+    
+    pub task_id: i32,
+    pub is_boss: bool,
     pub notify: Option<String>,
-
     pub session: Option<Arc<RwLock<AsyncSession>>>,
 }
 
@@ -97,13 +98,15 @@ impl Player {
             zone: None,
             is_admin: false,
             admin_key: false,
+            task_id: 0,
+            is_boss: false,
             notify: None,
             session: None,
         }
     }
 
     pub fn is_die(&self) -> bool {
-        self.is_die || self.n_point.base_hp <= 0
+        self.is_die || self.n_point.hp <= 0
     }
 
     pub fn from_entity(model: &entities::player::Model) -> Result<Self, String> {
@@ -207,7 +210,7 @@ impl Player {
         if !self.before_dispose {
             self.n_point.update();
             self.location.update();
-            if self.n_point.base_hp <= 0 && !self.is_die {
+            if self.n_point.hp <= 0 && !self.is_die {
                 self.is_die = true;
             }
         }
@@ -219,14 +222,14 @@ impl Player {
 
     pub fn set_die(&mut self) {
         self.is_die = true;
-        self.n_point.base_hp = 0;
-        self.n_point.final_hp = 0;
+        self.n_point.hp = 0;
     }
 
     pub fn revive(&mut self) {
         self.is_die = false;
-        self.n_point.base_hp = self.n_point.base_hp;
-        self.n_point.base_hp = self.n_point.base_hp;
+        if self.n_point.hp <= 0 {
+            self.n_point.hp = 1;
+        }
         self.just_revived = true;
         self.last_time_revived = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -295,5 +298,57 @@ impl Player {
 
     pub fn clear_zone(&mut self) {
         self.zone = None;
+    }
+
+    /// Check if player has tennis spaceship
+    /// Tennis spaceship provides full HP/MP healing on travel
+    pub fn has_tennis_spaceship(&self) -> bool {
+        // TODO: Check player's inventory for tennis spaceship item
+        // For now, return false as default
+        false
+    }
+
+    /// Get player's current task progress ID
+    /// Used for map access validation (Requirements 7.1, 7.2)
+    pub fn get_task_id(&self) -> i32 {
+        self.task_id
+    }
+
+    /// Set player's task progress ID
+    pub fn set_task_id(&mut self, task_id: i32) {
+        self.task_id = task_id;
+    }
+
+    /// Check if player is a boss (NPC/boss players bypass restrictions)
+    pub fn is_boss(&self) -> bool {
+        self.is_boss
+    }
+
+    /// Check if player has a previous capsule location saved
+    pub fn has_previous_capsule_location(&self) -> bool {
+        // TODO: Check if player has mapBeforeCapsule saved
+        // For now, return false as default
+        false
+    }
+
+    /// Save current location before capsule travel
+    pub fn save_capsule_location(&mut self, map_id: i32, zone_id: i32) {
+        // TODO: Save to player.mapBeforeCapsule
+        // For now, this is a placeholder
+        println!("Saving capsule location: map {} zone {}", map_id, zone_id);
+    }
+
+    /// Get previous capsule location
+    pub fn get_previous_capsule_location(&self) -> Option<(i32, i32)> {
+        // TODO: Return player.mapBeforeCapsule
+        // For now, return None as default
+        None
+    }
+
+    /// Update zone change time for cooldown tracking
+    pub fn update_zone_change_time(&mut self) {
+        // TODO: Update player.last_zone_change_time
+        // For now, this is a placeholder
+        println!("Updated zone change time for player {}", self.name);
     }
 }

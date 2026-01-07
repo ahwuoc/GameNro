@@ -1,7 +1,7 @@
 use crate::config::DatabaseConfig;
 use crate::database::DbManager;
 use crate::item::{item_manager, option_template_manager};
-use crate::map::map_manager::MAP_MANAGER;
+use crate::map::map_manager;
 use crate::map::MapDao;
 use crate::mob::mob_dao::MobDao;
 use crate::services::head_avatar_manager;
@@ -103,27 +103,23 @@ impl Manager {
 
     pub async fn init_maps_world(&self) -> Result<()> {
         for template in &self.map_templates {
-            {
-                let mgr = MAP_MANAGER.write().await;
-                mgr.create_map(template).await;
-                mgr.load_tiles_for_map(template.id, template.tile_id as i32)
-                    .await;
-            }
+            map_manager::create_map(template).await;
+            map_manager::load_tiles_for_map(template.id, template.tile_id as i32);
 
             if let Some(wps) = self.map_waypoints.get(&template.id) {
-                if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+                if let Some(map) = map_manager::get_map(template.id) {
                     for wp in wps {
                         map.add_waypoint(wp.clone()).await;
                     }
                 }
             }
 
-            if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+            if let Some(map) = map_manager::get_map(template.id) {
                 let specs = self.map_mobs.get(&template.id).cloned().unwrap_or_default();
                 map.init_mobs(&self.mob_templates_by_id, &specs).await;
             }
 
-            if let Some(map) = MAP_MANAGER.read().await.get_map(template.id).await {
+            if let Some(map) = map_manager::get_map(template.id) {
                 if let Some(nv_list) = self.map_npcs.get(&template.id) {
                     let mut npc_ids: Vec<i32> = Vec::with_capacity(nv_list.len());
                     let mut npc_x: Vec<i16> = Vec::with_capacity(nv_list.len());
@@ -149,8 +145,7 @@ impl Manager {
 
                 let start = std::time::Instant::now();
                 runtime.block_on(async {
-                     let mgr = MAP_MANAGER.read().await;
-                     let _ = mgr.update_all_maps();
+                     let _ = map_manager::update_all_maps().await;
                 });
                 let elapsed_ms = start.elapsed().as_millis() as u64;
                  let sleep_ms = if elapsed_ms >= 1000{
@@ -261,7 +256,20 @@ impl Manager {
                     .insert(template.id, template.clone());
                 let waypoints_data = MapDao::load_map_waypoints(&database, template.id).await?;
                 let mut waypoints = Vec::new();
+                
+                // Debug log for map 4
+                if template.id == 4 {
+                    println!("[DEBUG MAP 4] Raw waypoints from DB template: {}", template.waypoints);
+                    println!("[DEBUG MAP 4] Number of waypoints loaded from DAO: {}", waypoints_data.len());
+                }
+                
                 for wp in waypoints_data {
+                    // Debug log for map 4
+                    if template.id == 4 {
+                        println!("[DEBUG MAP 4] Waypoint '{}': min({}, {}) max({}, {}) -> go_map: {}", 
+                            wp.name, wp.min_x, wp.min_y, wp.max_x, wp.max_y, wp.go_map);
+                    }
+                    
                     let map_wp = crate::map::map::WayPoint::new(
                         wp.min_x,
                         wp.min_y,
@@ -276,6 +284,11 @@ impl Manager {
                     );
                     waypoints.push(map_wp);
                 }
+                
+                if template.id == 4 {
+                    println!("[DEBUG MAP 4] Total waypoints added to map: {}", waypoints.len());
+                }
+                
                 self.map_waypoints.insert(template.id, waypoints);
 
                 // Load mobs using MapDao

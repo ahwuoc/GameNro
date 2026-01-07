@@ -91,6 +91,55 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            29 => {
+                // CMD 29: Open zone UI
+                if let Some(player) = session.take_player() {
+                    let change_map_service = ChangeMapService::new();
+                    let res = change_map_service.open_zone_ui(&player, session).await;
+                    session.set_player(player);
+                    res?;
+                }
+                Ok(())
+            }
+            21 => {
+                // CMD 21: Change zone
+                if let Some(mut player) = session.take_player() {
+                    let zone_id = msg.read_byte()? as i32;
+                    let change_map_service = ChangeMapService::new();
+                    let res = change_map_service.change_zone(&mut player, zone_id, session).await;
+                    session.set_player(player);
+                    res?;
+                }
+                Ok(())
+            }
+            -33 | -23 => {
+                if let Some(mut player) = session.take_player() {
+                    let change_map_service = ChangeMapService::new();
+                    let res = change_map_service.change_map_waypoint_handler(&mut player, session).await;
+                    session.set_player(player);
+                    res?;
+                }
+                Ok(())
+            }
+            -15 => {
+                // CMD -15: Go home
+                if let Some(mut player) = session.take_player() {
+                    let change_map_service = ChangeMapService::new();
+                    let res = change_map_service.go_home_handler(&mut player, session).await;
+                    session.set_player(player);
+                    res?;
+                }
+                Ok(())
+            }
+            -91 => {
+                if let Some(player) = session.take_player() {
+                    let change_map_service = ChangeMapService::new();
+                    let res = change_map_service.open_capsule_menu(&player, session).await;
+                    session.set_player(player);
+                    res?;
+                }
+                Ok(())
+            }
             -7 => {
                 Self::handle_player_move(session, msg).await?;
                 Ok(())
@@ -451,10 +500,6 @@ impl AsyncController {
                 DataGame::send_map_temp(session, map_id as u8).await?;
                 Ok(())
             }
-            7 => {
-                //Sell item
-                Ok(())
-            }
 
             13 => {
                 Self::handle_client_ok_enhanced(session).await?;
@@ -492,13 +537,38 @@ impl AsyncController {
 
     async fn handle_player_move(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
         let _can_fly = msg.read_byte()?;
-        let _to_x = msg.read_short()?;
-        // let _to_y = msg.read_short()?;
+        let to_x = msg.read_short()?;
+        let to_y = msg.read_short().unwrap_or_else(|_| {
+            if let Some(p) = session.get_player() { p.location.y } else { 0 }
+        });
 
-        if let Some(player) = session.get_player() {
+        if let Some(mut player) = session.take_player() {
+            if player.is_die() {
+                session.set_player(player);
+                return Ok(());
+            }
+            player.location.x = to_x;
+            player.location.y = to_y;
+            
             let player_id = player.id;
+            let zone_opt = player.zone.clone();
+            if let Some(zone) = &zone_opt {
+                Self::send_player_move_to_zone(&player, zone).await?;
+            }
+
+            session.set_player(player);
         }
 
+        Ok(())
+    }
+
+    async fn send_player_move_to_zone(player: &crate::player::Player, zone: &crate::map::Zone) -> Result<()> {
+        let mut msg = Message::new(-7);
+        msg.write_int(player.id as i32)?;
+        msg.write_short(player.location.x)?;
+        msg.write_short(player.location.y)?;
+        zone.send_message_to_other_players(player.id, msg).await?;
+        
         Ok(())
     }
 }

@@ -42,7 +42,6 @@ impl MapDao {
         
         if let Some(template) = template {
             if !template.waypoints.is_empty() {
-                // Clean escaped JSON like Manager does
                 let cleaned = template.waypoints
                     .replace("[\"[", "[[")
                     .replace("]\"]", "]]")
@@ -87,7 +86,6 @@ impl MapDao {
         
         if let Some(template) = template {
             if !template.mobs.is_empty() {
-                // Clean escaped JSON like Manager does
                 let cleaned = template.mobs.replace('\"', "");
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
                     let mut mobs = Vec::new();
@@ -109,7 +107,6 @@ impl MapDao {
                 }
             }
         }
-        
         Ok(Vec::new())
     }
     pub async fn load_map_npcs(
@@ -122,7 +119,6 @@ impl MapDao {
         
         if let Some(template) = template {
             if !template.npcs.is_empty() {
-                // Clean escaped JSON like Manager does
                 let cleaned = template.npcs.replace('\"', "");
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
                     let mut npcs = Vec::new();

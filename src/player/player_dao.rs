@@ -54,10 +54,6 @@ pub struct InventoryData {
     ruby: i32,
 }
 pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
-    println!(
-        "[PLAYER_DAO] Starting from_entity for player: {} (ID: {})",
-        model.name, model.id
-    );
     let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
     match parse_inventory_array(&model.data_inventory) {
         Ok(data_inventory) => {
@@ -72,18 +68,18 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
     p.head = model.head;
     match parse_point_array(&model.data_point) {
         Ok(data_point) => {
-            p.n_point.base_crit = data_point.crit_goc;
-            p.n_point.base_dame = data_point.damege_goc;
-            p.n_point.base_def = data_point.defen_goc;
+            p.n_point.critg = data_point.crit_goc;
+            p.n_point.dameg = data_point.damege_goc;
+            p.n_point.defg = data_point.defen_goc;
             p.n_point.limit_power = data_point.limit_power;
             p.n_point.tiem_nang = data_point.tiem_nang;
-            p.n_point.max_satamina = data_point.max_stamina;
-            p.n_point.base_satamina = data_point.stamina;
-            p.n_point.base_hp = data_point.hp_goc;
-            p.n_point.base_mp = data_point.mp_goc;
+            p.n_point.max_stamina = data_point.max_stamina;
+            p.n_point.stamina = data_point.stamina;
+            p.n_point.hpg = data_point.hp_goc;
+            p.n_point.mpg = data_point.mp_goc;
             p.n_point.power = data_point.power;
-            p.n_point.final_hp = data_point.pl_hp;
-            p.n_point.final_mp = data_point.pl_mp;
+            p.n_point.hp = data_point.pl_hp;
+            p.n_point.mp = data_point.pl_mp;
         }
         Err(e) => {
             println!("Failed to parse point data: {}", e);
@@ -163,6 +159,23 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         p.inventory.items_bag.len(),
         p.inventory.items_box.len()
     );
+    
+ 
+    match parse_task_data(&model.data_task) {
+        Ok((task_main_id, task_index)) => {
+            let calculated_task_id = (task_main_id << 10) + (task_index << 1);
+            p.task_id = calculated_task_id;
+            println!(
+                "[PLAYER_DAO] Parsed task data - task_main_id={}, task_index={}, calculated_task_id={}",
+                task_main_id, task_index, calculated_task_id
+            );
+        }
+        Err(e) => {
+            println!("[PLAYER_DAO] Failed to parse task data: {}, using task_id=0", e);
+            p.task_id = 0;
+        }
+    }
+    
     Ok(p)
 }
 
@@ -242,4 +255,24 @@ fn parse_inventory_array(s: &str) -> anyhow::Result<InventoryData> {
         gem: array[1] as i32,
         ruby: array[2] as i32,
     })
+}
+
+/// Parse task data from JSON array format: [taskMain.id, taskMain.index, subTasks.count, lastTime]
+/// Returns (task_main_id, task_index)
+fn parse_task_data(s: &str) -> anyhow::Result<(i32, i32)> {
+    if s.is_empty() || s == "[]" {
+        return Ok((0, 0)); // Default: no task progress
+    }
+    
+    let array: Vec<serde_json::Value> = serde_json::from_str(s)
+        .map_err(|e| anyhow::anyhow!("Failed to parse task data: {}", e))?;
+    
+    if array.len() < 2 {
+        return Ok((0, 0));
+    }
+    
+    let task_main_id = array[0].as_i64().unwrap_or(0) as i32;
+    let task_index = array[1].as_i64().unwrap_or(0) as i32;
+    
+    Ok((task_main_id, task_index))
 }
