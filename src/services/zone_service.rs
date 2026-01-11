@@ -16,14 +16,10 @@ impl ZoneService {
         }
         Ok(())
     }
-
-    /// Create a new zone for a map
     pub async fn create_zone(map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.create_zone(map_id, zone_id, max_player).await
     }
-
-    /// Get zone by map_id and zone_id
     pub async fn get_zone(map_id: i32, zone_id: i32) -> Option<Zone> {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.get_zone(map_id, zone_id).await
@@ -46,7 +42,6 @@ impl ZoneService {
             .await
     }
 
-    /// Send message to other players in a map (excluding one player)
     pub async fn send_message_to_other_players_in_map(
         map_id: i32,
         except_player_id: u64,
@@ -57,8 +52,6 @@ impl ZoneService {
             .send_message_to_other_players_in_map(map_id, except_player_id, msg)
             .await
     }
-
-    /// Get total players in a map
     pub async fn get_total_players_in_map(map_id: i32) -> usize {
         let zone_manager = ZONE_MANAGER.read().await;
         zone_manager.get_total_players_in_map(map_id).await

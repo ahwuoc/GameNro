@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::player;
 use crate::item;
 use crate::item::inventory::Inventory;

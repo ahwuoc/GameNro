@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // Placeholder SideTaskTemplate module
 #[derive(Debug, Clone)]
 pub struct SideTaskTemplate {

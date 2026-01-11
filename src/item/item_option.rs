@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::item::{item_manager, option_template_manager};
 
 #[derive(Debug, Clone)]

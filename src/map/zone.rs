@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::item_template::Model as ItemMap;
 use crate::map::map_manager;
 use crate::mob::RtMob;
@@ -14,8 +15,8 @@ pub struct Zone {
     pub max_player: i32,
 
     pub players: Arc<RwLock<HashMap<u64, Player>>>,
-    pub mobs: Arc<RwLock<Vec<RtMob>>>,
-    pub items: Arc<RwLock<Vec<ItemMap>>>,
+    pub active_mobs: Arc<RwLock<Vec<RtMob>>>,
+    pub active_items: Arc<RwLock<Vec<ItemMap>>>,
 }
 
 impl Zone {
@@ -25,8 +26,8 @@ impl Zone {
             zone_id,
             max_player,
             players: Arc::new(RwLock::new(HashMap::new())),
-            mobs: Arc::new(RwLock::new(Vec::new())),
-            items: Arc::new(RwLock::new(Vec::new())),
+            active_mobs: Arc::new(RwLock::new(Vec::new())),
+            active_items: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -76,49 +77,49 @@ impl Zone {
     }
 
     pub async fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
-        let mut mobs = self.mobs.write().await;
+        let mut mobs = self.active_mobs.write().await;
         mobs.push(mob);
         Ok(())
     }
 
     pub async fn remove_mob(&self, mob_id: u64) -> anyhow::Result<()> {
-        let mut mobs = self.mobs.write().await;
+        let mut mobs = self.active_mobs.write().await;
         mobs.retain(|mob| mob.id != mob_id);
         Ok(())
     }
 
     pub async fn get_all_mobs(&self) -> Vec<RtMob> {
-        let mobs = self.mobs.read().await;
+        let mobs = self.active_mobs.read().await;
         mobs.clone()
     }
 
     pub async fn add_item(&self, item: ItemMap) -> anyhow::Result<()> {
-        let mut items = self.items.write().await;
+        let mut items = self.active_items.write().await;
         items.push(item);
         Ok(())
     }
 
     pub async fn remove_item(&self, item_id: i16) -> anyhow::Result<()> {
-        let mut items = self.items.write().await;
+        let mut items = self.active_items.write().await;
         items.retain(|item| item.id != item_id);
         Ok(())
     }
 
     pub async fn get_all_items(&self) -> Vec<ItemMap> {
-        let items = self.items.read().await;
+        let items = self.active_items.read().await;
         items.clone()
     }
 
     pub async fn update(&self) -> anyhow::Result<()> {
-        let mut mobs = self.mobs.write().await;
-        for mob in mobs.iter_mut() {
+        let mut mobs = self.active_mobs.write().await;
+        for _mob in mobs.iter_mut() {
             // TODO: Implement mob update logic
             // mob.update();
         }
 
         // Update items
-        let mut items = self.items.write().await;
-        for item in items.iter_mut() {
+        let mut items = self.active_items.write().await;
+        for _item in items.iter_mut() {
             // TODO: Implement item update logic
             // item.update();
         }
@@ -127,8 +128,8 @@ impl Zone {
     }
     pub async fn get_zone_info(&self) -> ZoneInfo {
         let players = self.players.read().await;
-        let mobs = self.mobs.read().await;
-        let items = self.items.read().await;
+        let mobs = self.active_mobs.read().await;
+        let items = self.active_items.read().await;
 
         ZoneInfo {
             map_id: self.map_id,
@@ -140,8 +141,8 @@ impl Zone {
         }
     }
 
-    pub async fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
-        let players = self.players.read().await;
+    pub async fn send_message_to_all_players(&self, _msg: Message) -> anyhow::Result<()> {
+        let _players = self.players.read().await;
         Ok(())
     }
 
@@ -198,7 +199,7 @@ impl Zone {
                     let _ = Self::send_player_info(&receiver, &info_player).await;
 
                     if info_player.is_die() {
-                        let mut death_msg = Self::build_player_death_message(&info_player);
+                        let death_msg = Self::build_player_death_message(&info_player);
                         let _ = receiver.send_message(death_msg);
                     }
                 }
@@ -229,7 +230,7 @@ impl Zone {
             let _ = Self::send_player_info(&receiver, &other).await;
 
             if other.is_die() {
-                let mut death_msg = Self::build_player_death_message(&other);
+                let death_msg = Self::build_player_death_message(&other);
                 let _ = receiver.send_message(death_msg);
             }
         }
@@ -242,21 +243,11 @@ impl Zone {
         mut player: Player,
         session: &mut crate::network::session::AsyncSession,
     ) -> anyhow::Result<()> {
-        // Set zone for player
         player.set_zone(self.clone());
-
-        // Add player to zone
         self.add_player(player.clone()).await?;
-
-        // Send map info to player
         self.map_info(session, player.id).await?;
-
-        // Load other players to this player
         self.load_another_to_me(player.id).await?;
-
-        // Load this player to others
         self.load_me_to_another(player.id).await?;
-
         Ok(())
     }
 
@@ -316,12 +307,12 @@ impl Zone {
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::get_map(self.map_id) {
                 (
-                    map.planet_id as i8,
-                    map.tile_id as i8,
-                    map.bg_id as i8,
-                    map.bg_type as i8,
-                    map.r#type as i8,
-                    map.map_name.clone(),
+                    map.info.planet_id as i8,
+                    map.info.tile_id as i8,
+                    map.info.bg_id as i8,
+                    map.info.bg_type as i8,
+                    map.info.r#type as i8,
+                    map.info.name.clone(),
                 )
             } else {
                 (0i8, 0i8, 0i8, 0i8, 0i8, format!("Map {}", self.map_id))
@@ -329,22 +320,20 @@ impl Zone {
         };
 
         let mut msg = Message::new(-24);
-        // Map meta
-        msg.write_byte((self.map_id as u8) as i8); // mapId
-        msg.write_byte(planet_id); // planetId
-        msg.write_byte(tile_id); // tileId
-        msg.write_byte(bg_id); // bgId
-        msg.write_byte(map_type); // type
-        msg.write_utf(&map_name); // mapName
-        msg.write_byte((self.zone_id as u8) as i8); // zoneId
-                                                    // Player position
+        msg.write_byte((self.map_id as u8) as i8);
+        msg.write_byte(planet_id);
+        msg.write_byte(tile_id);
+        msg.write_byte(bg_id);
+        msg.write_byte(map_type);
+        msg.write_utf(&map_name);
+        msg.write_byte(self.zone_id as i8);
         msg.write_short(player.location.x);
         msg.write_short(player.location.y);
 
         // Waypoints
         let wp_count: i8 = {
             if let Some(map) = map_manager::get_map(self.map_id) {
-                let wps = map.way_points.read().await;
+                let wps = &map.info.waypoints;
                 let count = (wps.len().min(127)) as i8;
                 msg.write_byte(count);
                 for wp in wps.iter().take(count as usize) {
@@ -358,16 +347,14 @@ impl Zone {
                 }
                 count
             } else {
-                msg.write_byte(0);
+                let _ = msg.write_byte(0);
                 0
             }
         };
         let _ = wp_count;
-        // Load Mobs
         {
-            let mobs_guard = self.mobs.read().await;
+            let mobs_guard = self.active_mobs.read().await;
             let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
-            println!("DEBUG: Sending {} mobs (map_id: {}) | first mob temp_id: {:?}", mob_count, self.map_id, mobs_guard.first().map(|m| m.template_id));
             msg.write_byte(mob_count)?;
             for mob in mobs_guard.iter().take(mob_count as usize) {
                 msg.write_boolean(false)?; // is disable
@@ -376,7 +363,7 @@ impl Zone {
                 msg.write_boolean(false)?; // is ice
                 msg.write_boolean(false)?; // is wind
 
-                msg.write_byte((mob.template_id as u8) as i8)?;
+                msg.write_byte(mob.template_id as i8)?;
                 msg.write_byte(0)?;
                 msg.write_int(mob.hp)?;
                 msg.write_byte(mob.level)?;
@@ -388,16 +375,16 @@ impl Zone {
                 msg.write_boolean(false)?;
             }
         }
-        msg.write_byte(0);
+        let _ = msg.write_byte(0);
         {
             let (npcs_for_map, avatar_lookup) = {
                 let mgr = crate::services::Manager::get_instance();
                 let guard = mgr.lock().unwrap();
-                let npcs = guard
-                    .map_npcs
-                    .get(&self.map_id)
-                    .cloned()
-                    .unwrap_or_default();
+                let npcs = if let Some(map) = crate::map::map_manager::get_map(self.map_id) {
+                    map.info.npcs.clone()
+                } else {
+                    Vec::new()
+                };
                 let avatars: std::collections::HashMap<i32, i32> = guard
                     .get_npc_templates()
                     .iter()
@@ -406,22 +393,18 @@ impl Zone {
                 (npcs, avatars)
             };
             let count: i8 = (npcs_for_map.len().min(127)) as i8;
-            msg.write_byte(count);
+            let _ = msg.write_byte(count);
             for (id, x, y) in npcs_for_map.into_iter().take(count as usize) {
                 let status: i8 = 1; // default active
                 let avatar: i16 = avatar_lookup.get(&id).cloned().unwrap_or(0) as i16;
-                msg.write_byte(status); // status
-                msg.write_short(x); // cx
-                msg.write_short(y); // cy
-                msg.write_byte(id as i8); // tempId
-                msg.write_short(avatar); // avatar
+                let _ = msg.write_byte(status); // status
+                let _ = msg.write_short(x); // cx
+                let _ = msg.write_short(y); // cy
+                let _ = msg.write_byte(id as i8); // tempId
+                let _ = msg.write_short(avatar); // avatar
             }
         }
-
-        // Items
-        msg.write_byte(0); // items count
-
-        // bgItem - read from file data/girlkun/map/item_bg_map_data/{mapId}
+        let _ = msg.write_byte(0); // items count
         {
             let bg_item_path = format!("data/girlkun/map/item_bg_map_data/{}", self.map_id);
             match std::fs::read(&bg_item_path) {
@@ -434,7 +417,7 @@ impl Zone {
                 }
             }
         }
-        
+
         // effItem - read from file data/girlkun/map/eff_map/{mapId}
         {
             let eff_item_path = format!("data/girlkun/map/eff_map/{}", self.map_id);
@@ -450,15 +433,20 @@ impl Zone {
         }
 
         // Trailer bytes
-        msg.write_byte(bg_type); // bgType from map template
-        msg.write_byte(0); // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
-        msg.write_byte(if self.map_id == 148 { 1 } else { 0 }); // special flag for map 148
+        let _ = msg.write_byte(bg_type); // bgType from map template
+        let _ = msg.write_byte(0); // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
+        let _ = msg.write_byte(if self.map_id == 148 { 1 } else { 0 }); // special flag for map 148
 
         drop(players);
-        
-        println!("[MAP_INFO] Sending map_info for map {} zone {} to player {}, message size: {} bytes", 
-            self.map_id, self.zone_id, player_id, msg.get_data().len());
-        
+
+        println!(
+            "[MAP_INFO] Sending map_info for map {} zone {} to player {}, message size: {} bytes",
+            self.map_id,
+            self.zone_id,
+            player_id,
+            msg.get_data().len()
+        );
+
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -482,8 +470,8 @@ impl Clone for Zone {
             zone_id: self.zone_id,
             max_player: self.max_player,
             players: Arc::clone(&self.players),
-            mobs: Arc::clone(&self.mobs),
-            items: Arc::clone(&self.items),
+            active_mobs: Arc::clone(&self.active_mobs),
+            active_items: Arc::clone(&self.active_items),
         }
     }
 }

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::intrinsic::Model as IntrinsicEntity;
 
 #[derive(Clone, Debug)]

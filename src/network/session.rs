@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use super::message::Message;
 use crate::player::Player as RtPlayer;
 use std::io;

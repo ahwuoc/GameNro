@@ -1,5 +1,5 @@
 use crate::item::item::Item;
-use crate::item::item_manager;
+use crate::item::{item_manager, option_template_manager};
 pub struct ItemService;
 
 impl ItemService {
@@ -79,9 +79,7 @@ impl ItemService {
 
 
     pub fn get_all_item_option_templates_count() -> usize {
-        let manager = crate::services::Manager::get_instance();
-        let guard = manager.lock().unwrap();
-        guard.item_option_templates_by_id.len()
+        option_template_manager::get_all().len()
     }
 
     pub fn can_item_stack(template_id: i32, item_type: i32) -> bool {

@@ -323,15 +323,6 @@ public class DataGame {
     public static void requestMobTemplate(MySession session, int id) {
         Message msg;
         try {
-//            if (!session.check && id > 106) {
-//                byte[] mob = FileIO.readFile("data/mob/x" + session.zoomLevel + "/" + 0);
-//                msg = new Message(11);
-//                msg.writer().writeByte(id);
-//                msg.writer().write(mob);
-//                session.sendMessage(msg);
-//                msg.cleanup();
-//                return;
-//            }
             final byte[] mob = FileIO.readFile("data/mob/x" + session.zoomLevel + "/" + id);
             msg = new Message(11);
             msg.writer().writeByte(id);

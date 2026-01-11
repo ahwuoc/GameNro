@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Skill {
     pub id: i16,

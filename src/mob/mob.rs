@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 use crate::entities::mob_template::Model as MobTemplate;
 use crate::utils::location::Location;
 
 #[derive(Debug, Clone)]
 pub struct RtMob {
     pub id: u64,
-    pub template_id: i32,
+    pub template_id: i8,
     pub name: String,
     pub level: i8,
     pub hp: i32,
@@ -21,7 +22,7 @@ pub struct RtMob {
 }
 
 impl RtMob {
-    pub fn new(id: u64, template_id: i32, name: String) -> Self {
+    pub fn new(id: u64, template_id: i8, name: String) -> Self {
         Self {
             id,
             template_id,
@@ -42,7 +43,7 @@ impl RtMob {
     }
 
     pub fn from_template(template: MobTemplate, id: u64) -> Self {
-        let mut mob = Self::new(id, template.id, template.name.clone());
+        let mut mob = Self::new(id, template.id as i8, template.name.clone());
         mob.template = Some(template.clone());
         mob.level = 1;
         mob.max_hp = template.hp;

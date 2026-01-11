@@ -1,9 +1,7 @@
-use crate::config::DatabaseConfig;
+#![allow(dead_code)]
 use crate::database::DbManager;
 use crate::item::{item_manager, option_template_manager};
-use crate::map::map_manager;
-use crate::map::MapDao;
-use crate::mob::mob_dao::MobDao;
+use crate::map::{map_manager, map_template_manager};
 use crate::services::head_avatar_manager;
 use once_cell::sync::Lazy;
 use sea_orm::{
@@ -14,15 +12,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 use crate::entities::intrinsic;
-use crate::entities::mob_template;
 use crate::entities::npc_template;
 use crate::entities::skill_template;
-use crate::entities::{item_option_template, map_template};
 use crate::item::item_time_service::ItemTimeService;
-use crate::mob::MobService;
+use crate::mob::mob_template_manager;
 use crate::npc::NpcManager;
 use crate::npc::NpcService;
 use anyhow::{Ok, Result};
@@ -30,21 +26,12 @@ use anyhow::{Ok, Result};
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Manager::new())));
 
 pub struct Manager {
-    pub map_templates: Vec<map_template::Model>,
     pub npc_templates: Vec<npc_template::Model>,
-    pub mob_templates: Vec<mob_template::Model>,
     pub skill_templates: Vec<skill_template::Model>,
     pub intrinsic_templates: Vec<intrinsic::Model>,
-    pub map_templates_by_id: HashMap<i32, map_template::Model>,
     pub npc_templates_by_id: HashMap<i32, npc_template::Model>,
-    pub mob_templates_by_id: HashMap<i32, mob_template::Model>,
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub intrinsic_templates_by_id: HashMap<i32, intrinsic::Model>,
-    pub item_option_templates_by_id: HashMap<i32, item_option_template::Model>,
-    pub map_waypoints: HashMap<i32, Vec<crate::map::map::WayPoint>>,
-    pub map_mobs: HashMap<i32, Vec<(i32, i32, i32, i32, i32)>>,
-    pub map_npcs: HashMap<i32, Vec<(i32, i16, i16)>>,
-    pub mob_service: MobService,
     pub item_time_service: ItemTimeService,
     pub npc_service: NpcService,
     pub npc_manager: NpcManager,
@@ -54,21 +41,13 @@ pub struct Manager {
 impl Manager {
     pub fn new() -> Self {
         Manager {
-            map_templates: Vec::new(),
             npc_templates: Vec::new(),
-            mob_templates: Vec::new(),
             skill_templates: Vec::new(),
             intrinsic_templates: Vec::new(),
-            map_templates_by_id: HashMap::new(),
-            item_option_templates_by_id: HashMap::new(),
+
             npc_templates_by_id: HashMap::new(),
-            mob_templates_by_id: HashMap::new(),
             skill_templates_by_id: HashMap::new(),
             intrinsic_templates_by_id: HashMap::new(),
-            map_waypoints: HashMap::new(),
-            map_mobs: HashMap::new(),
-            map_npcs: HashMap::new(),
-            mob_service: MobService::new(),
             item_time_service: ItemTimeService::new(),
             npc_service: NpcService::new(),
             npc_manager: NpcManager::new(),
@@ -83,14 +62,13 @@ impl Manager {
     pub async fn init(&mut self) -> anyhow::Result<()> {
         let database = DbManager::get_pool();
         self.database = Some(database.clone());
-        self.mob_service.set_database(database.clone());
 
         item_manager::load(&database).await?;
-        self.load_map_templates().await?;
+        map_template_manager::load(&database).await?;
         option_template_manager::load(&database).await?;
         head_avatar_manager::load(&database).await?;
         self.load_npc_templates().await?;
-        self.load_mob_templates().await?;
+        mob_template_manager::load(&database).await?;
         self.load_skill_templates().await?;
         self.load_intrinsic_templates().await?;
         self.npc_service.init(self.npc_templates.clone());
@@ -102,39 +80,15 @@ impl Manager {
     }
 
     pub async fn init_maps_world(&self) -> Result<()> {
-        for template in &self.map_templates {
-            map_manager::create_map(template).await;
-            map_manager::load_tiles_for_map(template.id, template.tile_id as i32);
-
-            if let Some(wps) = self.map_waypoints.get(&template.id) {
-                if let Some(map) = map_manager::get_map(template.id) {
-                    for wp in wps {
-                        map.add_waypoint(wp.clone()).await;
-                    }
-                }
-            }
-
+        let map_templates = map_template_manager::get_all();
+        for template in &map_templates {
+            let _ = map_manager::create_map(template).await;
+            let _ = map_manager::load_tiles_for_map(template.id, template.tile_id as i32);
             if let Some(map) = map_manager::get_map(template.id) {
-                let specs = self.map_mobs.get(&template.id).cloned().unwrap_or_default();
-                map.init_mobs(&self.mob_templates_by_id, &specs).await;
-            }
-
-            if let Some(map) = map_manager::get_map(template.id) {
-                if let Some(nv_list) = self.map_npcs.get(&template.id) {
-                    let mut npc_ids: Vec<i32> = Vec::with_capacity(nv_list.len());
-                    let mut npc_x: Vec<i16> = Vec::with_capacity(nv_list.len());
-                    let mut npc_y: Vec<i16> = Vec::with_capacity(nv_list.len());
-                    for (id, x, y) in nv_list {
-                        npc_ids.push(*id);
-                        npc_x.push(*x);
-                        npc_y.push(*y);
-                    }
-                    map.init_npcs(&npc_ids, &npc_x, &npc_y).await;
-                }
+                map.init_mobs().await?;
             }
         }
-
-        println!("Initialized {} maps into world", self.map_templates.len());
+        println!("Initialized {} maps into world", map_templates.len());
         Ok(())
     }
 
@@ -246,56 +200,6 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_map_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let map_templates = map_template::Entity::find().all(database).await?;
-            self.map_templates = map_templates.clone();
-            for template in map_templates {
-                self.map_templates_by_id
-                    .insert(template.id, template.clone());
-                let waypoints_data = MapDao::load_map_waypoints(&database, template.id).await?;
-                let mut waypoints = Vec::new();
-
-                // Debug log for map 4
-                if template.id == 4 {
-                    println!(
-                        "[DEBUG MAP 4] Raw waypoints from DB template: {}",
-                        template.waypoints
-                    );
-                    println!(
-                        "[DEBUG MAP 4] Number of waypoints loaded from DAO: {}",
-                        waypoints_data.len()
-                    );
-                }
-
-                for wp in waypoints_data {
-                    let map_wp = crate::map::map::WayPoint::new(
-                        wp.min_x,
-                        wp.min_y,
-                        wp.max_x,
-                        wp.max_y,
-                        wp.is_enter,
-                        wp.is_offline,
-                        wp.name,
-                        wp.go_map,
-                        wp.go_x,
-                        wp.go_y,
-                    );
-                    waypoints.push(map_wp);
-                }
-                self.map_waypoints.insert(template.id, waypoints);
-                let mobs = MapDao::load_map_mobs(&database, template.id).await?;
-                self.map_mobs.insert(template.id, mobs);
-                let npcs = MapDao::load_map_npcs(&database, template.id).await?;
-                self.map_npcs.insert(template.id, npcs);
-            }
-
-            println!("Loaded {} map templates", self.map_templates.len());
-        }
-        Ok(())
-    }
-
-    //load npc templates
     async fn load_npc_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let npc_templates = npc_template::Entity::find().all(database).await?;
@@ -309,19 +213,6 @@ impl Manager {
         }
         Ok(())
     }
-
-    async fn load_mob_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let mob_templates = MobDao::load_all_mob_templates(&database).await?;
-            self.mob_templates = mob_templates.clone();
-            for template in mob_templates {
-                self.mob_templates_by_id.insert(template.id, template);
-            }
-            println!("Loaded {} mob templates", self.mob_templates.len());
-        }
-        Ok(())
-    }
-
     async fn load_skill_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let skill_templates = skill_template::Entity::find().all(database).await?;
@@ -353,18 +244,9 @@ impl Manager {
         Ok(())
     }
 
-    pub fn get_map_templates(&self) -> &Vec<map_template::Model> {
-        &self.map_templates
-    }
-
     pub fn get_npc_templates(&self) -> &Vec<npc_template::Model> {
         &self.npc_templates
     }
-
-    pub fn get_mob_templates(&self) -> &Vec<mob_template::Model> {
-        &self.mob_templates
-    }
-
     pub fn get_skill_templates(&self) -> &Vec<skill_template::Model> {
         &self.skill_templates
     }
@@ -373,10 +255,6 @@ impl Manager {
     }
     pub fn get_intrinsic_template_by_id(&self, id: i32) -> Option<&intrinsic::Model> {
         self.intrinsic_templates_by_id.get(&id)
-    }
-
-    pub fn get_mob_service(&self) -> &MobService {
-        &self.mob_service
     }
 
     pub fn get_item_time_service(&self) -> &ItemTimeService {

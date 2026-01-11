@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct WayPoint {
     pub min_x: i16,

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::item::inventory::{self, Inventory};
 use crate::map::Zone;
 use crate::models::IntrinsicPlayer;

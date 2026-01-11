@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::sync::Mutex;
 
 use crate::models::{Intrinsic, IntrinsicPlayer};
@@ -42,10 +43,10 @@ impl IntrinsicService {
     ) -> Result<()> {
         let player_intrinsic = IntrinsicPlayer::new();
         let mut msg = Message::new(112);
-        msg.write_byte(0);
+        let _ = msg.write_byte(0);
 
-        msg.write_short(player_intrinsic.intrinsic.icon);
-        msg.write_utf(&player_intrinsic.intrinsic.get_name());
+        let _ = msg.write_short(player_intrinsic.intrinsic.icon);
+        let _ = msg.write_utf(&player_intrinsic.intrinsic.get_name());
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -58,14 +59,14 @@ impl IntrinsicService {
         let list_intrinsic = self.get_intrinsics(player_gender);
         let mut msg = Message::new(112);
 
-        msg.write_byte(1);
-        msg.write_byte(1); // count tab
-        msg.write_utf("Nội tại");
-        msg.write_byte((list_intrinsic.len() - 1) as i8);
+        let _ = msg.write_byte(1);
+        let _ = msg.write_byte(1); // count tab
+        let _ = msg.write_utf("Nội tại");
+        let _ = msg.write_byte((list_intrinsic.len() - 1) as i8);
         for i in 1..list_intrinsic.len() {
             let intrinsic = &list_intrinsic[i];
-            msg.write_short(intrinsic.icon);
-            msg.write_utf(&intrinsic.get_description());
+            let _ = msg.write_short(intrinsic.icon);
+            let _ = msg.write_utf(&intrinsic.get_description());
         }
 
         session.send_message(&msg).await?;
@@ -102,16 +103,16 @@ impl IntrinsicService {
     fn change_intrinsic(&self, player_intrinsic: &mut IntrinsicPlayer, player_gender: u8) {
         let list_intrinsic = self.get_intrinsics(player_gender);
         if list_intrinsic.len() > 1 {
-            let mut rng = rand::thread_rng();
-            let random_index = rng.gen_range(1..list_intrinsic.len());
+            let mut rng = rand::rng();
+            let random_index = rng.random_range(1..list_intrinsic.len());
             let selected_intrinsic = &list_intrinsic[random_index];
 
             player_intrinsic.intrinsic = Intrinsic::from_intrinsic(selected_intrinsic);
 
             player_intrinsic.intrinsic.param1 =
-                rng.gen_range(selected_intrinsic.param_from_1..=selected_intrinsic.param_to_1);
+                rng.random_range(selected_intrinsic.param_from_1..=selected_intrinsic.param_to_1);
             player_intrinsic.intrinsic.param2 =
-                rng.gen_range(selected_intrinsic.param_from_2..=selected_intrinsic.param_to_2);
+                rng.random_range(selected_intrinsic.param_from_2..=selected_intrinsic.param_to_2);
         }
     }
 
@@ -162,9 +163,7 @@ impl IntrinsicService {
         if player_power < 10_000_000_000 {
             return Err("Yêu cầu sức mạnh tối thiểu 10 tỷ".to_string());
         }
-
         let gem_require = 100;
-
         if player_gem >= gem_require {
             self.change_intrinsic(player_intrinsic, player_gender);
             player_intrinsic.count_open = 0;
@@ -175,7 +174,6 @@ impl IntrinsicService {
             } else {
                 &intrinsic_name
             };
-
             Ok(format!("Bạn nhận được Nội tại:\n{}", name_part))
         } else {
             let missing = gem_require - player_gem;

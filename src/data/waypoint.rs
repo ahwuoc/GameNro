@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// WayPoint represents a teleportation point in a map
 #[derive(Debug, Clone)]
 pub struct WayPoint {

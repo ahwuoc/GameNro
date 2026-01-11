@@ -1,11 +1,14 @@
+#![allow(dead_code)]
 use crate::entities::map_template::Model as MapTemplate;
 use crate::entities::mob_template::Model as MobTemplate;
+use crate::map::tile_loader::TileLoader;
 use crate::map::zone::Zone;
 use crate::map::zone_manager::ZoneManager;
-use crate::mob::RtMob;
+use crate::mob::{mob_template_manager, RtMob};
 use chrono::{DateTime, Utc};
+use sea_orm::prelude::*;
+use serde_json::Value;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -54,9 +57,10 @@ impl WayPoint {
     }
 }
 
-pub struct Map {
-    pub map_id: i32,
-    pub map_name: String,
+#[derive(Debug, Clone)]
+pub struct MapInfo {
+    pub id: i32,
+    pub name: String,
     pub planet_id: i32,
     pub planet_name: String,
     pub tile_id: i32,
@@ -65,31 +69,146 @@ pub struct Map {
     pub r#type: i32,
     pub zone_count: i32,
     pub max_player: i32,
-
-    // Map dimensions
     pub map_width: i32,
     pub map_height: i32,
     pub tile_map: Vec<Vec<i32>>,
     pub tile_top: Vec<i32>,
-
-    // Map content
-    pub zones: Arc<RwLock<Vec<Zone>>>,
-    pub way_points: Arc<RwLock<Vec<WayPoint>>>,
-    pub npcs: Arc<RwLock<Vec<i32>>>,
-    pub mobs: Arc<RwLock<Vec<i32>>>,
-
-    // Map state
-    pub is_active: Arc<RwLock<bool>>,
-    pub last_update: Arc<RwLock<DateTime<Utc>>>,
+    pub waypoints: Vec<WayPoint>,
+    pub mobs: Vec<(i32, i32, i32, i32, i32)>,
+    pub npcs: Vec<(i32, i16, i16)>,
 }
 
-impl Map {
+impl MapInfo {
     pub fn from_template(template: &MapTemplate) -> Self {
-        let current_time = Utc::now();
+        let mut waypoints = Vec::new();
+        if !template.waypoints.is_empty() {
+            let cleaned = template
+                .waypoints
+                .replace("[\"[", "[[")
+                .replace("]\"]", "]]")
+                .replace("\",\"", ",");
+            if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
+                if let Some(arr) = json.as_array() {
+                    for wpv in arr {
+                        if let Some(wp_arr) = wpv.as_array() {
+                            if wp_arr.len() >= 10 {
+                                let name = wp_arr[0].as_str().unwrap_or("").to_string();
+                                let min_x = wp_arr[1].as_i64().unwrap_or(0) as i16;
+                                let min_y = wp_arr[2].as_i64().unwrap_or(0) as i16;
+                                let max_x = wp_arr[3].as_i64().unwrap_or(0) as i16;
+                                let max_y = wp_arr[4].as_i64().unwrap_or(0) as i16;
+                                let is_enter = (wp_arr[5].as_i64().unwrap_or(0) as i8) == 1;
+                                let is_offline = (wp_arr[6].as_i64().unwrap_or(0) as i8) == 1;
+                                let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
+                                let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
+                                let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
+                                waypoints.push(WayPoint::new(
+                                    min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map,
+                                    go_x, go_y,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut mobs = Vec::new();
+        if !template.mobs.is_empty() {
+            let outer_json: serde_json::Value = match serde_json::from_str(&template.mobs) {
+                Ok(v) => v,
+                Err(_) => {
+                    let cleaned = template.mobs.replace('\"', "");
+                    serde_json::from_str(&cleaned).unwrap_or(Value::Array(vec![]))
+                }
+            };
+
+            if let Some(arr) = outer_json.as_array() {
+                for element in arr {
+                    let inner_value = match element {
+                        Value::String(s) => serde_json::from_str::<Value>(s).ok(),
+                        _ => Some(element.clone()),
+                    };
+
+                    if let Some(val) = inner_value {
+                        // Try parsing as object keys
+                        let t = val
+                            .get("template")
+                            .and_then(|v| v.as_i64())
+                            .map(|v| v as i32);
+                        let l = val.get("level").and_then(|v| v.as_i64()).map(|v| v as i32);
+                        let h = val.get("hp").and_then(|v| v.as_i64()).map(|v| v as i32);
+                        let x = val.get("x").and_then(|v| v.as_i64()).map(|v| v as i32);
+                        let y = val.get("y").and_then(|v| v.as_i64()).map(|v| v as i32);
+
+                        if let (Some(temp), Some(level), Some(hp), Some(x), Some(y)) =
+                            (t, l, h, x, y)
+                        {
+                            mobs.push((temp, level, hp, x, y));
+                            continue;
+                        }
+
+                        if let Some(ma) = val.as_array() {
+                            if ma.len() >= 5 {
+                                let temp = ma[0].as_i64().unwrap_or(0) as i32;
+                                let level = ma[1].as_i64().unwrap_or(1) as i32;
+                                let hp = ma[2].as_i64().unwrap_or(0) as i32;
+                                let x = ma[3].as_i64().unwrap_or(0) as i32;
+                                let y = ma[4].as_i64().unwrap_or(0) as i32;
+                                mobs.push((temp, level, hp, x, y));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut npcs = Vec::new();
+        if !template.npcs.is_empty() {
+            let cleaned = template.npcs.replace('\"', "");
+            if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
+                if let Some(arr) = json.as_array() {
+                    for nv in arr {
+                        match nv {
+                            Value::Array(a) => {
+                                if a.len() >= 3 {
+                                    let id = a[0].as_i64().unwrap_or(0) as i32;
+                                    let x = a[1].as_i64().unwrap_or(0) as i16;
+                                    let y = a[2].as_i64().unwrap_or(0) as i16;
+                                    npcs.push((id, x, y));
+                                }
+                            }
+                            Value::String(s) => {
+                                if let Ok(val) = serde_json::from_str::<Value>(s) {
+                                    if let Some(a) = val.as_array() {
+                                        if a.len() >= 3 {
+                                            let id = a[0].as_i64().unwrap_or(0) as i32;
+                                            let x = a[1].as_i64().unwrap_or(0) as i16;
+                                            let y = a[2].as_i64().unwrap_or(0) as i16;
+                                            npcs.push((id, x, y));
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        let (map_width, map_height, tile_map) =
+            if let Some((w, h, tiles)) = TileLoader::read_tile_map_file(template.id) {
+                (w, h, tiles)
+            } else {
+                (0, 0, Vec::new())
+            };
+
+        let tile_top = TileLoader::read_tile_top_file(template.tile_id).unwrap_or_default();
 
         Self {
-            map_id: template.id,
-            map_name: template.name.clone(),
+            id: template.id,
+            name: template.name.clone(),
             planet_id: template.planet_id as i32,
             planet_name: format!("Planet {}", template.planet_id),
             tile_id: template.tile_id as i32,
@@ -98,42 +217,59 @@ impl Map {
             r#type: template.r#type as i32,
             zone_count: template.zones as i32,
             max_player: template.max_player as i32,
-            map_width: 0,
-            map_height: 0,
-            tile_map: Vec::new(),
-            tile_top: Vec::new(),
+            map_width,
+            map_height,
+            tile_map,
+            tile_top,
+            waypoints,
+            mobs,
+            npcs,
+        }
+    }
+}
+
+pub struct Map {
+    pub info: Arc<MapInfo>,
+    pub zones: Arc<RwLock<Vec<Zone>>>,
+    pub is_active: Arc<RwLock<bool>>,
+    pub last_update: Arc<RwLock<DateTime<Utc>>>,
+}
+
+impl Map {
+    pub fn from_template(template: &MapTemplate) -> Self {
+        let current_time = Utc::now();
+        let info = Arc::new(MapInfo::from_template(template));
+
+        Self {
+            info,
             zones: Arc::new(RwLock::new(Vec::new())),
-            way_points: Arc::new(RwLock::new(Vec::new())),
-            npcs: Arc::new(RwLock::new(Vec::new())),
-            mobs: Arc::new(RwLock::new(Vec::new())),
             is_active: Arc::new(RwLock::new(true)),
             last_update: Arc::new(RwLock::new(current_time)),
         }
     }
+
     pub async fn init_zones(&self, zone_manager: &ZoneManager) -> anyhow::Result<()> {
-        let n_zones = self.get_zone_count();
-        let max_player = self.get_max_player_per_zone();
+        let n_zones = self.info.zone_count.max(1);
+        let max_player = self.info.max_player.max(1);
         let mut zones = self.zones.write().await;
         for i in 0..n_zones {
-            zone_manager.create_zone(self.map_id, i, max_player).await?;
-            let zone = Zone::new(self.map_id, i, max_player);
+            zone_manager
+                .create_zone(self.info.id, i, max_player)
+                .await?;
+            let zone = Zone::new(self.info.id, i, max_player);
             zones.push(zone);
         }
         Ok(())
     }
 
-    pub async fn init_mobs(
-        &self,
-        mob_templates: &HashMap<i32, MobTemplate>,
-        mob_specs: &[(i32, i32, i32, i32, i32)],
-    ) -> anyhow::Result<()> {
+    pub async fn init_mobs(&self) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
         for (zone_index, zone) in zones.iter().enumerate() {
-            for (idx, (temp_id, level, hp, x, y)) in mob_specs.iter().cloned().enumerate() {
-                if let Some(template) = mob_templates.get(&temp_id) {
+            for (idx, (temp_id, level, hp, x, y)) in self.info.mobs.iter().cloned().enumerate() {
+                if let Some(template) = mob_template_manager::get(temp_id as i8) {
                     let mut mob = RtMob::from_template(template.clone(), idx as u64);
                     mob.set_location(
-                        self.map_id,
+                        self.info.id,
                         zone_index.try_into().unwrap(),
                         x as i16,
                         y as i16,
@@ -152,44 +288,27 @@ impl Map {
         Ok(())
     }
 
-    /// Initialize NPCs in the map
     pub async fn init_npcs(
         &self,
-        npc_ids: &[i32],
-        npc_x: &[i16],
-        npc_y: &[i16],
+        _npc_ids: &[i32],
+        _npc_x: &[i16],
+        _npc_y: &[i16],
     ) -> anyhow::Result<()> {
-        {
-            let mut npcs = self.npcs.write().await;
-            npcs.clear();
-            for &npc_id in npc_ids {
-                npcs.push(npc_id);
-            }
-        }
-        let zones = self.zones.read().await;
-        for zone in zones.iter() {
-            let _ = (npc_ids, npc_x, npc_y);
-        }
+        // NPCs are now part of MapInfo and handled in Zone::map_info
         Ok(())
     }
 
-    /// Add waypoint to map
-    pub async fn add_waypoint(&self, waypoint: WayPoint) -> anyhow::Result<()> {
-        let mut way_points = self.way_points.write().await;
-        way_points.push(waypoint);
-        Ok(())
+    pub async fn add_waypoint(&self, _wp: WayPoint) {
+        // Waypoints are now part of MapInfo
     }
 
     /// Get waypoint at position
-    pub async fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
-        let way_points = self.way_points.read().await;
-
-        for waypoint in way_points.iter() {
+    pub fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
+        for waypoint in self.info.waypoints.iter() {
             if waypoint.contains_position(x, y) {
                 return Some(waypoint.clone());
             }
         }
-
         None
     }
 
@@ -223,16 +342,13 @@ impl Map {
         zones.clone()
     }
 
-    /// Update map (called periodically)
     pub async fn update(&self) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
 
-        // Update all zones
         for zone in zones.iter() {
             zone.update().await?;
         }
 
-        // Update last update time
         let mut last_update = self.last_update.write().await;
         *last_update = Utc::now();
 
@@ -250,74 +366,13 @@ impl Map {
         let mut is_active = self.is_active.write().await;
         *is_active = active;
     }
-
-    pub async fn get_map_info(&self) -> MapInfo {
-        let zones = self.zones.read().await;
-        let way_points = self.way_points.read().await;
-        let npcs = self.npcs.read().await;
-
-        MapInfo {
-            map_id: self.map_id,
-            map_name: self.map_name.clone(),
-            planet_id: self.planet_id,
-            planet_name: self.planet_name.clone(),
-            tile_id: self.tile_id,
-            bg_id: self.bg_id,
-            bg_type: self.bg_type,
-            r#type: self.r#type,
-            map_width: self.map_width,
-            map_height: self.map_height,
-            zone_count: zones.len() as i32,
-            way_point_count: way_points.len() as i32,
-            npc_count: npcs.len() as i32,
-        }
-    }
-    fn get_zone_count(&self) -> i32 {
-        self.zone_count.max(1)
-    }
-    fn get_max_player_per_zone(&self) -> i32 {
-        self.max_player.max(1)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct MapInfo {
-    pub map_id: i32,
-    pub map_name: String,
-    pub planet_id: i32,
-    pub planet_name: String,
-    pub tile_id: i32,
-    pub bg_id: i32,
-    pub bg_type: i32,
-    pub r#type: i32,
-    pub map_width: i32,
-    pub map_height: i32,
-    pub zone_count: i32,
-    pub way_point_count: i32,
-    pub npc_count: i32,
 }
 
 impl Clone for Map {
     fn clone(&self) -> Self {
         Self {
-            map_id: self.map_id,
-            map_name: self.map_name.clone(),
-            planet_id: self.planet_id,
-            planet_name: self.planet_name.clone(),
-            tile_id: self.tile_id,
-            bg_id: self.bg_id,
-            bg_type: self.bg_type,
-            r#type: self.r#type,
-            zone_count: self.zone_count,
-            max_player: self.max_player,
-            map_width: self.map_width,
-            map_height: self.map_height,
-            tile_map: self.tile_map.clone(),
-            tile_top: self.tile_top.clone(),
+            info: Arc::clone(&self.info),
             zones: Arc::clone(&self.zones),
-            way_points: Arc::clone(&self.way_points),
-            npcs: Arc::clone(&self.npcs),
-            mobs: Arc::clone(&self.mobs),
             is_active: Arc::clone(&self.is_active),
             last_update: Arc::clone(&self.last_update),
         }

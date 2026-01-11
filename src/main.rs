@@ -1,3 +1,4 @@
+// #![allow(unused)]
 mod account;
 mod config;
 mod constant;
@@ -26,7 +27,6 @@ async fn main() -> Result<()> {
 
     let db_manager = DbManager::new(&config.database).await?;
 
-    // Khởi tạo Manager
     {
         let manager = services::Manager::get_instance();
         let mut manager_guard = manager.lock().unwrap();

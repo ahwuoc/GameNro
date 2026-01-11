@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::{
     constant::cmd::cmd,
     map::{map_manager, Zone},
@@ -21,11 +22,11 @@ pub const GENDER_XAYDA: i8 = 2;
 // Task Constants (from Java ConstTask)
 // These represent the minimum task progress required to access certain maps
 // ========================================
-pub const TASK_1_0: i32 = 2048;   // Task 1.0 - đồi hoa cúc, đồi nấm tím, đồi hoang
-pub const TASK_2_0: i32 = 4096;   // Task 2.0 - vách aru, vách moori, vách kakarot
-pub const TASK_3_0: i32 = 6144;   // Task 3.0 - thung lũng tre, thị trấn moori, làng plane
-pub const TASK_4_0: i32 = 8192;   // Task 4.0 - trạm tàu vũ trụ
-pub const TASK_7_0: i32 = 14336;  // Task 7.0 - rừng nấm, thung lũng maima, rừng nguyên sinh
+pub const TASK_1_0: i32 = 2048; // Task 1.0 - đồi hoa cúc, đồi nấm tím, đồi hoang
+pub const TASK_2_0: i32 = 4096; // Task 2.0 - vách aru, vách moori, vách kakarot
+pub const TASK_3_0: i32 = 6144; // Task 3.0 - thung lũng tre, thị trấn moori, làng plane
+pub const TASK_4_0: i32 = 8192; // Task 4.0 - trạm tàu vũ trụ
+pub const TASK_7_0: i32 = 14336; // Task 7.0 - rừng nấm, thung lũng maima, rừng nguyên sinh
 pub const TASK_13_0: i32 = 26624; // Task 13.0 - rừng bamboo, rừng dương xỉ, etc.
 pub const TASK_15_0: i32 = 30720; // Task 15.0 - đảo bulong, đông nam guru, bờ vực đen
 pub const TASK_16_0: i32 = 32768; // Task 16.0 - đông karin, thung lũng namếc, thành phố vegeta
@@ -106,9 +107,6 @@ impl ChangeMapService {
         Self
     }
 
-
-
-    
     pub async fn change_map_to_zone_async(
         &self,
         player: &mut Player,
@@ -127,13 +125,18 @@ impl ChangeMapService {
             } else {
                 SpaceShipType::Default
             };
-            self.spaceship_arrive(player, SpaceshipSendType::AllPlayersInMap, actual_space_type).await?;
+            self.spaceship_arrive(
+                player,
+                SpaceshipSendType::AllPlayersInMap,
+                actual_space_type,
+            )
+            .await?;
         }
         self.exit_map_async(player).await?;
         let final_x = if x != -1 {
             x
         } else {
-            Self::calculate_random_x_position(2000) 
+            Self::calculate_random_x_position(2000)
         };
         let final_y = y;
         player.location.set_position(final_x, final_y);
@@ -170,7 +173,7 @@ impl ChangeMapService {
         let destinations = self.get_capsule_destinations(player).await;
         let mut msg = Message::new(cmd::CAPSULE_MENU);
         msg.write_byte(destinations.len() as i8)?;
-        
+
         for (i, destination) in destinations.iter().enumerate() {
             if i == 0 && player.has_previous_capsule_location() {
                 msg.write_utf(&format!("Về chỗ cũ: {}", destination.map_name))?;
@@ -181,12 +184,11 @@ impl ChangeMapService {
             }
             msg.write_utf(&destination.planet_name)?;
         }
-        
+
         session.send_message(&msg).await?;
         Ok(())
     }
 
-  
     pub async fn change_map_capsule(
         &self,
         player: &mut Player,
@@ -194,32 +196,33 @@ impl ChangeMapService {
         session: &mut crate::network::session::AsyncSession,
     ) -> anyhow::Result<CapsuleChangeResult> {
         let destinations = self.get_capsule_destinations(player).await;
-        
+
         if destination_index < 0 || destination_index >= destinations.len() as i32 {
             return Ok(CapsuleChangeResult::InvalidDestination);
         }
-        
+
         let destination = &destinations[destination_index as usize];
-        
+
         let target_zone = if destination_index == 0 && player.has_previous_capsule_location() {
             self.get_previous_capsule_zone(player).await
         } else {
             self.get_available_zone(destination.map_id).await
         };
-        
+
         match target_zone {
             Some(zone) => {
                 player.save_capsule_location(player.map_id, player.zone_id);
-                
+
                 self.change_map_to_zone_async(
                     player,
                     &zone,
-                    -1, // Random x position
-                    100, // Standard y position
+                    -1,                  // Random x position
+                    100,                 // Standard y position
                     SpaceShipType::None, // No spaceship for capsule
                     session,
-                ).await?;
-                
+                )
+                .await?;
+
                 Ok(CapsuleChangeResult::Success {
                     map_id: zone.map_id,
                     zone_id: zone.zone_id,
@@ -233,9 +236,9 @@ impl ChangeMapService {
     async fn get_capsule_destinations(&self, player: &Player) -> Vec<CapsuleDestination> {
         // This would typically come from MapService.getMapCapsule(player)
         // For now, return a basic set of destinations based on player progress
-        
+
         let mut destinations = Vec::new();
-        
+
         // Home maps are always available
         let home_map_id = Self::calculate_home_map(player.gender, false);
         if let Some(zone) = self.get_available_zone(home_map_id).await {
@@ -245,10 +248,10 @@ impl ChangeMapService {
                 planet_name: Self::get_planet_name(player.gender),
             });
         }
-        
+
         // Add other available destinations based on task progress
         // This is a simplified implementation - real game would have more complex logic
-        
+
         destinations
     }
 
@@ -286,7 +289,6 @@ impl ChangeMapService {
         }
     }
 
-  
     pub async fn open_zone_ui(
         &self,
         player: &Player,
@@ -316,14 +318,18 @@ impl ChangeMapService {
 
         for zone in zones {
             msg.write_byte(zone.zone_id as i8)?;
-            
+
             let player_count = zone.get_num_players().await as i8;
-            let status = if player_count < 5 { 0 } else if player_count < 8 { 1 } else { 2 };
+            let status = if player_count < 5 {
+                0
+            } else if player_count < 8 {
+                1
+            } else {
+                2
+            };
             msg.write_byte(status)?;
             msg.write_byte(player_count)?;
             msg.write_byte(zone.max_player as i8)?;
-            
-            // Competition info (placeholder - not competing)
             msg.write_byte(0)?; // not competing
         }
 
@@ -331,7 +337,6 @@ impl ChangeMapService {
         Ok(())
     }
 
-   
     pub async fn change_zone(
         &self,
         player: &mut Player,
@@ -375,7 +380,8 @@ impl ChangeMapService {
                 player.location.y,
                 SpaceShipType::None,
                 session,
-            ).await?;
+            )
+            .await?;
 
             // Update cooldown
             player.update_zone_change_time();
@@ -388,23 +394,34 @@ impl ChangeMapService {
         Ok(())
     }
 
-    
     pub async fn change_map_waypoint_handler(
         &self,
         player: &mut Player,
         session: &mut crate::network::session::AsyncSession,
     ) -> anyhow::Result<()> {
         match self.change_map_waypoint(player).await {
-            WaypointChangeResult::Success { destination_map_id, destination_zone_id, x, y } => {
-                println!("Player {} changed map via waypoint to map {} zone {} at ({}, {})", 
-                    player.name, destination_map_id, destination_zone_id, x, y);
-                if let Some(zone) = self.get_specific_zone(destination_map_id, destination_zone_id).await {
+            WaypointChangeResult::Success {
+                destination_map_id,
+                destination_zone_id,
+                x,
+                y,
+            } => {
+                println!(
+                    "Player {} changed map via waypoint to map {} zone {} at ({}, {})",
+                    player.name, destination_map_id, destination_zone_id, x, y
+                );
+                if let Some(zone) = self
+                    .get_specific_zone(destination_map_id, destination_zone_id)
+                    .await
+                {
                     self.exit_map_async(player).await?;
                     player.location.set_position(x, y);
                     self.go_to_map_async(player, &zone).await?;
                     zone.map_info(session, player.id).await?;
-                    println!("[WAYPOINT] Sent map_info for map {} zone {} to player {}", 
-                        destination_map_id, destination_zone_id, player.name);
+                    println!(
+                        "[WAYPOINT] Sent map_info for map {} zone {} to player {}",
+                        destination_map_id, destination_zone_id, player.name
+                    );
                 } else {
                     self.reset_player_position(player, 2000);
                     let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -413,12 +430,14 @@ impl ChangeMapService {
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
-                self.reset_player_position(player, 2000); 
+                self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
                 session.send_message(&msg).await?;
             }
-            WaypointChangeResult::TaskRequirementNotMet { required_task_id } => {
+            WaypointChangeResult::TaskRequirementNotMet {
+                required_task_id: _,
+            } => {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
@@ -445,9 +464,16 @@ impl ChangeMapService {
         session: &mut crate::network::session::AsyncSession,
     ) -> anyhow::Result<()> {
         match self.go_home(player).await {
-            GoHomeResult::Success { home_map_id, zone_id, x, y, space_type } => {
+            GoHomeResult::Success {
+                home_map_id,
+                zone_id,
+                x,
+                y,
+                space_type,
+            } => {
                 if let Some(target_zone) = self.get_specific_zone(home_map_id, zone_id).await {
-                    self.change_map_to_zone_async(player, &target_zone, x, y, space_type, session).await?;
+                    self.change_map_to_zone_async(player, &target_zone, x, y, space_type, session)
+                        .await?;
                 }
             }
             GoHomeResult::NoAvailableZone => {
@@ -474,25 +500,25 @@ impl ChangeMapService {
     }
 
     /// Check if a map is special (offline/dungeon) and doesn't allow zone changes
-    fn is_special_map(map_id: i32) -> bool {
+    fn is_special_map(_map_id: i32) -> bool {
         // Add logic for special maps that don't allow zone changes
         // This is a placeholder - real implementation would check map properties
         false
     }
 
     /// Check if player can change zone now (cooldown check)
-    fn can_change_zone_now(player: &Player) -> bool {
-        // Check if 5 seconds have passed since last zone change
-        // This is a placeholder - real implementation would check player.last_zone_change_time
+    fn can_change_zone_now(_player: &Player) -> bool {
         true
     }
 
-
-
     pub async fn change_map_waypoint(&self, player: &mut Player) -> WaypointChangeResult {
-        println!("[WAYPOINT] Starting change_map_waypoint for player {} (map: {}, zone: {:?})", 
-            player.name, player.map_id, player.zone.as_ref().map(|z| z.zone_id));
-        
+        println!(
+            "[WAYPOINT] Starting change_map_waypoint for player {} (map: {}, zone: {:?})",
+            player.name,
+            player.map_id,
+            player.zone.as_ref().map(|z| z.zone_id)
+        );
+
         if player.zone.is_none() && player.map_id == 0 {
             println!("[WAYPOINT] Player has no zone and map_id is 0, returning InvalidPlayerZone");
             return WaypointChangeResult::InvalidPlayerZone;
@@ -501,29 +527,42 @@ impl ChangeMapService {
 
         match waypoint {
             Some(wp) => {
-                println!("[WAYPOINT] Found waypoint '{}': go_map={}, go_x={}, go_y={}", 
-                    wp.name, wp.go_map, wp.go_x, wp.go_y);
-                
+                println!(
+                    "[WAYPOINT] Found waypoint '{}': go_map={}, go_x={}, go_y={}",
+                    wp.name, wp.go_map, wp.go_x, wp.go_y
+                );
+
                 if !self.check_task_requirement(player, wp.go_map) {
                     let required_task_id = self.get_required_task_id(wp.go_map);
-                    println!("[WAYPOINT] Task requirement not met, required_task_id={}", required_task_id);
+                    println!(
+                        "[WAYPOINT] Task requirement not met, required_task_id={}",
+                        required_task_id
+                    );
                     return WaypointChangeResult::TaskRequirementNotMet { required_task_id };
                 }
-                
-                println!("[WAYPOINT] Task requirement passed, getting available zone for map {}", wp.go_map);
+
+                println!(
+                    "[WAYPOINT] Task requirement passed, getting available zone for map {}",
+                    wp.go_map
+                );
                 let destination_zone = self.get_available_zone(wp.go_map).await;
 
                 match destination_zone {
                     Some(zone) => {
-                        println!("[WAYPOINT] Got destination zone {} for map {}", zone.zone_id, wp.go_map);
-                        
+                        println!(
+                            "[WAYPOINT] Got destination zone {} for map {}",
+                            zone.zone_id, wp.go_map
+                        );
+
                         player.location.set_position(wp.go_x, wp.go_y);
                         player.map_id = wp.go_map;
                         player.zone_id = zone.zone_id;
                         player.location.set_map(wp.go_map, zone.zone_id);
 
-                        println!("[WAYPOINT] SUCCESS: Player {} moving to map {} zone {} at ({}, {})", 
-                            player.name, wp.go_map, zone.zone_id, wp.go_x, wp.go_y);
+                        println!(
+                            "[WAYPOINT] SUCCESS: Player {} moving to map {} zone {} at ({}, {})",
+                            player.name, wp.go_map, zone.zone_id, wp.go_x, wp.go_y
+                        );
 
                         WaypointChangeResult::Success {
                             destination_map_id: wp.go_map,
@@ -539,22 +578,27 @@ impl ChangeMapService {
                 }
             }
             None => {
-                println!("[WAYPOINT] No waypoint found at player position ({}, {})", 
-                    player.location.x, player.location.y);
+                println!(
+                    "[WAYPOINT] No waypoint found at player position ({}, {})",
+                    player.location.x, player.location.y
+                );
                 WaypointChangeResult::NoWaypointFound
             }
         }
     }
 
-     async fn get_waypoint_at_player_position(&self, player: &Player) -> Option<WayPoint> {
+    async fn get_waypoint_at_player_position(&self, player: &Player) -> Option<WayPoint> {
         if let Some(map) = map_manager::get_map(player.map_id) {
-            let waypoint = map
-                .get_waypoint_at_position(player.location.x, player.location.y)
-                .await;
-            println!("Player {} at position ({}, {}) on map {}: Waypoint found: {}", 
-                player.name, player.location.x, player.location.y, player.map_id, 
-                waypoint.is_some());
-            
+            let waypoint = map.get_waypoint_at_position(player.location.x, player.location.y);
+            println!(
+                "Player {} at position ({}, {}) on map {}: Waypoint found: {}",
+                player.name,
+                player.location.x,
+                player.location.y,
+                player.map_id,
+                waypoint.is_some()
+            );
+
             return waypoint;
         }
         None
@@ -568,10 +612,12 @@ impl ChangeMapService {
     pub fn check_task_requirement(&self, player: &Player, map_id: i32) -> bool {
         let player_task_id = player.get_task_id();
         let required_task_id = Self::get_required_task_id_for_map(map_id);
-        
-        println!("[TASK CHECK] Player {} task_id={}, required_task_id={} for map {}, is_admin={}", 
-            player.name, player_task_id, required_task_id, map_id, player.is_admin);
-        
+
+        println!(
+            "[TASK CHECK] Player {} task_id={}, required_task_id={} for map {}, is_admin={}",
+            player.name, player_task_id, required_task_id, map_id, player.is_admin
+        );
+
         if player.is_admin {
             println!("[TASK CHECK] Player is admin, bypassing task check");
             return true;
@@ -580,10 +626,12 @@ impl ChangeMapService {
             println!("[TASK CHECK] No task requirement for this map");
             return true;
         }
-        
+
         let passed = player_task_id >= required_task_id;
-        println!("[TASK CHECK] Task check result: {} (player {} >= required {})", 
-            passed, player_task_id, required_task_id);
+        println!(
+            "[TASK CHECK] Task check result: {} (player {} >= required {})",
+            passed, player_task_id, required_task_id
+        );
         passed
     }
 
@@ -647,36 +695,36 @@ impl ChangeMapService {
         player.location.set_position(x, player.location.y);
     }
 
-
-
     /// Exit map with async broadcast to other players
-    /// 
+    ///
     /// This function:
     /// 1. Removes player from zone
     /// 2. Broadcasts leave message (CMD -6) to other players in the zone
-    /// 
+    ///
     /// Requirements: 5.1
     pub async fn exit_map_async(&self, player: &mut Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
             // Remove player from zone
             zone.remove_player(player.id).await?;
-            
+
             // Broadcast leave message to other players (CMD -6)
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
             zone.send_message_to_other_players(player.id, msg).await?;
-            
-            println!("Player {} exited zone {} on map {}", player.name, player.zone_id, player.map_id);
+
+            println!(
+                "Player {} exited zone {} on map {}",
+                player.name, player.zone_id, player.map_id
+            );
         }
-        
+
         // Clear the zone reference
         player.clear_zone();
         player.zone_id = 0;
-        
+
         Ok(())
     }
 
- 
     pub async fn go_to_map_async(&self, player: &mut Player, zone: &Zone) -> anyhow::Result<()> {
         player.zone_id = zone.zone_id;
         player.map_id = zone.map_id;
@@ -684,11 +732,13 @@ impl ChangeMapService {
         player.set_zone(zone.clone());
         zone.add_player(player.clone()).await?;
         Self::finish_load_map(player).await?;
-        println!("Player {} entered zone {} on map {}", player.name, zone.zone_id, zone.map_id);
+        println!(
+            "Player {} entered zone {} on map {}",
+            player.name, zone.zone_id, zone.map_id
+        );
         Ok(())
     }
 
- 
     pub async fn finish_load_map(player: &Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
             zone.load_another_to_me(player.id).await?;
@@ -696,7 +746,7 @@ impl ChangeMapService {
         }
         Self::send_effect_map_to_me(player).await?;
         Self::send_effect_me_to_map(player).await?;
-        
+
         Ok(())
     }
     pub async fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
@@ -709,7 +759,6 @@ impl ChangeMapService {
             if mob.hp <= 0 {
                 continue;
             }
-
         }
 
         // Send player effects to this player
@@ -718,24 +767,18 @@ impl ChangeMapService {
             if other_player.id == player.id {
                 continue; // Skip self
             }
-
-          
         }
 
         Ok(())
     }
 
-  
     pub async fn send_effect_me_to_map(player: &Player) -> anyhow::Result<()> {
-        let Some(zone) = &player.zone else {
+        let Some(_zone) = &player.zone else {
             return Ok(());
         };
 
-      
-
         Ok(())
     }
-
 
     pub fn calculate_home_map(gender: i8, is_in_mabu_map: bool) -> i32 {
         if is_in_mabu_map {
@@ -751,27 +794,27 @@ impl ChangeMapService {
     }
 
     /// Go home - return to home map (CMD -15)
-    /// 
+    ///
     /// This function:
     /// 1. Calculates home map based on player gender (gender + 21)
     /// 2. Handles MaBu map special case (map 114)
     /// 3. Initiates spaceship travel
-    /// 
+    ///
     /// Requirements: 3.1
     pub async fn go_home(&self, player: &mut Player) -> GoHomeResult {
         // Check if player is a boss (bosses cannot use go_home)
         // In Java: if (!pl.isBoss)
-        
+
         // Determine if player is in a MaBu map
         let is_in_mabu = Self::is_mabu_map(player.map_id);
-        
+
         // Calculate home map based on gender
         // Requirements 3.1: home map = gender + 21, or 114 for MaBu
         let home_map_id = Self::calculate_home_map(player.gender, is_in_mabu);
-        
+
         // Get a zone in the home map
         let zone = self.get_available_zone(home_map_id).await;
-        
+
         match zone {
             Some(target_zone) => {
                 // Determine spaceship type based on player's tennis spaceship status
@@ -780,10 +823,10 @@ impl ChangeMapService {
                 } else {
                     SpaceShipType::Default
                 };
-                
+
                 // Calculate random x position for landing
                 let x = Self::calculate_random_x_position(2000); // Default map width
-                
+
                 GoHomeResult::Success {
                     home_map_id,
                     zone_id: target_zone.zone_id,
@@ -797,12 +840,12 @@ impl ChangeMapService {
     }
 
     /// Change map by spaceship - spaceship travel with animation
-    /// 
+    ///
     /// This function:
     /// 1. Sends spaceship animation effect (CMD -65)
     /// 2. Handles tennis spaceship healing
     /// 3. Handles dead player revival
-    /// 
+    ///
     /// Requirements: 3.2, 3.3, 3.4
     pub async fn change_map_by_spaceship(
         &self,
@@ -857,10 +900,10 @@ impl ChangeMapService {
     }
 
     /// Handle spaceship healing based on spaceship type and player state
-    /// 
+    ///
     /// Requirements 3.3: Tennis spaceship SHALL heal player to max HP/MP
     /// Requirements 3.4: Dead player using spaceship SHALL be revived
-    /// 
+    ///
     /// Property 6: Tennis spaceship healing
     fn handle_spaceship_healing(
         &self,
@@ -868,7 +911,7 @@ impl ChangeMapService {
         space_type: SpaceShipType,
     ) -> SpaceshipHealingResult {
         let was_dead = player.is_die();
-        
+
         if was_dead {
             // Requirements 3.4: Revive dead player
             if space_type == SpaceShipType::Tennis {
@@ -895,9 +938,9 @@ impl ChangeMapService {
     }
 
     /// Send spaceship arrive effect to zone (CMD -65)
-    /// 
+    ///
     /// This function broadcasts the spaceship animation effect to all players in the zone.
-    /// 
+    ///
     /// Requirements: 3.2
     pub async fn spaceship_arrive(
         &self,
@@ -1078,7 +1121,10 @@ pub enum MapAccessResult {
     /// Access denied - player lacks required task progress
     TaskRequirementNotMet { required_task_id: i32 },
     /// Access denied - player gender doesn't match map restriction
-    GenderRestricted { player_gender: i8, allowed_gender: i8 },
+    GenderRestricted {
+        player_gender: i8,
+        allowed_gender: i8,
+    },
     /// Access denied - invalid zone (null or invalid map_id)
     InvalidZone,
 }
@@ -1089,14 +1135,14 @@ impl ChangeMapService {
     // ========================================
 
     /// Check if player can join a zone
-    /// 
+    ///
     /// This function validates map access based on:
     /// 1. Task requirements (Requirements 7.1, 7.2)
     /// 2. Gender restrictions (Requirements 7.3)
     /// 3. Admin/boss bypass (Requirements 7.4)
-    /// 
+    ///
     /// Based on Java checkMapCanJoin implementation in ChangeMapService.java
-    /// 
+    ///
     /// Property 7: Task requirement validation
     /// Property 8: Gender restriction validation
     /// Property 9: Admin bypass all restrictions
@@ -1130,12 +1176,12 @@ impl ChangeMapService {
     }
 
     /// Check gender restrictions for home maps
-    /// 
+    ///
     /// Home maps are gender-restricted:
     /// - Map 21: Only for gender 0 (Trái Đất)
     /// - Map 22: Only for gender 1 (Namếc)
     /// - Map 23: Only for gender 2 (Xayda)
-    /// 
+    ///
     /// Requirements: 7.3
     /// Property 8: Gender restriction validation
     fn check_gender_restriction(player: &Player, map_id: i32) -> Option<MapAccessResult> {

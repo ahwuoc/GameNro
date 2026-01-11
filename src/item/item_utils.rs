@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::item::Item;
 use crate::item::ItemOption;
 

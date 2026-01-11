@@ -443,8 +443,6 @@ public class Boss extends Player implements IBoss {
                 if (this.currentLevel == 0) {
                     if (this.parentBoss == null) {
                         int zoneid = 0;
-                        //this.zone.map.mapId == 80 || this.zone.map.mapId == 103 || this.zone.map.mapId == 97 || this.zone.map.mapId == 102
-                        // Chỉ cho boss xuất hiện từ khu 2 trở lên ở map thường
                         if (this.isZone01SpawnDisabled && this.zone.map.zones.size() > 2) {
                             zoneid = Util.nextInt(2, this.zone.map.zones.size() - 1);
                             while (zoneid < this.zone.map.zones.size() && !this.zone.map.zones.get(zoneid).getBosses().isEmpty()) {
@@ -460,11 +458,9 @@ public class Boss extends Player implements IBoss {
                                 return;
                             }
                         } else {
-                            // Check trong khu lớn hơn 10 người chuyển sang khu n + 1
                             while (zoneid < this.zone.map.zones.size() && this.zone.map.zones.get(zoneid).getNumOfPlayers() > 10) {
                                 zoneid++;
                             }
-                            // Check trong khu có boss sẽ chuyển sang khu n + 1
                             while (zoneid < this.zone.map.zones.size() && !this.zone.map.zones.get(zoneid).getBosses().isEmpty()) {
                                 zoneid++;
                             }

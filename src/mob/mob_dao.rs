@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use sea_orm::*;
 use crate::entities::mob_template;
 use crate::mob::RtMob;

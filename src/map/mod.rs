@@ -29,3 +29,4 @@ pub use zone_manager::ZoneManager;
 
 pub mod change_map_service;
 pub use change_map_service::{ChangeMapService, ChangeMapType, SpaceShipType};
+pub mod map_template_manager;

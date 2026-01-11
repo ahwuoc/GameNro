@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct AntiLogin {

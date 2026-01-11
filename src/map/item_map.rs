@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item::Item;
 use crate::item::item_option::ItemOption;

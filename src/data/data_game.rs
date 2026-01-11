@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+use crate::map::map_template_manager;
+use crate::mob::mob_template_manager;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::services::head_avatar_manager;
@@ -45,12 +48,12 @@ pub struct NClass {
 pub struct DataGame;
 
 impl DataGame {
-    pub const VS_Res:i32 = 1;
-    pub const VS_DATA:i8 = 9;
-    pub const VS_MAP:i8 = 2;
-    pub const VS_ITEM:i8 = 9;
-    pub const VS_SKILL:i8 = 1;
-    pub const MAX_Small_Version:i16 = 32767;
+    pub const VS_Res: i32 = 1;
+    pub const VS_DATA: i8 = 9;
+    pub const VS_MAP: i8 = 2;
+    pub const VS_ITEM: i8 = 9;
+    pub const VS_SKILL: i8 = 1;
+    pub const MAX_Small_Version: i16 = 32767;
     pub const STANDARD_LEVELS: [i64; 20] = [
         1000i64,
         3000,
@@ -74,14 +77,14 @@ impl DataGame {
         100010000000,
     ];
 
-    pub async fn send_head_to_client(msg:&mut Message)->anyhow::Result<()>{
-           let head_avatars = head_avatar_manager::get_all();
-           msg.write_short(head_avatars.len() as i16)?;
-           for head  in head_avatars.iter(){
-                 msg.write_short(head.head_id as i16)?;
-                 msg.write_short(head.avatar_id as i16)?;
-           }
-           Ok(())
+    pub async fn send_head_to_client(msg: &mut Message) -> anyhow::Result<()> {
+        let head_avatars = head_avatar_manager::get_all();
+        msg.write_short(head_avatars.len() as i16)?;
+        for head in head_avatars.iter() {
+            msg.write_short(head.head_id as i16)?;
+            msg.write_short(head.avatar_id as i16)?;
+        }
+        Ok(())
     }
     pub async fn send_size_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending size response");
@@ -144,7 +147,7 @@ impl DataGame {
 
     pub async fn send_version_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-74);
-        msg.write_byte(0)?; 
+        msg.write_byte(0)?;
         msg.write_int(Self::VS_Res)?;
         session.send_message(&msg).await?;
 
@@ -272,43 +275,41 @@ impl DataGame {
 
     pub async fn update_map(session: &mut AsyncSession) -> anyhow::Result<()> {
         let manager = crate::services::Manager::get_instance();
-        let (map_templates, npc_templates, mob_templates) = {
+        let npc_templates = {
             let manager_guard = manager.lock().unwrap();
-            (
-                manager_guard.get_map_templates().clone(),
-                manager_guard.get_npc_templates().clone(),
-                manager_guard.get_mob_templates().clone(),
-            )
+            manager_guard.get_npc_templates().clone()
         };
 
+        let map_templates = map_template_manager::get_all();
+
         let mut msg = Message::new(-28);
+        msg.write_byte(6)?;
         msg.write_byte(Self::VS_MAP)?;
-        msg.write_byte(80)?;
-        msg.write_byte((map_templates.len() as u8) as i8)?;
+        msg.write_byte(map_templates.len() as i8)?;
 
         for template in &map_templates {
             msg.write_utf(&template.name)?;
         }
 
-        msg.write_byte((npc_templates.len() as u8) as i8)?;
+        msg.write_byte(npc_templates.len() as i8)?;
 
         for template in &npc_templates {
             msg.write_utf(&template.name)?;
             msg.write_short(template.head)?;
             msg.write_short(template.body)?;
             msg.write_short(template.leg)?;
-            msg.write_byte(0)?; // padding
+            msg.write_byte(0)?;
         }
-
-        msg.write_byte((mob_templates.len() as u8) as i8)?;
-
-        for template in &mob_templates {
-            msg.write_byte((template.r#type as u8) as i8)?;
-            msg.write_utf(&template.name)?;
-            msg.write_int(template.hp)?;
-            msg.write_byte((template.range_move as u8) as i8)?;
-            msg.write_byte((template.speed as u8) as i8)?;
-            msg.write_byte((template.dart_type as u8) as i8)?;
+        let mob_templates = mob_template_manager::get_all();
+        let mob_count = mob_templates.len() as i8;
+        msg.write_byte(mob_count)?;
+        for mob_template in mob_templates {
+            msg.write_byte(mob_template.r#type as i8)?;
+            msg.write_utf(&mob_template.name)?;
+            msg.write_int(mob_template.hp)?;
+            msg.write_byte(mob_template.range_move as i8)?;
+            msg.write_byte(mob_template.speed as i8)?;
+            msg.write_byte(mob_template.dart_type as i8)?;
         }
 
         session.send_message(&msg).await?;
@@ -317,7 +318,7 @@ impl DataGame {
             "Map data updated successfully with {} maps, {} NPCs, {} mobs",
             map_templates.len(),
             npc_templates.len(),
-            mob_templates.len()
+            mob_count
         );
         Ok(())
     }
@@ -450,20 +451,37 @@ impl DataGame {
         Ok(())
     }
 
+    pub async fn send_mob_temp(sesssion: &mut AsyncSession, mob_id: i8) -> anyhow::Result<()> {
+        let zoom = sesssion.zoom_level;
+        let file_path = format!("data/girlkun/mob/x{zoom}/{mob_id}");
+        let mut msg = Message::new(11);
+        match std::fs::read(&file_path) {
+            Ok(mob) => {
+                msg.write_byte(mob_id)?;
+                msg.write(&mob)?;
+                sesssion.send_message(&msg).await?;
+                println!("send mob temp {}", mob_id);
+            }
+            Err(_) => {
+                println!("Warning: Mob temp file not found")
+            }
+        }
+        Ok(())
+    }
     pub async fn send_icon(session: &mut AsyncSession, id: i32) -> anyhow::Result<()> {
         let zoom_level = session.zoom_level;
-        let file_path = format!("data/girlkun/icon/x{}/{}.png",zoom_level,id);
+        let file_path = format!("data/girlkun/icon/x{}/{}.png", zoom_level, id);
         let mut msg = Message::new(-67);
-        match std::fs::read(&file_path){
-              Ok(icon) =>{
-                   msg.write_int(id)?;
-                   msg.write_int(icon.len() as i32)?;
-                   msg.write(&icon)?;
-              }
-               Err(_) =>{
-                    msg.write_int(id)?;
-                    msg.write_int(0)?
-               } 
+        match std::fs::read(&file_path) {
+            Ok(icon) => {
+                msg.write_int(id)?;
+                msg.write_int(icon.len() as i32)?;
+                msg.write(&icon)?;
+            }
+            Err(_) => {
+                msg.write_int(id)?;
+                msg.write_int(0)?
+            }
         }
         session.send_message(&msg).await?;
         Ok(())
@@ -482,7 +500,7 @@ impl DataGame {
             }
             Err(_) => {
                 println!("Warning: Tile set info file not found");
-                let mut msg = Message::new(-82);
+                let msg = Message::new(-82);
                 session.send_message(&msg).await?;
             }
         }
@@ -564,7 +582,6 @@ async fn load_skill_data() -> anyhow::Result<Vec<NClass>> {
 }
 
 fn parse_skills_json(skills_json: &str) -> anyhow::Result<Vec<Skill>> {
-    // Parse JSON like Java: JSONArray from template.skills
     if skills_json.is_empty() {
         return Ok(Vec::new());
     }

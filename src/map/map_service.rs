@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::map::map::Map;
 use crate::map::waypoint::WayPoint;
 use crate::map::zone::Zone;
@@ -29,22 +30,15 @@ impl MapService {
         }
     }
 
-    /// Initialize service
     pub fn init(&mut self) {
         self.initialized = true;
         println!("MapService initialized");
     }
-
-    /// Check if service is initialized
     pub fn is_initialized(&self) -> bool {
         self.initialized
     }
-
-    /// Get waypoint that player is currently in
     pub fn get_waypoint_player_in(&self, player: &Player) -> Option<&WayPoint> {
-        if let Some(map) = self.get_map_by_id(player.map_id as i32) {
-            // TODO: Implement async waypoint access
-            // For now, return None as waypoints are async
+        if let Some(_map) = self.get_map_by_id(player.map_id as i32) {
             None
         } else {
             None
@@ -63,7 +57,7 @@ impl MapService {
 
     /// Add map to service
     pub fn add_map(&mut self, map: Map) {
-        self.maps.insert(map.map_id, map);
+        self.maps.insert(map.info.id, map);
     }
 
     /// Remove map from service
@@ -82,61 +76,56 @@ impl MapService {
     }
 
     /// Get map can join for player
-    pub fn get_map_can_join(&self, player: &Player, map_id: i32, zone_id: i32) -> Option<&Zone> {
-        if let Some(map) = self.get_map_by_id(map_id) {
-            if zone_id == -1 {
-                // TODO: Implement async zone access
-                // For now, return None as zones are async
-                None
-            } else {
-                // Get specific zone
-                None // TODO: Implement async get_zone
-            }
+    pub fn get_map_can_join(&self, _player: &Player, map_id: i32, _zone_id: i32) -> Option<&Zone> {
+        if let Some(_map) = self.get_map_by_id(map_id) {
+            // TODO: Implement async zone access
+            // For now, return None as zones are async
+            None
         } else {
             None
         }
     }
 
     /// Check if map is offline
-    pub fn is_map_offline(&self, map_id: i32) -> bool {
+    pub fn is_map_offline(&self, _map_id: i32) -> bool {
         // TODO: Implement offline map logic
         // For now, return false (map is online)
         false
     }
 
     /// Check if map is cold
-    pub fn is_map_cold(&self, map: &Map) -> bool {
+    pub fn is_map_dungeon(&self, _map: &Map) -> bool {
         // TODO: Implement cold map logic
         // For now, return false (map is not cold)
         false
     }
 
     /// Check if map is Ban Do Kho Bau
-    pub fn is_map_ban_do_kho_bau(&self, map_id: i32) -> bool {
+    pub fn is_map_ban_do_kho_bau(&self, _map_id: i32) -> bool {
         // TODO: Implement Ban Do Kho Bau map logic
         false
     }
 
     /// Check if map is Doanh Trai
-    pub fn is_map_doanh_trai(&self, map_id: i32) -> bool {
+    pub fn is_map_doanh_trai(&self, _map_id: i32) -> bool {
         // TODO: Implement Doanh Trai map logic
         false
     }
 
     /// Check if map is Ma Bu
-    pub fn is_map_ma_bu(&self, map_id: i32) -> bool {
+    pub fn is_map_mabu(&self, _map_id: i32) -> bool {
         // TODO: Implement Ma Bu map logic
         false
     }
 
     /// Check if map is Satan
-    pub fn is_map_satan(&self, map_id: i32) -> bool {
+    pub fn is_map_admin(&self, _map_id: i32) -> bool {
         // TODO: Implement Satan map logic
         false
     }
 
     /// Get map capsule for player
-    pub fn get_map_capsule(&self, player: &Player) -> Vec<&Zone> {
+    pub fn get_map_capsule(&self, _player: &Player) -> Vec<&Zone> {
         // TODO: Implement capsule map logic
         Vec::new()
     }
@@ -162,7 +151,7 @@ impl MapService {
     /// Get map by name
     pub fn get_map_by_name(&self, name: &str) -> Option<&Map> {
         for map in self.maps.values() {
-            if map.map_name == name {
+            if map.info.name == name {
                 return Some(map);
             }
         }
@@ -173,7 +162,7 @@ impl MapService {
     pub fn get_maps_by_planet(&self, planet_id: i32) -> Vec<&Map> {
         self.maps
             .values()
-            .filter(|map| map.planet_id == planet_id)
+            .filter(|map| map.info.planet_id == planet_id)
             .collect()
     }
 
@@ -181,7 +170,7 @@ impl MapService {
     pub fn get_maps_by_type(&self, map_type: i32) -> Vec<&Map> {
         self.maps
             .values()
-            .filter(|map| map.r#type == map_type)
+            .filter(|map| map.info.r#type == map_type)
             .collect()
     }
 
@@ -222,7 +211,7 @@ impl MapService {
     /// Get map info for player
     pub fn get_map_info(&self, player: &Player, map_id: i32) -> Option<String> {
         if let Some(map) = self.get_map_by_id(map_id) {
-            Some(format!("Map: {} (ID: {})", map.map_name, map.map_id))
+            Some(format!("Map: {} (ID: {})", map.info.name, map.info.id))
         } else {
             None
         }

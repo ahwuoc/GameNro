@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::player;
 use crate::item::inventory::Inventory;
 use crate::item::item::{self, Item as RtItem};
@@ -105,9 +106,7 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
                 item_data.template_id as i16,
                 item_data.quantity,
             ) {
-                println!("item id {:?}", item.get_name());
                 for (opt_id, param) in item_data.options {
-                    println!("option id:{} item id:{}",opt_id,param );
                     item.add_option_param(opt_id, param);
                 }
                 p.inventory.items_body.push(item);
@@ -117,7 +116,6 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         }
     }
 
-    // Load bag items - only push non-null items
     let items_bags = parser_item_raw(&model.items_bag);
     for items_bag in items_bags {
         if items_bag.template_id != -1 {
@@ -135,7 +133,6 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         }
     }
 
-    // Load box items - only push non-null items
     let items_boxs = parser_item_raw(&model.items_box);
     for item_box in items_boxs {
         if item_box.template_id != -1 {
@@ -159,8 +156,7 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         p.inventory.items_bag.len(),
         p.inventory.items_box.len()
     );
-    
- 
+
     match parse_task_data(&model.data_task) {
         Ok((task_main_id, task_index)) => {
             let calculated_task_id = (task_main_id << 10) + (task_index << 1);
@@ -171,11 +167,14 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
             );
         }
         Err(e) => {
-            println!("[PLAYER_DAO] Failed to parse task data: {}, using task_id=0", e);
+            println!(
+                "[PLAYER_DAO] Failed to parse task data: {}, using task_id=0",
+                e
+            );
             p.task_id = 0;
         }
     }
-    
+
     Ok(p)
 }
 
@@ -263,16 +262,16 @@ fn parse_task_data(s: &str) -> anyhow::Result<(i32, i32)> {
     if s.is_empty() || s == "[]" {
         return Ok((0, 0)); // Default: no task progress
     }
-    
-    let array: Vec<serde_json::Value> = serde_json::from_str(s)
-        .map_err(|e| anyhow::anyhow!("Failed to parse task data: {}", e))?;
-    
+
+    let array: Vec<serde_json::Value> =
+        serde_json::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse task data: {}", e))?;
+
     if array.len() < 2 {
         return Ok((0, 0));
     }
-    
+
     let task_main_id = array[0].as_i64().unwrap_or(0) as i32;
     let task_index = array[1].as_i64().unwrap_or(0) as i32;
-    
+
     Ok((task_main_id, task_index))
 }

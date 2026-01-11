@@ -1,37 +1,23 @@
+use crate::data;
 use crate::entities::map_template;
 use crate::map::Map;
 use crate::map::WayPoint;
 use sea_orm::*;
+use serde::Deserialize;
 use serde_json;
 
 pub struct MapDao;
 
+#[derive(Debug, Deserialize)]
+pub struct MobSpawn {
+    pub template: i32,
+    pub level: i32,
+    pub hp: i32,
+    pub x: i16,
+    pub y: i16,
+}
+
 impl MapDao {
-    pub async fn load_map_template(
-        database: &DatabaseConnection,
-        template_id: i32,
-    ) -> Result<Option<map_template::Model>, DbErr> {
-        let template = map_template::Entity::find_by_id(template_id)
-            .one(database)
-            .await?;
-
-        Ok(template)
-    }
-
-    pub async fn load_all_map_templates(
-        database: &DatabaseConnection,
-    ) -> Result<Vec<map_template::Model>, DbErr> {
-        let templates = map_template::Entity::find().all(database).await?;
-        Ok(templates)
-    }
-
-    pub async fn create_map_from_template(
-        database: &DatabaseConnection,
-        template: &map_template::Model,
-    ) -> anyhow::Result<Map> {
-        let map = Map::from_template(template);
-        Ok(map)
-    }
     pub async fn load_map_waypoints(
         database: &DatabaseConnection,
         map_id: i32,
@@ -81,45 +67,63 @@ impl MapDao {
     }
 
     pub async fn load_map_mobs(
-        database: &DatabaseConnection,
+        db: &DatabaseConnection,
         map_id: i32,
-    ) -> anyhow::Result<Vec<(i32, i32, i32, i32, i32)>> {
-        // let template = map_template::Entity::find_by_id(map_id)
-        //     .one(database)
-        //     .await?;
-        let template = map_template::Entity::find_by_id(map_id)
-            .one(database)
-            .await?;
+    ) -> anyhow::Result<Vec<MobSpawn>> {
+        let Some(template) = map_template::Entity::find_by_id(map_id).one(db).await? else {
+            return Ok(Vec::new());
+        };
+        if template.mobs.is_empty() {
+            return Ok(Vec::new());
+        }
 
-        if let Some(template) = template {
-            if !template.mobs.is_empty() {
-                let cleaned = template.mobs.replace('\"', "");
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                    let mut mobs = Vec::new();
-                    if let Some(arr) = json.as_array() {
-                        for mv in arr {
-                            if let Some(ma) = mv.as_array() {
-                                if ma.len() >= 5 {
-                                    let temp = ma[0].as_i64().unwrap_or(0) as i32;
-                                    let level = ma[1].as_i64().unwrap_or(1) as i32;
-                                    let hp = ma[2].as_i64().unwrap_or(0) as i32;
-                                    let x = ma[3].as_i64().unwrap_or(0) as i32;
-                                    let y = ma[4].as_i64().unwrap_or(0) as i32;
-                                    mobs.push((temp, level, hp, x, y));
-                                }
-                            }
+        let outer_json: serde_json::Value = match serde_json::from_str(&template.mobs) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Failed to parse mobs json for map {}: {}", map_id, e);
+                return Ok(Vec::new());
+            }
+        };
+
+        let mut mobs = Vec::new();
+
+        if let Some(arr) = outer_json.as_array() {
+            for element in arr {
+                let inner_value = match element {
+                    serde_json::Value::String(s) => {
+                        serde_json::from_str::<serde_json::Value>(s).ok()
+                    }
+                    _ => Some(element.clone()),
+                };
+
+                if let Some(val) = inner_value {
+                    if let Ok(mob) = serde_json::from_value::<MobSpawn>(val.clone()) {
+                        println!("Parser mob {:?}", mob);
+                        mobs.push(mob);
+                    } else if let Some(mob_arr) = val.as_array() {
+                        if mob_arr.len() >= 5 {
+                            let template = mob_arr[0].as_i64().unwrap_or(0) as i32;
+                            let level = mob_arr[1].as_i64().unwrap_or(0) as i32;
+                            let hp = mob_arr[2].as_i64().unwrap_or(0) as i32;
+                            let x = mob_arr[3].as_i64().unwrap_or(0) as i16;
+                            let y = mob_arr[4].as_i64().unwrap_or(0) as i16;
+                            let mob = MobSpawn {
+                                template,
+                                level,
+                                hp,
+                                x,
+                                y,
+                            };
+                            println!("Parser mob array {:?}", mob);
+                            mobs.push(mob);
                         }
-                    }
-                    if mobs.is_empty() {
-                        println!("WARN: No mobs loaded for map {} (parsed empty)", map_id);
                     } else {
-                        println!("DEBUG: Loaded {} mobs for map {}", mobs.len(), map_id);
+                        println!("Failed to parse individual mob: {:?}", val);
                     }
-                    return Ok(mobs);
                 }
             }
         }
-        Ok(Vec::new())
+        Ok(mobs)
     }
     pub async fn load_map_npcs(
         database: &DatabaseConnection,

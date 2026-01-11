@@ -1,7 +1,8 @@
-use once_cell::sync::Lazy;
-use dashmap::DashMap;
-use crate::map::Map;
+#![allow(dead_code)]
 use crate::entities::map_template::Model as MapTemplate;
+use crate::map::Map;
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
 
 static MAPS: Lazy<DashMap<i32, Map>> = Lazy::new(|| DashMap::new());
 
@@ -9,7 +10,7 @@ pub async fn create_map(template: &MapTemplate) -> anyhow::Result<()> {
     let map = Map::from_template(template);
     let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
     map.init_zones(&zone_manager).await?;
-    MAPS.insert(map.map_id, map);
+    MAPS.insert(map.info.id, map);
     Ok(())
 }
 
@@ -28,37 +29,27 @@ pub async fn update_all_maps() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn load_tiles_for_map(map_id: i32, tile_id: i32) -> anyhow::Result<()> {
-    if let Some(mut map) = MAPS.get_mut(&map_id) {
-        if let Some((w, h, tile_map)) = crate::map::tile_loader::TileLoader::read_tile_map_file(map_id) {
-            map.map_width = w;
-            map.map_height = h;
-            map.tile_map = tile_map;
-        }
-        if let Some(tile_top) = crate::map::tile_loader::TileLoader::read_tile_top_file(tile_id) {
-            map.tile_top = tile_top;
-        }
-    }
+pub fn load_tiles_for_map(_map_id: i32, _tile_id: i32) -> anyhow::Result<()> {
     Ok(())
 }
 
 pub fn get_maps_by_planet(planet_id: i32) -> Vec<Map> {
     MAPS.iter()
-        .filter(|kv| kv.value().planet_id == planet_id)
+        .filter(|kv| kv.value().info.planet_id == planet_id)
         .map(|kv| kv.value().clone())
         .collect()
 }
 
 pub fn get_maps_by_type(map_type: i32) -> Vec<Map> {
     MAPS.iter()
-        .filter(|kv| kv.value().r#type == map_type)
+        .filter(|kv| kv.value().info.r#type == map_type)
         .map(|kv| kv.value().clone())
         .collect()
 }
 
 pub fn get_map_by_name(name: &str) -> Option<Map> {
     MAPS.iter()
-        .find(|kv| kv.value().map_name == name)
+        .find(|kv| kv.value().info.name == name)
         .map(|kv| kv.value().clone())
 }
 
