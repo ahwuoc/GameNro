@@ -1,4 +1,4 @@
-// #![allow(unused)]
+#![allow(unused)]
 mod account;
 mod config;
 mod constant;

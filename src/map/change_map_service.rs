@@ -358,7 +358,6 @@ impl ChangeMapService {
         }
 
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
-            println!("=============@@@@@@@@@===================");
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này")?;
             session.send_message(&msg).await?;
@@ -382,8 +381,6 @@ impl ChangeMapService {
                 session,
             )
             .await?;
-
-            // Update cooldown
             player.update_zone_change_time();
         } else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -493,16 +490,13 @@ impl ChangeMapService {
 
     /// Get zones for a specific map
     async fn get_zones_for_map(&self, map_id: i32) -> Vec<Zone> {
-        if let Some(map) = map_manager::get_map(map_id) {
+        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_all_zones().await;
         }
         Vec::new()
     }
 
-    /// Check if a map is special (offline/dungeon) and doesn't allow zone changes
     fn is_special_map(_map_id: i32) -> bool {
-        // Add logic for special maps that don't allow zone changes
-        // This is a placeholder - real implementation would check map properties
         false
     }
 
@@ -588,7 +582,7 @@ impl ChangeMapService {
     }
 
     async fn get_waypoint_at_player_position(&self, player: &Player) -> Option<WayPoint> {
-        if let Some(map) = map_manager::get_map(player.map_id) {
+        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(player.map_id) {
             let waypoint = map.get_waypoint_at_position(player.location.x, player.location.y);
             println!(
                 "Player {} at position ({}, {}) on map {}: Waypoint found: {}",
@@ -604,7 +598,7 @@ impl ChangeMapService {
         None
     }
     async fn get_available_zone(&self, map_id: i32) -> Option<Zone> {
-        if let Some(map) = map_manager::get_map(map_id) {
+        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_best_zone().await;
         }
         None
@@ -694,14 +688,6 @@ impl ChangeMapService {
 
         player.location.set_position(x, player.location.y);
     }
-
-    /// Exit map with async broadcast to other players
-    ///
-    /// This function:
-    /// 1. Removes player from zone
-    /// 2. Broadcasts leave message (CMD -6) to other players in the zone
-    ///
-    /// Requirements: 5.1
     pub async fn exit_map_async(&self, player: &mut Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
             // Remove player from zone
@@ -976,7 +962,7 @@ impl ChangeMapService {
 
     /// Get a specific zone by map_id and zone_id
     async fn get_specific_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
-        if let Some(map) = map_manager::get_map(map_id) {
+        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_zone(zone_id).await;
         }
         None

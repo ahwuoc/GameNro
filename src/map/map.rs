@@ -1,59 +1,142 @@
-#![allow(dead_code)]
 use crate::entities::map_template::Model as MapTemplate;
-use crate::entities::mob_template::Model as MobTemplate;
 use crate::map::tile_loader::TileLoader;
+pub use crate::map::waypoint::WayPoint;
 use crate::map::zone::Zone;
 use crate::map::zone_manager::ZoneManager;
 use crate::mob::{mob_template_manager, RtMob};
 use chrono::{DateTime, Utc};
-use sea_orm::prelude::*;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-#[derive(Debug, Clone)]
-pub struct WayPoint {
-    pub min_x: i16,
-    pub min_y: i16,
-    pub max_x: i16,
-    pub max_y: i16,
-    pub is_enter: bool,
-    pub is_offline: bool,
-    pub name: String,
-    pub go_map: i32,
-    pub go_x: i16,
-    pub go_y: i16,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobSpawn {
+    pub template: i32,
+    pub level: i32,
+    pub hp: i32,
+    pub x: i16,
+    pub y: i16,
 }
 
-impl WayPoint {
-    pub fn new(
-        min_x: i16,
-        min_y: i16,
-        max_x: i16,
-        max_y: i16,
-        is_enter: bool,
-        is_offline: bool,
-        name: String,
-        go_map: i32,
-        go_x: i16,
-        go_y: i16,
-    ) -> Self {
-        Self {
-            min_x,
-            min_y,
-            max_x,
-            max_y,
-            is_enter,
-            is_offline,
-            name,
-            go_map,
-            go_x,
-            go_y,
+impl MobSpawn {
+    pub fn parse(json_str: &str) -> Vec<Self> {
+        let mut mobs = Vec::new();
+        if json_str.is_empty() {
+            return mobs;
         }
+
+        let outer_json: Value = match serde_json::from_str(json_str) {
+            Ok(v) => v,
+            Err(_) => {
+                let cleaned = json_str.replace('\"', "");
+                serde_json::from_str(&cleaned).unwrap_or(Value::Array(vec![]))
+            }
+        };
+
+        if let Some(arr) = outer_json.as_array() {
+            for element in arr {
+                let inner_value = match element {
+                    Value::String(s) => serde_json::from_str::<Value>(s).ok(),
+                    _ => Some(element.clone()),
+                };
+
+                if let Some(val) = inner_value {
+                    if let Ok(mob) = serde_json::from_value::<MobSpawn>(val.clone()) {
+                        mobs.push(mob);
+                        continue;
+                    }
+                    let t = val
+                        .get("template")
+                        .and_then(|v| v.as_i64())
+                        .map(|v| v as i32);
+                    let l = val.get("level").and_then(|v| v.as_i64()).map(|v| v as i32);
+                    let h = val.get("hp").and_then(|v| v.as_i64()).map(|v| v as i32);
+                    let x = val.get("x").and_then(|v| v.as_i64()).map(|v| v as i16);
+                    let y = val.get("y").and_then(|v| v.as_i64()).map(|v| v as i16);
+
+                    if let (Some(template), Some(level), Some(hp), Some(x), Some(y)) =
+                        (t, l, h, x, y)
+                    {
+                        mobs.push(MobSpawn {
+                            template,
+                            level,
+                            hp,
+                            x,
+                            y,
+                        });
+                        continue;
+                    }
+
+                    // Fallback to array format
+                    if let Some(ma) = val.as_array() {
+                        if ma.len() >= 5 {
+                            let template = ma[0].as_i64().unwrap_or(0) as i32;
+                            let level = ma[1].as_i64().unwrap_or(1) as i32;
+                            let hp = ma[2].as_i64().unwrap_or(0) as i32;
+                            let x = ma[3].as_i64().unwrap_or(0) as i16;
+                            let y = ma[4].as_i64().unwrap_or(0) as i16;
+                            mobs.push(MobSpawn {
+                                template,
+                                level,
+                                hp,
+                                x,
+                                y,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        mobs
     }
-    pub fn contains_position(&self, x: i16, y: i16) -> bool {
-        x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NpcSpawn {
+    pub id: i32,
+    pub x: i16,
+    pub y: i16,
+}
+
+impl NpcSpawn {
+    pub fn parse(json_str: &str) -> Vec<Self> {
+        let mut npcs = Vec::new();
+        if json_str.is_empty() {
+            return npcs;
+        }
+
+        let cleaned = json_str.replace('\"', "");
+        if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
+            if let Some(arr) = json.as_array() {
+                for nv in arr {
+                    match nv {
+                        Value::Array(a) => {
+                            if a.len() >= 3 {
+                                let id = a[0].as_i64().unwrap_or(0) as i32;
+                                let x = a[1].as_i64().unwrap_or(0) as i16;
+                                let y = a[2].as_i64().unwrap_or(0) as i16;
+                                npcs.push(NpcSpawn { id, x, y });
+                            }
+                        }
+                        Value::String(s) => {
+                            if let Ok(val) = serde_json::from_str::<Value>(s) {
+                                if let Some(a) = val.as_array() {
+                                    if a.len() >= 3 {
+                                        let id = a[0].as_i64().unwrap_or(0) as i32;
+                                        let x = a[1].as_i64().unwrap_or(0) as i16;
+                                        let y = a[2].as_i64().unwrap_or(0) as i16;
+                                        npcs.push(NpcSpawn { id, x, y });
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        npcs
     }
 }
 
@@ -74,128 +157,15 @@ pub struct MapInfo {
     pub tile_map: Vec<Vec<i32>>,
     pub tile_top: Vec<i32>,
     pub waypoints: Vec<WayPoint>,
-    pub mobs: Vec<(i32, i32, i32, i32, i32)>,
-    pub npcs: Vec<(i32, i16, i16)>,
+    pub mobs: Vec<MobSpawn>,
+    pub npcs: Vec<NpcSpawn>,
 }
 
 impl MapInfo {
     pub fn from_template(template: &MapTemplate) -> Self {
-        let mut waypoints = Vec::new();
-        if !template.waypoints.is_empty() {
-            let cleaned = template
-                .waypoints
-                .replace("[\"[", "[[")
-                .replace("]\"]", "]]")
-                .replace("\",\"", ",");
-            if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
-                if let Some(arr) = json.as_array() {
-                    for wpv in arr {
-                        if let Some(wp_arr) = wpv.as_array() {
-                            if wp_arr.len() >= 10 {
-                                let name = wp_arr[0].as_str().unwrap_or("").to_string();
-                                let min_x = wp_arr[1].as_i64().unwrap_or(0) as i16;
-                                let min_y = wp_arr[2].as_i64().unwrap_or(0) as i16;
-                                let max_x = wp_arr[3].as_i64().unwrap_or(0) as i16;
-                                let max_y = wp_arr[4].as_i64().unwrap_or(0) as i16;
-                                let is_enter = (wp_arr[5].as_i64().unwrap_or(0) as i8) == 1;
-                                let is_offline = (wp_arr[6].as_i64().unwrap_or(0) as i8) == 1;
-                                let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
-                                let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
-                                let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
-                                waypoints.push(WayPoint::new(
-                                    min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map,
-                                    go_x, go_y,
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut mobs = Vec::new();
-        if !template.mobs.is_empty() {
-            let outer_json: serde_json::Value = match serde_json::from_str(&template.mobs) {
-                Ok(v) => v,
-                Err(_) => {
-                    let cleaned = template.mobs.replace('\"', "");
-                    serde_json::from_str(&cleaned).unwrap_or(Value::Array(vec![]))
-                }
-            };
-
-            if let Some(arr) = outer_json.as_array() {
-                for element in arr {
-                    let inner_value = match element {
-                        Value::String(s) => serde_json::from_str::<Value>(s).ok(),
-                        _ => Some(element.clone()),
-                    };
-
-                    if let Some(val) = inner_value {
-                        // Try parsing as object keys
-                        let t = val
-                            .get("template")
-                            .and_then(|v| v.as_i64())
-                            .map(|v| v as i32);
-                        let l = val.get("level").and_then(|v| v.as_i64()).map(|v| v as i32);
-                        let h = val.get("hp").and_then(|v| v.as_i64()).map(|v| v as i32);
-                        let x = val.get("x").and_then(|v| v.as_i64()).map(|v| v as i32);
-                        let y = val.get("y").and_then(|v| v.as_i64()).map(|v| v as i32);
-
-                        if let (Some(temp), Some(level), Some(hp), Some(x), Some(y)) =
-                            (t, l, h, x, y)
-                        {
-                            mobs.push((temp, level, hp, x, y));
-                            continue;
-                        }
-
-                        if let Some(ma) = val.as_array() {
-                            if ma.len() >= 5 {
-                                let temp = ma[0].as_i64().unwrap_or(0) as i32;
-                                let level = ma[1].as_i64().unwrap_or(1) as i32;
-                                let hp = ma[2].as_i64().unwrap_or(0) as i32;
-                                let x = ma[3].as_i64().unwrap_or(0) as i32;
-                                let y = ma[4].as_i64().unwrap_or(0) as i32;
-                                mobs.push((temp, level, hp, x, y));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut npcs = Vec::new();
-        if !template.npcs.is_empty() {
-            let cleaned = template.npcs.replace('\"', "");
-            if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
-                if let Some(arr) = json.as_array() {
-                    for nv in arr {
-                        match nv {
-                            Value::Array(a) => {
-                                if a.len() >= 3 {
-                                    let id = a[0].as_i64().unwrap_or(0) as i32;
-                                    let x = a[1].as_i64().unwrap_or(0) as i16;
-                                    let y = a[2].as_i64().unwrap_or(0) as i16;
-                                    npcs.push((id, x, y));
-                                }
-                            }
-                            Value::String(s) => {
-                                if let Ok(val) = serde_json::from_str::<Value>(s) {
-                                    if let Some(a) = val.as_array() {
-                                        if a.len() >= 3 {
-                                            let id = a[0].as_i64().unwrap_or(0) as i32;
-                                            let x = a[1].as_i64().unwrap_or(0) as i16;
-                                            let y = a[2].as_i64().unwrap_or(0) as i16;
-                                            npcs.push((id, x, y));
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
+        let waypoints = WayPoint::parse(&template.waypoints);
+        let mobs = MobSpawn::parse(&template.mobs);
+        let npcs = NpcSpawn::parse(&template.npcs);
 
         let (map_width, map_height, tile_map) =
             if let Some((w, h, tiles)) = TileLoader::read_tile_map_file(template.id) {
@@ -256,8 +226,9 @@ impl Map {
             zone_manager
                 .create_zone(self.info.id, i, max_player)
                 .await?;
-            let zone = Zone::new(self.info.id, i, max_player);
-            zones.push(zone);
+            if let Some(zone) = zone_manager.get_zone(self.info.id, i).await {
+                zones.push(zone);
+            }
         }
         Ok(())
     }
@@ -265,23 +236,18 @@ impl Map {
     pub async fn init_mobs(&self) -> anyhow::Result<()> {
         let zones = self.zones.read().await;
         for (zone_index, zone) in zones.iter().enumerate() {
-            for (idx, (temp_id, level, hp, x, y)) in self.info.mobs.iter().cloned().enumerate() {
-                if let Some(template) = mob_template_manager::get(temp_id as i8) {
-                    let mut mob = RtMob::from_template(template.clone(), idx as u64);
-                    mob.set_location(
-                        self.info.id,
-                        zone_index.try_into().unwrap(),
-                        x as i16,
-                        y as i16,
-                    );
-                    if level > 0 {
-                        mob.level = level as i8;
+            for (idx, mob) in self.info.mobs.iter().enumerate() {
+                if let Some(template) = mob_template_manager::get(mob.template as i8) {
+                    let mut rt_mob = RtMob::from_template(template.clone(), idx as u64);
+                    rt_mob.set_location(self.info.id, zone_index.try_into().unwrap(), mob.x, mob.y);
+                    if mob.level > 0 {
+                        rt_mob.level = mob.level as i8;
                     }
-                    if hp > 0 {
-                        mob.max_hp = hp;
-                        mob.hp = hp;
+                    if mob.hp > 0 {
+                        rt_mob.max_hp = mob.hp;
+                        rt_mob.hp = mob.hp;
                     }
-                    zone.add_mob(mob).await?;
+                    zone.add_mob(rt_mob).await?;
                 }
             }
         }

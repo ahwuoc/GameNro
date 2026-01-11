@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use serde_json::Value;
+
 #[derive(Debug, Clone)]
 pub struct WayPoint {
     pub min_x: i16,
@@ -61,7 +63,10 @@ impl WayPoint {
     }
 
     pub fn get_destination_info(&self) -> String {
-        format!("{} -> Map {} at ({}, {})", self.name, self.go_map, self.go_x, self.go_y)
+        format!(
+            "{} -> Map {} at ({}, {})",
+            self.name, self.go_map, self.go_x, self.go_y
+        )
     }
 
     pub fn is_enter_waypoint(&self) -> bool {
@@ -74,5 +79,39 @@ impl WayPoint {
 
     pub fn can_teleport(&self) -> bool {
         !self.is_offline && self.is_valid()
+    }
+
+    pub fn parse(json_str: &str) -> Vec<Self> {
+        let mut waypoints = Vec::new();
+        let cleaned = json_str
+            .replace("[\"[", "[[")
+            .replace("]\"]", "]]")
+            .replace("\",\"", ",");
+
+        if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
+            if let Some(arr) = json.as_array() {
+                for wpv in arr {
+                    if let Some(wp_arr) = wpv.as_array() {
+                        if wp_arr.len() >= 10 {
+                            let name = wp_arr[0].as_str().unwrap_or("").to_string();
+                            let min_x = wp_arr[1].as_i64().unwrap_or(0) as i16;
+                            let min_y = wp_arr[2].as_i64().unwrap_or(0) as i16;
+                            let max_x = wp_arr[3].as_i64().unwrap_or(0) as i16;
+                            let max_y = wp_arr[4].as_i64().unwrap_or(0) as i16;
+                            let is_enter = (wp_arr[5].as_i64().unwrap_or(0) as i8) == 1;
+                            let is_offline = (wp_arr[6].as_i64().unwrap_or(0) as i8) == 1;
+                            let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
+                            let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
+                            let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
+                            waypoints.push(WayPoint::new(
+                                min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map,
+                                go_x, go_y,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        waypoints
     }
 }

@@ -3,7 +3,7 @@ use crate::entities::item_template::Model as ItemMap;
 use crate::map::map_manager;
 use crate::mob::RtMob;
 use crate::network::message::Message;
-use crate::network::session::{self, AsyncSession};
+use crate::network::session::AsyncSession;
 use crate::player::player::Player;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -237,7 +237,6 @@ impl Zone {
         Ok(())
     }
 
-    /// Load a player into this zone and send map info
     pub async fn load_player_to_zone(
         &self,
         mut player: Player,
@@ -245,9 +244,9 @@ impl Zone {
     ) -> anyhow::Result<()> {
         player.set_zone(self.clone());
         self.add_player(player.clone()).await?;
-        self.map_info(session, player.id).await?;
         self.load_another_to_me(player.id).await?;
         self.load_me_to_another(player.id).await?;
+        self.map_info(session, player.id).await?;
         Ok(())
     }
 
@@ -305,7 +304,7 @@ impl Zone {
         };
 
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
-            if let Some(map) = map_manager::get_map(self.map_id) {
+            if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (
                     map.info.planet_id as i8,
                     map.info.tile_id as i8,
@@ -320,34 +319,34 @@ impl Zone {
         };
 
         let mut msg = Message::new(-24);
-        msg.write_byte((self.map_id as u8) as i8);
-        msg.write_byte(planet_id);
-        msg.write_byte(tile_id);
-        msg.write_byte(bg_id);
-        msg.write_byte(map_type);
-        msg.write_utf(&map_name);
-        msg.write_byte(self.zone_id as i8);
-        msg.write_short(player.location.x);
-        msg.write_short(player.location.y);
+        msg.write_byte((self.map_id as u8) as i8)?;
+        msg.write_byte(planet_id)?;
+        msg.write_byte(tile_id)?;
+        msg.write_byte(bg_id)?;
+        msg.write_byte(map_type)?;
+        msg.write_utf(&map_name)?;
+        msg.write_byte(self.zone_id as i8)?;
+        msg.write_short(player.location.x)?;
+        msg.write_short(player.location.y)?;
 
         // Waypoints
         let wp_count: i8 = {
-            if let Some(map) = map_manager::get_map(self.map_id) {
+            if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 let wps = &map.info.waypoints;
                 let count = (wps.len().min(127)) as i8;
-                msg.write_byte(count);
+                msg.write_byte(count)?;
                 for wp in wps.iter().take(count as usize) {
-                    msg.write_short(wp.min_x);
-                    msg.write_short(wp.min_y);
-                    msg.write_short(wp.max_x);
-                    msg.write_short(wp.max_y);
-                    msg.write_boolean(wp.is_enter);
+                    msg.write_short(wp.min_x)?;
+                    msg.write_short(wp.min_y)?;
+                    msg.write_short(wp.max_x)?;
+                    msg.write_short(wp.max_y)?;
+                    msg.write_boolean(wp.is_enter)?;
                     msg.write_boolean(wp.is_offline)?;
                     msg.write_utf(&wp.name)?;
                 }
                 count
             } else {
-                let _ = msg.write_byte(0);
+                let _ = msg.write_byte(0)?;
                 0
             }
         };
@@ -375,12 +374,14 @@ impl Zone {
                 msg.write_boolean(false)?;
             }
         }
-        let _ = msg.write_byte(0);
+        let _ = msg.write_byte(0)?;
         {
             let (npcs_for_map, avatar_lookup) = {
                 let mgr = crate::services::Manager::get_instance();
                 let guard = mgr.lock().unwrap();
-                let npcs = if let Some(map) = crate::map::map_manager::get_map(self.map_id) {
+                let npcs = if let Some(map) =
+                    crate::map::map_manager::MAP_MANAGER.find_by_id(self.map_id)
+                {
                     map.info.npcs.clone()
                 } else {
                     Vec::new()
@@ -393,23 +394,23 @@ impl Zone {
                 (npcs, avatars)
             };
             let count: i8 = (npcs_for_map.len().min(127)) as i8;
-            let _ = msg.write_byte(count);
-            for (id, x, y) in npcs_for_map.into_iter().take(count as usize) {
+            let _ = msg.write_byte(count)?;
+            for npc in npcs_for_map.into_iter().take(count as usize) {
                 let status: i8 = 1; // default active
-                let avatar: i16 = avatar_lookup.get(&id).cloned().unwrap_or(0) as i16;
-                let _ = msg.write_byte(status); // status
-                let _ = msg.write_short(x); // cx
-                let _ = msg.write_short(y); // cy
-                let _ = msg.write_byte(id as i8); // tempId
-                let _ = msg.write_short(avatar); // avatar
+                let avatar: i16 = avatar_lookup.get(&npc.id).cloned().unwrap_or(0) as i16;
+                let _ = msg.write_byte(status)?; // status
+                let _ = msg.write_short(npc.x)?; // cx
+                let _ = msg.write_short(npc.y)?; // cy
+                let _ = msg.write_byte(npc.id as i8)?; // tempId
+                let _ = msg.write_short(avatar)?; // avatar
             }
         }
-        let _ = msg.write_byte(0); // items count
+        let _ = msg.write_byte(0)?; // items count
         {
             let bg_item_path = format!("data/girlkun/map/item_bg_map_data/{}", self.map_id);
             match std::fs::read(&bg_item_path) {
                 Ok(data) => {
-                    let _ = msg.write(&data);
+                    let _ = msg.write(&data)?;
                 }
                 Err(_) => {
                     // If file doesn't exist, write short 0
@@ -423,7 +424,7 @@ impl Zone {
             let eff_item_path = format!("data/girlkun/map/eff_map/{}", self.map_id);
             match std::fs::read(&eff_item_path) {
                 Ok(data) => {
-                    let _ = msg.write(&data);
+                    let _ = msg.write(&data)?;
                 }
                 Err(_) => {
                     // If file doesn't exist, write short 0
@@ -433,9 +434,9 @@ impl Zone {
         }
 
         // Trailer bytes
-        let _ = msg.write_byte(bg_type); // bgType from map template
-        let _ = msg.write_byte(0); // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
-        let _ = msg.write_byte(if self.map_id == 148 { 1 } else { 0 }); // special flag for map 148
+        let _ = msg.write_byte(bg_type)?; // bgType from map template
+        let _ = msg.write_byte(0)?; // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
+        let _ = msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?; // special flag for map 148
 
         drop(players);
 

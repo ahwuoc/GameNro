@@ -82,11 +82,10 @@ impl Manager {
     pub async fn init_maps_world(&self) -> Result<()> {
         let map_templates = map_template_manager::get_all();
         for template in &map_templates {
-            let _ = map_manager::create_map(template).await;
-            let _ = map_manager::load_tiles_for_map(template.id, template.tile_id as i32);
-            if let Some(map) = map_manager::get_map(template.id) {
-                map.init_mobs().await?;
-            }
+            let _ = map_manager::MAP_MANAGER
+                .init_and_register_map(template)
+                .await;
+            let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id as i32);
         }
         println!("Initialized {} maps into world", map_templates.len());
         Ok(())
@@ -98,7 +97,7 @@ impl Manager {
             loop {
                 let start = std::time::Instant::now();
                 runtime.block_on(async {
-                    let _ = map_manager::update_all_maps().await;
+                    let _ = map_manager::MAP_MANAGER.update_game_loop().await;
                 });
                 let elapsed_ms = start.elapsed().as_millis() as u64;
                 let sleep_ms = if elapsed_ms >= 1000 {

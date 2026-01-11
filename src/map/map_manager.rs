@@ -1,80 +1,88 @@
-#![allow(dead_code)]
 use crate::entities::map_template::Model as MapTemplate;
 use crate::map::Map;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
-static MAPS: Lazy<DashMap<i32, Map>> = Lazy::new(|| DashMap::new());
-
-pub async fn create_map(template: &MapTemplate) -> anyhow::Result<()> {
-    let map = Map::from_template(template);
-    let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
-    map.init_zones(&zone_manager).await?;
-    MAPS.insert(map.info.id, map);
-    Ok(())
+/// Quản lý toàn bộ các bản đồ (Map Instances) đang hoạt động trong game.
+pub struct MapManager {
+    /// Danh sách map, key là map_id
+    instances: DashMap<i32, Map>,
 }
 
-pub fn get_map(map_id: i32) -> Option<Map> {
-    MAPS.get(&map_id).map(|v| v.clone())
-}
+pub static MAP_MANAGER: Lazy<MapManager> = Lazy::new(|| MapManager::new());
 
-pub fn get_all_maps() -> Vec<Map> {
-    MAPS.iter().map(|kv| kv.value().clone()).collect()
-}
-
-pub async fn update_all_maps() -> anyhow::Result<()> {
-    for map in MAPS.iter() {
-        map.value().update().await?;
-    }
-    Ok(())
-}
-
-pub fn load_tiles_for_map(_map_id: i32, _tile_id: i32) -> anyhow::Result<()> {
-    Ok(())
-}
-
-pub fn get_maps_by_planet(planet_id: i32) -> Vec<Map> {
-    MAPS.iter()
-        .filter(|kv| kv.value().info.planet_id == planet_id)
-        .map(|kv| kv.value().clone())
-        .collect()
-}
-
-pub fn get_maps_by_type(map_type: i32) -> Vec<Map> {
-    MAPS.iter()
-        .filter(|kv| kv.value().info.r#type == map_type)
-        .map(|kv| kv.value().clone())
-        .collect()
-}
-
-pub fn get_map_by_name(name: &str) -> Option<Map> {
-    MAPS.iter()
-        .find(|kv| kv.value().info.name == name)
-        .map(|kv| kv.value().clone())
-}
-
-pub fn remove_map(map_id: i32) -> bool {
-    MAPS.remove(&map_id).is_some()
-}
-
-pub fn get_map_count() -> usize {
-    MAPS.len()
-}
-
-pub fn clear_all_maps() {
-    MAPS.clear();
-}
-
-pub fn is_map_exists(map_id: i32) -> bool {
-    MAPS.contains_key(&map_id)
-}
-
-pub async fn get_active_maps() -> Vec<Map> {
-    let mut active_maps = Vec::new();
-    for map in MAPS.iter() {
-        if map.value().is_active().await {
-            active_maps.push(map.value().clone());
+impl MapManager {
+    fn new() -> Self {
+        Self {
+            instances: DashMap::new(),
         }
     }
-    active_maps
+
+    pub async fn init_and_register_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
+        let map = Map::from_template(template);
+        let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
+        map.init_zones(&zone_manager).await?;
+        map.init_mobs().await?;
+
+        self.instances.insert(map.info.id, map);
+        Ok(())
+    }
+
+    /// Tìm một Map Instance đang hoạt động theo ID
+    pub fn find_by_id(&self, map_id: i32) -> Option<Map> {
+        self.instances.get(&map_id).map(|v| v.clone())
+    }
+
+    pub fn get_all(&self) -> Vec<Map> {
+        self.instances.iter().map(|kv| kv.value().clone()).collect()
+    }
+
+    pub async fn update_game_loop(&self) -> anyhow::Result<()> {
+        for map in self.instances.iter() {
+            map.value().update().await?;
+        }
+        Ok(())
+    }
+
+    pub fn find_maps_by_planet(&self, planet_id: i32) -> Vec<Map> {
+        self.instances
+            .iter()
+            .filter(|kv| kv.value().info.planet_id == planet_id)
+            .map(|kv| kv.value().clone())
+            .collect()
+    }
+
+    pub fn find_maps_by_type(&self, map_type: i32) -> Vec<Map> {
+        self.instances
+            .iter()
+            .filter(|kv| kv.value().info.r#type == map_type)
+            .map(|kv| kv.value().clone())
+            .collect()
+    }
+
+    pub fn find_map_by_name(&self, name: &str) -> Option<Map> {
+        self.instances
+            .iter()
+            .find(|kv| kv.value().info.name == name)
+            .map(|kv| kv.value().clone())
+    }
+
+    pub fn unregister_map(&self, map_id: i32) -> bool {
+        self.instances.remove(&map_id).is_some()
+    }
+    pub fn count(&self) -> usize {
+        self.instances.len()
+    }
+
+    pub fn clear(&self) {
+        self.instances.clear();
+    }
+
+    pub fn exists(&self, map_id: i32) -> bool {
+        self.instances.contains_key(&map_id)
+    }
+
+    pub fn load_tiles(_map_id: i32, _tile_id: i32) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

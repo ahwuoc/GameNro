@@ -1,10 +1,10 @@
-#![allow(dead_code)]
 use crate::data::DataGame;
+use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::Zone;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::player::Player as RtPlayer;
-use crate::services::{IntrinsicService, ZoneService};
+use crate::services::IntrinsicService;
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -468,7 +468,10 @@ impl PlayerInfoService {
 
         // -50 thông tin bảng thông báo
         Self::send_notification_tab(session).await?;
-        ZoneService::load_player_to_best_zone(player.clone(), session).await?;
+        let zone_manager = ZONE_MANAGER.read().await;
+        zone_manager
+            .load_player_to_best_zone(player.clone(), session)
+            .await?;
 
         Self::send_cai_trang(session, &player).await?;
 
