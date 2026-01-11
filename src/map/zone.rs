@@ -367,25 +367,25 @@ impl Zone {
         {
             let mobs_guard = self.mobs.read().await;
             let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
-            msg.write_byte(mob_count);
+            println!("DEBUG: Sending {} mobs (map_id: {}) | first mob temp_id: {:?}", mob_count, self.map_id, mobs_guard.first().map(|m| m.template_id));
+            msg.write_byte(mob_count)?;
             for mob in mobs_guard.iter().take(mob_count as usize) {
-                // Java writes 5 booleans flags
                 msg.write_boolean(false)?; // is disable
                 msg.write_boolean(false)?; // is dont move
                 msg.write_boolean(false)?; // is fire
                 msg.write_boolean(false)?; // is ice
                 msg.write_boolean(false)?; // is wind
 
-                msg.write_byte((mob.template_id as u8) as i8);
-                msg.write_byte(0);
-                msg.write_int(mob.hp);
-                msg.write_byte(mob.level);
-                msg.write_int(mob.max_hp);
-                msg.write_short(mob.location.x);
-                msg.write_short(mob.location.y);
-                msg.write_byte(mob.status);
-                msg.write_byte(mob.lv_mob);
-                msg.write_boolean(false)?; // reserved
+                msg.write_byte((mob.template_id as u8) as i8)?;
+                msg.write_byte(0)?;
+                msg.write_int(mob.hp)?;
+                msg.write_byte(mob.level)?;
+                msg.write_int(mob.max_hp)?;
+                msg.write_short(mob.location.x)?;
+                msg.write_short(mob.location.y)?;
+                msg.write_byte(mob.status)?;
+                msg.write_byte(mob.lv_mob)?;
+                msg.write_boolean(false)?;
             }
         }
         msg.write_byte(0);

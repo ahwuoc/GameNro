@@ -1,8 +1,8 @@
-use sea_orm::*;
-use serde_json;
 use crate::entities::map_template;
 use crate::map::Map;
 use crate::map::WayPoint;
+use sea_orm::*;
+use serde_json;
 
 pub struct MapDao;
 
@@ -39,14 +39,15 @@ impl MapDao {
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;
-        
+
         if let Some(template) = template {
             if !template.waypoints.is_empty() {
-                let cleaned = template.waypoints
+                let cleaned = template
+                    .waypoints
                     .replace("[\"[", "[[")
                     .replace("]\"]", "]]")
                     .replace("\",\"", ",");
-                
+
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) {
                     let mut waypoints = Vec::new();
                     if let Some(arr) = json.as_array() {
@@ -63,7 +64,10 @@ impl MapDao {
                                     let go_map = wp_arr[7].as_i64().unwrap_or(0) as i32;
                                     let go_x = wp_arr[8].as_i64().unwrap_or(0) as i16;
                                     let go_y = wp_arr[9].as_i64().unwrap_or(0) as i16;
-                                    waypoints.push(WayPoint::new(min_x, min_y, max_x, max_y, is_enter, is_offline, name, go_map, go_x, go_y));
+                                    waypoints.push(WayPoint::new(
+                                        min_x, min_y, max_x, max_y, is_enter, is_offline, name,
+                                        go_map, go_x, go_y,
+                                    ));
                                 }
                             }
                         }
@@ -72,7 +76,7 @@ impl MapDao {
                 }
             }
         }
-        
+
         Ok(Vec::new())
     }
 
@@ -80,10 +84,13 @@ impl MapDao {
         database: &DatabaseConnection,
         map_id: i32,
     ) -> anyhow::Result<Vec<(i32, i32, i32, i32, i32)>> {
+        // let template = map_template::Entity::find_by_id(map_id)
+        //     .one(database)
+        //     .await?;
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;
-        
+
         if let Some(template) = template {
             if !template.mobs.is_empty() {
                 let cleaned = template.mobs.replace('\"', "");
@@ -103,6 +110,11 @@ impl MapDao {
                             }
                         }
                     }
+                    if mobs.is_empty() {
+                        println!("WARN: No mobs loaded for map {} (parsed empty)", map_id);
+                    } else {
+                        println!("DEBUG: Loaded {} mobs for map {}", mobs.len(), map_id);
+                    }
                     return Ok(mobs);
                 }
             }
@@ -116,7 +128,7 @@ impl MapDao {
         let template = map_template::Entity::find_by_id(map_id)
             .one(database)
             .await?;
-        
+
         if let Some(template) = template {
             if !template.npcs.is_empty() {
                 let cleaned = template.npcs.replace('\"', "");
@@ -132,7 +144,7 @@ impl MapDao {
                                         let y = a[2].as_i64().unwrap_or(0) as i16;
                                         npcs.push((id, x, y));
                                     }
-                                },
+                                }
                                 serde_json::Value::String(s) => {
                                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(s) {
                                         if let Some(a) = val.as_array() {
@@ -144,7 +156,7 @@ impl MapDao {
                                             }
                                         }
                                     }
-                                },
+                                }
                                 _ => {}
                             }
                         }
@@ -153,7 +165,7 @@ impl MapDao {
                 }
             }
         }
-        
+
         Ok(Vec::new())
     }
 }

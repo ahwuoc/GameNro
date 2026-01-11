@@ -102,7 +102,6 @@ impl AsyncController {
                 Ok(())
             }
             21 => {
-                // CMD 21: Change zone
                 if let Some(mut player) = session.take_player() {
                     let zone_id = msg.read_byte()? as i32;
                     let change_map_service = ChangeMapService::new();
@@ -269,11 +268,37 @@ impl AsyncController {
         match account_result {
             Ok(Some(account)) => {
                 let account_id = account.id;
-                {
-                    let mut account_data = account.into_active_model();
-                    account_data.last_time_login = Set(Some(Utc::now()));
-                    AccountDao::update_account(&pool, account_data).await?;
+                
+                const SECOND_WAIT_LOGIN: i64 = 5;
+                let now = Utc::now();
+                let last_login = account.last_time_login;
+                let last_logout = account.last_time_logout;
+
+                let seconds_pass_1 = if let Some(t) = last_login {
+                    (now - t).num_seconds()
+                } else {
+                    999999
+                };
+                
+                let seconds_pass = if let Some(t) = last_logout {
+                    (now - t).num_seconds()
+                } else {
+                    999999
+                };
+
+                if seconds_pass_1 < SECOND_WAIT_LOGIN {
+                     let wait_time = if seconds_pass < seconds_pass_1 {
+                          SECOND_WAIT_LOGIN - seconds_pass
+                     } else {
+                          SECOND_WAIT_LOGIN - seconds_pass_1
+                     };
+                     
+                     let mut msg = Message::new(122);
+                     msg.write_short(wait_time as i16)?;
+                     session.send_message(&msg).await?;
+                     return Ok(());
                 }
+
                 let player_result = AccountDao::get_player_by_account_id(&pool, account_id).await;
 
                 match player_result {
@@ -282,6 +307,36 @@ impl AsyncController {
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                         let mut player_with_zone = rt_player.clone();
+                        
+                        let player_id = player_with_zone.id; // Corrected: use local variable
+
+                        // Check if player is already online and kick if necessary
+                        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
+
+                        if has_old_session {
+                            println!(
+                                "[LOGIN] Found old session for player {}, kicking old session",
+                                player_id
+                            );
+
+                            (&*SESSION_MANAGER)
+                                .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
+                                .await;
+
+                            println!(
+                                "[LOGIN] Old session kicked, allowing new login for player {}",
+                                player_id
+                            );
+                        }
+
+                        // Update Last Login time AFTER checks
+                        {
+                            let mut account_data = account.into_active_model();
+                            account_data.last_time_login = Set(Some(Utc::now()));
+                            AccountDao::update_account(&pool, account_data).await?;
+                        }
+
+                        // Setup Zone
                         {
                             let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
                             if let Some(zone) = zone_manager
@@ -303,27 +358,17 @@ impl AsyncController {
                             }
                         }
 
-                        let player_id = player_with_zone.id;
-
-                        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
-
-                        if has_old_session {
-                            println!(
-                                "[LOGIN] Found old session for player {}, kicking old session",
-                                player_id
-                            );
-
-                            (&*SESSION_MANAGER)
-                                .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
-                                .await;
-
-                            println!(
-                                "[LOGIN] Old session kicked, allowing new login for player {}",
-                                player_id
-                            );
+                        player_with_zone.session = Some(session_arc.clone());
+                        
+                        // Add player to zone
+                        if let Some(zone) = &player_with_zone.zone {
+                             if let Err(e) = zone.add_player(player_with_zone.clone()).await {
+                                  println!("Error adding player to zone: {:?}", e);
+                             } else {
+                                  println!("Player {} added to zone {} map {}", player_with_zone.name, zone.zone_id, zone.map_id);
+                             }
                         }
 
-                        player_with_zone.session = Some(session_arc.clone());
                         session.set_player(player_with_zone.clone());
                         {
                             (&*SESSION_MANAGER)

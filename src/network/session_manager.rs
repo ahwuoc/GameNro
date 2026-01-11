@@ -47,14 +47,10 @@ impl SessionManager {
         };
 
         if let Some(session_arc) = session_arc {
-            // Clone reason để move vào async block
             let reason_owned = reason.to_string();
 
-            // Spawn task riêng để kick KHÔNG ĐỒNG BỘ
             tokio::spawn(async move {
                 println!("[SESSION_MANAGER] Kicking player {}...", player_id);
-
-                // Chuẩn bị kick message
                 let mut response = Message::new(cmd::cmd::SEND_ALTER_MESSAGE);
                 if let Err(e) = response.write_utf(&reason_owned) {
                     println!("[SESSION_MANAGER] Failed to write kick message: {:?}", e);
@@ -90,20 +86,8 @@ impl SessionManager {
             false
         }
     }
-
-    // Utility methods
-    pub async fn count_online(&self) -> usize {
-        let sessions = self.sessions.read().await;
-        sessions.len()
-    }
-
     pub async fn is_online(&self, player_id: i64) -> bool {
         let sessions = self.sessions.read().await;
         sessions.contains_key(&player_id)
-    }
-
-    pub async fn get_online_player_ids(&self) -> Vec<i64> {
-        let sessions = self.sessions.read().await;
-        sessions.keys().copied().collect()
     }
 }

@@ -138,22 +138,21 @@ impl Manager {
         Ok(())
     }
 
-    pub fn start_map_update_task(&self){
-        std::thread::spawn(move||{
+    pub fn start_map_update_task(&self) {
+        std::thread::spawn(move || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
-            loop{
-
+            loop {
                 let start = std::time::Instant::now();
                 runtime.block_on(async {
-                     let _ = map_manager::update_all_maps().await;
+                    let _ = map_manager::update_all_maps().await;
                 });
                 let elapsed_ms = start.elapsed().as_millis() as u64;
-                 let sleep_ms = if elapsed_ms >= 1000{
+                let sleep_ms = if elapsed_ms >= 1000 {
                     0
-                 }else{
+                } else {
                     1000 - elapsed_ms
-                 };
-                 std::thread::sleep(Duration::from_millis(sleep_ms));
+                };
+                std::thread::sleep(Duration::from_millis(sleep_ms));
             }
         });
     }
@@ -256,20 +255,20 @@ impl Manager {
                     .insert(template.id, template.clone());
                 let waypoints_data = MapDao::load_map_waypoints(&database, template.id).await?;
                 let mut waypoints = Vec::new();
-                
+
                 // Debug log for map 4
                 if template.id == 4 {
-                    println!("[DEBUG MAP 4] Raw waypoints from DB template: {}", template.waypoints);
-                    println!("[DEBUG MAP 4] Number of waypoints loaded from DAO: {}", waypoints_data.len());
+                    println!(
+                        "[DEBUG MAP 4] Raw waypoints from DB template: {}",
+                        template.waypoints
+                    );
+                    println!(
+                        "[DEBUG MAP 4] Number of waypoints loaded from DAO: {}",
+                        waypoints_data.len()
+                    );
                 }
-                
+
                 for wp in waypoints_data {
-                    // Debug log for map 4
-                    if template.id == 4 {
-                        println!("[DEBUG MAP 4] Waypoint '{}': min({}, {}) max({}, {}) -> go_map: {}", 
-                            wp.name, wp.min_x, wp.min_y, wp.max_x, wp.max_y, wp.go_map);
-                    }
-                    
                     let map_wp = crate::map::map::WayPoint::new(
                         wp.min_x,
                         wp.min_y,
@@ -284,18 +283,9 @@ impl Manager {
                     );
                     waypoints.push(map_wp);
                 }
-                
-                if template.id == 4 {
-                    println!("[DEBUG MAP 4] Total waypoints added to map: {}", waypoints.len());
-                }
-                
                 self.map_waypoints.insert(template.id, waypoints);
-
-                // Load mobs using MapDao
                 let mobs = MapDao::load_map_mobs(&database, template.id).await?;
                 self.map_mobs.insert(template.id, mobs);
-
-                // Load NPCs using MapDao
                 let npcs = MapDao::load_map_npcs(&database, template.id).await?;
                 self.map_npcs.insert(template.id, npcs);
             }
@@ -319,7 +309,6 @@ impl Manager {
         }
         Ok(())
     }
-   
 
     async fn load_mob_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {

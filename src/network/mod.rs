@@ -76,14 +76,20 @@ async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
         drop(session_guard); // Release lock trước khi loop lại
     }
 
-    let player_id = {
+    let player = {
         let session = session_arc.read().await;
-        session.get_player().map(|p| p.id)
+        session.get_player().cloned()
     };
 
-    if let Some(player_id) = player_id {
-        (&*SESSION_MANAGER).remove_session(player_id as i64).await;
-        println!("Player {} disconnected and session removed", player_id);
+    if let Some(mut player) = player {
+        use crate::map::ChangeMapService;
+        let change_map_service = ChangeMapService::new();
+        if let Err(e) = change_map_service.exit_map_async(&mut player).await {
+             eprintln!("Error exiting map on disconnect: {:?}", e);
+        }
+
+        (&*SESSION_MANAGER).remove_session(player.id as i64).await;
+        println!("Player {} disconnected and session removed", player.id);
     }
 
     println!("Connection closed");

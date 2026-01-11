@@ -133,7 +133,7 @@ impl ChangeMapService {
         let final_x = if x != -1 {
             x
         } else {
-            Self::calculate_random_x_position(2000) // Default map width
+            Self::calculate_random_x_position(2000) 
         };
         let final_y = y;
         player.location.set_position(final_x, final_y);
@@ -158,35 +158,16 @@ impl ChangeMapService {
             cold_planet_effect,
         })
     }
-
-    /// Check if a map is on Cold planet (hành tinh Cold)
-    /// Cold planet maps have stat reduction effects
-    /// 
-    /// Requirements: 5.4
     pub fn is_cold_planet_map(map_id: i32) -> bool {
-        // Cold planet maps: 105-110 (cánh đồng tuyết, rừng tuyết, núi tuyết, etc.)
         matches!(map_id, 105 | 106 | 107 | 108 | 109 | 110)
     }
 
-    // ========================================
-    // Capsule Operations (Task 12)
-    // ========================================
-
-    /// Open capsule menu - show capsule destinations (CMD -91)
-    /// 
-    /// This function:
-    /// 1. Gets available destinations from MapService
-    /// 2. Includes "return to previous" option
-    /// 
-    /// Requirements: 4.1
     pub async fn open_capsule_menu(
         &self,
         player: &Player,
         session: &mut crate::network::session::AsyncSession,
     ) -> anyhow::Result<()> {
-        // Get available capsule destinations
         let destinations = self.get_capsule_destinations(player).await;
-        
         let mut msg = Message::new(cmd::CAPSULE_MENU);
         msg.write_byte(destinations.len() as i8)?;
         
@@ -305,12 +286,7 @@ impl ChangeMapService {
         }
     }
 
-    // ========================================
-    // Message Handler Functions (Task 13)
-    // ========================================
-
-    /// Open zone UI handler (CMD 29)
-    /// Requirements: 1.1
+  
     pub async fn open_zone_ui(
         &self,
         player: &Player,
@@ -376,7 +352,6 @@ impl ChangeMapService {
             return Ok(());
         }
 
-        // Check if map allows zone changes
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
             println!("=============@@@@@@@@@===================");
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -385,9 +360,7 @@ impl ChangeMapService {
             return Ok(());
         }
 
-        // Get target zone
         if let Some(target_zone) = self.get_specific_zone(current_zone.map_id, zone_id).await {
-            // Check zone capacity
             if target_zone.is_full().await && !player.is_admin && !player.is_boss {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực này đã đầy")?;
@@ -466,9 +439,6 @@ impl ChangeMapService {
 
         Ok(())
     }
-
-    /// Go home handler (CMD -15)
-    /// Requirements: 3.1
     pub async fn go_home_handler(
         &self,
         player: &mut Player,
@@ -706,67 +676,33 @@ impl ChangeMapService {
         Ok(())
     }
 
-    /// Enter a new zone with async operations
-    /// 
-    /// This function:
-    /// 1. Adds player to the new zone
-    /// 2. Updates player zone reference
-    /// 
-    /// Requirements: 5.1
+ 
     pub async fn go_to_map_async(&self, player: &mut Player, zone: &Zone) -> anyhow::Result<()> {
-        // Update player's zone reference
         player.zone_id = zone.zone_id;
         player.map_id = zone.map_id;
         player.location.set_map(player.map_id, player.zone_id);
-        
-        // Set the zone reference on the player
         player.set_zone(zone.clone());
-        
-        // Add player to the zone
         zone.add_player(player.clone()).await?;
-
+        Self::finish_load_map(player).await?;
         println!("Player {} entered zone {} on map {}", player.name, zone.zone_id, zone.map_id);
-        
         Ok(())
     }
 
-    /// Handle client map load complete (CMD -39)
-    /// 
-    /// This function:
-    /// 1. Loads other players to client
-    /// 2. Loads client to other players  
-    /// 3. Sends active effects (shield, stun, etc.)
-    /// 
-    /// Requirements: 5.2, 5.3
+ 
     pub async fn finish_load_map(player: &Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
-            // Load other players to this player and vice versa
-            // Requirements: 5.2
             zone.load_another_to_me(player.id).await?;
             zone.load_me_to_another(player.id).await?;
         }
-        
-        // Send active effects to player
-        // Requirements: 5.3
         Self::send_effect_map_to_me(player).await?;
         Self::send_effect_me_to_map(player).await?;
         
         Ok(())
     }
-
-    /// Send zone effects to player - send all active effects in zone to the player
-    /// 
-    /// This function:
-    /// 1. Iterates all mobs and players with active effects
-    /// 2. Sends effect messages to the player
-    /// 
-    /// Requirements: 5.3
     pub async fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
         let Some(zone) = &player.zone else {
             return Ok(());
         };
-
-        // Send mob effects to player
         let mobs = zone.get_all_mobs().await;
         for mob in mobs {
             // Skip dead mobs
@@ -774,18 +710,6 @@ impl ChangeMapService {
                 continue;
             }
 
-            // Send various mob effect messages (CMD -124, -112)
-            // These are placeholder implementations - in a real game you'd check mob.effect_skill
-            
-            // Example: Stun effect (CMD -124)
-            // if mob.effect_skill.is_stun {
-            //     let mut msg = Message::new(-124);
-            //     msg.write_byte(1)?; // b5
-            //     msg.write_byte(1)?; // b6  
-            //     msg.write_byte(40)?; // effect type
-            //     msg.write_byte(mob.id as i8)?; // mob id
-            //     player.send_message(msg).await?;
-            // }
         }
 
         // Send player effects to this player
@@ -795,70 +719,24 @@ impl ChangeMapService {
                 continue; // Skip self
             }
 
-            // Send various player effect messages (CMD -124, -95)
-            // These are placeholder implementations - in a real game you'd check other_player.effect_skill
-            
-            // Example: Shield effect (CMD -124)
-            // if other_player.effect_skill.is_shielding {
-            //     let mut msg = Message::new(-124);
-            //     msg.write_byte(1)?;
-            //     msg.write_byte(0)?;
-            //     msg.write_byte(33)?; // shield effect type
-            //     msg.write_int(other_player.id as i32)?;
-            //     player.send_message(msg).await?;
-            // }
+          
         }
 
         Ok(())
     }
 
-    /// Send player effects to zone - send this player's active effects to all other players in zone
-    /// 
-    /// This function:
-    /// 1. Sends player's active effects to all others in zone
-    /// 
-    /// Requirements: 5.3
+  
     pub async fn send_effect_me_to_map(player: &Player) -> anyhow::Result<()> {
         let Some(zone) = &player.zone else {
             return Ok(());
         };
 
-        // Send this player's effects to all other players in zone
-        // These are placeholder implementations - in a real game you'd check player.effect_skill
-        
-        // Example: Shield effect (CMD -124)
-        // if player.effect_skill.is_shielding {
-        //     let mut msg = Message::new(-124);
-        //     msg.write_byte(1)?;
-        //     msg.write_byte(0)?;
-        //     msg.write_byte(33)?; // shield effect type
-        //     msg.write_int(player.id as i32)?;
-        //     zone.send_message_to_other_players(player.id, msg).await?;
-        // }
-
-        // Example: Mob transformation effect (CMD -95)
-        // if let Some(mob_me) = &player.mob_me {
-        //     let mut msg = Message::new(-95);
-        //     msg.write_byte(0)?; // type
-        //     msg.write_int(player.id as i32)?;
-        //     msg.write_short(mob_me.template_id)?;
-        //     msg.write_int(mob_me.hp)?;
-        //     zone.send_message_to_other_players(player.id, msg).await?;
-        // }
+      
 
         Ok(())
     }
 
-    // ========================================
-    // Spaceship Operations (Task 6)
-    // ========================================
 
-    /// Calculate home map ID based on player gender
-    /// 
-    /// Requirements 3.1: Home map SHALL be calculated as (gender + 21) for normal maps,
-    /// or 114 for MaBu maps.
-    /// 
-    /// Property 5: Home map calculation by gender
     pub fn calculate_home_map(gender: i8, is_in_mabu_map: bool) -> i32 {
         if is_in_mabu_map {
             MABU_HOME_MAP_ID

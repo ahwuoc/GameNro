@@ -76,6 +76,7 @@ pub struct Map {
     pub zones: Arc<RwLock<Vec<Zone>>>,
     pub way_points: Arc<RwLock<Vec<WayPoint>>>,
     pub npcs: Arc<RwLock<Vec<i32>>>,
+    pub mobs: Arc<RwLock<Vec<i32>>>,
 
     // Map state
     pub is_active: Arc<RwLock<bool>>,
@@ -104,6 +105,7 @@ impl Map {
             zones: Arc::new(RwLock::new(Vec::new())),
             way_points: Arc::new(RwLock::new(Vec::new())),
             npcs: Arc::new(RwLock::new(Vec::new())),
+            mobs: Arc::new(RwLock::new(Vec::new())),
             is_active: Arc::new(RwLock::new(true)),
             last_update: Arc::new(RwLock::new(current_time)),
         }
@@ -278,7 +280,6 @@ impl Map {
     }
 }
 
-/// Map information for client
 #[derive(Debug, Clone)]
 pub struct MapInfo {
     pub map_id: i32,
@@ -316,37 +317,9 @@ impl Clone for Map {
             zones: Arc::clone(&self.zones),
             way_points: Arc::clone(&self.way_points),
             npcs: Arc::clone(&self.npcs),
+            mobs: Arc::clone(&self.mobs),
             is_active: Arc::clone(&self.is_active),
             last_update: Arc::clone(&self.last_update),
         }
     }
-}
-fn read_tile_map_file(map_id: i32) -> Option<(i32, i32, Vec<Vec<i32>>)> {
-    let path = format!("data/girlkun/map/tile_map_data/{}", map_id);
-    let data = fs::read(&path).ok()?;
-    if data.len() < 2 {
-        return None;
-    }
-    let w = data[0] as usize;
-    let h = data[1] as usize;
-    let expected = 2 + w * h;
-    if data.len() < expected {
-        return None;
-    }
-    let mut tiles: Vec<Vec<i32>> = Vec::with_capacity(h);
-    let mut idx = 2;
-    for _row in 0..h {
-        let mut row: Vec<i32> = Vec::with_capacity(w);
-        for _col in 0..w {
-            row.push(data[idx] as i32);
-            idx += 1;
-        }
-        tiles.push(row);
-    }
-    Some((w as i32, h as i32, tiles))
-}
-fn read_tile_top_file(tile_id: i32) -> Option<Vec<i32>> {
-    let path = format!("data/girlkun/map/tile_top/{}", tile_id);
-    let data = fs::read(&path).ok()?;
-    Some(data.into_iter().map(|b| b as i32).collect())
 }
