@@ -243,27 +243,20 @@ impl DataGame {
         let mut msg = Message::new(-87);
         msg.write_byte(80)?;
 
-        // Write dart data
         msg.write_int(dart_data.len() as i32)?;
         msg.write(&dart_data)?;
 
-        // Write arrow data
         msg.write_int(arrow_data.len() as i32)?;
         msg.write(&arrow_data)?;
 
-        // Write effect data
         msg.write_int(effect_data.len() as i32)?;
         msg.write(&effect_data)?;
 
-        // Write image data
         msg.write_int(image_data.len() as i32)?;
         msg.write(&image_data)?;
-
-        // Write part data
         msg.write_int(part_data.len() as i32)?;
         msg.write(&part_data)?;
 
-        // Write skill data
         msg.write_int(skill_data.len() as i32)?;
         msg.write(&skill_data)?;
 

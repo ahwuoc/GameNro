@@ -60,6 +60,12 @@ impl AsyncController {
                 DataGame::send_mob_temp(session, mob_id).await?;
                 Ok(())
             }
+            32 => {
+                let npc_id = msg.read_short()?;
+                let select = msg.read_byte()?;
+                npc::npc_service::NpcService::handle_menu_confirm(session, npc_id, select).await?;
+                Ok(())
+            }
             -67 => {
                 match msg.read_int() {
                     Ok(id) => {
@@ -72,7 +78,8 @@ impl AsyncController {
                 Ok(())
             }
             33 => {
-                npc::Npc::open_base_menu(session).await?;
+                let npc_id = msg.read_short()?;
+                npc::npc_service::NpcService::open_base_menu(session, npc_id).await?;
                 Ok(())
             }
             -28 => {

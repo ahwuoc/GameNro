@@ -25,22 +25,22 @@ impl PlayerInfoService {
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
         let mut msg = Message::new(-42);
-        msg.write_int(player.n_point.hpg)?; // hpg
-        msg.write_int(player.n_point.mpg)?; // mpg
-        msg.write_int(player.n_point.dameg)?; // dameg
-        msg.write_int(player.n_point.hp_max)?; // hpMax
-        msg.write_int(player.n_point.mp_max)?; // mpMax
-        msg.write_int(player.n_point.hp)?; // hp
-        msg.write_int(player.n_point.mp)?; // mp
-        msg.write_byte(player.n_point.speed)?; // speed
-        msg.write_byte(20)?; // reserved
-        msg.write_byte(20)?; // reserved
-        msg.write_byte(1)?; // reserved
-        msg.write_int(player.n_point.dame)?; // dame
-        msg.write_int(player.n_point.def)?; // def
-        msg.write_byte(player.n_point.crit)?; // crit
-        msg.write_long(player.n_point.tiem_nang)?; // tiemNang
-        msg.write_short(100)?; // reserved
+        msg.write_int(player.n_point.hpg)?;
+        msg.write_int(player.n_point.mpg)?;
+        msg.write_int(player.n_point.dameg)?;
+        msg.write_int(player.n_point.hp_max)?;
+        msg.write_int(player.n_point.mp_max)?;
+        msg.write_int(player.n_point.hp)?;
+        msg.write_int(player.n_point.mp)?;
+        msg.write_byte(player.n_point.speed)?;
+        msg.write_byte(20)?;
+        msg.write_byte(20)?;
+        msg.write_byte(1)?;
+        msg.write_int(player.n_point.dame)?;
+        msg.write_int(player.n_point.def)?;
+        msg.write_byte(player.n_point.crit)?;
+        msg.write_long(player.n_point.tiem_nang)?;
+        msg.write_short(100)?;
         msg.write_int(player.n_point.defg)?; // defg (reserved)
         msg.write_byte(player.n_point.critg)?; // critg (reserved)
 

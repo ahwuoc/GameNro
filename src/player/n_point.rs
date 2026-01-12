@@ -38,7 +38,7 @@ impl NPoint {
             mp: 1,
             hp_max: 1,
             mp_max: 1,
-            speed: 8,
+            speed: 5,
             power: 1,
             tiem_nang: 1,
             limit_power: 1,

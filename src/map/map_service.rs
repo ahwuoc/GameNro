@@ -208,7 +208,6 @@ impl MapService {
         self.maps.clear();
     }
 
-    /// Get map info for player
     pub fn get_map_info(&self, player: &Player, map_id: i32) -> Option<String> {
         if let Some(map) = self.get_map_by_id(map_id) {
             Some(format!("Map: {} (ID: {})", map.info.name, map.info.id))

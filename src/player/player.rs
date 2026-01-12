@@ -7,6 +7,7 @@ use crate::network::session::AsyncSession;
 use crate::player::n_point::NPoint;
 // parsing moved to player_dao
 use crate::entities;
+use crate::player::id_mark::IdMark;
 use crate::utils::Location;
 use serde_json::Value;
 
@@ -56,7 +57,9 @@ pub struct Player {
     pub zone: Option<Zone>,
     pub is_admin: bool,
     pub admin_key: bool,
-    
+
+    pub id_mark: IdMark,
+
     pub task_id: i32,
     pub is_boss: bool,
     pub notify: Option<String>,
@@ -99,6 +102,7 @@ impl Player {
             zone: None,
             is_admin: false,
             admin_key: false,
+            id_mark: IdMark::new(),
             task_id: 0,
             is_boss: false,
             notify: None,

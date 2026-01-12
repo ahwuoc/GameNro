@@ -64,7 +64,6 @@ impl Message {
     }
 
     pub fn read_byte(&mut self) -> Result<i8> {
-        // Ok(self.payload.get_i8())
         if self.payload.remaining() < 1 {
             bail!(
                 "Cannot read i8: need 1 byte, but only {} bytes remaining",

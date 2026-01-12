@@ -175,6 +175,9 @@ impl AsyncSession {
     pub fn get_player(&self) -> Option<&RtPlayer> {
         self.player.as_ref()
     }
+    pub fn get_player_mut(&mut self) -> Option<&mut RtPlayer> {
+        self.player.as_mut()
+    }
 
     pub fn take_player(&mut self) -> Option<RtPlayer> {
         self.player.take()
@@ -208,9 +211,7 @@ impl AsyncSession {
         self.version
     }
 
-    /// Force shutdown connection (để kick client)
     pub async fn shutdown(&mut self) -> io::Result<()> {
-        // Shutdown write half
         self.write_half.shutdown().await?;
         Ok(())
     }
