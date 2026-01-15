@@ -1,5 +1,5 @@
 use crate::item::item::Item;
-use crate::item::{item_manager, option_template_manager};
+use crate::item::{item_template_manager, option_template_manager};
 pub struct ItemService;
 
 impl ItemService {
@@ -11,9 +11,9 @@ impl ItemService {
     }
 
     pub fn create_new_item_with_quantity(template_id: i16, quantity: i32) -> Option<Item> {
-        if let Some(item_template) = item_manager::get(template_id){
-              Some(Item::with_template(item_template.clone(), quantity))
-        }else{
+        if let Some(item_template) = item_template_manager::get(template_id) {
+            Some(Item::with_template(item_template.clone(), quantity))
+        } else {
             println!("Warning: Item template not found for ID: {}", template_id);
             None
         }
@@ -77,7 +77,6 @@ impl ItemService {
         false
     }
 
-
     pub fn get_all_item_option_templates_count() -> usize {
         option_template_manager::get_all().len()
     }
@@ -99,5 +98,4 @@ impl ItemService {
             || item_type == 540
             || (template_id >= 1268 && template_id <= 1273)
     }
-  
 }

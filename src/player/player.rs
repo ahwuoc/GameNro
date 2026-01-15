@@ -213,7 +213,7 @@ impl Player {
 
     pub fn update(&mut self) {
         if !self.before_dispose {
-            self.n_point.update();
+            self.n_point.set_base_point();
             self.location.update();
             if self.n_point.hp <= 0 && !self.is_die {
                 self.is_die = true;
@@ -306,20 +306,14 @@ impl Player {
     }
 
     /// Check if player has tennis spaceship
-    /// Tennis spaceship provides full HP/MP healing on travel
     pub fn has_tennis_spaceship(&self) -> bool {
-        // TODO: Check player's inventory for tennis spaceship item
-        // For now, return false as default
         false
     }
 
-    /// Get player's current task progress ID
-    /// Used for map access validation (Requirements 7.1, 7.2)
     pub fn get_task_id(&self) -> i32 {
         self.task_id
     }
 
-    /// Set player's task progress ID
     pub fn set_task_id(&mut self, task_id: i32) {
         self.task_id = task_id;
     }
@@ -331,29 +325,21 @@ impl Player {
 
     /// Check if player has a previous capsule location saved
     pub fn has_previous_capsule_location(&self) -> bool {
-        // TODO: Check if player has mapBeforeCapsule saved
-        // For now, return false as default
         false
     }
 
     /// Save current location before capsule travel
     pub fn save_capsule_location(&mut self, map_id: i32, zone_id: i32) {
-        // TODO: Save to player.mapBeforeCapsule
-        // For now, this is a placeholder
         println!("Saving capsule location: map {} zone {}", map_id, zone_id);
     }
 
     /// Get previous capsule location
     pub fn get_previous_capsule_location(&self) -> Option<(i32, i32)> {
-        // TODO: Return player.mapBeforeCapsule
-        // For now, return None as default
         None
     }
 
     /// Update zone change time for cooldown tracking
     pub fn update_zone_change_time(&mut self) {
-        // TODO: Update player.last_zone_change_time
-        // For now, this is a placeholder
         println!("Updated zone change time for player {}", self.name);
     }
 }

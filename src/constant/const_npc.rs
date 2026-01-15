@@ -4,7 +4,7 @@
 pub const ONG_GOHAN: i32 = 0;
 pub const ONG_PARAGUS: i32 = 1;
 pub const ONG_MOORI: i32 = 2;
-pub const RUONG_DO: i32 = 3;
+pub const RUONG_DO: i16 = 3;
 pub const DAU_THAN: i32 = 4;
 pub const CON_MEO: i16 = 5;
 pub const KHU_VUC: i32 = 6;
@@ -22,7 +22,7 @@ pub const BO_MONG: i32 = 17;
 pub const THAN_MEO_KARIN: i32 = 18;
 pub const THUONG_DE: i32 = 19;
 pub const THAN_VU_TRU: i32 = 20;
-pub const BA_HAT_MIT: i32 = 21;
+pub const BA_HAT_MIT: i16 = 21;
 pub const TRONG_TAI: i32 = 22;
 pub const GHI_DANH: i32 = 23;
 pub const RONG_THIENG: i32 = 24;

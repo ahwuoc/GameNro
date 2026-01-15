@@ -1,10 +1,6 @@
 package player.Service;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
+
 import item.Item;
 import item.Item.ItemOption;
 import npc.MabuEgg;

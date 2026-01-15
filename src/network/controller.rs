@@ -5,6 +5,8 @@ use crate::data::data_game::DataGame;
 use crate::data::ItemData;
 use crate::database::DbManager;
 use crate::entities::{account, player};
+use crate::item::use_item::UseItem;
+use crate::item::{type_item_inventory, use_item};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc;
@@ -50,12 +52,40 @@ impl AsyncController {
                 Self::handle_get_image_source(session, msg).await?;
                 Ok(())
             }
+            -40 => {
+                let type_byte = msg.read_byte()?;
+                let type_inventory = type_item_inventory::TypeItemInventory::try_from(type_byte)?;
+                let index = msg.read_byte()?;
+                use_item::UseItem::get_item(session, type_inventory, index).await?;
+                Ok(())
+            }
+            -41 => {
+                // TODO send caption strLevel
+                match msg.read_byte() {
+                    Ok(gender) => {
+                        println!("Gender: {}", gender);
+                        let mut msg = Message::new(-41);
+                        msg.write_byte(1);
+                        msg.write_utf("Dau vuong cuong gia")?;
+                        session.send_message(&msg).await?;
+                    }
+                    Err(e) => {
+                        println!("Error reading byte {}", e);
+                        return Ok(());
+                    }
+                }
+
+                Ok(())
+            }
+            -43 => {
+                // use item
+                Ok(())
+            }
             -93 => {
                 Self::handle_not_login(session, msg, session_arc).await?;
                 Ok(())
             }
             11 => {
-                println!("message call 11");
                 let mob_id = msg.read_byte()?;
                 DataGame::send_mob_temp(session, mob_id).await?;
                 Ok(())
@@ -79,7 +109,7 @@ impl AsyncController {
             }
             33 => {
                 let npc_id = msg.read_short()?;
-                npc::npc_service::NpcService::open_base_menu(session, npc_id).await?;
+                npc::npc_service::NpcService::open_menu_controller(session, npc_id).await?;
                 Ok(())
             }
             -28 => {

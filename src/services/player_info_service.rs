@@ -37,12 +37,12 @@ impl PlayerInfoService {
         msg.write_byte(20)?;
         msg.write_byte(1)?;
         msg.write_int(player.n_point.dame)?;
-        msg.write_int(player.n_point.def)?;
+        msg.write_short(player.n_point.def as i16)?;
         msg.write_byte(player.n_point.crit)?;
         msg.write_long(player.n_point.tiem_nang)?;
         msg.write_short(100)?;
-        msg.write_int(player.n_point.defg)?; // defg (reserved)
-        msg.write_byte(player.n_point.critg)?; // critg (reserved)
+        msg.write_int(player.n_point.defg)?;
+        msg.write_byte(player.n_point.critg)?;
 
         session.send_message(&msg).await?;
         Ok(())
@@ -282,28 +282,24 @@ impl PlayerInfoService {
             if item.is_null_item() {
                 msg.write_short(-1)?;
             } else {
-                if let Some(tpl) = &item.template {
-                    msg.write_short(tpl.id)?;
-                    msg.write_int(item.quantity)?;
-                    msg.write_utf(&item.get_info())?;
-                    msg.write_utf(&item.get_content())?;
-                    if item.item_options.is_empty() {
-                        msg.write_byte(1)?;
-                        msg.write_byte(73)?;
-                        msg.write_short(1)?;
-                    } else {
-                        let opts_len = item.item_options.len() as i8;
-                        msg.write_byte(opts_len)?;
-                        for opt in item.item_options.iter() {
-                            if opt.get_option_id() == 47 {
-                                println!("send client {}", opt.get_name());
-                            }
-                            msg.write_byte(opt.get_option_id())?;
-                            msg.write_short(opt.get_param())?;
-                        }
-                    }
+                msg.write_short(item.get_template_id().unwrap_or(-1))?;
+                msg.write_int(item.quantity)?;
+                msg.write_utf(&item.get_info())?;
+                msg.write_utf(&item.get_content())?;
+                if item.item_options.is_empty() {
+                    msg.write_byte(1)?;
+                    msg.write_byte(73)?;
+                    msg.write_short(1)?;
                 } else {
-                    msg.write_short(-1)?;
+                    let opts_len = item.item_options.len() as i8;
+                    msg.write_byte(opts_len)?;
+                    for opt in item.item_options.iter() {
+                        if opt.get_option_id() == 47 {
+                            println!("send client {}", opt.get_name());
+                        }
+                        msg.write_byte(opt.get_option_id())?;
+                        msg.write_short(opt.get_param())?;
+                    }
                 }
             }
         }
@@ -321,11 +317,7 @@ impl PlayerInfoService {
             if item.is_null_item() {
                 msg.write_short(-1)?;
             } else {
-                if let Some(tpl) = &item.template {
-                    msg.write_short(tpl.id)?;
-                } else {
-                    msg.write_short(-1)?;
-                }
+                msg.write_short(item.get_template_id().unwrap_or(-1))?;
                 msg.write_int(item.quantity)?;
                 msg.write_utf(&item.get_info())?;
                 msg.write_utf(&item.get_content())?;
@@ -355,12 +347,7 @@ impl PlayerInfoService {
             if !item.is_not_null_item() {
                 msg.write_short(-1)?;
             } else {
-                if let Some(tpl) = &item.template {
-                    msg.write_short(tpl.id as i16)?;
-                } else {
-                    Self::debug_write_to_file(&format!("    -> No template, writing -1"));
-                    msg.write_short(-1)?;
-                }
+                msg.write_short(item.get_template_id().unwrap_or(-1))?;
                 msg.write_int(item.quantity)?;
                 msg.write_utf(&item.get_info())?;
                 msg.write_utf(&item.get_content())?;

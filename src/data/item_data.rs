@@ -1,12 +1,11 @@
 use std::any::Any;
 
 use crate::data::data_game;
-use crate::item::{item_manager, option_template_manager};
+use crate::item::{item_template_manager, option_template_manager};
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::services::GodGK;
 use sea_orm::EntityTrait;
-
 pub struct ItemData;
 
 impl ItemData {
@@ -17,19 +16,19 @@ impl ItemData {
         Self::update_item_template_range(
             session,
             750,
-            item_manager::get_all().len() as i16,
+            item_template_manager::get_all().len() as i16,
         )
         .await?;
         Ok(())
     }
     async fn update_item_option_template(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; 
+        msg.write_byte(8)?;
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
         msg.write_byte(0)?;
         msg.write_byte(option_template_manager::get_all().len() as i8)?;
         for opt in option_template_manager::get_all().iter() {
-            println!("send client option => {} {}",opt.id, opt.name);
+            println!("send client option => {} {}", opt.id, opt.name);
             msg.write_utf(&opt.name)?;
             msg.write_byte(0)?;
         }
@@ -39,9 +38,9 @@ impl ItemData {
 
     async fn update_item_arr_head_2_f(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; 
-        msg.write_byte(data_game::DataGame::VS_ITEM)?; 
-        msg.write_byte(50 as i8)?; 
+        msg.write_byte(8)?;
+        msg.write_byte(data_game::DataGame::VS_ITEM)?;
+        msg.write_byte(50 as i8)?;
 
         let god_gk = GodGK::get_instance();
         let db = {
@@ -95,7 +94,7 @@ impl ItemData {
         msg.write_byte(1)?; // reload itemtemplate
         msg.write_short(count)?;
         for id in 0..count {
-            if let Some(item_template) = item_manager::get(id) {
+            if let Some(item_template) = item_template_manager::get(id) {
                 msg.write_byte(item_template.r#type as i8)?;
                 msg.write_byte(item_template.gender as i8)?;
                 msg.write_utf(&item_template.name)?;
@@ -124,7 +123,7 @@ impl ItemData {
         msg.write_short(end)?;
 
         for id in start..end {
-            if let Some(item) = item_manager::get(id) {
+            if let Some(item) = item_template_manager::get(id) {
                 msg.write_byte(item.r#type as i8)?;
                 msg.write_byte(item.gender as i8)?;
                 msg.write_utf(&item.name)?;

@@ -1,9 +1,10 @@
 // Core item modules
 pub mod item;
 pub mod item_dao;
-pub mod item_manager;
 pub mod item_option;
 pub mod item_service;
+pub mod item_template_manager;
+pub mod use_item;
 
 // Item components
 pub mod inventory;
@@ -13,6 +14,7 @@ pub mod item_time_service;
 pub mod option_template_manager;
 // Item utilities
 pub mod item_utils;
+pub mod type_item_inventory;
 
 // Re-exports
 pub use inventory::Inventory;

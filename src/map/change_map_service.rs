@@ -899,9 +899,7 @@ impl ChangeMapService {
         let was_dead = player.is_die();
 
         if was_dead {
-            // Requirements 3.4: Revive dead player
             if space_type == SpaceShipType::Tennis {
-                // Tennis spaceship: revive with full HP/MP
                 player.n_point.hp = player.n_point.hp_max;
                 player.n_point.mp = player.n_point.mp_max;
                 player.is_die = false;
@@ -946,11 +944,9 @@ impl ChangeMapService {
                 }
             }
             SpaceshipSendType::SelfOnly => {
-                // Send only to self
                 player.send_message(msg).await?;
             }
             SpaceshipSendType::OthersInMap => {
-                // Send to all players except self
                 if let Some(zone) = &player.zone {
                     zone.send_message_to_other_players(player.id, msg).await?;
                 }
@@ -959,8 +955,6 @@ impl ChangeMapService {
 
         Ok(())
     }
-
-    /// Get a specific zone by map_id and zone_id
     async fn get_specific_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_zone(zone_id).await;

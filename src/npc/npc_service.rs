@@ -8,7 +8,8 @@ use crate::entities::player;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::npc;
-use crate::npc::handlers::santa::SantaHandler;
+use crate::npc::handlers::bahatmit::BahatmitHandler;
+use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::NpcHandler;
 use crate::npc::{BaseMenu, Npc};
 use std::collections::HashMap;
@@ -23,17 +24,10 @@ impl NpcService {
             npc_templates: HashMap::new(),
         }
     }
-    pub async fn default_menu(session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
-        let mut msg = Message::new(-32);
-        msg.write_short(npc_id)?;
-        msg.write_utf("Chức năng đang phát triển")?;
-        msg.write_byte(1)?;
-        msg.write_utf("Đóng")?;
-        session.send_message(&msg).await?;
-
-        Ok(())
-    }
-    pub async fn open_base_menu(session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
+    pub async fn open_menu_controller(
+        session: &mut AsyncSession,
+        npc_id: i16,
+    ) -> anyhow::Result<()> {
         let _player = match session.get_player() {
             Some(p) => p,
             None => return Ok(()),
@@ -42,14 +36,15 @@ impl NpcService {
         if let Some(handler) = Self::get_handler(npc_id) {
             handler.open_menu(session).await?;
         } else {
-            Self::default_menu(session, npc_id).await?;
+            println!("Unhandled NPC ID: {}", npc_id);
         }
         Ok(())
     }
 
     fn get_handler(npc_id: i16) -> Option<Box<dyn NpcHandler + Send + Sync>> {
         match npc_id {
-            SANTA => Some(Box::new(SantaHandler)),
+            BA_HAT_MIT => Some(Box::new(BahatmitHandler)),
+            RUONG_DO => Some(Box::new(RuongDoHandler)),
             _ => None,
         }
     }
@@ -79,7 +74,12 @@ impl NpcService {
         npc_id: i16,
         npc_say: &str,
         menu_options: Vec<&str>,
+        state: MenuId,
     ) -> anyhow::Result<()> {
+        let Some(player) = session.get_player_mut() else {
+            return Ok(());
+        };
+        player.id_mark.set_index_menu(state);
         let mut msg = crate::network::message::Message::new(32);
         msg.write_short(npc_id)?;
         msg.write_utf(npc_say)?;

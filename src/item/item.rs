@@ -2,6 +2,7 @@
 use crate::entities::item_template::Model as ItemTemplate;
 use crate::item::item_option::ItemOption;
 use chrono::{DateTime, Utc};
+use serde::de::value::BoolDeserializer;
 
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -36,22 +37,17 @@ impl Item {
         }
     }
 
-    /// Check if item is not null (has template)
     pub fn is_not_null_item(&self) -> bool {
         self.template.is_some()
     }
 
-    /// Check if item is null (no template)
     pub fn is_null_item(&self) -> bool {
         self.template.is_none()
     }
 
-    /// Get item template ID
     pub fn get_template_id(&self) -> Option<i16> {
         self.template.as_ref().map(|t| t.id)
     }
-
-    /// Add option to item
     pub fn add_option(&mut self, option: ItemOption) {
         self.item_options.push(option);
     }
@@ -73,7 +69,6 @@ impl Item {
         }
     }
 
-    /// Check if option ID is valid
     fn is_valid_option_id(option_id: i8) -> bool {
         use crate::item::option_template_manager;
         option_template_manager::get(option_id).is_some()
@@ -93,7 +88,7 @@ impl Item {
         // let mut option_strings = Vec::new();
 
         // for option in &self.item_options {
-         
+
         //     let option_id = option.get_option_id();
         //     if option_id != 72 && option_id != 73 && option_id != 102 && option_id != 107 {
         //         option_strings.push(option.get_option_description());
@@ -111,6 +106,15 @@ impl Item {
             "Empty Item".to_string()
         }
     }
+    pub fn get_type(&self) -> i8 {
+        self.template.as_ref().map(|t| t.r#type as i8).unwrap_or(-1)
+    }
+    pub fn is_item_body(&self) -> bool {
+        if self.get_type() >= 0 && self.get_type() <= 6 {
+            return true;
+        }
+        return false;
+    }
 
     /// Get item content
     pub fn get_content(&self) -> String {
@@ -120,7 +124,6 @@ impl Item {
             "OKem".to_string()
         }
     }
-   
 
     pub fn is_cong_thuc_vip(&self) -> bool {
         if let Some(ref template) = self.template {
@@ -172,8 +175,8 @@ impl Item {
     pub fn get_str_require(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.power_require as i32)
     }
-    pub fn get_name(&self)->Option<&str>{
-        self.template.as_ref().map(|t|t.name.as_str())
+    pub fn get_name(&self) -> Option<&str> {
+        self.template.as_ref().map(|t| t.name.as_str())
     }
 
     pub fn can_use(&self, player_str: i32) -> bool {

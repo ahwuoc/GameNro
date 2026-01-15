@@ -20,11 +20,8 @@ use config::Config;
 use database::DbManager;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    println!("Starting GameNro Rust Server...");
+async fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
-    println!("Load config success");
-
     let db_manager = DbManager::new(&config.database).await?;
 
     {
@@ -45,7 +42,6 @@ async fn main() -> Result<()> {
         let pool = DbManager::get_pool();
         god_gk_guard.set_database(pool.clone());
     }
-    println!("Database initialized successfully!");
 
     if let Err(e) = network::start_server(&config.server).await {
         return Err(anyhow::anyhow!("Server failed: {:?}", e));

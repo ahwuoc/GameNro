@@ -5,7 +5,8 @@ use crate::network::session::AsyncSession;
 use std::future::Future;
 use std::pin::Pin;
 
-pub mod santa;
+pub mod bahatmit;
+pub mod ruong_do;
 use async_trait::async_trait;
 #[async_trait]
 pub trait NpcHandler {

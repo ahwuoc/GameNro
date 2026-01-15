@@ -208,7 +208,6 @@ impl Zone {
         Ok(())
     }
 
-    // gui tat ca player cho toi
     pub async fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
         let players_guard = self.players.read().await;
         let Some(receiver) = players_guard.get(&player_id).cloned() else {

@@ -37,7 +37,7 @@ impl RtMob {
             zone_id: 0,
             is_alive: true,
             template: None,
-            status: 5, // Alive status
+            status: 5,
             lv_mob: 0,
         }
     }

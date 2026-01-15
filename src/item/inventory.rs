@@ -195,42 +195,34 @@ impl Inventory {
         remaining == 0
     }
 
-    /// Check if bag is full
     pub fn is_bag_full(&self) -> bool {
         self.items_bag.len() >= self.const_max_items_bag
     }
 
-    /// Check if box is full
     pub fn is_box_full(&self) -> bool {
         self.items_box.len() >= self.const_max_items_box
     }
 
-    /// Get bag item count
     pub fn get_bag_item_count(&self) -> usize {
         self.items_bag.len()
     }
 
-    /// Get body item count
     pub fn get_body_item_count(&self) -> usize {
         self.items_body.len()
     }
 
-    /// Get box item count
     pub fn get_box_item_count(&self) -> usize {
         self.items_box.len()
     }
 
-    /// Add gift code
     pub fn add_gift_code(&mut self, code: String) {
         self.gift_codes.push(code);
     }
 
-    /// Check if has gift code
     pub fn has_gift_code(&self, code: &str) -> bool {
         self.gift_codes.contains(&code.to_string())
     }
 
-    /// Clear all items
     pub fn clear_all_items(&mut self) {
         self.items_body.clear();
         self.items_bag.clear();

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::database::DbManager;
-use crate::item::{item_manager, option_template_manager};
+use crate::item::{item_template_manager, option_template_manager};
 use crate::map::{map_manager, map_template_manager};
 use crate::services::head_avatar_manager;
 use once_cell::sync::Lazy;
@@ -63,7 +63,7 @@ impl Manager {
         let database = DbManager::get_pool();
         self.database = Some(database.clone());
 
-        item_manager::load(&database).await?;
+        item_template_manager::load(&database).await?;
         map_template_manager::load(&database).await?;
         option_template_manager::load(&database).await?;
         head_avatar_manager::load(&database).await?;
