@@ -41,8 +41,8 @@ impl Intrinsic {
             param_to_2: entity.param_to_2 as i16,
             icon: entity.icon as i16,
             gender: entity.gender as i8,
-            param1: 0, 
-            param2: 0,  
+            param1: 0,
+            param2: 0,
         }
     }
 
@@ -70,23 +70,24 @@ impl Intrinsic {
     }
 
     pub fn get_name(&self) -> String {
-        let mut name = self.name
+        let mut name = self
+            .name
             .replace("p0% đến p1", "p0")
             .replace("p2% đến p3", "p1")
             .replace("p0", &self.param1.to_string())
             .replace("p1", &self.param2.to_string());
-        
+
         if self.id != 0 {
             name.push_str(&format!(" [{} đến {}]", self.param_from_1, self.param_to_1));
         }
-        
+
         name
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct IntrinsicPlayer {
-    pub count_open: u8,
+    pub count_open: i8,
     pub intrinsic: Intrinsic,
 }
 

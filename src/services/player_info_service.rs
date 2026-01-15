@@ -418,13 +418,11 @@ impl PlayerInfoService {
             .ok_or_else(|| anyhow::anyhow!("Player not set"))?;
         DataGame::send_data_item_bg(session).await?;
 
-        //-82
+        // -82 tile set
         DataGame::send_tile_set_info(session).await?;
 
-        let intrinsic_service: IntrinsicService = IntrinsicService;
-        intrinsic_service
-            .send_info_intrinsic(session, &player)
-            .await?;
+        // -112 intrinsic
+        IntrinsicService::send_info_intrinsic(session, &player).await?;
 
         // -42 my point
         Self::send_point_info(session, &player).await?;

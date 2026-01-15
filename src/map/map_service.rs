@@ -6,7 +6,6 @@ use crate::network::message::Message;
 use crate::player::Player;
 use std::collections::HashMap;
 pub struct MapService {
-    // Service state
     initialized: bool,
     maps: HashMap<i32, Map>,
 }
@@ -16,17 +15,6 @@ impl MapService {
         Self {
             initialized: false,
             maps: HashMap::new(),
-        }
-    }
-
-    /// Get singleton instance
-    pub fn get_instance() -> &'static mut MapService {
-        static mut INSTANCE: Option<MapService> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(MapService::new());
-            }
-            INSTANCE.as_mut().unwrap()
         }
     }
 

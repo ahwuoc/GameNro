@@ -14,7 +14,7 @@ pub struct Model {
     pub param_from_2: i32,
     pub param_to_2: i32,
     pub icon: i32,
-    pub gender: i16,
+    pub gender: i8,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

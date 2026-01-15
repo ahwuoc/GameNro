@@ -1,6 +1,8 @@
+use crate::constant::menu_enum::MenuId;
+
 #[derive(Debug, Clone, Default)]
 pub struct IdMark {
-    pub index_menu: i16,
+    pub index_menu: MenuId,
     pub id_item_up_top: i32,
     pub ott: i32,
     pub mbv: i32,
@@ -10,18 +12,19 @@ pub struct IdMark {
 impl IdMark {
     pub fn new() -> Self {
         Self {
-            index_menu: -1,
+            index_menu: MenuId::None,
             ..Default::default()
         }
     }
 
-    pub fn get_index_menu(&self) -> i16 {
+    pub fn get_index_menu(&self) -> MenuId {
         self.index_menu
     }
 
-    pub fn set_index_menu<T: Into<i16>>(&mut self, index: T) {
-        self.index_menu = index.into();
+    pub fn set_index_menu(&mut self, index: MenuId) {
+        self.index_menu = index;
     }
+
     pub fn get_id_item_up_top(&self) -> i32 {
         self.id_item_up_top
     }

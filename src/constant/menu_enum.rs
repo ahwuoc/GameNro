@@ -1,22 +1,15 @@
-#[repr(i16)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuId {
+    None,
     BaseMenu,
-    Unknow,
     SubMenuSanta,
+    Intrinsic,
+    ConfirmOpenIntrinsic,
+    ConfirmOpenIntrinsicVip,
 }
 
-impl From<i16> for MenuId {
-    fn from(value: i16) -> Self {
-        match value {
-            0 => MenuId::BaseMenu,
-            1 => MenuId::SubMenuSanta,
-            _ => MenuId::Unknow,
-        }
-    }
-}
-impl From<MenuId> for i16 {
-    fn from(value: MenuId) -> Self {
-        value as i16
+impl Default for MenuId {
+    fn default() -> Self {
+        MenuId::None
     }
 }

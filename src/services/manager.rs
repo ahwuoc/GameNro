@@ -2,7 +2,7 @@
 use crate::database::DbManager;
 use crate::item::{item_template_manager, option_template_manager};
 use crate::map::{map_manager, map_template_manager};
-use crate::services::head_avatar_manager;
+use crate::services::{head_avatar_manager, intrinsic_template_manager};
 use once_cell::sync::Lazy;
 use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryResult, Statement,
@@ -28,10 +28,8 @@ static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Man
 pub struct Manager {
     pub npc_templates: Vec<npc_template::Model>,
     pub skill_templates: Vec<skill_template::Model>,
-    pub intrinsic_templates: Vec<intrinsic::Model>,
     pub npc_templates_by_id: HashMap<i32, npc_template::Model>,
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
-    pub intrinsic_templates_by_id: HashMap<i32, intrinsic::Model>,
     pub item_time_service: ItemTimeService,
     pub npc_service: NpcService,
     pub npc_manager: NpcManager,
@@ -43,11 +41,9 @@ impl Manager {
         Manager {
             npc_templates: Vec::new(),
             skill_templates: Vec::new(),
-            intrinsic_templates: Vec::new(),
 
             npc_templates_by_id: HashMap::new(),
             skill_templates_by_id: HashMap::new(),
-            intrinsic_templates_by_id: HashMap::new(),
             item_time_service: ItemTimeService::new(),
             npc_service: NpcService::new(),
             npc_manager: NpcManager::new(),
@@ -70,7 +66,7 @@ impl Manager {
         self.load_npc_templates().await?;
         mob_template_manager::load(&database).await?;
         self.load_skill_templates().await?;
-        self.load_intrinsic_templates().await?;
+        intrinsic_template_manager::load(&database).await?;
         self.npc_service.init(self.npc_templates.clone());
         if let Err(e) = self.load_part_update_data().await {
             eprintln!("Failed to load part update data: {:?}", e);
@@ -226,34 +222,11 @@ impl Manager {
         Ok(())
     }
 
-    async fn load_intrinsic_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let intrinsic_templates = intrinsic::Entity::find().all(database).await?;
-
-            self.intrinsic_templates = intrinsic_templates.clone();
-            for template in intrinsic_templates {
-                self.intrinsic_templates_by_id.insert(template.id, template);
-            }
-
-            println!(
-                "Loaded {} intrinsic templates",
-                self.intrinsic_templates.len()
-            );
-        }
-        Ok(())
-    }
-
     pub fn get_npc_templates(&self) -> &Vec<npc_template::Model> {
         &self.npc_templates
     }
     pub fn get_skill_templates(&self) -> &Vec<skill_template::Model> {
         &self.skill_templates
-    }
-    pub fn get_intrinsic_templates(&self) -> &Vec<intrinsic::Model> {
-        &self.intrinsic_templates
-    }
-    pub fn get_intrinsic_template_by_id(&self, id: i32) -> Option<&intrinsic::Model> {
-        self.intrinsic_templates_by_id.get(&id)
     }
 
     pub fn get_item_time_service(&self) -> &ItemTimeService {

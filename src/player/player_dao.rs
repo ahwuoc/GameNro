@@ -4,8 +4,10 @@ use crate::item::inventory::Inventory;
 use crate::item::item::{self, Item as RtItem};
 use crate::item::item_option::ItemOption as RtItemOption;
 use crate::item::item_service::ItemService;
+use crate::models::Intrinsic;
 use crate::player::n_point::NPoint;
 use crate::player::player::Player;
+use crate::services::intrinsic_template_manager;
 use crate::{data, entities};
 use anyhow::Result;
 use chrono::format::Item;
@@ -14,6 +16,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing_subscriber::layer;
 
+#[derive(Debug, Deserialize, Default)]
+struct IntrinsicData {
+    #[serde(default)]
+    intrinsic_id: i32,
+    #[serde(default)]
+    param1: i16,
+    #[serde(default)]
+    param2: i16,
+    #[serde(default)]
+    count_open: i8,
+}
 #[derive(Debug, Deserialize, Default)]
 struct PointData {
     #[serde(default)]
@@ -98,7 +111,6 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
         }
     }
 
-    // Load body items - only push non-null items
     let items_body = parser_item_raw(&model.items_body);
     for item_data in items_body {
         if item_data.template_id != -1 {
@@ -149,7 +161,15 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
             p.inventory.items_box.push(ItemService::create_item_null());
         }
     }
-
+    let intrinsic_data = parse_intrinsic_array(&model.data_intrinsic);
+    if let Ok(intrinsic_data) = intrinsic_data {
+        if let Some(template) = intrinsic_template_manager::get(intrinsic_data.intrinsic_id as i8) {
+            p.intrinsic.intrinsic = Intrinsic::from_entity(&template);
+        }
+        p.intrinsic.intrinsic.param1 = intrinsic_data.param1;
+        p.intrinsic.intrinsic.param2 = intrinsic_data.param2;
+        p.intrinsic.count_open = intrinsic_data.count_open;
+    }
     println!(
         "[PLAYER_DAO] Parsed inventory - Body: {} items, Bag: {} items, Box: {} items",
         p.inventory.items_body.len(),
@@ -189,6 +209,20 @@ fn parse_point_array(s: &str) -> anyhow::Result<PointData> {
     let data: PointData = serde_json::from_str(s)
         .map_err(|e| anyhow::anyhow!("Failed to parse point data: {}", e))?;
     Ok(data)
+}
+fn parse_intrinsic_array(s: &str) -> anyhow::Result<IntrinsicData> {
+    if s.is_empty() || s == "[]" {
+        return Ok(IntrinsicData::default());
+    }
+    let array: Vec<serde_json::Value> = serde_json::from_str(s)
+        .map_err(|e| anyhow::anyhow!("Failed to parse intrinsic array: {}", e))?;
+
+    Ok(IntrinsicData {
+        intrinsic_id: array.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        param1: array.get(1).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
+        param2: array.get(2).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
+        count_open: array.get(3).and_then(|v| v.as_i64()).unwrap_or(0) as i8,
+    })
 }
 
 struct ItemDataParsed {

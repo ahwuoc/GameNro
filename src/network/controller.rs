@@ -135,7 +135,6 @@ impl AsyncController {
                 Ok(())
             }
             29 => {
-                // CMD 29: Open zone UI
                 if let Some(player) = session.take_player() {
                     let change_map_service = ChangeMapService::new();
                     let res = change_map_service.open_zone_ui(&player, session).await;
@@ -168,7 +167,6 @@ impl AsyncController {
                 Ok(())
             }
             -15 => {
-                // CMD -15: Go home
                 if let Some(mut player) = session.take_player() {
                     let change_map_service = ChangeMapService::new();
                     let res = change_map_service
@@ -193,6 +191,12 @@ impl AsyncController {
                 Ok(())
             }
             -63 => Ok(()),
+            112 => {
+                if session.get_player().is_some() {
+                    services::IntrinsicService::show_menu(session).await?;
+                }
+                Ok(())
+            }
 
             _ => {
                 println!("Unknown command: {}", msg.command);
@@ -370,14 +374,12 @@ impl AsyncController {
                             );
                         }
 
-                        // Update Last Login time AFTER checks
                         {
                             let mut account_data = account.into_active_model();
                             account_data.last_time_login = Set(Some(Utc::now()));
                             AccountDao::update_account(&pool, account_data).await?;
                         }
 
-                        // Setup Zone
                         {
                             let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
                             if let Some(zone) = zone_manager

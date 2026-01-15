@@ -1,13 +1,10 @@
 #![allow(dead_code)]
-use std::sync::Mutex;
-
 use crate::models::{Intrinsic, IntrinsicPlayer};
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::player::Player as RtPlayer;
-use crate::services::manager::Manager;
+use crate::services::intrinsic_template_manager;
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use rand::Rng;
 
 pub struct IntrinsicService;
@@ -15,93 +12,103 @@ pub struct IntrinsicService;
 impl IntrinsicService {
     const COST_OPEN: [i32; 8] = [10, 20, 40, 80, 160, 320, 640, 1280];
 
-    pub fn get_intrinsics(&self, player_gender: u8) -> Vec<Intrinsic> {
-        let manager = Manager::get_instance();
-        let manager_guard = manager.lock().unwrap();
-
-        manager_guard
-            .get_intrinsic_templates()
-            .iter()
-            .filter(|intrinsic| intrinsic.gender == player_gender as i16)
-            .map(|entity| Intrinsic::from_entity(entity))
+    pub fn get_intrinsics(player_gender: i8) -> Vec<Intrinsic> {
+        intrinsic_template_manager::get_all()
+            .into_iter()
+            .filter(|t| t.gender == player_gender)
+            .map(|t| Intrinsic::from_entity(&t))
             .collect()
     }
 
-    pub fn get_intrinsic_by_id(&self, id: i32) -> Option<Intrinsic> {
-        let manager = Manager::get_instance();
-        let manager_guard = manager.lock().unwrap();
-
-        manager_guard
-            .get_intrinsic_template_by_id(id)
-            .map(|entity| Intrinsic::from_entity(entity))
+    pub fn get_intrinsic_by_id(id: i8) -> Option<Intrinsic> {
+        intrinsic_template_manager::get(id).map(|t| Intrinsic::from_entity(&t))
     }
 
-    pub async fn send_info_intrinsic(
-        &self,
-        session: &mut AsyncSession,
-        _player: &RtPlayer,
-    ) -> Result<()> {
-        let player_intrinsic = IntrinsicPlayer::new();
+    pub async fn send_info_intrinsic(session: &mut AsyncSession, player: &RtPlayer) -> Result<()> {
+        let player_instrict = &player.intrinsic;
         let mut msg = Message::new(112);
-        let _ = msg.write_byte(0);
-
-        let _ = msg.write_short(player_intrinsic.intrinsic.icon);
-        let _ = msg.write_utf(&player_intrinsic.intrinsic.get_name());
+        msg.write_byte(0);
+        msg.write_short(player_instrict.intrinsic.icon);
+        msg.write_utf(&player_instrict.intrinsic.get_name());
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    pub async fn show_all_intrinsic(
-        &self,
-        session: &mut AsyncSession,
-        player_gender: u8,
-    ) -> Result<()> {
-        let list_intrinsic = self.get_intrinsics(player_gender);
+    pub async fn show_all_intrinsic(session: &mut AsyncSession, player_gender: i8) -> Result<()> {
+        let list_intrinsic = Self::get_intrinsics(player_gender);
         let mut msg = Message::new(112);
 
-        let _ = msg.write_byte(1);
-        let _ = msg.write_byte(1); // count tab
-        let _ = msg.write_utf("Nội tại");
-        let _ = msg.write_byte((list_intrinsic.len() - 1) as i8);
+        msg.write_byte(1);
+        msg.write_byte(1);
+        msg.write_utf("Nội tại");
+        msg.write_byte((list_intrinsic.len() - 1) as i8);
         for i in 1..list_intrinsic.len() {
             let intrinsic = &list_intrinsic[i];
-            let _ = msg.write_short(intrinsic.icon);
-            let _ = msg.write_utf(&intrinsic.get_description());
+            msg.write_short(intrinsic.icon);
+            msg.write_utf(&intrinsic.get_description());
         }
 
         session.send_message(&msg).await?;
-
         Ok(())
     }
 
-    pub async fn show_menu(&self, _session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("Showing intrinsic menu");
+    pub async fn show_menu(session: &mut AsyncSession) -> anyhow::Result<()> {
+        use crate::constant::menu_enum::MenuId;
+        use crate::npc::npc_service::NpcService;
+
+        NpcService::create_menu(
+            session,
+            crate::constant::const_npc::CON_MEO as i16,
+            "Nội tại là một kỹ năng bị động hỗ trợ đặc biệt\nBạn có muốn mở hoặc thay đổi nội tại không?",
+            vec!["Xem\ntất cả\nNội Tại", "Mở\nNội Tại", "Mở VIP", "Từ chối"],
+            MenuId::Intrinsic,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn show_confirm_open(
-        &self,
-        _session: &mut AsyncSession,
-        count_open: u8,
+        session: &mut AsyncSession,
+        count_open: i8,
     ) -> anyhow::Result<()> {
+        use crate::constant::menu_enum::MenuId;
+        use crate::npc::npc_service::NpcService;
+
         let index = if count_open as usize >= Self::COST_OPEN.len() {
             Self::COST_OPEN.len() - 1
         } else {
             count_open as usize
         };
-
         let cost = Self::COST_OPEN[index];
-        println!("Confirming open intrinsic with cost: {} Tr vàng", cost);
+
+        NpcService::create_menu(
+            session,
+            crate::constant::const_npc::CON_MEO as i16,
+            &format!("Bạn muốn đổi Nội Tại khác\nvới giá là {} Tr vàng ?", cost),
+            vec!["Mở\nNội Tại", "Từ chối"],
+            MenuId::ConfirmOpenIntrinsic,
+        )
+        .await?;
         Ok(())
     }
 
-    pub async fn show_confirm_open_vip(&self, _session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("Confirming open intrinsic VIP with cost: 100 ngọc");
+    pub async fn show_confirm_open_vip(session: &mut AsyncSession) -> anyhow::Result<()> {
+        use crate::constant::menu_enum::MenuId;
+        use crate::npc::npc_service::NpcService;
+
+        NpcService::create_menu(
+            session,
+            crate::constant::const_npc::CON_MEO as i16,
+            "Bạn có muốn mở Nội Tại\nvới giá là 100 ngọc và\ntái lập giá vàng quay lại ban đầu không?",
+            vec!["Mở\nNội VIP", "Từ chối"],
+            MenuId::ConfirmOpenIntrinsicVip,
+        )
+        .await?;
         Ok(())
     }
 
-    fn change_intrinsic(&self, player_intrinsic: &mut IntrinsicPlayer, player_gender: u8) {
-        let list_intrinsic = self.get_intrinsics(player_gender);
+    fn change_intrinsic(player_intrinsic: &mut IntrinsicPlayer, player_gender: i8) {
+        let list_intrinsic = Self::get_intrinsics(player_gender);
         if list_intrinsic.len() > 1 {
             let mut rng = rand::rng();
             let random_index = rng.random_range(1..list_intrinsic.len());
@@ -117,9 +124,8 @@ impl IntrinsicService {
     }
 
     pub fn open(
-        &self,
         player_intrinsic: &mut IntrinsicPlayer,
-        player_gender: u8,
+        player_gender: i8,
         player_power: i64,
         player_gold: i64,
     ) -> Result<String, String> {
@@ -136,7 +142,7 @@ impl IntrinsicService {
         let gold_require = Self::COST_OPEN[index] as i64 * 1_000_000;
 
         if player_gold >= gold_require {
-            self.change_intrinsic(player_intrinsic, player_gender);
+            Self::change_intrinsic(player_intrinsic, player_gender);
             player_intrinsic.count_open += 1;
 
             let intrinsic_name = player_intrinsic.intrinsic.get_name();
@@ -154,9 +160,8 @@ impl IntrinsicService {
     }
 
     pub fn open_vip(
-        &self,
         player_intrinsic: &mut IntrinsicPlayer,
-        player_gender: u8,
+        player_gender: i8,
         player_power: i64,
         player_gem: i32,
     ) -> Result<String, String> {
@@ -165,7 +170,7 @@ impl IntrinsicService {
         }
         let gem_require = 100;
         if player_gem >= gem_require {
-            self.change_intrinsic(player_intrinsic, player_gender);
+            Self::change_intrinsic(player_intrinsic, player_gender);
             player_intrinsic.count_open = 0;
 
             let intrinsic_name = player_intrinsic.intrinsic.get_name();

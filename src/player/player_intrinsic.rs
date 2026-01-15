@@ -1,5 +1,5 @@
-use crate::models::IntrinsicPlayer;
 use crate::models::Intrinsic;
+use crate::models::IntrinsicPlayer;
 
 #[derive(Debug, Clone)]
 pub struct PlayerIntrinsic {
@@ -41,11 +41,11 @@ impl PlayerIntrinsic {
         self.intrinsic.intrinsic.icon
     }
 
-    pub fn get_intrinsic_level(&self) -> u8 {
+    pub fn get_intrinsic_level(&self) -> i8 {
         self.intrinsic.count_open
     }
 
-    pub fn set_intrinsic_level(&mut self, level: u8) {
+    pub fn set_intrinsic_level(&mut self, level: i8) {
         self.intrinsic.count_open = level;
     }
 

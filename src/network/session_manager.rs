@@ -68,14 +68,14 @@ impl SessionManager {
 
                 match kick_result {
                     Ok(Ok(_)) => println!(
-                        "[SESSION_MANAGER] ✅ Kicked player {} (connection closed)",
+                        "[SESSION_MANAGER] Kicked player {} (connection closed)",
                         player_id
                     ),
                     Ok(Err(e)) => {
-                        println!("[SESSION_MANAGER] ❌ Failed to kick {}: {:?}", player_id, e)
+                        println!("[SESSION_MANAGER] Failed to kick {}: {:?}", player_id, e)
                     }
                     Err(_) => println!(
-                        "[SESSION_MANAGER] ⏱ Kick timeout for player {} after 5s",
+                        "[SESSION_MANAGER] Kick timeout for player {} after 5s",
                         player_id
                     ),
                 }

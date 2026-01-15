@@ -9,6 +9,7 @@ use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::npc;
 use crate::npc::handlers::bahatmit::BahatmitHandler;
+use crate::npc::handlers::conmeo::ConMeoHandler;
 use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::NpcHandler;
 use crate::npc::{BaseMenu, Npc};
@@ -45,6 +46,7 @@ impl NpcService {
         match npc_id {
             BA_HAT_MIT => Some(Box::new(BahatmitHandler)),
             RUONG_DO => Some(Box::new(RuongDoHandler)),
+            CON_MEO => Some(Box::new(ConMeoHandler)),
             _ => None,
         }
     }
@@ -55,7 +57,7 @@ impl NpcService {
         select: i8,
     ) -> anyhow::Result<()> {
         let state = if let Some(player) = session.get_player() {
-            MenuId::from(player.id_mark.get_index_menu())
+            player.id_mark.get_index_menu()
         } else {
             return Ok(());
         };

@@ -75,3 +75,4 @@ pub const BARDOCK: i32 = 70;
 pub const TORIBOT: i32 = 71;
 pub const CAY_NEU: i32 = 72;
 pub const EVENT: i32 = 75;
+pub const INTRINSIC: i8 = 100;
