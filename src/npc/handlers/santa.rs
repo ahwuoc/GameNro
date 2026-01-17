@@ -36,31 +36,24 @@ impl NpcHandler for SantaHandler {
             MenuId::SantaMenu => match select {
                 0 => {
                     shop_service::open_shop("VIHOP", session).await?;
-                    println!("Open shop VIP");
                 }
                 1 => {
                     shop_service::open_shop("SU_KIEN", session).await?;
-                    println!("Open shop VIP");
                 }
                 2 => {
                     shop_service::open_shop("VIHOP", session).await?;
-                    println!("Open shop VIP");
                 }
                 3 => {
                     shop_service::open_shop("SHOP_NGU_SAC", session).await?;
-                    println!("Open shop VIP");
                 }
                 4 => {
                     shop_service::open_shop("SANTA_HEAD", session).await?;
-                    println!("Open shop VIP");
                 }
                 5 => {
                     shop_service::open_shop("XXXX", session).await?;
-                    println!("Open shop VIP");
                 }
                 6 => {
                     shop_service::open_shop("SANTA_RUBY", session).await?;
-                    println!("Open shop VIP");
                 }
                 _ => {}
             },

@@ -30,10 +30,6 @@ impl AsyncController {
         mut msg: Message,
         session_arc: Arc<RwLock<AsyncSession>>,
     ) -> Result<()> {
-        println!("=== CLIENT MESSAGE ===");
-        println!("Command: {}", msg.command);
-        println!("Data length: {} bytes", msg.payload.len());
-        println!("=====================");
         match msg.command {
             cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {

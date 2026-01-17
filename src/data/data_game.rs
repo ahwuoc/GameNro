@@ -447,7 +447,6 @@ impl DataGame {
                 msg.write_byte(mob_id)?;
                 msg.write(&mob)?;
                 sesssion.send_message(&msg).await?;
-                println!("send mob temp {}", mob_id);
             }
             Err(_) => {
                 println!("Warning: Mob temp file not found")
