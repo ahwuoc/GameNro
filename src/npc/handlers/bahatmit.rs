@@ -1,4 +1,6 @@
 use super::NpcHandler;
+use crate::combine::combine_type::CombineType;
+use crate::combine::{combine_constants, combine_service, CombineHandler};
 use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::entities::player;
@@ -27,45 +29,14 @@ impl NpcHandler for BahatmitHandler {
                 let npc_say = "Ngươi tìm ta có việc gì?";
                 npc_service::npc_service::create_menu(
                     session,
-                    const_npc::SANTA,
+                    npc_id,
                     npc_say,
                     menu_items,
                     MenuId::BaseMenu,
                 )
                 .await?;
             }
-            112 => {
-                let menu_items = vec!["Top 100", "Đồng ý\nThỏi vàng", "Từ chối", "Về\nđảo rùa"];
-                let npc_say = "Ngươi muốn đăng ký thi đấu võ đài?\nnhiều phần thưởng giá trị đang đợi ngươi đó";
-                npc_service::npc_service::create_menu(
-                    session,
-                    const_npc::SANTA,
-                    npc_say,
-                    menu_items,
-                    MenuId::BaseMenu,
-                )
-                .await?;
-            }
-            _ => {
-                let menu_items = vec![
-                    "Cửa hàng",
-                    "Mở rộng\nHành trang\nRương đồ",
-                    "Nhập mã\nquà tặng",
-                    "Cửa hàng\nHạn sử dụng",
-                    "Tiệm\nHớt tóc",
-                    "Danh\nhiệu",
-                    "Shop Vip",
-                ];
-                let npc_say = "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?";
-                npc_service::npc_service::create_menu(
-                    session,
-                    const_npc::SANTA,
-                    npc_say,
-                    menu_items,
-                    MenuId::BaseMenu,
-                )
-                .await?;
-            }
+            _ => {}
         }
         Ok(())
     }
@@ -85,7 +56,16 @@ impl NpcHandler for BahatmitHandler {
         match menu_id {
             MenuId::BaseMenu => match map_id {
                 5 => match select {
-                    0 => println!("Xử lý Chức năng pha lê"),
+                    0 => {
+                        combine_service::open_tab_combine(
+                            session,
+                            CombineType::PhaLeHoaTrangBi(
+                                crate::combine::handlers::saophale::SaoPhaLe,
+                            ),
+                            npc_id,
+                        )
+                        .await?;
+                    }
                     1 => println!("Xử lý Chức năng đệ tử"),
                     _ => {}
                 },
@@ -103,7 +83,7 @@ impl NpcHandler for BahatmitHandler {
                             "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?";
                         npc_service::npc_service::create_menu(
                             session,
-                            const_npc::SANTA,
+                            npc_id,
                             npc_say,
                             menu_items,
                             MenuId::SubMenuSanta,
@@ -119,9 +99,13 @@ impl NpcHandler for BahatmitHandler {
                 }
                 _ => {}
             },
-            _ => {
-                println!("Unhandled menu state: {:?}", menu_id);
-            }
+            MenuId::MenuCombine => match select {
+                0 => {
+                    combine_service::confirm_combine(session).await?;
+                }
+                _ => {}
+            },
+            _ => {}
         }
         Ok(())
     }

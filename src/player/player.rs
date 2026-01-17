@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::combine::model::Combine;
 use crate::entities;
 use crate::item::inventory::{self, Inventory};
 use crate::map::Zone;
@@ -26,6 +27,7 @@ pub struct Player {
     pub inventory: Inventory,
     pub intrinsic: IntrinsicPlayer,
     pub location: Location,
+    pub combine_new: Combine,
 
     pub is_die: bool,
     pub is_new_member: bool,
@@ -77,6 +79,7 @@ impl Player {
             inventory: Inventory::new(),
             intrinsic: IntrinsicPlayer::new(),
             location: Location::new(),
+            combine_new: Combine::new(),
             is_die: false,
             is_new_member: true,
             before_dispose: false,

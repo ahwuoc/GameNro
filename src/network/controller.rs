@@ -199,6 +199,16 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            -81 => {
+                let _ = msg.read_byte()?;
+                let len = msg.read_byte()?;
+                let mut index_item = Vec::new();
+                for _ in 0..len {
+                    index_item.push(msg.read_byte()? as i16);
+                }
+                crate::combine::combine_service::show_info_combine(session, index_item).await?;
+                Ok(())
+            }
             _ => {
                 println!("Unknown command: {}", msg.command);
                 Ok(())

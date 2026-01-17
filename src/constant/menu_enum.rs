@@ -5,6 +5,7 @@ pub enum MenuId {
     SubMenuSanta,
     Intrinsic,
     SantaMenu,
+    MenuCombine,
     ConfirmOpenIntrinsic,
     ConfirmOpenIntrinsicVip,
     Admin,

@@ -24,6 +24,7 @@ async-trait = "0.1.89"
 sysinfo = "0.37.2"
 image = "0.25.9"
 fast_image_resize = { version = "6.0.0", features = ["image"] }
+enum_dispatch = "0.3.13"
 [[bin]]
 name = "gamenro"
 path = "src/main.rs"
