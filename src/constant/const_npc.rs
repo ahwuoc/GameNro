@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 // NPC IDs
-pub const ONG_GOHAN: i32 = 0;
-pub const ONG_PARAGUS: i32 = 1;
-pub const ONG_MOORI: i32 = 2;
+pub const ONG_GOHAN: i16 = 0;
+pub const ONG_PARAGUS: i16 = 1;
+pub const ONG_MOORI: i16 = 2;
 pub const RUONG_DO: i16 = 3;
 pub const DAU_THAN: i32 = 4;
 pub const CON_MEO: i16 = 5;
@@ -55,7 +55,7 @@ pub const QUA_TRUNG: i32 = 50;
 pub const DUA_HAU: i32 = 51;
 pub const HUNG_VUONG: i32 = 52;
 pub const TAPION: i32 = 53;
-pub const LY_TIEU_NUONG: i32 = 54;
+pub const LY_TIEU_NUONG: i16 = 54;
 pub const BILL: i32 = 55;
 pub const WHIS: i32 = 56;
 pub const CHAMPA: i32 = 57;

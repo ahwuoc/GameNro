@@ -8,6 +8,7 @@ pub enum MenuId {
     ConfirmOpenIntrinsic,
     ConfirmOpenIntrinsicVip,
     Admin,
+    OngGohanMenu,
 }
 
 impl Default for MenuId {

@@ -11,6 +11,7 @@ use crate::network::session::AsyncSession;
 use crate::npc;
 use crate::npc::handlers::bahatmit::BahatmitHandler;
 use crate::npc::handlers::conmeo::ConMeoHandler;
+use crate::npc::handlers::ong_gohan::NpcHomeHandler;
 use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::santa::SantaHandler;
 use crate::npc::handlers::NpcHandler;
@@ -20,7 +21,66 @@ use crate::npc::{BaseMenu, RtNpc};
 use std::collections::HashMap;
 
 pub mod npc_service {
+    use crate::map::map_manager;
+
     use super::*;
+
+    pub async fn npc_chat(
+        session: &mut AsyncSession,
+        message: &str,
+        npc_id: i16,
+    ) -> anyhow::Result<()> {
+        let mut msg = Message::new(124);
+        msg.write_short(npc_id)?;
+        msg.write_utf(message)?;
+        session.send_message(&msg).await?;
+        Ok(())
+    }
+
+    pub async fn hide_wait_dialog(session: &mut AsyncSession) -> anyhow::Result<()> {
+        let mut msg = Message::new(-99);
+        msg.write_byte(-1);
+        session.send_message(&msg).await?;
+        Ok(())
+    }
+    pub async fn can_open_npc(session: &mut AsyncSession, npc_id: i16) -> bool {
+        let Some(player) = session.get_player() else {
+            return false;
+        };
+
+        if npc_id == DAU_THAN as i16 {
+            if player.map_id == 21 || player.map_id == 22 || player.map_id == 23 {
+                return true;
+            } else {
+                if let Err(e) = hide_wait_dialog(session).await {
+                    println!("Error sending hide_wait_dialog: {:?}", e);
+                }
+                return false;
+            }
+        }
+
+        if npc_id == const_npc::LY_TIEU_NUONG {
+            return true;
+        }
+        let map_manage = &map_manager::MAP_MANAGER;
+        if let Some(map) = map_manage.find_by_id(player.map_id) {
+            if let Some(npc_spawnd) = map.info.npcs.iter().find(|n| n.id == npc_id as i32) {
+                let is_black_war = false;
+                if !is_black_war {
+                    return true;
+                } else {
+                    let dx = (npc_spawnd.x as i32 - player.location.x as i32).abs();
+                    let dy = (npc_spawnd.y as i32 - player.location.y as i32).abs();
+                    if dx * dx + dy * dy <= 60_i32.pow(2) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        false
+    }
 
     pub async fn open_menu_controller(
         session: &mut AsyncSession,
@@ -29,12 +89,20 @@ pub mod npc_service {
         if session.get_player().is_none() {
             return Ok(());
         }
+        if !can_open_npc(session, npc_id).await {
+            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id).await?;
+            hide_wait_dialog(session).await?;
+            return Ok(());
+        }
 
         if let Some(handler) = get_handler(npc_id) {
             handler.open_menu(session, npc_id as i16).await?;
         } else {
             println!("Unhandled NPC ID: {}", npc_id);
+            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id).await?;
+            hide_wait_dialog(session).await?;
         }
+
         Ok(())
     }
 
@@ -44,6 +112,7 @@ pub mod npc_service {
             RUONG_DO => Some(Box::new(RuongDoHandler)),
             CON_MEO => Some(Box::new(ConMeoHandler)),
             SANTA => Some(Box::new(SantaHandler)),
+            ONG_GOHAN | ONG_MOORI | ONG_PARAGUS => Some(Box::new(NpcHomeHandler)),
             _ => None,
         }
     }
@@ -58,8 +127,12 @@ pub mod npc_service {
             None => return Ok(()),
         };
 
+        if !can_open_npc(session, npc_id).await {
+            return Ok(());
+        }
+
         if let Some(handler) = get_handler(npc_id) {
-            handler.handle_menu(session, state, select).await?;
+            handler.handle_menu(session, npc_id, state, select).await?;
         } else {
             println!("Unhandled NPC ID: {}", npc_id);
         }

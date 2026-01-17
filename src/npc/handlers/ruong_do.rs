@@ -17,6 +17,7 @@ impl NpcHandler for RuongDoHandler {
     async fn handle_menu(
         &self,
         session: &mut AsyncSession,
+        npc_id: i16,
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
