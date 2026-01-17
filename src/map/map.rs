@@ -320,14 +320,11 @@ impl Map {
 
         Ok(())
     }
-
-    /// Check if map is active
     pub async fn is_active(&self) -> bool {
         let is_active = self.is_active.read().await;
         *is_active
     }
 
-    /// Set map active status
     pub async fn set_active(&self, active: bool) {
         let mut is_active = self.is_active.write().await;
         *is_active = active;

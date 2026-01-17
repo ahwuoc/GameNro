@@ -3,6 +3,7 @@ use crate::map::map_template_manager;
 use crate::mob::mob_template_manager;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
+use crate::npc::npc_template_manager;
 use crate::services::head_avatar_manager;
 use dashmap::DashMap;
 use dotenv::dotenv;
@@ -270,10 +271,8 @@ impl DataGame {
     }
 
     pub async fn update_map(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let npc_templates = crate::npc::npc_template_manager::get_all();
-
+        let npc_templates = npc_template_manager::get_all();
         let map_templates = map_template_manager::get_all();
-
         let mut msg = Message::new(-28);
         msg.write_byte(6)?;
         msg.write_byte(Self::VS_MAP)?;
@@ -284,7 +283,6 @@ impl DataGame {
         }
 
         msg.write_byte(npc_templates.len() as i8)?;
-
         for template in &npc_templates {
             msg.write_utf(&template.name)?;
             msg.write_short(template.head)?;
@@ -303,9 +301,7 @@ impl DataGame {
             msg.write_byte(mob_template.speed as i8)?;
             msg.write_byte(mob_template.dart_type as i8)?;
         }
-
         session.send_message(&msg).await?;
-
         println!(
             "Map data updated successfully with {} maps, {} NPCs, {} mobs",
             map_templates.len(),
