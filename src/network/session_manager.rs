@@ -90,4 +90,9 @@ impl SessionManager {
         let sessions = self.sessions.read().await;
         sessions.contains_key(&player_id)
     }
+
+    pub async fn get_online_count(&self) -> usize {
+        let sessions = self.sessions.read().await;
+        sessions.len()
+    }
 }

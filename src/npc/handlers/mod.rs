@@ -8,10 +8,11 @@ use std::pin::Pin;
 pub mod bahatmit;
 pub mod conmeo;
 pub mod ruong_do;
+pub mod santa;
 use async_trait::async_trait;
 #[async_trait]
 pub trait NpcHandler {
-    async fn open_menu(&self, session: &mut AsyncSession) -> anyhow::Result<()>;
+    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()>;
     async fn handle_menu(
         &self,
         session: &mut AsyncSession,

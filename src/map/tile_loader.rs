@@ -7,11 +7,15 @@ impl TileLoader {
     pub fn read_tile_map_file(map_id: i32) -> Option<(i32, i32, Vec<Vec<i32>>)> {
         let path = format!("data/girlkun/map/tile_map_data/{}", map_id);
         let data = fs::read(&path).ok()?;
-        if data.len() < 2 { return None; }
+        if data.len() < 2 {
+            return None;
+        }
         let w = data[0] as usize;
         let h = data[1] as usize;
         let expected = 2 + w * h;
-        if data.len() < expected { return None; }
+        if data.len() < expected {
+            return None;
+        }
         let mut tiles: Vec<Vec<i32>> = Vec::with_capacity(h);
         let mut idx = 2;
         for _row in 0..h {
@@ -34,7 +38,7 @@ impl TileLoader {
     pub fn load_tile_data(map_id: i32, tile_id: i32) -> Option<TileData> {
         let tile_map = Self::read_tile_map_file(map_id)?;
         let tile_top = Self::read_tile_top_file(tile_id);
-        
+
         Some(TileData {
             width: tile_map.0,
             height: tile_map.1,
@@ -56,20 +60,17 @@ impl TileLoader {
     }
 
     pub fn is_walkable_tile(tile_id: i32) -> bool {
-        // Define walkable tile IDs
-        let walkable_tiles = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let walkable_tiles: &[i32] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         walkable_tiles.contains(&tile_id)
     }
 
     pub fn is_water_tile(tile_id: i32) -> bool {
-        // Define water tile IDs
-        let water_tiles = vec![10, 11, 12, 13, 14, 15];
+        let water_tiles: &[i32] = &[10, 11, 12, 13, 14, 15];
         water_tiles.contains(&tile_id)
     }
 
     pub fn is_wall_tile(tile_id: i32) -> bool {
-        // Define wall tile IDs
-        let wall_tiles = vec![20, 21, 22, 23, 24, 25];
+        let wall_tiles: &[i32] = &[20, 21, 22, 23, 24, 25];
         wall_tiles.contains(&tile_id)
     }
 

@@ -8,11 +8,20 @@ static DB_POOL: OnceLock<DatabaseConnection> = OnceLock::new();
 pub struct DbManager;
 
 impl DbManager {
-    pub async fn new(config: &DatabaseConfig) -> Result<()> {
-        let database_url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            config.username, config.password, config.host, config.port, config.db_name
-        );
+    pub async fn init(config: &DatabaseConfig) -> Result<()> {
+        let database_url = if config.type_database == "sqlite" {
+            format!("sqlite://{}?mode=rwc", config.db_name)
+        } else {
+            format!(
+                "{}://{}:{}@{}:{}/{}",
+                config.type_database,
+                config.username,
+                config.password,
+                config.host,
+                config.port,
+                config.db_name
+            )
+        };
 
         let mut opt = ConnectOptions::new(database_url);
         opt.max_connections(config.max_connections)

@@ -14,6 +14,7 @@ mod network;
 mod npc;
 mod player;
 mod services;
+mod shop;
 mod utils;
 use anyhow::Result;
 use config::Config;
@@ -22,11 +23,11 @@ use database::DbManager;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
-    let db_manager = DbManager::new(&config.database).await?;
+    DbManager::init(&config.database).await?;
 
     {
         let manager = services::Manager::get_instance();
-        let mut manager_guard = manager.lock().unwrap();
+        let mut manager_guard = manager.lock().await;
         if let Err(e) = manager_guard.init().await {
             return Err(anyhow::anyhow!("Manager initialization failed: {:?}", e));
         }

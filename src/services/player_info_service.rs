@@ -249,7 +249,7 @@ impl PlayerInfoService {
         let mut msg = Self::sub_command_30(0).await?;
 
         Self::debug_write_to_file("=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===");
-        Self::debug_write_to_file(&format!("Message ID: -30, Sub command: 0"));
+        Self::debug_write_to_file(&format!("Message ID: -30, Sub command: 0").to_string());
 
         // Basic player info
         msg.write_int(player.id as i32)?; // charID

@@ -8,7 +8,7 @@ pub struct RuongDoHandler;
 
 #[async_trait]
 impl NpcHandler for RuongDoHandler {
-    async fn open_menu(&self, session: &mut AsyncSession) -> anyhow::Result<()> {
+    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(-35);
         msg.write_byte(1)?;
         session.send_message(&msg).await?;

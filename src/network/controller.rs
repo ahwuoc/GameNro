@@ -9,9 +9,10 @@ use crate::item::use_item::UseItem;
 use crate::item::{type_item_inventory, use_item};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
-use crate::npc;
+use crate::npc::{self, npc_service};
 use crate::services::{self, player_info_service, ServiceHandles};
 use crate::services::{GodGK, PlayerInfoService};
+use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
@@ -60,7 +61,6 @@ impl AsyncController {
                 Ok(())
             }
             -41 => {
-                // TODO send caption strLevel
                 match msg.read_byte() {
                     Ok(gender) => {
                         println!("Gender: {}", gender);
@@ -77,10 +77,7 @@ impl AsyncController {
 
                 Ok(())
             }
-            -43 => {
-                // use item
-                Ok(())
-            }
+            -43 => Ok(()),
             -93 => {
                 Self::handle_not_login(session, msg, session_arc).await?;
                 Ok(())
@@ -93,7 +90,20 @@ impl AsyncController {
             32 => {
                 let npc_id = msg.read_short()?;
                 let select = msg.read_byte()?;
-                npc::npc_service::NpcService::handle_menu_confirm(session, npc_id, select).await?;
+                npc_service::npc_service::handle_menu_confirm(session, npc_id, select).await?;
+                Ok(())
+            }
+            6 => {
+                let type_shop = msg.read_byte()?;
+                let temp_id = msg.read_short()?;
+                if let Err(e) = shop_service::take_item_shop(session, type_shop, temp_id).await {
+                    println!("Shop Error: {:?}", e);
+                    ServiceHandles::send_message_alert(
+                        session,
+                        &format!("Lỗi mua vật phẩm: {}", e),
+                    )
+                    .await?;
+                }
                 Ok(())
             }
             -67 => {
@@ -109,7 +119,7 @@ impl AsyncController {
             }
             33 => {
                 let npc_id = msg.read_short()?;
-                npc::npc_service::NpcService::open_menu_controller(session, npc_id).await?;
+                npc_service::npc_service::open_menu_controller(session, npc_id).await?;
                 Ok(())
             }
             -28 => {
@@ -118,7 +128,9 @@ impl AsyncController {
             }
             44 => {
                 let text = msg.read_utf()?;
-                ServiceHandles::chat(session, &text).await?;
+                if !services::command::CommandService::check(session, &text).await? {
+                    ServiceHandles::chat(session, &text).await?;
+                }
                 Ok(())
             }
             -87 => {
@@ -197,7 +209,6 @@ impl AsyncController {
                 }
                 Ok(())
             }
-
             _ => {
                 println!("Unknown command: {}", msg.command);
                 Ok(())
@@ -354,6 +365,7 @@ impl AsyncController {
                         let rt_player = crate::player::player_dao::from_entity(&db_player)
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                         let mut player_with_zone = rt_player.clone();
+                        player_with_zone.is_admin = account.is_admin;
 
                         let player_id = player_with_zone.id;
                         let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
@@ -402,8 +414,6 @@ impl AsyncController {
                         }
 
                         player_with_zone.session = Some(session_arc.clone());
-
-                        // Add player to zone
                         if let Some(zone) = &player_with_zone.zone {
                             if let Err(e) = zone.add_player(player_with_zone.clone()).await {
                                 println!("Error adding player to zone: {:?}", e);

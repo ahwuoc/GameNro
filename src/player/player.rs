@@ -1,13 +1,12 @@
 #![allow(dead_code)]
+use crate::entities;
 use crate::item::inventory::{self, Inventory};
 use crate::map::Zone;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
-use crate::player::n_point::NPoint;
-// parsing moved to player_dao
-use crate::entities;
 use crate::player::id_mark::IdMark;
+use crate::player::n_point::NPoint;
 use crate::utils::Location;
 use serde_json::Value;
 
@@ -17,7 +16,6 @@ use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Player {
-    // Basic info
     pub id: u64,
     pub name: String,
     pub gender: i8,
@@ -29,20 +27,16 @@ pub struct Player {
     pub intrinsic: IntrinsicPlayer,
     pub location: Location,
 
-    // Status
     pub is_die: bool,
     pub is_new_member: bool,
     pub before_dispose: bool,
 
-    // Training
     pub is_train: bool,
     pub type_train: u8,
     pub time_off: u64,
 
-    // PK system
     pub type_pk: i8,
 
-    // Zone/Map
     pub zone_id: i32,
     pub map_id: i32,
     pub last_time_use_option: u64,
@@ -114,32 +108,8 @@ impl Player {
         self.is_die || self.n_point.hp <= 0
     }
 
-    pub fn from_entity(model: &entities::player::Model) -> Result<Self, String> {
-        crate::player::player_dao::from_entity(model)
-    }
-
-    fn parse_inventory_json(s: &str) -> Result<Inventory, String> {
-        if s.is_empty() {
-            return Ok(Inventory::new());
-        }
-        let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
-        let mut inv = Inventory::new();
-        if let Some(obj) = v.as_object() {
-            if let Some(gold) = obj.get("gold").and_then(|x| x.as_i64()) {
-                inv.gold = gold;
-            }
-            if let Some(gem) = obj.get("gem").and_then(|x| x.as_i64()) {
-                inv.gem = gem as i32;
-            }
-            if let Some(ruby) = obj.get("ruby").and_then(|x| x.as_i64()) {
-                inv.ruby = ruby as i32;
-            }
-        }
-        Ok(inv)
-    }
-
     pub fn get_name(&self) -> &str {
-        return &self.name;
+        &self.name
     }
     pub fn get_head(&self) -> i16 {
         if let Some(item) = self.inventory.items_body.get(5) {
@@ -187,17 +157,6 @@ impl Player {
         } else {
             58
         }
-    }
-    fn parse_location_array(s: &str) -> Result<(i64, i64, i64), String> {
-        if s.is_empty() {
-            return Err("empty location".into());
-        }
-        let v: Value = serde_json::from_str(s).map_err(|e| e.to_string())?;
-        let arr = v.as_array().ok_or("location not array")?;
-        let map_id = arr.get(0).and_then(|x| x.as_i64()).ok_or("no map id")?;
-        let x = arr.get(1).and_then(|x| x.as_i64()).ok_or("no x")?;
-        let y = arr.get(2).and_then(|x| x.as_i64()).ok_or("no y")?;
-        Ok((map_id, x, y))
     }
     pub async fn send_message(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(session) = &self.session {
@@ -305,7 +264,6 @@ impl Player {
         self.zone = None;
     }
 
-    /// Check if player has tennis spaceship
     pub fn has_tennis_spaceship(&self) -> bool {
         false
     }
@@ -318,27 +276,22 @@ impl Player {
         self.task_id = task_id;
     }
 
-    /// Check if player is a boss (NPC/boss players bypass restrictions)
     pub fn is_boss(&self) -> bool {
         self.is_boss
     }
 
-    /// Check if player has a previous capsule location saved
     pub fn has_previous_capsule_location(&self) -> bool {
         false
     }
 
-    /// Save current location before capsule travel
     pub fn save_capsule_location(&mut self, map_id: i32, zone_id: i32) {
         println!("Saving capsule location: map {} zone {}", map_id, zone_id);
     }
 
-    /// Get previous capsule location
     pub fn get_previous_capsule_location(&self) -> Option<(i32, i32)> {
         None
     }
 
-    /// Update zone change time for cooldown tracking
     pub fn update_zone_change_time(&mut self) {
         println!("Updated zone change time for player {}", self.name);
     }

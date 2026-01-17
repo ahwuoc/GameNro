@@ -7,6 +7,7 @@ pub struct IdMark {
     pub ott: i32,
     pub mbv: i32,
     pub type_change_map: i32,
+    pub tag_shop: String,
 }
 
 impl IdMark {
@@ -19,6 +20,12 @@ impl IdMark {
 
     pub fn get_index_menu(&self) -> MenuId {
         self.index_menu
+    }
+    pub fn set_tag_shop(&mut self, tab_shop: String) {
+        self.tag_shop = tab_shop;
+    }
+    pub fn get_tag_shop(&self) -> &str {
+        &self.tag_shop
     }
 
     pub fn set_index_menu(&mut self, index: MenuId) {

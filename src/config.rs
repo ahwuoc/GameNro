@@ -17,6 +17,7 @@ pub struct ServerConfig {
 pub struct DatabaseConfig {
     pub host: String,
     pub port: u16,
+    pub type_database: String,
     #[serde(alias = "user")]
     pub username: String,
     pub password: String,

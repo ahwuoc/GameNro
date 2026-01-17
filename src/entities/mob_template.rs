@@ -14,6 +14,7 @@ pub struct Model {
     pub hp: i32,
     pub range_move: i16,
     pub speed: i16,
+    #[sea_orm(column_name = "dart_Type")]
     pub dart_type: i16,
     pub percent_dame: i16,
     pub percent_tiem_nang: i16,

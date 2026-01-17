@@ -18,17 +18,6 @@ impl ItemMapService {
         }
     }
 
-    /// Get singleton instance
-    pub fn get_instance() -> &'static mut ItemMapService {
-        static mut INSTANCE: Option<ItemMapService> = None;
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(ItemMapService::new());
-            }
-            INSTANCE.as_mut().unwrap()
-        }
-    }
-
     /// Create item map
     pub fn create_item_map(
         &mut self,

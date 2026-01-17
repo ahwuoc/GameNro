@@ -10,7 +10,7 @@ impl ItemUtils {
             let base_value = template.gold as i64; // Use gold field instead of price
             let quantity_multiplier = item.quantity as i64;
             let option_bonus = Self::calculate_option_value(&item.item_options);
-            
+
             base_value * quantity_multiplier + option_bonus
         } else {
             0
@@ -19,18 +19,18 @@ impl ItemUtils {
 
     pub fn calculate_option_value(options: &[ItemOption]) -> i64 {
         let mut total_value = 0i64;
-        
+
         for option in options {
             let option_value = match option.option_id {
-                1..=2 => option.param as i64 * 10, // HP/MP
-                3..=4 => option.param as i64 * 50, // Attack/Defense
-                5..=9 => option.param as i64 * 25, // Stats
+                1..=2 => option.param as i64 * 10,    // HP/MP
+                3..=4 => option.param as i64 * 50,    // Attack/Defense
+                5..=9 => option.param as i64 * 25,    // Stats
                 10..=15 => option.param as i64 * 100, // Skills
                 _ => option.param as i64,
             };
             total_value += option_value;
         }
-        
+
         total_value
     }
 
@@ -50,7 +50,7 @@ impl ItemUtils {
 
     pub fn is_equipment(item: &Item) -> bool {
         if let Some(template) = &item.template {
-            let equipment_types = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            let equipment_types: &[i32] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             equipment_types.contains(&(template.r#type as i32))
         } else {
             false
@@ -59,7 +59,7 @@ impl ItemUtils {
 
     pub fn is_consumable(item: &Item) -> bool {
         if let Some(template) = &item.template {
-            let consumable_types = vec![10, 11, 12, 13, 14, 15];
+            let consumable_types: &[i32] = &[10, 11, 12, 13, 14, 15];
             consumable_types.contains(&(template.r#type as i32))
         } else {
             false
@@ -68,8 +68,7 @@ impl ItemUtils {
 
     pub fn is_material(item: &Item) -> bool {
         if let Some(template) = &item.template {
-            // Material types: crafting materials, etc.
-            let material_types = vec![20, 21, 22, 23, 24, 25];
+            let material_types: &[i32] = &[20, 21, 22, 23, 24, 25];
             material_types.contains(&(template.r#type as i32))
         } else {
             false
@@ -79,11 +78,20 @@ impl ItemUtils {
     pub fn can_stack(item: &Item) -> bool {
         if let Some(template) = &item.template {
             // Items that can be stacked
-            template.id == 457 || template.id == 590 || template.id == 610 ||
-            template.r#type == 14 || template.id == 933 || template.id == 934 ||
-            template.id == 537 || template.id == 538 || template.id == 539 ||
-            template.id == 541 || template.id == 542 || template.id == 2069 ||
-            template.id == 540 || (template.id >= 1268 && template.id <= 1273)
+            template.id == 457
+                || template.id == 590
+                || template.id == 610
+                || template.r#type == 14
+                || template.id == 933
+                || template.id == 934
+                || template.id == 537
+                || template.id == 538
+                || template.id == 539
+                || template.id == 541
+                || template.id == 542
+                || template.id == 2069
+                || template.id == 540
+                || (template.id >= 1268 && template.id <= 1273)
         } else {
             false
         }
@@ -96,7 +104,7 @@ impl ItemUtils {
                     457 => 9999999, // Special item
                     590 => 9999999, // Special item
                     610 => 9999999, // Special item
-                    _ => 999, // Default stack size
+                    _ => 999,       // Default stack size
                 }
             } else {
                 999
@@ -131,10 +139,10 @@ impl ItemUtils {
         if item.quantity > split_quantity && split_quantity > 0 {
             let mut original = item.clone();
             let mut split = item.clone();
-            
+
             original.quantity = item.quantity - split_quantity;
             split.quantity = split_quantity;
-            
+
             Some((original, split))
         } else {
             None
@@ -157,12 +165,17 @@ impl ItemUtils {
         }
     }
 
-    pub fn can_use_item(item: &Item, player_level: i32, player_gender: i32, player_class: i32) -> bool {
+    pub fn can_use_item(
+        item: &Item,
+        player_level: i32,
+        player_gender: i32,
+        player_class: i32,
+    ) -> bool {
         let requirements = Self::get_item_requirements(item);
-        
-        player_level >= requirements.level &&
-        (requirements.gender == 0 || requirements.gender == player_gender) &&
-        (requirements.class == 0 || requirements.class == player_class)
+
+        player_level >= requirements.level
+            && (requirements.gender == 0 || requirements.gender == player_gender)
+            && (requirements.class == 0 || requirements.class == player_class)
     }
 
     pub fn get_item_effect_description(item: &Item) -> String {
@@ -181,9 +194,9 @@ impl ItemUtils {
     pub fn get_item_trade_info(item: &Item) -> ItemTradeInfo {
         if let Some(template) = &item.template {
             ItemTradeInfo {
-                can_trade: true, 
-                can_sell: true, 
-                can_drop: true, 
+                can_trade: true,
+                can_sell: true,
+                can_drop: true,
                 price: template.gold,
                 sell_price: template.gold / 2,
             }

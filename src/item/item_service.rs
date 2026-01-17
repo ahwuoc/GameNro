@@ -21,10 +21,10 @@ impl ItemService {
     pub fn random_skh_id(gender: i32) -> i32 {
         let adjusted_gender = if gender == 3 { 2 } else { gender };
 
-        let options = vec![
-            vec![128, 129, 127], // Male
-            vec![130, 131, 132], // Female
-            vec![133, 135, 134], // Neutral
+        let options = [
+            [128, 129, 127], // Male
+            [130, 131, 132], // Female
+            [133, 135, 134], // Neutral
         ];
 
         let skh_v1 = 25; // 25% chance

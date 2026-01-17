@@ -597,7 +597,7 @@ impl ChangeMapService {
         }
         None
     }
-    async fn get_available_zone(&self, map_id: i32) -> Option<Zone> {
+    pub async fn get_available_zone(&self, map_id: i32) -> Option<Zone> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_best_zone().await;
         }

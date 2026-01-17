@@ -28,7 +28,6 @@ impl ItemData {
         msg.write_byte(0)?;
         msg.write_byte(option_template_manager::get_all().len() as i8)?;
         for opt in option_template_manager::get_all().iter() {
-            println!("send client option => {} {}", opt.id, opt.name);
             msg.write_utf(&opt.name)?;
             msg.write_byte(0)?;
         }
@@ -89,9 +88,9 @@ impl ItemData {
 
     async fn update_item_template(session: &mut AsyncSession, count: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; // sub-command
-        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
-        msg.write_byte(1)?; // reload itemtemplate
+        msg.write_byte(8)?;
+        msg.write_byte(data_game::DataGame::VS_ITEM)?;
+        msg.write_byte(1)?;
         msg.write_short(count)?;
         for id in 0..count {
             if let Some(item_template) = item_template_manager::get(id) {
@@ -116,9 +115,9 @@ impl ItemData {
         end: i16,
     ) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(8)?; // sub-command
-        msg.write_byte(data_game::DataGame::VS_ITEM)?; // vsItem version
-        msg.write_byte(2)?; // add itemtemplate
+        msg.write_byte(8)?;
+        msg.write_byte(data_game::DataGame::VS_ITEM)?;
+        msg.write_byte(2)?;
         msg.write_short(start)?;
         msg.write_short(end)?;
 

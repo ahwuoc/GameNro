@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use crate::entities::intrinsic::{self, Model as IntrinsicTemplate};
 use sea_orm::{DatabaseConnection, EntityTrait};
 
-static INSTRINSIC_TEMPLATES: Lazy<DashMap<i8, IntrinsicTemplate>> = Lazy::new(|| DashMap::new());
+static INSTRINSIC_TEMPLATES: Lazy<DashMap<i8, IntrinsicTemplate>> = Lazy::new(DashMap::new);
 
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let intrinsics = intrinsic::Entity::find().all(pool).await?;

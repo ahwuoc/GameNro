@@ -3,14 +3,14 @@ use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::entities::player;
 use crate::network::session::{self, AsyncSession};
-use crate::npc::NpcService;
+use crate::npc::npc_service;
 use async_trait::async_trait;
 
 pub struct BahatmitHandler;
 
 #[async_trait]
 impl NpcHandler for BahatmitHandler {
-    async fn open_menu(&self, session: &mut AsyncSession) -> anyhow::Result<()> {
+    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
         let Some(map_id) = session.get_player().map(|p| p.map_id) else {
             return Ok(());
         };
@@ -25,7 +25,7 @@ impl NpcHandler for BahatmitHandler {
                     "võ dài sinh tử",
                 ];
                 let npc_say = "Ngươi tìm ta có việc gì?";
-                NpcService::create_menu(
+                npc_service::npc_service::create_menu(
                     session,
                     const_npc::SANTA,
                     npc_say,
@@ -37,7 +37,7 @@ impl NpcHandler for BahatmitHandler {
             112 => {
                 let menu_items = vec!["Top 100", "Đồng ý\nThỏi vàng", "Từ chối", "Về\nđảo rùa"];
                 let npc_say = "Ngươi muốn đăng ký thi đấu võ đài?\nnhiều phần thưởng giá trị đang đợi ngươi đó";
-                NpcService::create_menu(
+                npc_service::npc_service::create_menu(
                     session,
                     const_npc::SANTA,
                     npc_say,
@@ -57,7 +57,7 @@ impl NpcHandler for BahatmitHandler {
                     "Shop Vip",
                 ];
                 let npc_say = "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?";
-                NpcService::create_menu(
+                npc_service::npc_service::create_menu(
                     session,
                     const_npc::SANTA,
                     npc_say,
@@ -100,7 +100,7 @@ impl NpcHandler for BahatmitHandler {
                         let menu_items = vec!["Sub Menu"];
                         let npc_say =
                             "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?";
-                        NpcService::create_menu(
+                        npc_service::npc_service::create_menu(
                             session,
                             const_npc::SANTA,
                             npc_say,

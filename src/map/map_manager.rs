@@ -28,7 +28,6 @@ impl MapManager {
         Ok(())
     }
 
-    /// Tìm một Map Instance đang hoạt động theo ID
     pub fn find_by_id(&self, map_id: i32) -> Option<Map> {
         self.instances.get(&map_id).map(|v| v.clone())
     }

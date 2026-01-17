@@ -666,26 +666,25 @@ public class ShopService {
             return;
         }
 
-        // Kiểm tra danh mục cửa hàng
-        if (is.tabShop.id == 30) {
+        // if (is.tabShop.id == 30) {
 
-            Item pGG = InventoryService.gI().findItem(player.inventory.itemsBag, 459);
-            if (pGG != null) {
-                Item item = ItemService.gI().createItemFromItemShop(is);
-                InventoryService.gI().subQuantityItemsBag(player, pGG, 1);
-                InventoryService.gI().addItemBag(player, item);
-                InventoryService.gI().sendItemBags(player);
-                Service.gI().sendThongBao(player, "Đổi thành công " + is.temp.name);
-            } else {
-                Service.gI().sendThongBao(player, "Bạn không có phiếu giảm giá!");
-            }
-            return;
-        }
+        //     Item pGG = InventoryService.gI().findItem(player.inventory.itemsBag, 459);
+        //     if (pGG != null) {
+        //         Item item = ItemService.gI().createItemFromItemShop(is);
+        //         InventoryService.gI().subQuantityItemsBag(player, pGG, 1);
+        //         InventoryService.gI().addItemBag(player, item);
+        //         InventoryService.gI().sendItemBags(player);
+        //         Service.gI().sendThongBao(player, "Đổi thành công " + is.temp.name);
+        //     } else {
+        //         Service.gI().sendThongBao(player, "Bạn không có phiếu giảm giá!");
+        //     }
+        //     return;
+        // }
 
-        if (is.tabShop.id == 44) {
-            buyDanhHieu(player, is);
-            return;
-        }
+        // if (is.tabShop.id == 44) {
+        //     buyDanhHieu(player, is);
+        //     return;
+        // }
 
         if (is.tabShop.id == 45) {
             changeDanhHieu(player, is);

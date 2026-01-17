@@ -8,10 +8,12 @@ use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryResult, Statement,
 };
 use serde_json::Value as JsonValue;
+use sqlx::any;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 use crate::entities::intrinsic;
@@ -19,19 +21,15 @@ use crate::entities::npc_template;
 use crate::entities::skill_template;
 use crate::item::item_time_service::ItemTimeService;
 use crate::mob::mob_template_manager;
-use crate::npc::NpcManager;
-use crate::npc::NpcService;
+use crate::npc::{npc_service, npc_template_manager, NpcManager};
 use anyhow::{Ok, Result};
 
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Manager::new())));
 
 pub struct Manager {
-    pub npc_templates: Vec<npc_template::Model>,
     pub skill_templates: Vec<skill_template::Model>,
-    pub npc_templates_by_id: HashMap<i32, npc_template::Model>,
     pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub item_time_service: ItemTimeService,
-    pub npc_service: NpcService,
     pub npc_manager: NpcManager,
     database: Option<DatabaseConnection>,
 }
@@ -39,13 +37,9 @@ pub struct Manager {
 impl Manager {
     pub fn new() -> Self {
         Manager {
-            npc_templates: Vec::new(),
             skill_templates: Vec::new(),
-
-            npc_templates_by_id: HashMap::new(),
             skill_templates_by_id: HashMap::new(),
             item_time_service: ItemTimeService::new(),
-            npc_service: NpcService::new(),
             npc_manager: NpcManager::new(),
             database: None,
         }
@@ -56,18 +50,17 @@ impl Manager {
     }
 
     pub async fn init(&mut self) -> anyhow::Result<()> {
-        let database = DbManager::get_pool();
-        self.database = Some(database.clone());
+        let pool = DbManager::get_pool();
+        self.database = Some(pool.clone());
 
-        item_template_manager::load(&database).await?;
-        map_template_manager::load(&database).await?;
-        option_template_manager::load(&database).await?;
-        head_avatar_manager::load(&database).await?;
-        self.load_npc_templates().await?;
-        mob_template_manager::load(&database).await?;
+        item_template_manager::load(pool).await?;
+        map_template_manager::load(pool).await?;
+        option_template_manager::load(pool).await?;
+        head_avatar_manager::load(pool).await?;
+        mob_template_manager::load(pool).await?;
         self.load_skill_templates().await?;
-        intrinsic_template_manager::load(&database).await?;
-        self.npc_service.init(self.npc_templates.clone());
+        npc_template_manager::load(pool).await?;
+        intrinsic_template_manager::load(pool).await?;
         if let Err(e) = self.load_part_update_data().await {
             eprintln!("Failed to load part update data: {:?}", e);
         }
@@ -81,29 +74,24 @@ impl Manager {
             let _ = map_manager::MAP_MANAGER
                 .init_and_register_map(template)
                 .await;
-            let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id as i32);
+            let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id);
         }
         println!("Initialized {} maps into world", map_templates.len());
         Ok(())
     }
 
-    pub fn start_map_update_task(&self) {
-        std::thread::spawn(move || {
-            let runtime = tokio::runtime::Runtime::new().unwrap();
+    pub fn start_map_update_task(&self) -> anyhow::Result<()> {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(1000));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
-                let start = std::time::Instant::now();
-                runtime.block_on(async {
-                    let _ = map_manager::MAP_MANAGER.update_game_loop().await;
-                });
-                let elapsed_ms = start.elapsed().as_millis() as u64;
-                let sleep_ms = if elapsed_ms >= 1000 {
-                    0
-                } else {
-                    1000 - elapsed_ms
-                };
-                std::thread::sleep(Duration::from_millis(sleep_ms));
+                interval.tick().await;
+                if let Err(e) = map_manager::MAP_MANAGER.update_game_loop().await {
+                    println!("Failed to update map: {:?}", e);
+                }
             }
         });
+        Ok(())
     }
     pub async fn load_part_update_data(&self) -> Result<()> {
         let Some(ref database) = self.database else {
@@ -194,20 +182,6 @@ impl Manager {
         println!("Load part thành công ({} parts)", parts.len());
         Ok(())
     }
-
-    async fn load_npc_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let npc_templates = npc_template::Entity::find().all(database).await?;
-
-            self.npc_templates = npc_templates.clone();
-            for template in npc_templates {
-                self.npc_templates_by_id.insert(template.id, template);
-            }
-
-            println!("Loaded {} NPC templates", self.npc_templates.len());
-        }
-        Ok(())
-    }
     async fn load_skill_templates(&mut self) -> anyhow::Result<()> {
         if let Some(ref database) = self.database {
             let skill_templates = skill_template::Entity::find().all(database).await?;
@@ -222,19 +196,12 @@ impl Manager {
         Ok(())
     }
 
-    pub fn get_npc_templates(&self) -> &Vec<npc_template::Model> {
-        &self.npc_templates
-    }
     pub fn get_skill_templates(&self) -> &Vec<skill_template::Model> {
         &self.skill_templates
     }
 
     pub fn get_item_time_service(&self) -> &ItemTimeService {
         &self.item_time_service
-    }
-
-    pub fn get_npc_service(&self) -> &NpcService {
-        &self.npc_service
     }
 
     pub fn get_npc_manager(&self) -> &NpcManager {

@@ -2,6 +2,7 @@
 use crate::models::{Intrinsic, IntrinsicPlayer};
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
+use crate::npc::npc_service;
 use crate::player::Player as RtPlayer;
 use crate::services::intrinsic_template_manager;
 use anyhow::Result;
@@ -42,23 +43,21 @@ impl IntrinsicService {
         msg.write_byte(1);
         msg.write_utf("Nội tại");
         msg.write_byte((list_intrinsic.len() - 1) as i8);
-        for i in 1..list_intrinsic.len() {
-            let intrinsic = &list_intrinsic[i];
+        for intrinsic in list_intrinsic.iter().skip(1) {
             msg.write_short(intrinsic.icon);
             msg.write_utf(&intrinsic.get_description());
         }
-
         session.send_message(&msg).await?;
         Ok(())
     }
 
     pub async fn show_menu(session: &mut AsyncSession) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
-        use crate::npc::npc_service::NpcService;
+        use crate::npc::npc_service;
 
-        NpcService::create_menu(
+        npc_service::npc_service::create_menu(
             session,
-            crate::constant::const_npc::CON_MEO as i16,
+            crate::constant::const_npc::CON_MEO,
             "Nội tại là một kỹ năng bị động hỗ trợ đặc biệt\nBạn có muốn mở hoặc thay đổi nội tại không?",
             vec!["Xem\ntất cả\nNội Tại", "Mở\nNội Tại", "Mở VIP", "Từ chối"],
             MenuId::Intrinsic,
@@ -72,7 +71,6 @@ impl IntrinsicService {
         count_open: i8,
     ) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
-        use crate::npc::npc_service::NpcService;
 
         let index = if count_open as usize >= Self::COST_OPEN.len() {
             Self::COST_OPEN.len() - 1
@@ -81,9 +79,9 @@ impl IntrinsicService {
         };
         let cost = Self::COST_OPEN[index];
 
-        NpcService::create_menu(
+        npc_service::npc_service::create_menu(
             session,
-            crate::constant::const_npc::CON_MEO as i16,
+            crate::constant::const_npc::CON_MEO,
             &format!("Bạn muốn đổi Nội Tại khác\nvới giá là {} Tr vàng ?", cost),
             vec!["Mở\nNội Tại", "Từ chối"],
             MenuId::ConfirmOpenIntrinsic,
@@ -94,9 +92,7 @@ impl IntrinsicService {
 
     pub async fn show_confirm_open_vip(session: &mut AsyncSession) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
-        use crate::npc::npc_service::NpcService;
-
-        NpcService::create_menu(
+        npc_service::npc_service::create_menu(
             session,
             crate::constant::const_npc::CON_MEO as i16,
             "Bạn có muốn mở Nội Tại\nvới giá là 100 ngọc và\ntái lập giá vàng quay lại ban đầu không?",

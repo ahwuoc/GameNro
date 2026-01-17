@@ -4,11 +4,17 @@ use crate::mob::mob_template_manager;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::services::head_avatar_manager;
+use dashmap::DashMap;
 use dotenv::dotenv;
+use fast_image_resize as fir;
+use image::ImageFormat;
+use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+
+pub static CACHE_ICON: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
 
 #[derive(Debug, Clone)]
 pub struct Skill {
@@ -48,12 +54,12 @@ pub struct NClass {
 pub struct DataGame;
 
 impl DataGame {
-    pub const VS_Res: i32 = 1;
+    pub const VS_RES: i32 = 1;
     pub const VS_DATA: i8 = 9;
     pub const VS_MAP: i8 = 2;
     pub const VS_ITEM: i8 = 9;
     pub const VS_SKILL: i8 = 1;
-    pub const MAX_Small_Version: i16 = 32767;
+    pub const MAX_SMALL_VS: i16 = 32767;
     pub const STANDARD_LEVELS: [i64; 20] = [
         1000i64,
         3000,
@@ -87,7 +93,6 @@ impl DataGame {
         Ok(())
     }
     pub async fn send_size_res(session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("Sending size response");
         let zoom_level = session.zoom_level;
         let res_path = format!("data/girlkun/res/x{}", zoom_level);
 
@@ -102,11 +107,9 @@ impl DataGame {
             }
         }
 
-        println!("Found {} files in {}", file_count, res_path);
-
         let mut msg = Message::new(-74);
-        msg.write_byte(1)?; // type = 1 for size response
-        msg.write_short(file_count as i16)?; // file count as short
+        msg.write_byte(1)?;
+        msg.write_short(file_count as i16)?;
         session.send_message(&msg).await?;
 
         Ok(())
@@ -125,10 +128,10 @@ impl DataGame {
                             if let Some(name_str) = file_name.to_str() {
                                 if let Ok(content) = std::fs::read(&file_path) {
                                     let mut msg = Message::new(-74);
-                                    msg.write_byte(2)?; // type: send file
-                                    msg.write_utf(name_str)?; // file name
-                                    msg.write_int(content.len() as i32)?; // file size
-                                    msg.write(&content)?; // file content
+                                    msg.write_byte(2)?;
+                                    msg.write_utf(name_str)?;
+                                    msg.write_int(content.len() as i32)?;
+                                    msg.write(&content)?;
                                     session.send_message(&msg).await?;
                                 }
                             }
@@ -138,8 +141,8 @@ impl DataGame {
             }
         }
         let mut msg = Message::new(-74);
-        msg.write_byte(3)?; // type: finish
-        msg.write_int(Self::VS_Res)?; // version or checksum
+        msg.write_byte(3)?;
+        msg.write_int(Self::VS_RES)?;
         session.send_message(&msg).await?;
 
         Ok(())
@@ -148,7 +151,7 @@ impl DataGame {
     pub async fn send_version_res(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-74);
         msg.write_byte(0)?;
-        msg.write_int(Self::VS_Res)?;
+        msg.write_int(Self::VS_RES)?;
         session.send_message(&msg).await?;
 
         Ok(())
@@ -267,11 +270,7 @@ impl DataGame {
     }
 
     pub async fn update_map(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let manager = crate::services::Manager::get_instance();
-        let npc_templates = {
-            let manager_guard = manager.lock().unwrap();
-            manager_guard.get_npc_templates().clone()
-        };
+        let npc_templates = crate::npc::npc_template_manager::get_all();
 
         let map_templates = map_template_manager::get_all();
 
@@ -418,12 +417,7 @@ impl DataGame {
                 msg.write(to_send)?;
                 session.send_message(&msg).await?;
             }
-            Err(_) => {
-                let mut msg = Message::new(-28);
-                msg.write_byte(0)?;
-                msg.write_byte(0)?;
-                session.send_message(&msg).await?;
-            }
+            Err(_) => {}
         }
 
         Ok(())
@@ -461,22 +455,62 @@ impl DataGame {
         }
         Ok(())
     }
+    fn scale_png(bytes: &[u8], scale: f32) -> anyhow::Result<Vec<u8>> {
+        let img = image::load_from_memory(bytes)?.to_rgba8();
+        let (w, h) = img.dimensions();
+
+        let new_w = (w as f32 * scale).round() as u32;
+        let new_h = (h as f32 * scale).round() as u32;
+
+        let src = fir::images::Image::from_vec_u8(w, h, img.into_raw(), fir::PixelType::U8x4)?;
+
+        let mut dst = fir::images::Image::new(new_w, new_h, fir::PixelType::U8x4);
+
+        let mut resizer = fir::Resizer::new();
+        let options = fir::ResizeOptions::new().resize_alg(fir::ResizeAlg::Nearest);
+        resizer.resize(&src, &mut dst, &options)?;
+
+        let out_img = image::RgbaImage::from_raw(new_w, new_h, dst.buffer().to_vec())
+            .ok_or_else(|| anyhow::anyhow!("invalid image"))?;
+
+        let mut out = Vec::new();
+        out_img.write_to(&mut std::io::Cursor::new(&mut out), ImageFormat::Png)?;
+
+        Ok(out)
+    }
     pub async fn send_icon(session: &mut AsyncSession, id: i32) -> anyhow::Result<()> {
-        let zoom_level = session.zoom_level;
-        let file_path = format!("data/girlkun/icon/x{}/{}.png", zoom_level, id);
-        let mut msg = Message::new(-67);
-        match std::fs::read(&file_path) {
-            Ok(icon) => {
-                msg.write_int(id)?;
-                msg.write_int(icon.len() as i32)?;
-                msg.write(&icon)?;
-            }
-            Err(_) => {
-                msg.write_int(id)?;
-                msg.write_int(0)?
-            }
+        let zoom = session.zoom_level;
+        let base_zoom = 4;
+        let key = format!("{}_{}", zoom, id);
+
+        if let Some(icon) = CACHE_ICON.get(&key) {
+            let mut msg = Message::new(-67);
+            msg.write_int(id)?;
+            msg.write_int(icon.len() as i32)?;
+            msg.write(&*icon)?;
+            session.send_message(&msg).await?;
+            return Ok(());
         }
+
+        let file_path = format!("data/girlkun/icon/x{}/{}.png", base_zoom, id);
+        let icon_bytes = tokio::fs::read(&file_path).await?;
+
+        let icon = if zoom == base_zoom {
+            icon_bytes
+        } else {
+            let scale = zoom as f32 / base_zoom as f32;
+
+            tokio::task::spawn_blocking(move || Self::scale_png(&icon_bytes, scale)).await??
+        };
+
+        CACHE_ICON.insert(key, icon.clone());
+
+        let mut msg = Message::new(-67);
+        msg.write_int(id)?;
+        msg.write_int(icon.len() as i32)?;
+        msg.write(&icon)?;
         session.send_message(&msg).await?;
+
         Ok(())
     }
 
@@ -485,17 +519,12 @@ impl DataGame {
     }
 
     pub async fn send_tile_set_info(session: &mut AsyncSession) -> anyhow::Result<()> {
-        match std::fs::read("data/girlkun/map/tile_set_info") {
-            Ok(data) => {
-                let mut msg = Message::new(-82);
-                msg.write(&data)?;
-                session.send_message(&msg).await?;
-            }
-            Err(_) => {
-                println!("Warning: Tile set info file not found");
-                let msg = Message::new(-82);
-                session.send_message(&msg).await?;
-            }
+        if let Ok(data) = std::fs::read("data/girlkun/map/tile_set_info") {
+            let mut msg = Message::new(-82);
+            msg.write(&data)?;
+            session.send_message(&msg).await?;
+        } else {
+            println!("Warning: Tile set info file not found");
         }
 
         Ok(())
@@ -526,7 +555,7 @@ impl DataGame {
 
 async fn load_skill_data() -> anyhow::Result<Vec<NClass>> {
     let manager = crate::services::Manager::get_instance();
-    let manager_guard = manager.lock().unwrap();
+    let manager_guard = manager.lock().await;
     let skill_templates = manager_guard.get_skill_templates();
 
     let mut nclasses_map: HashMap<i32, NClass> = HashMap::new();

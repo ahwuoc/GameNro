@@ -53,15 +53,12 @@ impl Item {
     }
 
     pub fn add_option_param(&mut self, option_id: i8, param: i16) {
-        // First check if option already exists
         for option in &mut self.item_options {
             if option.get_option_id() == option_id {
                 option.set_param(option.get_param() + param);
                 return;
             }
         }
-
-        // If option doesn't exist, validate and create new one
         if Self::is_valid_option_id(option_id) {
             self.item_options.push(ItemOption::new(option_id, param));
         } else {
@@ -83,19 +80,7 @@ impl Item {
         }
     }
 
-    /// Get all option strings
     pub fn get_option_info(&self) -> String {
-        // let mut option_strings = Vec::new();
-
-        // for option in &self.item_options {
-
-        //     let option_id = option.get_option_id();
-        //     if option_id != 72 && option_id != 73 && option_id != 102 && option_id != 107 {
-        //         option_strings.push(option.get_option_description());
-        //     }
-        // }
-
-        // option_strings.join("\n")
         "todos".to_string()
     }
 
@@ -115,8 +100,6 @@ impl Item {
         }
         return false;
     }
-
-    /// Get item content
     pub fn get_content(&self) -> String {
         if let Some(strpower) = self.get_str_require() {
             format!("Yeu cau suc manh {:?}", strpower)

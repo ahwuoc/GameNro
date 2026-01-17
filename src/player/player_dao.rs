@@ -115,7 +115,7 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
     for item_data in items_body {
         if item_data.template_id != -1 {
             if let Some(mut item) = ItemService::create_new_item_with_quantity(
-                item_data.template_id as i16,
+                item_data.template_id,
                 item_data.quantity,
             ) {
                 for (opt_id, param) in item_data.options {
@@ -132,7 +132,7 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
     for items_bag in items_bags {
         if items_bag.template_id != -1 {
             if let Some(mut item) = ItemService::create_new_item_with_quantity(
-                items_bag.template_id as i16,
+                items_bag.template_id,
                 items_bag.quantity,
             ) {
                 for (opt_id, opt_param) in items_bag.options {
@@ -148,10 +148,9 @@ pub fn from_entity(model: &entities::player::Model) -> Result<Player, String> {
     let items_boxs = parser_item_raw(&model.items_box);
     for item_box in items_boxs {
         if item_box.template_id != -1 {
-            if let Some(mut item) = ItemService::create_new_item_with_quantity(
-                item_box.template_id as i16,
-                item_box.quantity,
-            ) {
+            if let Some(mut item) =
+                ItemService::create_new_item_with_quantity(item_box.template_id, item_box.quantity)
+            {
                 for (opt_id, param) in item_box.options {
                     item.add_option_param(opt_id, param);
                 }
@@ -218,7 +217,7 @@ fn parse_intrinsic_array(s: &str) -> anyhow::Result<IntrinsicData> {
         .map_err(|e| anyhow::anyhow!("Failed to parse intrinsic array: {}", e))?;
 
     Ok(IntrinsicData {
-        intrinsic_id: array.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        intrinsic_id: array.first().and_then(|v| v.as_i64()).unwrap_or(0) as i32,
         param1: array.get(1).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
         param2: array.get(2).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
         count_open: array.get(3).and_then(|v| v.as_i64()).unwrap_or(0) as i8,

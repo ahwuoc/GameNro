@@ -156,7 +156,7 @@ impl Zone {
         }
         let players = self.players.read().await;
         for pl in players.values() {
-            let _ = pl.send_message(msg.clone()).await;
+            pl.send_message(msg.clone()).await;
         }
         Ok(())
     }
@@ -169,7 +169,7 @@ impl Zone {
         let players = self.players.read().await;
         for (player_id, player) in players.iter() {
             if *player_id != except_player_id {
-                let _ = player.send_message(msg.clone()).await;
+                player.send_message(msg.clone()).await;
             }
         }
         Ok(())
@@ -376,8 +376,6 @@ impl Zone {
         let _ = msg.write_byte(0)?;
         {
             let (npcs_for_map, avatar_lookup) = {
-                let mgr = crate::services::Manager::get_instance();
-                let guard = mgr.lock().unwrap();
                 let npcs = if let Some(map) =
                     crate::map::map_manager::MAP_MANAGER.find_by_id(self.map_id)
                 {
@@ -385,26 +383,26 @@ impl Zone {
                 } else {
                     Vec::new()
                 };
-                let avatars: std::collections::HashMap<i32, i32> = guard
-                    .get_npc_templates()
-                    .iter()
-                    .map(|t| (t.id, t.avatar.unwrap_or(0)))
-                    .collect();
+                let avatars: std::collections::HashMap<i32, i32> =
+                    crate::npc::npc_template_manager::get_all()
+                        .iter()
+                        .map(|t| (t.id, t.avatar.unwrap_or(0)))
+                        .collect();
                 (npcs, avatars)
             };
             let count: i8 = (npcs_for_map.len().min(127)) as i8;
             let _ = msg.write_byte(count)?;
             for npc in npcs_for_map.into_iter().take(count as usize) {
-                let status: i8 = 1; // default active
+                let status: i8 = 1;
                 let avatar: i16 = avatar_lookup.get(&npc.id).cloned().unwrap_or(0) as i16;
-                let _ = msg.write_byte(status)?; // status
-                let _ = msg.write_short(npc.x)?; // cx
-                let _ = msg.write_short(npc.y)?; // cy
-                let _ = msg.write_byte(npc.id as i8)?; // tempId
-                let _ = msg.write_short(avatar)?; // avatar
+                msg.write_byte(status)?;
+                msg.write_short(npc.x)?;
+                msg.write_short(npc.y)?;
+                msg.write_byte(npc.id as i8)?;
+                msg.write_short(avatar)?;
             }
         }
-        let _ = msg.write_byte(0)?; // items count
+        let _ = msg.write_byte(0)?;
         {
             let bg_item_path = format!("data/girlkun/map/item_bg_map_data/{}", self.map_id);
             match std::fs::read(&bg_item_path) {
@@ -412,13 +410,11 @@ impl Zone {
                     let _ = msg.write(&data)?;
                 }
                 Err(_) => {
-                    // If file doesn't exist, write short 0
                     msg.write_short(0)?;
                 }
             }
         }
 
-        // effItem - read from file data/girlkun/map/eff_map/{mapId}
         {
             let eff_item_path = format!("data/girlkun/map/eff_map/{}", self.map_id);
             match std::fs::read(&eff_item_path) {
@@ -426,16 +422,14 @@ impl Zone {
                     let _ = msg.write(&data)?;
                 }
                 Err(_) => {
-                    // If file doesn't exist, write short 0
                     msg.write_short(0)?;
                 }
             }
         }
 
-        // Trailer bytes
-        let _ = msg.write_byte(bg_type)?; // bgType from map template
-        let _ = msg.write_byte(0)?; // idSpaceShip (0 for now) - TODO: should be player.idMark.idSpaceShip
-        let _ = msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?; // special flag for map 148
+        msg.write_byte(bg_type)?;
+        msg.write_byte(0)?;
+        msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
         drop(players);
 

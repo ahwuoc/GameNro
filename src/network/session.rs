@@ -186,6 +186,9 @@ impl AsyncSession {
     pub fn set_user_id(&mut self, user_id: i32) {
         self.user_id = Some(user_id);
     }
+    pub fn set_is_admin(&mut self, is_admin: bool) {
+        self.is_admin = is_admin;
+    }
 
     pub fn get_user_id(&self) -> Option<i32> {
         self.user_id

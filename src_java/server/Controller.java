@@ -293,11 +293,6 @@ public class Controller implements IMessageHandler {
                         }
                         byte typeBuy = _msg.reader().readByte();
                         int tempId = _msg.reader().readShort();
-                        // int quantity = 0;
-                        // try {
-                        // quantity = _msg.reader().readShort();
-                        // } catch (Exception e) {
-                        // }
                         ShopService.gI().takeItem(player, typeBuy, tempId);
                     }
                     break;

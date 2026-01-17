@@ -10,3 +10,4 @@ pub use intrinsic_service::IntrinsicService;
 pub use manager::Manager;
 pub use player_info_service::PlayerInfoService;
 pub use services::ServiceHandles;
+pub mod command;

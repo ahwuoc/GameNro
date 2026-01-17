@@ -4,8 +4,10 @@ pub enum MenuId {
     BaseMenu,
     SubMenuSanta,
     Intrinsic,
+    SantaMenu,
     ConfirmOpenIntrinsic,
     ConfirmOpenIntrinsicVip,
+    Admin,
 }
 
 impl Default for MenuId {
