@@ -37,13 +37,6 @@ async fn main() -> anyhow::Result<()> {
         manager_guard.start_map_update_task();
     }
 
-    {
-        let god_gk = services::GodGK::get_instance();
-        let mut god_gk_guard = god_gk.lock().unwrap();
-        let pool = DbManager::get_pool();
-        god_gk_guard.set_database(pool.clone());
-    }
-
     if let Err(e) = network::start_server(&config.server).await {
         return Err(anyhow::anyhow!("Server failed: {:?}", e));
     }

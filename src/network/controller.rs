@@ -10,8 +10,7 @@ use crate::item::{type_item_inventory, use_item};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
-use crate::services::{self, player_info_service, ServiceHandles};
-use crate::services::{GodGK, PlayerInfoService};
+use crate::services::{self, player_info_service, PlayerInfoService, ServiceHandles};
 use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
@@ -94,11 +93,6 @@ impl AsyncController {
                 let temp_id = msg.read_short()?;
                 if let Err(e) = shop_service::take_item_shop(session, type_shop, temp_id).await {
                     println!("Shop Error: {:?}", e);
-                    ServiceHandles::send_message_alert(
-                        session,
-                        &format!("Lỗi mua vật phẩm: {}", e),
-                    )
-                    .await?;
                 }
                 Ok(())
             }
@@ -307,7 +301,6 @@ impl AsyncController {
         password: &str,
         session_arc: Arc<RwLock<AsyncSession>>,
     ) -> Result<()> {
-        let _god_gk = GodGK::get_instance();
         let pool = DbManager::get_pool();
         let account_result: Result<Option<account::Model>> = {
             match AccountServices::login(&pool, username, password).await {
@@ -503,47 +496,36 @@ impl AsyncController {
         }
 
         let account_id = session.get_user_id().unwrap_or(0);
-        let god_gk = GodGK::get_instance();
+        let db = DbManager::get_pool();
 
         let player_result = {
-            let db = {
-                let god_gk_guard = god_gk.lock().unwrap();
-                god_gk_guard.db.clone()
+            let player_data = player::ActiveModel {
+                account_id: Set(Some(account_id)),
+                name: Set(name.to_string()),
+                head: Set(hair as i16),
+                gender: Set(gender),
+                have_tennis_space_ship: Set(Some(true)),
+                data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
+                data_location: Set(r#"[0, 300, 336]"#.to_string()),
+                data_point: Set(r#"[0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 100, 100]"#.to_string()),
+                data_magic_tree: Set(r#"[0, 0, 0, 0, 0]"#.to_string()),
+                items_body: Set(r#"[]"#.to_string()),
+                items_bag: Set(r#"[]"#.to_string()),
+                items_box: Set(r#"[]"#.to_string()),
+                items_box_lucky_round: Set(r#"[]"#.to_string()),
+                friends: Set(r#"[]"#.to_string()),
+                enemies: Set(r#"[]"#.to_string()),
+                data_intrinsic: Set(r#"[]"#.to_string()),
+                data_item_time: Set(r#"[]"#.to_string()),
+                data_task: Set(r#"[]"#.to_string()),
+                data_mabu_egg: Set(r#"[]"#.to_string()),
+                data_charm: Set(r#"[]"#.to_string()),
+                skills: Set(r#"[]"#.to_string()),
+                skills_shortcut: Set(r#"[]"#.to_string()),
+                pet: Set(r#"[]"#.to_string()),
+                ..Default::default()
             };
-
-            if let Some(db) = db {
-                let player_data = player::ActiveModel {
-                    account_id: Set(Some(account_id)),
-                    name: Set(name.to_string()),
-                    head: Set(hair as i16),
-                    gender: Set(gender),
-                    have_tennis_space_ship: Set(Some(true)),
-                    data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
-                    data_location: Set(r#"[0, 300, 336]"#.to_string()),
-                    data_point: Set(
-                        r#"[0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 100, 100]"#.to_string()
-                    ),
-                    data_magic_tree: Set(r#"[0, 0, 0, 0, 0]"#.to_string()),
-                    items_body: Set(r#"[]"#.to_string()),
-                    items_bag: Set(r#"[]"#.to_string()),
-                    items_box: Set(r#"[]"#.to_string()),
-                    items_box_lucky_round: Set(r#"[]"#.to_string()),
-                    friends: Set(r#"[]"#.to_string()),
-                    enemies: Set(r#"[]"#.to_string()),
-                    data_intrinsic: Set(r#"[]"#.to_string()),
-                    data_item_time: Set(r#"[]"#.to_string()),
-                    data_task: Set(r#"[]"#.to_string()),
-                    data_mabu_egg: Set(r#"[]"#.to_string()),
-                    data_charm: Set(r#"[]"#.to_string()),
-                    skills: Set(r#"[]"#.to_string()),
-                    skills_shortcut: Set(r#"[]"#.to_string()),
-                    pet: Set(r#"[]"#.to_string()),
-                    ..Default::default()
-                };
-                AccountDao::create_player(&db, player_data).await
-            } else {
-                Err(DbErr::Custom("Database not initialized".to_string()))
-            }
+            AccountDao::create_player(db, player_data).await
         };
 
         match player_result {

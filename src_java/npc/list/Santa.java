@@ -1,10 +1,6 @@
 package npc.list;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
+
 import consts.ConstNpc;
 import item.Item;
 import java.util.ArrayList;

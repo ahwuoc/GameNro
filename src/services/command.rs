@@ -3,6 +3,7 @@ use crate::constant::menu_enum::MenuId;
 use crate::map::change_map_service::{ChangeMapService, SpaceShipType};
 use crate::network::{session::AsyncSession, SESSION_MANAGER};
 use crate::npc::npc_service;
+use crate::services::ServiceHandles;
 use sysinfo::System;
 
 pub struct CommandService;
@@ -14,9 +15,6 @@ impl CommandService {
         } else {
             return Ok(false);
         };
-        println!("is_admin: {}", is_admin);
-        println!("chat text: {}", text);
-
         if is_admin {
             if text == "menu" {
                 let online_players = SESSION_MANAGER.get_online_count().await;

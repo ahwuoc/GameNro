@@ -11,6 +11,14 @@ pub struct NpcHomeHandler;
 #[async_trait::async_trait]
 impl NpcHandler for NpcHomeHandler {
     async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
+        npc_service::npc_service::create_menu(
+            session,
+            npc_id,
+            "Chao con ong gohan",
+            vec!["Giftcode", "Đổi Mật Khẩu", "Đổi Skill", "Đổi Skill"],
+            MenuId::OngGohanMenu,
+        )
+        .await?;
         Ok(())
     }
 

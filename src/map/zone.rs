@@ -6,7 +6,7 @@ use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::player::player::Player;
 use anyhow::Result;
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 pub struct Zone {
@@ -14,7 +14,7 @@ pub struct Zone {
     pub zone_id: i32,
     pub max_player: i32,
 
-    pub players: Arc<RwLock<HashMap<u64, Player>>>,
+    pub players: Arc<DashMap<u64, Player>>,
     pub active_mobs: Arc<RwLock<Vec<RtMob>>>,
     pub active_items: Arc<RwLock<Vec<ItemMap>>>,
 }
@@ -25,55 +25,44 @@ impl Zone {
             map_id,
             zone_id,
             max_player,
-            players: Arc::new(RwLock::new(HashMap::new())),
+            players: Arc::new(DashMap::new()),
             active_mobs: Arc::new(RwLock::new(Vec::new())),
             active_items: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
     pub async fn is_empty(&self) -> bool {
-        let players = self.players.read().await;
-        players.is_empty()
+        self.players.is_empty()
     }
 
     pub async fn is_full(&self) -> bool {
-        let players = self.players.read().await;
-        players.len() >= self.max_player as usize
+        self.players.len() >= self.max_player as usize
     }
 
     pub async fn get_num_players(&self) -> usize {
-        let players = self.players.read().await;
-        players.len()
+        self.players.len()
     }
 
     pub async fn add_player(&self, player: Player) -> anyhow::Result<()> {
-        let mut players = self.players.write().await;
-        if players.len() >= self.max_player as usize {
+        if self.players.len() >= self.max_player as usize {
             return Err(anyhow::anyhow!("Zone is full"));
         }
         let player_id = player.id;
-        players.insert(player_id, player);
+        self.players.insert(player_id, player);
         Ok(())
     }
 
     pub async fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
-        let mut players = self.players.write().await;
-
-        if players.remove(&player_id).is_some() {
-            // Player removed successfully
-        }
-
+        self.players.remove(&player_id);
         Ok(())
     }
 
     pub async fn get_player(&self, player_id: u64) -> Option<Player> {
-        let players = self.players.read().await;
-        players.get(&player_id).cloned()
+        self.players.get(&player_id).map(|p| p.clone())
     }
 
     pub async fn get_all_players(&self) -> Vec<Player> {
-        let players = self.players.read().await;
-        players.values().cloned().collect()
+        self.players.iter().map(|p| p.value().clone()).collect()
     }
 
     pub async fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
@@ -127,7 +116,6 @@ impl Zone {
         Ok(())
     }
     pub async fn get_zone_info(&self) -> ZoneInfo {
-        let players = self.players.read().await;
         let mobs = self.active_mobs.read().await;
         let items = self.active_items.read().await;
 
@@ -135,14 +123,16 @@ impl Zone {
             map_id: self.map_id,
             zone_id: self.zone_id,
             max_player: self.max_player,
-            current_players: players.len() as i32,
+            current_players: self.players.len() as i32,
             mob_count: mobs.len() as i32,
             item_count: items.len() as i32,
         }
     }
 
-    pub async fn send_message_to_all_players(&self, _msg: Message) -> anyhow::Result<()> {
-        let _players = self.players.read().await;
+    pub async fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
+        for player in self.players.iter() {
+            player.send_message(msg.clone()).await;
+        }
         Ok(())
     }
 
@@ -154,8 +144,7 @@ impl Zone {
         if player.zone.is_none() {
             return Ok(());
         }
-        let players = self.players.read().await;
-        for pl in players.values() {
+        for pl in self.players.iter() {
             pl.send_message(msg.clone()).await;
         }
         Ok(())
@@ -166,32 +155,30 @@ impl Zone {
         except_player_id: u64,
         msg: Message,
     ) -> anyhow::Result<()> {
-        let players = self.players.read().await;
-        for (player_id, player) in players.iter() {
-            if *player_id != except_player_id {
-                player.send_message(msg.clone()).await;
+        for entry in self.players.iter() {
+            if *entry.key() != except_player_id {
+                entry.value().send_message(msg.clone()).await;
             }
         }
         Ok(())
     }
 
     pub async fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
-        let players_guard = self.players.read().await;
-        if !players_guard.contains_key(&player_id) {
+        if !self.players.contains_key(&player_id) {
             return Ok(());
         }
-        let target_and_receivers: Vec<u64> = players_guard
+        let target_and_receivers: Vec<u64> = self
+            .players
             .iter()
-            .filter_map(|(other_id, _)| {
-                if *other_id != player_id {
-                    Some(*other_id)
+            .filter_map(|entry| {
+                if *entry.key() != player_id {
+                    Some(*entry.key())
                 } else {
                     None
                 }
             })
             .collect();
-        let target_player = players_guard.get(&player_id).cloned();
-        drop(players_guard);
+        let target_player = self.players.get(&player_id).map(|p| p.clone());
 
         if let Some(info_player) = target_player {
             for receiver_id in target_and_receivers {
@@ -200,7 +187,7 @@ impl Zone {
 
                     if info_player.is_die() {
                         let death_msg = Self::build_player_death_message(&info_player);
-                        let _ = receiver.send_message(death_msg);
+                        receiver.send_message(death_msg);
                     }
                 }
             }
@@ -209,21 +196,20 @@ impl Zone {
     }
 
     pub async fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
-        let players_guard = self.players.read().await;
-        let Some(receiver) = players_guard.get(&player_id).cloned() else {
+        let Some(receiver) = self.players.get(&player_id).map(|p| p.clone()) else {
             return Ok(());
         };
-        let others: Vec<Player> = players_guard
+        let others: Vec<Player> = self
+            .players
             .iter()
-            .filter_map(|(other_id, pl)| {
-                if *other_id != player_id {
-                    Some(pl.clone())
+            .filter_map(|entry| {
+                if *entry.key() != player_id {
+                    Some(entry.value().clone())
                 } else {
                     None
                 }
             })
             .collect();
-        drop(players_guard);
 
         for other in others.into_iter() {
             let _ = Self::send_player_info(&receiver, &other).await;
@@ -297,8 +283,7 @@ impl Zone {
     }
 
     pub async fn map_info(&self, session: &mut AsyncSession, player_id: u64) -> anyhow::Result<()> {
-        let players = self.players.read().await;
-        let Some(player) = players.get(&player_id) else {
+        let Some(player) = self.players.get(&player_id) else {
             return Ok(());
         };
 
@@ -430,8 +415,6 @@ impl Zone {
         msg.write_byte(bg_type)?;
         msg.write_byte(0)?;
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
-
-        drop(players);
 
         println!(
             "[MAP_INFO] Sending map_info for map {} zone {} to player {}, message size: {} bytes",

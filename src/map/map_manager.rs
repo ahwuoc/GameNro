@@ -3,9 +3,7 @@ use crate::map::Map;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
-/// Quản lý toàn bộ các bản đồ (Map Instances) đang hoạt động trong game.
 pub struct MapManager {
-    /// Danh sách map, key là map_id
     instances: DashMap<i32, Map>,
 }
 

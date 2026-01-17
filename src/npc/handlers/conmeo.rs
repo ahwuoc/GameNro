@@ -24,19 +24,7 @@ impl NpcHandler for ConMeoHandler {
     ) -> anyhow::Result<()> {
         match menu_id {
             MenuId::Admin => match select {
-                5 => {
-                    let mut sys = System::new_all();
-                    sys.refresh_all();
-                    let total_mem = sys.total_memory() / 1024 / 1024;
-                    let used_mem = sys.used_memory() / 1024 / 1024;
-                    let info = format!(
-                        "RAM: {}/{} MB\nUptime: {}s",
-                        used_mem,
-                        total_mem,
-                        System::uptime()
-                    );
-                    ServiceHandles::send_message_alert(session, &info).await?;
-                }
+                5 => {}
                 _ => {}
             },
             MenuId::Intrinsic => match select {

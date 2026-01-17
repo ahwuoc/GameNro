@@ -1,3 +1,4 @@
+pub mod command;
 pub mod god_gk;
 pub mod head_avatar_manager;
 pub mod intrinsic_service;
@@ -5,9 +6,8 @@ pub mod intrinsic_template_manager;
 pub mod manager;
 pub mod player_info_service;
 pub mod services;
-pub use god_gk::GodGK;
+
 pub use intrinsic_service::IntrinsicService;
 pub use manager::Manager;
 pub use player_info_service::PlayerInfoService;
 pub use services::ServiceHandles;
-pub mod command;

@@ -294,9 +294,6 @@ impl PlayerInfoService {
                     let opts_len = item.item_options.len() as i8;
                     msg.write_byte(opts_len)?;
                     for opt in item.item_options.iter() {
-                        if opt.get_option_id() == 47 {
-                            println!("send client {}", opt.get_name());
-                        }
                         msg.write_byte(opt.get_option_id())?;
                         msg.write_short(opt.get_param())?;
                     }

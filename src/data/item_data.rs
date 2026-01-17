@@ -1,10 +1,10 @@
 use std::any::Any;
 
 use crate::data::data_game;
+use crate::database::DbManager;
 use crate::item::{item_template_manager, option_template_manager};
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
-use crate::services::GodGK;
 use sea_orm::EntityTrait;
 pub struct ItemData;
 
@@ -41,37 +41,31 @@ impl ItemData {
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
         msg.write_byte(50 as i8)?;
 
-        let god_gk = GodGK::get_instance();
-        let db = {
-            let god_gk_guard = god_gk.lock().unwrap();
-            god_gk_guard.db.clone()
-        };
+        let db = DbManager::get_pool();
 
         let mut arrays: Vec<Vec<i16>> = Vec::new();
 
-        if let Some(db) = db {
-            if let Ok(arrs) = crate::entities::array_head_2_frames::Entity::find()
-                .all(&db)
-                .await
-            {
-                for a in arrs {
-                    let parsed: Vec<i16> =
-                        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&a.data) {
-                            if let Some(arr) = json_val.as_array() {
-                                arr.iter()
-                                    .filter_map(|v| v.as_i64().map(|x| x as i16))
-                                    .collect()
-                            } else {
-                                Vec::new()
-                            }
-                        } else {
-                            a.data
-                                .split([',', ' '])
-                                .filter_map(|s| s.parse::<i16>().ok())
+        if let Ok(arrs) = crate::entities::array_head_2_frames::Entity::find()
+            .all(db)
+            .await
+        {
+            for a in arrs {
+                let parsed: Vec<i16> =
+                    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&a.data) {
+                        if let Some(arr) = json_val.as_array() {
+                            arr.iter()
+                                .filter_map(|v| v.as_i64().map(|x| x as i16))
                                 .collect()
-                        };
-                    arrays.push(parsed);
-                }
+                        } else {
+                            Vec::new()
+                        }
+                    } else {
+                        a.data
+                            .split([',', ' '])
+                            .filter_map(|s| s.parse::<i16>().ok())
+                            .collect()
+                    };
+                arrays.push(parsed);
             }
         }
 

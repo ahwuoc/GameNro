@@ -160,8 +160,11 @@ impl Player {
     }
     pub async fn send_message(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(session) = &self.session {
-            let mut session_guard = session.write().await;
-            session_guard.send_message(&msg).await?;
+            let session_clone = session.clone();
+            tokio::spawn(async move {
+                let mut session_guard = session_clone.write().await;
+                session_guard.send_message(&msg).await;
+            });
         }
         Ok(())
     }
