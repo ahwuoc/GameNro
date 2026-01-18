@@ -19,6 +19,10 @@ pub struct RtMob {
     pub template: Option<MobTemplate>,
     pub status: i8,
     pub lv_mob: i8,
+    pub last_time_die: u64,
+    pub percent_dame: i16,
+    pub last_time_attack_player: u64,
+    pub temporary_enemies: Vec<u64>,
 }
 
 impl RtMob {
@@ -39,6 +43,10 @@ impl RtMob {
             template: None,
             status: 5,
             lv_mob: 0,
+            last_time_die: 0,
+            percent_dame: 0,
+            last_time_attack_player: 0,
+            temporary_enemies: Vec::new(),
         }
     }
 
@@ -50,7 +58,22 @@ impl RtMob {
         mob.hp = template.hp;
         mob.max_mp = 50;
         mob.mp = 50;
+        mob.percent_dame = template.percent_dame;
         mob
+    }
+
+    pub fn add_temporary_enemy(&mut self, player_id: u64) {
+        if !self.temporary_enemies.contains(&player_id) {
+            self.temporary_enemies.push(player_id);
+        }
+    }
+
+    pub fn get_dame_attack(&self) -> i32 {
+        if self.percent_dame > 0 {
+            (self.max_hp as i64 * self.percent_dame as i64 / 100) as i32
+        } else {
+            100
+        }
     }
 
     pub fn get_hp_percent(&self) -> i32 {
@@ -73,11 +96,16 @@ impl RtMob {
         !self.is_alive || self.hp <= 0
     }
 
-    pub fn take_damage(&mut self, damage: i32) {
+    pub fn take_damage(&mut self, mut damage: i32) -> i32 {
+        if self.hp == self.max_hp && damage >= self.hp {
+            damage = self.hp - 1;
+        }
+
         self.hp = (self.hp - damage).max(0);
         if self.hp <= 0 {
             self.is_alive = false;
         }
+        damage
     }
 
     pub fn heal(&mut self, amount: i32) {

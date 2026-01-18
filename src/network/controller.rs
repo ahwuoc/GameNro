@@ -10,6 +10,7 @@ use crate::item::{type_item_inventory, use_item};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
+use crate::services::mob_service;
 use crate::services::{self, player_info_service, PlayerInfoService, ServiceHandles};
 use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
@@ -46,6 +47,22 @@ impl AsyncController {
             }
             cmd::GET_IMAGES_SOURCE => {
                 Self::handle_get_image_source(session, msg).await?;
+                Ok(())
+            }
+            54 => {
+                let mob_id = msg.read_byte()? as i32;
+                let is_mob_me = mob_id == -1;
+                let master_id = if is_mob_me { msg.read_int()? } else { -1 };
+
+                if let Some(mut player) = session.take_player() {
+                    if !is_mob_me {
+                        let dame = player.n_point.get_dame_attack(false);
+                        mob_service::attack_mob(&player, mob_id, dame).await;
+                    } else {
+                        println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
+                    }
+                    session.set_player(player);
+                }
                 Ok(())
             }
             -40 => {
@@ -123,6 +140,13 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            -45 => {
+                if let Some(mut player) = session.take_player() {
+                    services::skill_service::use_skill(&mut player, None, None, Some(msg)).await;
+                    session.set_player(player);
+                }
+                Ok(())
+            }
             -87 => {
                 if let Err(e) = DataGame::update_data(session).await {
                     println!("Error updating data {}", e);
@@ -196,6 +220,19 @@ impl AsyncController {
             112 => {
                 if session.get_player().is_some() {
                     services::IntrinsicService::show_menu(session).await?;
+                }
+                Ok(())
+            }
+            -113 => {
+                if let Some(mut player) = session.take_player() {
+                    for i in 0..10 {
+                        let skill_id = msg.read_byte()? as u8;
+                        if i < player.player_skill.skill_shortcut.len() {
+                            player.player_skill.skill_shortcut[i] = skill_id;
+                        }
+                    }
+                    session.set_player(player);
+                    services::skill_service::send_skill_shortcut(session).await?;
                 }
                 Ok(())
             }
@@ -361,7 +398,8 @@ impl AsyncController {
                 match player_result {
                     Ok(Some(db_player)) => {
                         session.set_user_id(account_id);
-                        let rt_player = crate::player::player_dao::from_entity(&db_player)
+                        let rt_player = crate::player::player_mapper::from_entity(&db_player)
+                            .await
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                         let mut player_with_zone = rt_player.clone();
                         player_with_zone.is_admin = account.is_admin;
@@ -541,7 +579,8 @@ impl AsyncController {
         match player_result {
             Ok(db_player) => {
                 println!("Character created successfully: {}", name);
-                let rt_player = crate::player::player_dao::from_entity(&db_player)
+                let rt_player = crate::player::player_mapper::from_entity(&db_player)
+                    .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
                 session.set_player(rt_player);
                 let username = session.get_username().unwrap_or(&String::new()).clone();
@@ -577,6 +616,7 @@ impl AsyncController {
                 Ok(())
             }
             7 => {
+                println!("Updating skill data for client");
                 DataGame::update_skill(session).await?;
                 Ok(())
             }

@@ -1,4 +1,6 @@
 use crate::data::DataGame;
+use crate::entities::prelude::ItemShop;
+use crate::item::Item;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::Zone;
 use crate::network::message::Message;
@@ -178,7 +180,6 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    /// Send current stamina (-68)
     pub async fn send_current_stamina(session: &mut AsyncSession) -> anyhow::Result<()> {
         println!("Sending current stamina");
 
@@ -206,8 +207,6 @@ impl PlayerInfoService {
         session.send_message(&msg).await?;
         Ok(())
     }
-
-    /// Send notification tab (-50)
     pub async fn send_notification_tab(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-50);
         msg.write_byte(0)?; // notification count
@@ -232,14 +231,36 @@ impl PlayerInfoService {
         Ok(msg)
     }
 
-    fn debug_write_to_file(content: &str) {
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("debug_player_blob.txt")
-        {
-            let _ = writeln!(file, "{}", content);
+    pub fn write_inventory(
+        msg: &mut Message,
+        items: &Vec<Item>,
+        default_opt: i8,
+    ) -> anyhow::Result<()> {
+        let len_items = items.len().min(255);
+        msg.write_byte(len_items as i8)?;
+        for item in items.iter().take(len_items) {
+            if item.is_null_item() {
+                msg.write_short(-1)?;
+            } else {
+                msg.write_short(item.get_template_id().unwrap_or(-1))?;
+                msg.write_int(item.quantity)?;
+                msg.write_utf(&item.get_info())?;
+                msg.write_utf(&item.get_content())?;
+                if item.item_options.is_empty() {
+                    msg.write_byte(1)?;
+                    msg.write_byte(default_opt)?;
+                    msg.write_short(1)?;
+                } else {
+                    let opts_len = item.item_options.len() as i8;
+                    msg.write_byte(opts_len)?;
+                    for opt in item.item_options.iter() {
+                        msg.write_byte(opt.get_option_id())?;
+                        msg.write_short(opt.get_param())?;
+                    }
+                }
+            }
         }
+        Ok(())
     }
 
     pub async fn send_player_blob_internal(
@@ -247,11 +268,6 @@ impl PlayerInfoService {
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
         let mut msg = Self::sub_command_30(0).await?;
-
-        Self::debug_write_to_file("=== SEND_PLAYER_BLOB_INTERNAL DEBUG ===");
-        Self::debug_write_to_file(&format!("Message ID: -30, Sub command: 0").to_string());
-
-        // Basic player info
         msg.write_int(player.id as i32)?; // charID
         msg.write_byte(0)?; // ctaskId
         msg.write_byte(player.gender)?; // cgender
@@ -265,103 +281,25 @@ impl PlayerInfoService {
         msg.write_short(0)?; // eff5BuffHp
         msg.write_short(0)?; // eff5BuffMp
 
-        msg.write_byte(0)?; // nClass index (GameScr.nClasss[...])
+        msg.write_byte(player.gender)?;
 
-        // Skills - client expects to read skills here
-        msg.write_byte(0)?; // number of skills (sbyte b2)
+        let skills = player.player_skill.skills.clone();
+        msg.write_byte(skills.len() as i8);
+        for skill in skills {
+            if skill.template_id != -1 {
+                msg.write_short(skill.template_id as i16)?;
+            }
+        }
 
-        // Currency - client always reads xu as long
         msg.write_long(player.inventory.get_gold())?; // xu
         msg.write_int(player.inventory.get_ruby())?; // luongKhoa
         msg.write_int(player.inventory.get_gem())?; // luong
 
-        // Body items
-        let body_len = (player.inventory.items_body.len().min(255)) as i8;
-        msg.write_byte(body_len)?;
-        for item in player.inventory.items_body.iter().take(body_len as usize) {
-            if item.is_null_item() {
-                msg.write_short(-1)?;
-            } else {
-                msg.write_short(item.get_template_id().unwrap_or(-1))?;
-                msg.write_int(item.quantity)?;
-                msg.write_utf(&item.get_info())?;
-                msg.write_utf(&item.get_content())?;
-                if item.item_options.is_empty() {
-                    msg.write_byte(1)?;
-                    msg.write_byte(73)?;
-                    msg.write_short(1)?;
-                } else {
-                    let opts_len = item.item_options.len() as i8;
-                    msg.write_byte(opts_len)?;
-                    for opt in item.item_options.iter() {
-                        msg.write_byte(opt.get_option_id())?;
-                        msg.write_short(opt.get_param())?;
-                    }
-                }
-            }
-        }
+        Self::write_inventory(&mut msg, &player.inventory.items_body, 73)?;
 
-        // Bag items
-        let bag_len = (player.inventory.items_bag.len().min(255)) as i8;
-        msg.write_byte(bag_len)?;
-        for (index, item) in player
-            .inventory
-            .items_bag
-            .iter()
-            .enumerate()
-            .take(bag_len as usize)
-        {
-            if item.is_null_item() {
-                msg.write_short(-1)?;
-            } else {
-                msg.write_short(item.get_template_id().unwrap_or(-1))?;
-                msg.write_int(item.quantity)?;
-                msg.write_utf(&item.get_info())?;
-                msg.write_utf(&item.get_content())?;
-                if item.item_options.is_empty() {
-                    msg.write_byte(1)?;
-                    msg.write_byte(1)?;
-                    msg.write_short(1)?;
-                } else {
-                    msg.write_byte(item.item_options.len() as i8)?;
+        Self::write_inventory(&mut msg, &player.inventory.items_bag, 73)?;
 
-                    for opt in item.item_options.iter() {
-                        msg.write_byte(opt.get_option_id())?;
-                        msg.write_short(opt.get_param())?;
-                    }
-                }
-            }
-        }
-        let box_len = (player.inventory.items_box.len().min(255)) as i8;
-        msg.write_byte(box_len)?;
-        for (index, item) in player
-            .inventory
-            .items_box
-            .iter()
-            .enumerate()
-            .take(box_len as usize)
-        {
-            if !item.is_not_null_item() {
-                msg.write_short(-1)?;
-            } else {
-                msg.write_short(item.get_template_id().unwrap_or(-1))?;
-                msg.write_int(item.quantity)?;
-                msg.write_utf(&item.get_info())?;
-                msg.write_utf(&item.get_content())?;
-                if item.item_options.is_empty() {
-                    msg.write_byte(1)?;
-                    msg.write_byte(1)?;
-                    msg.write_short(1)?;
-                } else {
-                    msg.write_byte(item.item_options.len() as i8)?;
-
-                    for opt in item.item_options.iter() {
-                        msg.write_byte(opt.get_option_id())?;
-                        msg.write_short(opt.get_param())?;
-                    }
-                }
-            }
-        }
+        Self::write_inventory(&mut msg, &player.inventory.items_box, 73)?;
         DataGame::send_head_to_client(&mut msg).await?;
         msg.write_short(player.get_head())?; // num17 - number of head/avatar pairs
         msg.write_short(514)?; // charId[gender][0]

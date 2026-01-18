@@ -1,32 +1,45 @@
-// Core map modules
-pub mod map;
-pub mod map_dao;
-pub mod map_manager;
-pub mod map_service;
-pub mod waypoint;
+pub mod dao;
+pub mod managers;
+pub mod models;
+pub mod services;
+pub mod utils;
 
-// Map components
-pub mod item_map;
-pub mod item_map_service;
-pub mod zone;
-pub mod zone_manager;
+// Re-export models modules
+pub use models::item_map;
+pub use models::map;
+pub use models::waypoint;
+pub use models::zone;
 
-// Map utilities
-pub mod map_utils;
-pub mod tile_loader;
-
-// Re-exports
+// Re-export models types
 pub use item_map::ItemMap;
-pub use item_map_service::ItemMapService;
 pub use map::Map;
-pub use map_dao::MapDao;
-pub use map_service::MapService;
-pub use map_utils::MapUtils;
-pub use tile_loader::TileLoader;
 pub use waypoint::WayPoint;
 pub use zone::Zone;
+
+// Re-export services modules
+pub use services::change_map_service;
+pub use services::item_map_service;
+pub use services::map_service;
+
+// Re-export services types
+pub use change_map_service::{ChangeMapService, ChangeMapType, SpaceShipType};
+pub use item_map_service::ItemMapService;
+pub use map_service::MapService;
+
+// Re-export managers modules
+pub use managers::map_manager;
+pub use managers::map_template_manager;
+pub use managers::tile_loader;
+pub use managers::zone_manager;
+
+// Re-export managers types
+pub use tile_loader::TileLoader;
 pub use zone_manager::ZoneManager;
 
-pub mod change_map_service;
-pub use change_map_service::{ChangeMapService, ChangeMapType, SpaceShipType};
-pub mod map_template_manager;
+// Re-export DAO
+pub use dao::map_dao;
+pub use map_dao::MapDao;
+
+// Re-export utilities
+pub use map_utils::MapUtils;
+pub use utils::map_utils;

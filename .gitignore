@@ -3,6 +3,7 @@
 **/*.rs.bk
 *.pdb
 /data/
+/src_java/
 # Environment files
 .env
 .env.local
@@ -39,4 +40,4 @@ logs/
 
 # Data files (if needed)
 /data/
-# /src_java/
+# /src_java/client/ngocrongonline/Ngoc Rong Online_Data/resources.assets.resS

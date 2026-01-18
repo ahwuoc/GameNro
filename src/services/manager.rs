@@ -2,7 +2,7 @@
 use crate::database::DbManager;
 use crate::item::{item_template_manager, option_template_manager};
 use crate::map::{map_manager, map_template_manager};
-use crate::services::{head_avatar_manager, intrinsic_template_manager};
+use crate::services::{head_avatar_manager, intrinsic_template_manager, skill_template_manager};
 use once_cell::sync::Lazy;
 use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryResult, Statement,
@@ -18,7 +18,6 @@ use tokio::time::Duration;
 
 use crate::entities::intrinsic;
 use crate::entities::npc_template;
-use crate::entities::skill_template;
 use crate::item::item_time_service::ItemTimeService;
 use crate::mob::mob_template_manager;
 use crate::npc::{npc_service, npc_template_manager, NpcManager};
@@ -27,8 +26,6 @@ use anyhow::{Ok, Result};
 static MANAGER: Lazy<Arc<Mutex<Manager>>> = Lazy::new(|| Arc::new(Mutex::new(Manager::new())));
 
 pub struct Manager {
-    pub skill_templates: Vec<skill_template::Model>,
-    pub skill_templates_by_id: HashMap<i32, skill_template::Model>,
     pub item_time_service: ItemTimeService,
     pub npc_manager: NpcManager,
     database: Option<DatabaseConnection>,
@@ -37,8 +34,6 @@ pub struct Manager {
 impl Manager {
     pub fn new() -> Self {
         Manager {
-            skill_templates: Vec::new(),
-            skill_templates_by_id: HashMap::new(),
             item_time_service: ItemTimeService::new(),
             npc_manager: NpcManager::new(),
             database: None,
@@ -58,7 +53,7 @@ impl Manager {
         option_template_manager::load(pool).await?;
         head_avatar_manager::load(pool).await?;
         mob_template_manager::load(pool).await?;
-        self.load_skill_templates().await?;
+        skill_template_manager::load(pool).await?;
         npc_template_manager::load(pool).await?;
         intrinsic_template_manager::load(pool).await?;
         if let Err(e) = self.load_part_update_data().await {
@@ -181,23 +176,6 @@ impl Manager {
         file.flush()?;
         println!("Load part thành công ({} parts)", parts.len());
         Ok(())
-    }
-    async fn load_skill_templates(&mut self) -> anyhow::Result<()> {
-        if let Some(ref database) = self.database {
-            let skill_templates = skill_template::Entity::find().all(database).await?;
-
-            self.skill_templates = skill_templates.clone();
-            for template in skill_templates {
-                self.skill_templates_by_id.insert(template.id, template);
-            }
-
-            println!("Loaded {} skill templates", self.skill_templates.len());
-        }
-        Ok(())
-    }
-
-    pub fn get_skill_templates(&self) -> &Vec<skill_template::Model> {
-        &self.skill_templates
     }
 
     pub fn get_item_time_service(&self) -> &ItemTimeService {

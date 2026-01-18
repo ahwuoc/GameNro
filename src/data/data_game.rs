@@ -4,53 +4,19 @@ use crate::mob::mob_template_manager;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
 use crate::npc::npc_template_manager;
-use crate::services::head_avatar_manager;
+use crate::services::{head_avatar_manager, skill_template_manager};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use fast_image_resize as fir;
 use image::ImageFormat;
 use once_cell::sync::Lazy;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 
+pub use skill_template_manager::{NClass, Skill, SkillTemplate};
+
 pub static CACHE_ICON: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
-
-#[derive(Debug, Clone)]
-pub struct Skill {
-    pub skill_id: i16,
-    pub point: i8,
-    pub pow_require: i64,
-    pub mana_use: i16,
-    pub cool_down: i32,
-    pub dx: i16,
-    pub dy: i16,
-    pub max_fight: i8,
-    pub damage: i16,
-    pub price: i16,
-    pub more_info: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct SkillTemplate {
-    pub id: i8,
-    pub class_id: i32,
-    pub name: String,
-    pub max_point: i8,
-    pub mana_use_type: i8,
-    pub r#type: i8,
-    pub icon_id: i16,
-    pub dam_info: String,
-    pub skills: Vec<Skill>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NClass {
-    pub class_id: i32,
-    pub name: String,
-    pub skill_templates: Vec<SkillTemplate>,
-}
+pub static CACHE_IMG_BY_NAME: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
 
 pub struct DataGame;
 
@@ -178,12 +144,12 @@ impl DataGame {
 
     pub async fn send_version_game(session: &mut AsyncSession) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
-        msg.write_byte(4); //sub command
-        msg.write_byte(Self::VS_DATA)?; // vsData
-        msg.write_byte(Self::VS_MAP)?; // vsMap
-        msg.write_byte(Self::VS_SKILL)?; // vsSkill
-        msg.write_byte(Self::VS_ITEM)?; // vsItem
-        msg.write_byte(0)?; // padding
+        msg.write_byte(4);
+        msg.write_byte(Self::VS_DATA)?;
+        msg.write_byte(Self::VS_MAP)?;
+        msg.write_byte(Self::VS_SKILL)?;
+        msg.write_byte(Self::VS_ITEM)?;
+        msg.write_byte(0)?;
 
         msg.write_byte(Self::STANDARD_LEVELS.len() as i8)?;
 
@@ -245,7 +211,7 @@ impl DataGame {
         };
 
         let mut msg = Message::new(-87);
-        msg.write_byte(80)?;
+        msg.write_byte(DataGame::VS_DATA)?;
 
         msg.write_int(dart_data.len() as i32)?;
         msg.write(&dart_data)?;
@@ -317,12 +283,21 @@ impl DataGame {
         msg.write_byte(1)?;
         msg.write_byte(0)?;
 
-        let nclasses = load_skill_data().await?;
+        let nclasses = skill_template_manager::get_all_nclasses();
+        println!(
+            "[UPDATE_SKILL] Sending {} nclasses to client",
+            nclasses.len()
+        );
         msg.write_byte(nclasses.len() as i8)?;
 
         for nclass in &nclasses {
             msg.write_utf(&nclass.name)?;
             msg.write_byte(nclass.skill_templates.len() as i8)?;
+            println!(
+                "[UPDATE_SKILL] NClass: {} with {} skill templates",
+                nclass.name,
+                nclass.skill_templates.len()
+            );
 
             for skill_temp in &nclass.skill_templates {
                 msg.write_byte(skill_temp.id)?;
@@ -332,8 +307,7 @@ impl DataGame {
                 msg.write_byte(skill_temp.r#type)?;
                 msg.write_short(skill_temp.icon_id)?;
                 msg.write_utf(&skill_temp.dam_info)?;
-                msg.write_utf("Nro Wars")?;
-
+                msg.write_utf("ahwuocdz")?;
                 if skill_temp.id != 0 {
                     msg.write_byte(skill_temp.skills.len() as i8)?;
                     for skill in &skill_temp.skills {
@@ -381,6 +355,7 @@ impl DataGame {
             }
         }
 
+        println!("[UPDATE_SKILL] Finished sending skill data");
         session.send_message(&msg).await?;
         Ok(())
     }
@@ -526,7 +501,6 @@ impl DataGame {
     }
 
     pub async fn send_client_ok(session: &mut AsyncSession) -> anyhow::Result<()> {
-        println!("Sending client OK");
         let mut response = Message::new(-75);
         response.write_byte(0)?;
         session.send_message(&response).await?;
@@ -546,137 +520,4 @@ impl DataGame {
 
         Ok(())
     }
-}
-
-async fn load_skill_data() -> anyhow::Result<Vec<NClass>> {
-    let manager = crate::services::Manager::get_instance();
-    let manager_guard = manager.lock().await;
-    let skill_templates = manager_guard.get_skill_templates();
-
-    let mut nclasses_map: HashMap<i32, NClass> = HashMap::new();
-
-    for template in skill_templates {
-        let nclass_id = template.nclass_id;
-
-        // Get or create NClass
-        let nclass = nclasses_map.entry(nclass_id).or_insert_with(|| {
-            let name = match nclass_id {
-                0 => "Trái Đất".to_string(),
-                1 => "Namếc".to_string(),
-                2 => "Xayda".to_string(),
-                _ => format!("Class {}", nclass_id),
-            };
-
-            NClass {
-                class_id: nclass_id,
-                name,
-                skill_templates: Vec::new(),
-            }
-        });
-
-        let skills = parse_skills_json(&template.skills)?;
-
-        let skill_template = SkillTemplate {
-            id: template.id as i8,
-            class_id: template.nclass_id,
-            name: template.name.clone(),
-            max_point: template.max_point as i8,
-            mana_use_type: template.mana_use_type as i8,
-            r#type: template.r#type as i8,
-            icon_id: template.icon_id as i16,
-            dam_info: template.dam_info.clone(),
-            skills,
-        };
-
-        nclass.skill_templates.push(skill_template);
-    }
-
-    let mut nclasses: Vec<NClass> = nclasses_map.into_values().collect();
-    nclasses.sort_by_key(|nclass| nclass.class_id);
-
-    println!("Loaded {} NClasses with skill data", nclasses.len());
-    Ok(nclasses)
-}
-
-fn parse_skills_json(skills_json: &str) -> anyhow::Result<Vec<Skill>> {
-    if skills_json.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let cleaned_json = skills_json
-        .replace("[\"", "[")
-        .replace("\"[", "[")
-        .replace("\"]", "]")
-        .replace("]\"", "]")
-        .replace("}\",\"{", "},{");
-
-    let json_value: Value = serde_json::from_str(&cleaned_json)?;
-    let mut skills = Vec::new();
-
-    if let Value::Array(skills_array) = json_value {
-        for skill_obj in skills_array {
-            if let Value::Object(skill_map) = skill_obj {
-                let skill = Skill {
-                    skill_id: skill_map
-                        .get("id")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    point: skill_map
-                        .get("point")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    pow_require: skill_map
-                        .get("power_require")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    mana_use: skill_map
-                        .get("mana_use")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    cool_down: skill_map
-                        .get("cool_down")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    dx: skill_map
-                        .get("dx")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    dy: skill_map
-                        .get("dy")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    max_fight: skill_map
-                        .get("max_fight")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    damage: skill_map
-                        .get("damage")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    price: skill_map
-                        .get("price")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(0),
-                    more_info: skill_map
-                        .get("info")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                };
-                skills.push(skill);
-            }
-        }
-    }
-
-    Ok(skills)
 }

@@ -6,8 +6,9 @@ use crate::map::Zone;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::AsyncSession;
-use crate::player::id_mark::IdMark;
-use crate::player::n_point::NPoint;
+use crate::player::InteractionState;
+use crate::player::NPoint;
+use crate::player::PlayerSkill;
 use crate::utils::Location;
 use serde_json::Value;
 
@@ -25,6 +26,7 @@ pub struct Player {
 
     pub n_point: NPoint,
     pub inventory: Inventory,
+    pub player_skill: PlayerSkill,
     pub intrinsic: IntrinsicPlayer,
     pub location: Location,
     pub combine_new: Combine,
@@ -54,7 +56,7 @@ pub struct Player {
     pub is_admin: bool,
     pub admin_key: bool,
 
-    pub id_mark: IdMark,
+    pub interaction_state: InteractionState,
 
     pub task_id: i32,
     pub is_boss: bool,
@@ -77,6 +79,7 @@ impl Player {
             session_id: None,
             n_point: NPoint::new(),
             inventory: Inventory::new(),
+            player_skill: PlayerSkill::new(),
             intrinsic: IntrinsicPlayer::new(),
             location: Location::new(),
             combine_new: Combine::new(),
@@ -99,7 +102,7 @@ impl Player {
             zone: None,
             is_admin: false,
             admin_key: false,
-            id_mark: IdMark::new(),
+            interaction_state: InteractionState::new(),
             task_id: 0,
             is_boss: false,
             notify: None,
@@ -187,7 +190,18 @@ impl Player {
     }
 
     pub fn injured(&mut self, damage: u64, piercing: bool) -> u64 {
-        0
+        let mut dame = damage as i32;
+        if !piercing {
+            dame -= self.n_point.def;
+        }
+        if dame < 0 {
+            dame = 1;
+        }
+        self.n_point.set_hp(self.n_point.hp - dame);
+        if self.n_point.hp <= 0 {
+            self.set_die();
+        }
+        dame as u64
     }
 
     pub fn set_die(&mut self) {
@@ -218,7 +232,6 @@ impl Player {
         self.admin_key
     }
 
-    // Disposal
     pub fn prepared_to_dispose(&mut self) {
         self.before_dispose = true;
     }

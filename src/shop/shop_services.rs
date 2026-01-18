@@ -153,7 +153,7 @@
 //         let shop_type = ShopType::from(shop_type_raw);
 
 //         if let Some(pl) = session.get_player_mut() {
-//             pl.id_mark.set_tag_shop(tag_name.to_string());
+//             pl.interaction_state.set_tag_shop(tag_name.to_string());
 //         }
 //         let mut msg = Message::new(CMD_SHOP_OPEN as i8);
 //         msg.write_byte(shop_type_raw as i8)?;
@@ -234,7 +234,7 @@
 //     ) -> anyhow::Result<()> {
 //         let tag_shop = session
 //             .get_player()
-//             .map(|p| p.id_mark.get_tag_shop().to_string())
+//             .map(|p| p.interaction_state.get_tag_shop().to_string())
 //             .ok_or_else(|| anyhow::anyhow!("Player not found or Shop Tag missing"))?;
 //         let shop_data = ShopData::get(&tag_shop)
 //             .await
@@ -405,7 +405,7 @@ pub mod shop_service {
         let shop_type = shop_data.shop.type_shop.unwrap_or(0);
 
         if let Some(pl) = session.get_player_mut() {
-            pl.id_mark.set_tag_shop(tag_name.to_string());
+            pl.interaction_state.set_tag_shop(tag_name.to_string());
         }
 
         let mut msg = Message::new(-44);
@@ -508,7 +508,7 @@ pub mod shop_service {
     ) -> anyhow::Result<()> {
         let tag_shop = session
             .get_player()
-            .map(|p| p.id_mark.get_tag_shop().to_string())
+            .map(|p| p.interaction_state.get_tag_shop().to_string())
             .ok_or_else(|| anyhow::anyhow!("Player not found"))?;
 
         let shop_data = ShopData::get(&tag_shop).await?;

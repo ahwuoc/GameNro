@@ -123,7 +123,7 @@ pub mod npc_service {
         select: i8,
     ) -> anyhow::Result<()> {
         let state = match session.get_player() {
-            Some(p) => p.id_mark.get_index_menu(),
+            Some(p) => p.interaction_state.get_index_menu(),
             None => return Ok(()),
         };
 
@@ -151,7 +151,7 @@ pub mod npc_service {
             return Ok(());
         };
 
-        player.id_mark.set_index_menu(state);
+        player.interaction_state.set_index_menu(state);
 
         let mut msg = Message::new(32);
         msg.write_short(npc_id)?;
