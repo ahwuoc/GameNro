@@ -3,7 +3,7 @@ use crate::entities::item_template::Model as ItemMap;
 use crate::map::map_manager;
 use crate::mob::RtMob;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player::Player;
 use anyhow::Result;
 use dashmap::DashMap;
@@ -222,7 +222,7 @@ impl Zone {
     pub async fn load_player_to_zone(
         &self,
         mut player: Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         player.set_zone(self.clone());
         self.add_player(player.clone()).await?;
@@ -279,7 +279,7 @@ impl Zone {
         msg
     }
 
-    pub async fn map_info(&self, session: &mut AsyncSession, player_id: u64) -> anyhow::Result<()> {
+    pub async fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
         let Some(player) = self.players.get(&player_id) else {
             return Ok(());
         };

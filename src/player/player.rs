@@ -5,7 +5,7 @@ use crate::item::inventory::{self, Inventory};
 use crate::map::Zone;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
@@ -62,6 +62,7 @@ pub struct Player {
     pub is_boss: bool,
     pub notify: Option<String>,
     pub session: Option<Arc<RwLock<AsyncSession>>>,
+    pub session_arc: Option<SessionArc>,
 }
 
 impl Player {
@@ -107,6 +108,7 @@ impl Player {
             is_boss: false,
             notify: None,
             session: None,
+            session_arc: None,
         }
     }
 
@@ -165,12 +167,13 @@ impl Player {
         }
     }
     pub async fn send_message(&self, msg: Message) -> anyhow::Result<()> {
+        if let Some(session) = &self.session_arc {
+            session.queue_message(msg).await;
+            return Ok(());
+        }
         if let Some(session) = &self.session {
-            let session_clone = session.clone();
-            tokio::spawn(async move {
-                let mut session_guard = session_clone.write().await;
-                session_guard.send_message(&msg).await;
-            });
+            let guard = session.read().await;
+            guard.queue_message(msg);
         }
         Ok(())
     }

@@ -4,12 +4,12 @@ use crate::data::data_game;
 use crate::database::DbManager;
 use crate::item::{item_template_manager, option_template_manager};
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use sea_orm::EntityTrait;
 pub struct ItemData;
 
 impl ItemData {
-    pub async fn update_item(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn update_item(session: &SessionArc) -> anyhow::Result<()> {
         Self::update_item_option_template(session).await?;
         Self::update_item_arr_head_2_f(session).await?;
         Self::update_item_template(session, 750).await?;
@@ -21,7 +21,7 @@ impl ItemData {
         .await?;
         Ok(())
     }
-    async fn update_item_option_template(session: &mut AsyncSession) -> anyhow::Result<()> {
+    async fn update_item_option_template(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?;
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
@@ -35,7 +35,7 @@ impl ItemData {
         Ok(())
     }
 
-    async fn update_item_arr_head_2_f(session: &mut AsyncSession) -> anyhow::Result<()> {
+    async fn update_item_arr_head_2_f(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?;
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
@@ -80,7 +80,7 @@ impl ItemData {
         Ok(())
     }
 
-    async fn update_item_template(session: &mut AsyncSession, count: i16) -> anyhow::Result<()> {
+    async fn update_item_template(session: &SessionArc, count: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(8)?;
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
@@ -104,7 +104,7 @@ impl ItemData {
     }
 
     async fn update_item_template_range(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         start: i16,
         end: i16,
     ) -> anyhow::Result<()> {

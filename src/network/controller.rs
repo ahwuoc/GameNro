@@ -17,36 +17,31 @@ use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing_subscriber::registry::Data;
 
 use super::message::Message;
-use super::session::AsyncSession;
+use super::session::{AsyncSession, SessionArc};
+
 pub struct AsyncController;
 
 impl AsyncController {
-    pub async fn process(
-        session: &mut AsyncSession,
-        mut msg: Message,
-        session_arc: Arc<RwLock<AsyncSession>>,
-    ) -> Result<()> {
+    pub async fn process(session: SessionArc, mut msg: Message) -> Result<()> {
         match msg.command {
             cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {
                     println!("Error sending key {}", e);
                 }
-                session.set_sent_key(true);
-                if let Err(e) = DataGame::send_version_res(session).await {
+                session.set_sent_key(true).await;
+                if let Err(e) = DataGame::send_version_res(&session).await {
                     println!("Error sending version res {}", e);
                 }
                 Ok(())
             }
             cmd::NOT_LOGIN => {
-                Self::handle_message_not_login(session, msg, session_arc).await?;
+                Self::handle_message_not_login(&session, msg).await?;
                 Ok(())
             }
             cmd::GET_IMAGES_SOURCE => {
-                Self::handle_get_image_source(session, msg).await?;
+                Self::handle_get_image_source(&session, msg).await?;
                 Ok(())
             }
             54 => {
@@ -54,14 +49,14 @@ impl AsyncController {
                 let is_mob_me = mob_id == -1;
                 let master_id = if is_mob_me { msg.read_int()? } else { -1 };
 
-                if let Some(mut player) = session.take_player() {
+                if let Some(player) = session.take_player().await {
                     if !is_mob_me {
                         let dame = player.n_point.get_dame_attack(false);
                         mob_service::attack_mob(&player, mob_id, dame).await;
                     } else {
                         println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
                     }
-                    session.set_player(player);
+                    session.set_player(player).await;
                 }
                 Ok(())
             }
@@ -69,7 +64,7 @@ impl AsyncController {
                 let type_byte = msg.read_byte()?;
                 let type_inventory = type_item_inventory::TypeItemInventory::try_from(type_byte)?;
                 let index = msg.read_byte()?;
-                use_item::UseItem::get_item(session, type_inventory, index).await?;
+                use_item::UseItem::get_item(&session, type_inventory, index).await?;
                 Ok(())
             }
             -41 => {
@@ -86,29 +81,29 @@ impl AsyncController {
                         return Ok(());
                     }
                 }
-
                 Ok(())
             }
             -43 => Ok(()),
             -93 => {
-                Self::handle_not_login(session, msg, session_arc).await?;
+                Self::handle_not_login(&session, msg).await?;
                 Ok(())
             }
             11 => {
                 let mob_id = msg.read_byte()?;
-                DataGame::send_mob_temp(session, mob_id).await?;
+                DataGame::send_mob_temp(&session, mob_id).await?;
                 Ok(())
             }
             32 => {
                 let npc_id = msg.read_short()?;
                 let select = msg.read_byte()?;
-                npc_service::npc_service::handle_menu_confirm(session, npc_id, select).await?;
+                npc_service::npc_service::handle_menu_confirm(&session, npc_id, select).await?;
                 Ok(())
             }
             6 => {
                 let type_shop = msg.read_byte()?;
                 let temp_id = msg.read_short()?;
-                if let Err(e) = shop_service::take_item_shop(session, type_shop, temp_id).await {
+                if let Err(e) = shop_service::take_item_shop(&session, type_shop, temp_id).await
+                {
                     println!("Shop Error: {:?}", e);
                 }
                 Ok(())
@@ -116,7 +111,7 @@ impl AsyncController {
             -67 => {
                 match msg.read_int() {
                     Ok(id) => {
-                        DataGame::send_icon(session, id).await?;
+                        DataGame::send_icon(&session, id).await?;
                     }
                     Err(e) => {
                         print!("Error -67 {:?}", e);
@@ -126,113 +121,115 @@ impl AsyncController {
             }
             33 => {
                 let npc_id = msg.read_short()?;
-                npc_service::npc_service::open_menu_controller(session, npc_id).await?;
+                npc_service::npc_service::open_menu_controller(&session, npc_id).await?;
                 Ok(())
             }
             -28 => {
-                Self::handle_message_not_map(session, msg, session_arc).await?;
+                Self::handle_message_not_map(&session, msg).await?;
                 Ok(())
             }
             44 => {
                 let text = msg.read_utf()?;
-                if !services::command::CommandService::check(session, &text).await? {
-                    ServiceHandles::chat(session, &text).await?;
+                if !services::command::CommandService::check(&session, &text).await? {
+                    ServiceHandles::chat(&session, &text).await?;
                 }
                 Ok(())
             }
             -45 => {
-                if let Some(mut player) = session.take_player() {
+                if let Some(mut player) = session.take_player().await {
                     services::skill_service::use_skill(&mut player, None, None, Some(msg)).await;
-                    session.set_player(player);
+                    session.set_player(player).await;
                 }
                 Ok(())
             }
             -87 => {
-                if let Err(e) = DataGame::update_data(session).await {
+                if let Err(e) = DataGame::update_data(&session).await {
                     println!("Error updating data {}", e);
                 }
                 Ok(())
             }
             -38 => Ok(()),
             -39 => {
-                if let Some(player) = session.get_player() {
+                if let Some(player) = session.get_player().await {
                     ChangeMapService::finish_load_map(&player).await?;
                 }
                 Ok(())
             }
             29 => {
-                if let Some(player) = session.take_player() {
+                if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_zone_ui(&player, session).await;
-                    session.set_player(player);
+                    let res = change_map_service.open_zone_ui(&player, &session).await;
+                    session.set_player(player).await;
                     res?;
                 }
                 Ok(())
             }
             21 => {
-                if let Some(mut player) = session.take_player() {
+                if let Some(mut player) = session.take_player().await {
                     let zone_id = msg.read_byte()? as i32;
                     let change_map_service = ChangeMapService::new();
                     let res = change_map_service
-                        .change_zone(&mut player, zone_id, session)
+                        .change_zone(&mut player, zone_id, &session)
                         .await;
-                    session.set_player(player);
+                    session.set_player(player).await;
                     res?;
                 }
                 Ok(())
             }
             -33 | -23 => {
-                if let Some(mut player) = session.take_player() {
+                if let Some(mut player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
                     let res = change_map_service
-                        .change_map_waypoint_handler(&mut player, session)
+                        .change_map_waypoint_handler(&mut player, &session)
                         .await;
-                    session.set_player(player);
+                    session.set_player(player).await;
                     res?;
                 }
                 Ok(())
             }
             -15 => {
-                if let Some(mut player) = session.take_player() {
+                if let Some(mut player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
                     let res = change_map_service
-                        .go_home_handler(&mut player, session)
+                        .go_home_handler(&mut player, &session)
                         .await;
-                    session.set_player(player);
+                    session.set_player(player).await;
                     res?;
                 }
                 Ok(())
             }
             -91 => {
-                if let Some(player) = session.take_player() {
+                if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_capsule_menu(&player, session).await;
-                    session.set_player(player);
+                    let res = change_map_service
+                        .open_capsule_menu(&player, &session)
+                        .await;
+                    session.set_player(player).await;
                     res?;
                 }
                 Ok(())
             }
             -7 => {
-                Self::handle_player_move(session, msg).await?;
+                Self::handle_player_move(&session, msg).await?;
                 Ok(())
             }
             -63 => Ok(()),
             112 => {
-                if session.get_player().is_some() {
-                    services::IntrinsicService::show_menu(session).await?;
+                if session.get_player().await.is_some() {
+                    services::IntrinsicService::show_menu(&session).await?;
                 }
                 Ok(())
             }
             -113 => {
-                if let Some(mut player) = session.take_player() {
+                if let Some(mut player) = session.take_player().await {
                     for i in 0..10 {
                         let skill_id = msg.read_byte()? as u8;
                         if i < player.player_skill.skill_shortcut.len() {
                             player.player_skill.skill_shortcut[i] = skill_id;
                         }
                     }
-                    session.set_player(player);
-                    services::skill_service::send_skill_shortcut(session).await?;
+                    session.set_player(player).await;
+                    services::skill_service::send_skill_shortcut(&session).await?;
                 }
                 Ok(())
             }
@@ -243,7 +240,8 @@ impl AsyncController {
                 for _ in 0..len {
                     index_item.push(msg.read_byte()? as i16);
                 }
-                crate::combine::combine_service::show_info_combine(session, index_item).await?;
+                crate::combine::combine_service::show_info_combine(&session, index_item)
+                    .await?;
                 Ok(())
             }
             _ => {
@@ -253,7 +251,7 @@ impl AsyncController {
         }
     }
 
-    async fn handle_get_image_source(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+    async fn handle_get_image_source(session: &SessionArc, mut msg: Message) -> Result<()> {
         let type_byte = msg.read_byte()?;
 
         match type_byte {
@@ -271,26 +269,18 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_message_not_login(
-        session: &mut AsyncSession,
-        mut msg: Message,
-        session_arc: Arc<RwLock<AsyncSession>>,
-    ) -> Result<()> {
+    async fn handle_message_not_login(session: &SessionArc, mut msg: Message) -> Result<()> {
         let sub_cmd = msg.read_byte()?;
         println!("Handling -29 sub-command: {}", sub_cmd);
         match sub_cmd {
             0 => {
                 let username = msg.read_utf()?;
                 let password = msg.read_utf()?;
-                session.set_version(240);
-                session.set_credentials(username.clone(), password.clone());
-                Self::handle_login_authentication(
-                    session,
-                    &username,
-                    &password,
-                    session_arc.clone(),
-                )
-                .await?;
+                session.set_version(240).await;
+                session
+                    .set_credentials(username.clone(), password.clone())
+                    .await;
+                Self::handle_login_authentication(session, &username, &password).await?;
             }
 
             2 => {
@@ -305,14 +295,14 @@ impl AsyncController {
                 if let Some(version_part) = platform.split('|').nth(1) {
                     let version_str = version_part.replace(".", "");
                     if let Ok(version) = version_str.parse::<i32>() {
-                        session.set_version(version);
+                        session.set_version(version).await;
                         println!("Client platform={} version={}", platform, version);
                     } else {
                         println!("Invalid client version string: {}", version_str);
                     }
                 }
 
-                session.zoom_level = zoom_level as u8;
+                session.set_zoom_level(zoom_level as u8).await;
 
                 DataGame::send_link_ip(session).await?;
             }
@@ -325,28 +315,25 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_not_login(
-        session: &mut AsyncSession,
-        mut msg: Message,
-        session_arc: Arc<RwLock<AsyncSession>>,
-    ) -> Result<()> {
+    async fn handle_not_login(session: &SessionArc, mut msg: Message) -> Result<()> {
         let _username_len = msg.read_byte()? as usize;
         let _password_len = msg.read_byte()? as usize;
         let version = msg.read_int()?;
         let username = msg.read_utf()?;
         let password = msg.read_utf()?;
-        session.set_credentials(username.clone(), password.clone());
-        session.set_version(version);
-        Self::handle_login_authentication(session, &username, &password, session_arc).await?;
+        session
+            .set_credentials(username.clone(), password.clone())
+            .await;
+        session.set_version(version).await;
+        Self::handle_login_authentication(session, &username, &password).await?;
 
         Ok(())
     }
 
     async fn handle_login_authentication(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         username: &str,
         password: &str,
-        session_arc: Arc<RwLock<AsyncSession>>,
     ) -> Result<()> {
         let pool = DbManager::get_pool();
         let account_result: Result<Option<account::Model>> = {
@@ -397,7 +384,7 @@ impl AsyncController {
 
                 match player_result {
                     Ok(Some(db_player)) => {
-                        session.set_user_id(account_id);
+                        session.set_user_id(account_id).await;
                         let rt_player = crate::player::player_mapper::from_entity(&db_player)
                             .await
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
@@ -450,7 +437,7 @@ impl AsyncController {
                             }
                         }
 
-                        player_with_zone.session = Some(session_arc.clone());
+                        player_with_zone.session_arc = Some(session.clone());
                         if let Some(zone) = &player_with_zone.zone {
                             if let Err(e) = zone.add_player(player_with_zone.clone()).await {
                                 println!("Error adding player to zone: {:?}", e);
@@ -462,16 +449,16 @@ impl AsyncController {
                             }
                         }
 
-                        session.set_player(player_with_zone.clone());
+                        session.set_player(player_with_zone.clone()).await;
                         {
                             (&*SESSION_MANAGER)
-                                .add_session(player_id as i64, session_arc.clone())
+                                .add_session(player_id as i64, session.clone())
                                 .await;
                         }
                         Self::send_login_success_data(session).await?;
                     }
                     Ok(None) => {
-                        session.set_user_id(account_id);
+                        session.set_user_id(account_id).await;
                         Self::switch_to_create_char(session).await?;
                     }
                     Err(e) => {
@@ -491,7 +478,7 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn send_login_success_data(session: &mut AsyncSession) -> Result<()> {
+    async fn send_login_success_data(session: &SessionArc) -> Result<()> {
         DataGame::send_small_version(session).await?;
         Self::send_message_93(session).await?;
         DataGame::send_version_game(session).await?;
@@ -500,14 +487,14 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn send_message_93(session: &mut AsyncSession) -> Result<()> {
+    async fn send_message_93(session: &SessionArc) -> Result<()> {
         let mut msg = Message::new(-93);
         msg.write_utf("1630679752231_-93_r")?;
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    async fn switch_to_create_char(session: &mut AsyncSession) -> Result<()> {
+    async fn switch_to_create_char(session: &SessionArc) -> Result<()> {
         DataGame::send_data_item_bg(session).await?;
         DataGame::send_version_game(session).await?;
         DataGame::send_tile_set_info(session).await?;
@@ -515,11 +502,7 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_create_char(
-        session: &mut AsyncSession,
-        mut msg: Message,
-        session_arc: Arc<RwLock<AsyncSession>>,
-    ) -> Result<()> {
+    async fn handle_create_char(session: &SessionArc, mut msg: Message) -> Result<()> {
         let sub_cmd = msg.read_byte()?;
         if sub_cmd != 2 {
             return Err(anyhow!("Invalid sub command"));
@@ -543,7 +526,7 @@ impl AsyncController {
             return Err(anyhow!("Character name not allowed"));
         }
 
-        let account_id = session.get_user_id().unwrap_or(0);
+        let account_id = session.get_user_id().await.unwrap_or(0);
         let db = DbManager::get_pool();
 
         let player_result = {
@@ -582,16 +565,10 @@ impl AsyncController {
                 let rt_player = crate::player::player_mapper::from_entity(&db_player)
                     .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
-                session.set_player(rt_player);
-                let username = session.get_username().unwrap_or(&String::new()).clone();
-                let password = session.get_password().unwrap_or(&String::new()).clone();
-                Self::handle_login_authentication(
-                    session,
-                    &username,
-                    &password,
-                    session_arc.clone(),
-                )
-                .await?;
+                session.set_player(rt_player).await;
+                let username = session.get_username().await.unwrap_or_default();
+                let password = session.get_password().await.unwrap_or_default();
+                Self::handle_login_authentication(session, &username, &password).await?;
             }
             Err(e) => {
                 println!("Error creating character: {:?}", e);
@@ -602,15 +579,11 @@ impl AsyncController {
         Ok(())
     }
 
-    async fn handle_message_not_map(
-        session: &mut AsyncSession,
-        mut msg: Message,
-        session_arc: Arc<RwLock<AsyncSession>>,
-    ) -> Result<()> {
+    async fn handle_message_not_map(session: &SessionArc, mut msg: Message) -> Result<()> {
         let sub_cmd = msg.read_byte()?;
 
         match sub_cmd {
-            2 => Self::handle_create_char(session, msg, session_arc).await,
+            2 => Self::handle_create_char(session, msg).await,
             6 => {
                 DataGame::update_map(session).await?;
                 Ok(())
@@ -640,12 +613,14 @@ impl AsyncController {
             }
         }
     }
-    async fn handle_client_ok_enhanced(session: &mut AsyncSession) -> anyhow::Result<()> {
+
+    async fn handle_client_ok_enhanced(session: &SessionArc) -> anyhow::Result<()> {
         let player = session
             .get_player()
-            .cloned()
+            .await
             .ok_or(anyhow!("Player not set"))?;
-        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player).await?;
+        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player)
+            .await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
 
         println!("Client ok enhanced initialization completed");
@@ -664,32 +639,28 @@ impl AsyncController {
         false
     }
 
-    async fn handle_player_move(session: &mut AsyncSession, mut msg: Message) -> Result<()> {
+    async fn handle_player_move(session: &SessionArc, mut msg: Message) -> Result<()> {
         let _can_fly = msg.read_byte()?;
         let to_x = msg.read_short()?;
         let to_y = msg.read_short().unwrap_or_else(|_| {
-            if let Some(p) = session.get_player() {
-                p.location.y
-            } else {
-                0
-            }
+            // Can't easily get player here synchronously, use default
+            0
         });
 
-        if let Some(mut player) = session.take_player() {
+        if let Some(mut player) = session.take_player().await {
             if player.is_die() {
-                session.set_player(player);
+                session.set_player(player).await;
                 return Ok(());
             }
             player.location.x = to_x;
             player.location.y = to_y;
 
-            let player_id = player.id;
             let zone_opt = player.zone.clone();
             if let Some(zone) = &zone_opt {
                 Self::send_player_move_to_zone(&player, zone).await?;
             }
 
-            session.set_player(player);
+            session.set_player(player).await;
         }
 
         Ok(())

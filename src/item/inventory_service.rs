@@ -1,7 +1,7 @@
 use crate::item::inventory::Inventory;
 use crate::item::item::Item;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::Player;
 
 pub struct InventoryService;
@@ -65,8 +65,8 @@ impl InventoryService {
         Ok(msg)
     }
 
-    pub async fn send_item_bag_to_client(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let msg = Self::create_item_bag_message(session.get_player().unwrap())?;
+    pub async fn send_item_bag_to_client(session: &SessionArc) -> anyhow::Result<()> {
+        let msg = Self::create_item_bag_message(&session.get_player().await.unwrap())?;
         session.send_message(&msg).await?;
         Ok(())
     }

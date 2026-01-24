@@ -3,7 +3,7 @@ use sqlx::any;
 use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::entities::player;
-use crate::network::session::{self, AsyncSession};
+use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::npc::handlers::NpcHandler;
 use crate::npc::npc_service;
 use crate::shop::shop_services::shop_service;
@@ -12,7 +12,7 @@ pub struct SantaHandler;
 
 #[async_trait::async_trait]
 impl NpcHandler for SantaHandler {
-    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
+    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
         npc_service::npc_service::create_menu(
             session,
             npc_id,
@@ -28,7 +28,7 @@ impl NpcHandler for SantaHandler {
 
     async fn handle_menu(
         &self,
-        session: &mut AsyncSession,
+        session: &SessionArc,
         npc_id: i16,
         menu_id: MenuId,
         select: i8,

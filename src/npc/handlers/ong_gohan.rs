@@ -1,5 +1,5 @@
 use crate::constant::menu_enum::MenuId;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::handlers::NpcHandler;
 use crate::npc::npc_service;
 use crate::services::player_info_service::PlayerInfoService;
@@ -10,7 +10,7 @@ pub struct NpcHomeHandler;
 
 #[async_trait::async_trait]
 impl NpcHandler for NpcHomeHandler {
-    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
+    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
         npc_service::npc_service::create_menu(
             session,
             npc_id,
@@ -24,7 +24,7 @@ impl NpcHandler for NpcHomeHandler {
 
     async fn handle_menu(
         &self,
-        session: &mut AsyncSession,
+        session: &SessionArc,
         npc_id: i16,
         menu_id: MenuId,
         select: i8,

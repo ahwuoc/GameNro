@@ -130,7 +130,7 @@ impl ZoneManager {
     pub async fn load_player_to_best_zone(
         &self,
         player: crate::player::Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         if let Some(zone) = self.get_best_zone(player.map_id as i32).await {
             zone.load_player_to_zone(player, session).await?;

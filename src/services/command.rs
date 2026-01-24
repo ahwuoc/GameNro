@@ -2,6 +2,7 @@ use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::map::change_map_service::{ChangeMapService, SpaceShipType};
 use crate::network::{session::AsyncSession, SESSION_MANAGER};
+use crate::network::session::SessionArc;
 use crate::npc::npc_service;
 use crate::services::ServiceHandles;
 use sysinfo::System;
@@ -9,8 +10,8 @@ use sysinfo::System;
 pub struct CommandService;
 
 impl CommandService {
-    pub async fn check(session: &mut AsyncSession, text: &str) -> anyhow::Result<bool> {
-        let is_admin = if let Some(player) = session.get_player() {
+    pub async fn check(session: &SessionArc, text: &str) -> anyhow::Result<bool> {
+        let is_admin = if let Some(player) = session.get_player().await {
             player.is_admin
         } else {
             return Ok(false);
@@ -46,7 +47,7 @@ impl CommandService {
             } else if text.starts_with("m ") {
                 let map_id_str = text.strip_prefix("m ").unwrap_or("");
                 if let Ok(map_id) = map_id_str.trim().parse::<i32>() {
-                    if let Some(mut player) = session.take_player() {
+                    if let Some(mut player) = session.take_player().await {
                         let change_map_service = ChangeMapService::new();
                         if let Some(zone) = change_map_service.get_available_zone(map_id).await {
                             change_map_service
@@ -60,7 +61,7 @@ impl CommandService {
                                 )
                                 .await?;
                         }
-                        session.set_player(player);
+                        session.set_player(player).await;
                     }
                 }
                 return Ok(true);

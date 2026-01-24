@@ -4,7 +4,7 @@ use crate::combine::{combine_constants, combine_service, CombineHandler};
 use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::entities::player;
-use crate::network::session::{self, AsyncSession};
+use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::npc::npc_service;
 use async_trait::async_trait;
 
@@ -12,8 +12,8 @@ pub struct BahatmitHandler;
 
 #[async_trait]
 impl NpcHandler for BahatmitHandler {
-    async fn open_menu(&self, session: &mut AsyncSession, npc_id: i16) -> anyhow::Result<()> {
-        let Some(map_id) = session.get_player().map(|p| p.map_id) else {
+    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
+        let Some(map_id) = session.get_player().await.map(|p| p.map_id) else {
             return Ok(());
         };
 
@@ -42,14 +42,14 @@ impl NpcHandler for BahatmitHandler {
     }
     async fn handle_menu(
         &self,
-        session: &mut AsyncSession,
+        session: &SessionArc,
         npc_id: i16,
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
         let map_id = session
-            .player
-            .as_ref()
+            .get_player()
+            .await
             .map(|p| p.map_id)
             .ok_or(anyhow::anyhow!("Player not found"))?;
 

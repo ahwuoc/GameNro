@@ -114,7 +114,7 @@ impl ChangeMapService {
         x: i16,
         y: i16,
         space_type: SpaceShipType,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<ChangeMapResult> {
         let current_map_is_cold = Self::is_cold_planet_map(player.map_id);
         let next_map_is_cold = Self::is_cold_planet_map(zone.map_id);
@@ -168,7 +168,7 @@ impl ChangeMapService {
     pub async fn open_capsule_menu(
         &self,
         player: &Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         let destinations = self.get_capsule_destinations(player).await;
         let mut msg = Message::new(cmd::CAPSULE_MENU);
@@ -193,7 +193,7 @@ impl ChangeMapService {
         &self,
         player: &mut Player,
         destination_index: i32,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<CapsuleChangeResult> {
         let destinations = self.get_capsule_destinations(player).await;
 
@@ -292,7 +292,7 @@ impl ChangeMapService {
     pub async fn open_zone_ui(
         &self,
         player: &Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         let Some(zone) = &player.zone else {
             // Send error message if player is not in a valid zone
@@ -341,7 +341,7 @@ impl ChangeMapService {
         &self,
         player: &mut Player,
         zone_id: i32,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         let Some(current_zone) = &player.zone else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -394,7 +394,7 @@ impl ChangeMapService {
     pub async fn change_map_waypoint_handler(
         &self,
         player: &mut Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         match self.change_map_waypoint(player).await {
             WaypointChangeResult::Success {
@@ -458,7 +458,7 @@ impl ChangeMapService {
     pub async fn go_home_handler(
         &self,
         player: &mut Player,
-        session: &mut crate::network::session::AsyncSession,
+        session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         match self.go_home(player).await {
             GoHomeResult::Success {

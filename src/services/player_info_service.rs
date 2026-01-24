@@ -4,7 +4,7 @@ use crate::item::Item;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::Zone;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::Player as RtPlayer;
 use crate::services::IntrinsicService;
 use std::fs::OpenOptions;
@@ -22,10 +22,7 @@ struct SubTaskInfo {
 pub struct PlayerInfoService;
 
 impl PlayerInfoService {
-    pub async fn send_point_info(
-        session: &mut AsyncSession,
-        player: &RtPlayer,
-    ) -> anyhow::Result<()> {
+    pub async fn send_point_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
         let mut msg = Message::new(-42);
         msg.write_int(player.n_point.hpg)?;
         msg.write_int(player.n_point.mpg)?;
@@ -50,14 +47,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_task_info(
-        session: &mut AsyncSession,
-        player: &RtPlayer,
-    ) -> anyhow::Result<()> {
-        println!(
-            "Sending task main info for player {} (task_id={})",
-            player.name, player.task_id
-        );
+    pub async fn send_task_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
         let task_main_id = player.task_id >> 10;
         let task_index = (player.task_id >> 1) & 0x1FF;
 
@@ -93,7 +83,6 @@ impl PlayerInfoService {
         };
         msg.write_short(current_count)?;
 
-        // Loop through ALL subTasks to send their maxCount
         for sub_task in &sub_tasks {
             msg.write_short(sub_task.max_count)?;
         }
@@ -152,14 +141,13 @@ impl PlayerInfoService {
         }
     }
 
-    /// Clear map (-22)
-    pub async fn clear_map(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let mut msg = Message::new(-22);
+    pub async fn clear_map(session: &SessionArc) -> anyhow::Result<()> {
+        let msg = Message::new(-22);
         session.send_message(&msg).await?;
         Ok(())
     }
 
-    pub async fn send_clan_info(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_clan_info(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending clan info");
 
         let mut msg = Message::new(-53);
@@ -170,7 +158,7 @@ impl PlayerInfoService {
     }
 
     /// Send max stamina (-69)
-    pub async fn send_max_stamina(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_max_stamina(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending max stamina");
 
         let mut msg = Message::new(-69);
@@ -180,7 +168,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_current_stamina(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_current_stamina(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending current stamina");
 
         let mut msg = Message::new(-68);
@@ -190,7 +178,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_pet_info(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_pet_info(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending pet info");
         let mut msg = Message::new(-107);
         msg.write_byte(0)?;
@@ -198,7 +186,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_top_rank_info(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_top_rank_info(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending top rank info");
 
         let mut msg = Message::new(-119);
@@ -207,7 +195,7 @@ impl PlayerInfoService {
         session.send_message(&msg).await?;
         Ok(())
     }
-    pub async fn send_notification_tab(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_notification_tab(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-50);
         msg.write_byte(0)?; // notification count
 
@@ -215,7 +203,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_time_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_time_skill(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending time skill info");
 
         let mut msg = Message::new(-30);
@@ -264,7 +252,7 @@ impl PlayerInfoService {
     }
 
     pub async fn send_player_blob_internal(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         player: &RtPlayer,
     ) -> anyhow::Result<()> {
         let mut msg = Self::sub_command_30(0).await?;
@@ -316,10 +304,7 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn send_cai_trang(
-        session: &mut AsyncSession,
-        _player: &RtPlayer,
-    ) -> anyhow::Result<()> {
+    pub async fn send_cai_trang(session: &SessionArc, _player: &RtPlayer) -> anyhow::Result<()> {
         let mut message = Message::new(-90);
         message.write_byte(1)?;
         message.write_int(_player.id as i32)?;
@@ -331,7 +316,7 @@ impl PlayerInfoService {
 
         let player = session
             .get_player()
-            .cloned()
+            .await
             .ok_or_else(|| anyhow::anyhow!("Player not set"))?;
         if let Some(zone) = &player.zone {
             zone.send_message_to_all_players(message.clone()).await?;
@@ -340,16 +325,16 @@ impl PlayerInfoService {
         Ok(())
     }
 
-    pub async fn clear_vtsk(_session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn clear_vtsk(_session: &SessionArc) -> anyhow::Result<()> {
         Ok(())
     }
 
-    pub async fn send_all_player_info(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
         println!("Sending all player info");
 
         let player = session
             .get_player()
-            .cloned()
+            .await
             .ok_or_else(|| anyhow::anyhow!("Player not set"))?;
         DataGame::send_data_item_bg(session).await?;
 

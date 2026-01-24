@@ -4,13 +4,14 @@ use crate::{
     network::session::AsyncSession,
     npc::{handlers::bahatmit, npc_service},
 };
+use crate::network::session::SessionArc;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SaoPhaLe;
 #[async_trait::async_trait]
 impl CombineHandler for SaoPhaLe {
-    async fn show_info_combine(&self, session: &mut AsyncSession) -> anyhow::Result<()> {
-        let player = session.get_player().unwrap();
+    async fn show_info_combine(&self, session: &SessionArc) -> anyhow::Result<()> {
+        let player = session.get_player().await.unwrap();
         if player.combine_new.items_combine.is_empty() {
             return Ok(());
         }

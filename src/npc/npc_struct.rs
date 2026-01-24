@@ -3,6 +3,7 @@ use crate::{
     network::{message::Message, session::AsyncSession},
     utils::Location,
 };
+use crate::network::session::SessionArc;
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
@@ -111,7 +112,7 @@ impl RtNpc {
         self.base_menu.as_ref()
     }
 
-    pub async fn open_base_menu(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn open_base_menu(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-32);
         msg.write_short(14)?;
         msg.write_utf("Ta co the giup gi cho nguoi")?;

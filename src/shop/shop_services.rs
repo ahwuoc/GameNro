@@ -10,6 +10,7 @@
 //     item::{item_template_manager, InventoryService, ItemService},
 //     network::{message::Message, session::AsyncSession},
 // };
+use crate::network::session::SessionArc;
 // const CMD_SHOP_OPEN: i8 = -44;
 
 // #[derive(Debug, Clone, Copy)]
@@ -141,7 +142,7 @@
 // pub mod shop_service {
 //     use super::*;
 
-//     pub async fn open_shop(tag_name: &str, session: &mut AsyncSession) -> anyhow::Result<()> {
+//     pub async fn open_shop(tag_name: &str, session: &SessionArc) -> anyhow::Result<()> {
 //         let shop_data = match ShopData::get(tag_name).await {
 //             Some(data) => data,
 //             None => {
@@ -152,7 +153,7 @@
 //         let shop_type_raw = shop_data.shop.type_shop.unwrap_or(0);
 //         let shop_type = ShopType::from(shop_type_raw);
 
-//         if let Some(pl) = session.get_player_mut() {
+//         if let Some(pl) = session.get_player().await {
 //             pl.interaction_state.set_tag_shop(tag_name.to_string());
 //         }
 //         let mut msg = Message::new(CMD_SHOP_OPEN as i8);
@@ -228,7 +229,7 @@
 //     }
 
 //     pub async fn take_item_shop(
-//         session: &mut AsyncSession,
+//         session: &SessionArc,
 //         _type_shop: i8,
 //         temp_id: i16,
 //     ) -> anyhow::Result<()> {
@@ -399,13 +400,14 @@ impl ShopData {
 pub mod shop_service {
     use super::*;
 
-    pub async fn open_shop(tag_name: &str, session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn open_shop(tag_name: &str, session: &SessionArc) -> anyhow::Result<()> {
         let shop_data = ShopData::get(tag_name).await?;
 
         let shop_type = shop_data.shop.type_shop.unwrap_or(0);
 
-        if let Some(pl) = session.get_player_mut() {
+        if let Some(mut pl) = session.take_player().await {
             pl.interaction_state.set_tag_shop(tag_name.to_string());
+            session.set_player(pl).await;
         }
 
         let mut msg = Message::new(-44);
@@ -500,7 +502,7 @@ pub mod shop_service {
     }
 
     pub async fn take_item_shop(
-        session: &mut AsyncSession,
+        session: &SessionArc,
 
         _type_shop: i8,
 
@@ -508,6 +510,7 @@ pub mod shop_service {
     ) -> anyhow::Result<()> {
         let tag_shop = session
             .get_player()
+            .await
             .map(|p| p.interaction_state.get_tag_shop().to_string())
             .ok_or_else(|| anyhow::anyhow!("Player not found"))?;
 
@@ -520,29 +523,35 @@ pub mod shop_service {
             .find(|it| it.item.temp_id == temp_id as i32)
             .ok_or_else(|| anyhow::anyhow!("Shop item not found"))?;
 
-        let player = session
-            .get_player_mut()
-            .ok_or_else(|| anyhow::anyhow!("Player not found"))?;
-
-        if let Some(idx_bag) = player
-            .inventory
-            .items_bag
-            .iter()
-            .position(|it| it.is_null_item())
-        {
-            if let Some(mut new_item) = ItemService::create_new_item(shop_item.item.temp_id as i16)
+        if let Some(mut player) = session.take_player().await {
+            if let Some(idx_bag) = player
+                .inventory
+                .items_bag
+                .iter()
+                .position(|it: &crate::item::item::Item| it.is_null_item())
             {
-                for opt in &shop_item.options {
-                    new_item.add_option_param(opt.option_id as i8, opt.param as i16);
+                if let Some(mut new_item) =
+                    ItemService::create_new_item(shop_item.item.temp_id as i16)
+                {
+                    for opt in &shop_item.options {
+                        new_item.add_option_param(opt.option_id as i8, opt.param as i16);
+                    }
+
+                    player.inventory.items_bag[idx_bag] = new_item;
+
+                    // Note: inventory bag message requires &Player, but we modified player in place
+                    // So we can send it directly using the modified player object if we refactor InventoryService to take &Player
+                    // or use the static method with the modified player
+                    if let Ok(msg) = InventoryService::create_item_bag_message(&player) {
+                        let _ = session.send_message(&msg).await;
+                    }
+
+                    println!("mua thanh cong {}", temp_id);
                 }
-
-                player.inventory.items_bag[idx_bag] = new_item;
-
-                InventoryService::send_item_bag_to_client(session).await?;
-
-                println!("mua thanh cong {}", temp_id);
             }
+            session.set_player(player).await;
         } else {
+            return Err(anyhow::anyhow!("Player not found"));
         }
 
         Ok(())

@@ -1,5 +1,6 @@
 use crate::models::skill_model::Skill;
 use crate::network::message::Message;
+use crate::network::session::SessionArc;
 use crate::player::player::Player;
 use crate::services::manager::Manager;
 use crate::{mob::mob::RtMob, network::session::AsyncSession};
@@ -125,24 +126,30 @@ pub fn after_use_skill(player: &mut Player) {
     }
 }
 
-pub async fn send_skill_shortcut(session: &mut AsyncSession) -> anyhow::Result<()> {
+pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
     let skill_data = session
         .get_player()
+        .await
         .unwrap()
         .player_skill
         .skill_shortcut
         .clone();
-    let mut msg = Message::new(-30);
-    msg.write_byte(61)?;
-    msg.write_utf("KSkill")?;
-    msg.write_int(skill_data.len() as i32)?;
-    msg.write(&skill_data)?;
-    session.send_message(&msg).await?;
-    let mut msg = Message::new(-30);
-    msg.write_byte(61)?;
-    msg.write_utf("OSkill")?;
-    msg.write_int(skill_data.len() as i32)?;
-    msg.write(&skill_data)?;
-    session.send_message(&msg).await?;
+
+    // Send KSkill
+    let mut msg_k = Message::new(-30);
+    msg_k.write_byte(61)?;
+    msg_k.write_utf("KSkill")?;
+    msg_k.write_int(skill_data.len() as i32)?;
+    msg_k.write(&skill_data)?;
+    session.queue_message(msg_k);
+
+    // Send OSkill
+    let mut msg_o = Message::new(-30);
+    msg_o.write_byte(61)?;
+    msg_o.write_utf("OSkill")?;
+    msg_o.write_int(skill_data.len() as i32)?;
+    msg_o.write(&skill_data)?;
+    session.queue_message(msg_o);
+
     Ok(())
 }

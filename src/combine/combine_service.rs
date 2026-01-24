@@ -4,19 +4,17 @@ use crate::combine::CombineHandler;
 use crate::combine::{combine_constants::*, combine_type};
 use crate::entities::player;
 use crate::network::message::Message;
-use crate::network::session::{self, AsyncSession};
+use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::player::player::Player;
 pub async fn open_tab_combine(
-    session: &mut AsyncSession,
+    session: &SessionArc,
     type_combine: CombineType,
     npc_id: i16,
 ) -> anyhow::Result<()> {
-    session
-        .player
-        .as_mut()
-        .unwrap()
-        .combine_new
-        .set_type_combine(type_combine);
+    if let Some(mut player) = session.get_player().await {
+        player.combine_new.set_type_combine(type_combine);
+        session.set_player(player).await;
+    }
     let text_info = get_text_info_tab_combine(type_combine);
     let text_top = get_text_top_tab_combine(type_combine);
     let mut msg = Message::new(-81);
@@ -27,9 +25,9 @@ pub async fn open_tab_combine(
     session.send_message(&msg).await?;
     Ok(())
 }
-pub async fn show_info_combine(session: &mut AsyncSession, index: Vec<i16>) -> anyhow::Result<()> {
+pub async fn show_info_combine(session: &SessionArc, index: Vec<i16>) -> anyhow::Result<()> {
     let type_combine = {
-        let player = session.get_player_mut().unwrap();
+        let mut player = session.get_player().await.unwrap();
         player.combine_new.clear_param_combine();
         if !index.is_empty() {
             for &i in index.iter() {
@@ -38,14 +36,16 @@ pub async fn show_info_combine(session: &mut AsyncSession, index: Vec<i16>) -> a
                 }
             }
         }
-        player.combine_new.type_combine
+        let type_c = player.combine_new.type_combine;
+        session.set_player(player).await;
+        type_c
     };
 
     type_combine.show_info_combine(session).await
 }
 
-pub async fn confirm_combine(session: &AsyncSession) -> anyhow::Result<()> {
-    let type_combine = session.get_player().unwrap().combine_new.type_combine;
+pub async fn confirm_combine(session: &SessionArc) -> anyhow::Result<()> {
+    let type_combine = session.get_player().await.unwrap().combine_new.type_combine;
     type_combine.confirm_combine(session).await
 }
 

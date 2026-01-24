@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use super::message::Message;
+use crate::network::session::SessionArc;
 use crate::player::Player as RtPlayer;
 use std::io;
 use std::sync::Arc;
@@ -70,7 +71,6 @@ impl SessionReader {
     }
 }
 
-/// Separate writer struct - can be locked independently
 pub struct SessionWriter {
     write_half: OwnedWriteHalf,
     keys: Vec<u8>,
@@ -94,6 +94,10 @@ impl SessionWriter {
     pub fn set_sent_key(&mut self, sent: bool) {
         self.sent_key = sent;
         self.reset_key_position();
+    }
+
+    pub fn update_keys(&mut self, keys: Vec<u8>) {
+        self.keys = keys;
     }
 
     fn check_special_cmd(&self, cmd: i8) -> bool {
@@ -181,9 +185,9 @@ pub struct SessionState {
 }
 
 impl SessionState {
-    pub fn new(keys: Vec<u8>) -> Self {
+    pub fn new() -> Self {
         Self {
-            keys,
+            keys: b"AHWUOCDZ".to_vec(),
             sent_key: false,
             zoom_level: 1,
             player: None,
@@ -195,17 +199,69 @@ impl SessionState {
             vnd: 0,
         }
     }
+
+    pub fn set_sent_key(&mut self, sent: bool) {
+        self.sent_key = sent;
+    }
+
+    pub fn get_key(&self) -> &[u8] {
+        &self.keys
+    }
+
+    pub fn set_player(&mut self, player: RtPlayer) {
+        self.player = Some(player);
+    }
+
+    pub fn get_player(&self) -> Option<&RtPlayer> {
+        self.player.as_ref()
+    }
+
+    pub fn take_player(&mut self) -> Option<RtPlayer> {
+        self.player.take()
+    }
+
+    pub fn set_user_id(&mut self, user_id: i32) {
+        self.user_id = Some(user_id);
+    }
+
+    pub fn set_is_admin(&mut self, is_admin: bool) {
+        self.is_admin = is_admin;
+    }
+
+    pub fn get_user_id(&self) -> Option<i32> {
+        self.user_id
+    }
+
+    pub fn set_credentials(&mut self, username: String, password: String) {
+        self.username = Some(username);
+        self.password = Some(password);
+    }
+
+    pub fn get_username(&self) -> Option<&String> {
+        self.username.as_ref()
+    }
+
+    pub fn get_password(&self) -> Option<&String> {
+        self.password.as_ref()
+    }
+
+    pub fn set_version(&mut self, version: i32) {
+        self.version = version;
+    }
+
+    pub fn get_version(&self) -> i32 {
+        self.version
+    }
 }
 
-/// Main session struct with separate locks for reader, writer, and state
-pub struct AsyncSession {
+pub struct SplitSession {
     pub reader: Arc<Mutex<SessionReader>>,
     pub writer: Arc<Mutex<SessionWriter>>,
     pub state: Arc<RwLock<SessionState>>,
-    pub message_tx: Arc<RwLock<Option<mpsc::Sender<Message>>>>,
+    message_tx: Option<mpsc::Sender<Message>>,
 }
 
-impl AsyncSession {
+impl SplitSession {
     pub fn new(stream: TcpStream) -> Self {
         let (read_half, write_half) = stream.into_split();
         let keys = b"AHWUOCDZ".to_vec();
@@ -219,43 +275,29 @@ impl AsyncSession {
             })),
             writer: Arc::new(Mutex::new(SessionWriter {
                 write_half,
-                keys: keys.clone(),
+                keys,
                 cur_w: 0,
                 sent_key: false,
             })),
-            state: Arc::new(RwLock::new(SessionState::new(keys))),
-            message_tx: Arc::new(RwLock::new(None)),
+            state: Arc::new(RwLock::new(SessionState::new())),
+            message_tx: None,
         }
     }
 
-    pub fn get_reader(&self) -> Arc<Mutex<SessionReader>> {
-        self.reader.clone()
+    pub fn set_message_channel(&mut self, tx: mpsc::Sender<Message>) {
+        self.message_tx = Some(tx);
     }
 
-    pub fn get_writer(&self) -> Arc<Mutex<SessionWriter>> {
-        self.writer.clone()
-    }
-
-    pub fn get_state(&self) -> Arc<RwLock<SessionState>> {
-        self.state.clone()
-    }
-
-    pub async fn set_message_channel(&self, tx: mpsc::Sender<Message>) {
-        let mut guard = self.message_tx.write().await;
-        *guard = Some(tx);
-    }
-
-    pub async fn queue_message(&self, msg: Message) -> bool {
-        let guard = self.message_tx.read().await;
-        if let Some(tx) = guard.as_ref() {
+    pub fn queue_message(&self, msg: Message) -> bool {
+        if let Some(tx) = &self.message_tx {
             match tx.try_send(msg) {
                 Ok(_) => true,
                 Err(mpsc::error::TrySendError::Full(_)) => {
-                    eprintln!("[WARN] Message queue full");
+                    eprintln!("[QUEUE] Message queue full, dropping message");
                     false
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
-                    eprintln!("[WARN] Message channel closed");
+                    eprintln!("[QUEUE] Message channel closed");
                     false
                 }
             }
@@ -264,6 +306,10 @@ impl AsyncSession {
         }
     }
 
+    pub async fn send_sync(&self, msg: &Message) -> io::Result<()> {
+        let mut writer = self.writer.lock().await;
+        writer.send_message(msg).await
+    }
     pub async fn set_sent_key(&self, sent: bool) {
         {
             let mut reader = self.reader.lock().await;
@@ -275,10 +321,11 @@ impl AsyncSession {
         }
         {
             let mut state = self.state.write().await;
-            state.sent_key = sent;
+            state.set_sent_key(sent);
         }
     }
 
+    /// Send encryption key to client
     pub async fn send_key_async(&self) -> io::Result<()> {
         let keys = {
             let state = self.state.read().await;
@@ -288,120 +335,19 @@ impl AsyncSession {
         writer.send_key(&keys).await
     }
 
-    pub async fn send_message(&self, msg: &Message) -> io::Result<()> {
-        let mut writer = self.writer.lock().await;
-        writer.send_message(msg).await
+    /// Get cloned references for spawning tasks
+    pub fn get_writer(&self) -> Arc<Mutex<SessionWriter>> {
+        self.writer.clone()
     }
 
-    pub async fn set_player(&self, player: RtPlayer) {
-        let mut state = self.state.write().await;
-        state.player = Some(player);
+    pub fn get_reader(&self) -> Arc<Mutex<SessionReader>> {
+        self.reader.clone()
     }
 
-    pub async fn get_player(&self) -> Option<RtPlayer> {
-        let state = self.state.read().await;
-        state.player.clone()
-    }
-
-    pub async fn get_player_ref<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Option<&RtPlayer>) -> R,
-    {
-        let state = self.state.read().await;
-        f(state.player.as_ref())
-    }
-
-    pub async fn with_player_mut<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Option<&mut RtPlayer>) -> R,
-    {
-        let mut state = self.state.write().await;
-        f(state.player.as_mut())
-    }
-
-    pub async fn take_player(&self) -> Option<RtPlayer> {
-        let mut state = self.state.write().await;
-        state.player.take()
-    }
-
-    pub async fn modify_player<F>(&self, f: F) -> anyhow::Result<()>
-    where
-        F: FnOnce(&mut RtPlayer) -> anyhow::Result<()>,
-    {
-        if let Some(mut player) = self.take_player().await {
-            let result = f(&mut player);
-            self.set_player(player).await;
-            result
-        } else {
-            Err(anyhow::anyhow!("Player not found or locked"))
-        }
-    }
-
-    pub async fn set_user_id(&self, user_id: i32) {
-        let mut state = self.state.write().await;
-        state.user_id = Some(user_id);
-    }
-
-    pub async fn get_user_id(&self) -> Option<i32> {
-        let state = self.state.read().await;
-        state.user_id
-    }
-
-    pub async fn set_is_admin(&self, is_admin: bool) {
-        let mut state = self.state.write().await;
-        state.is_admin = is_admin;
-    }
-
-    pub async fn is_admin(&self) -> bool {
-        let state = self.state.read().await;
-        state.is_admin
-    }
-
-    pub async fn set_credentials(&self, username: String, password: String) {
-        let mut state = self.state.write().await;
-        state.username = Some(username);
-        state.password = Some(password);
-    }
-
-    pub async fn get_username(&self) -> Option<String> {
-        let state = self.state.read().await;
-        state.username.clone()
-    }
-
-    pub async fn get_password(&self) -> Option<String> {
-        let state = self.state.read().await;
-        state.password.clone()
-    }
-
-    pub async fn set_version(&self, version: i32) {
-        let mut state = self.state.write().await;
-        state.version = version;
-    }
-
-    pub async fn get_version(&self) -> i32 {
-        let state = self.state.read().await;
-        state.version
-    }
-
-    pub async fn get_zoom_level(&self) -> u8 {
-        let state = self.state.read().await;
-        state.zoom_level
-    }
-
-    pub async fn set_zoom_level(&self, level: u8) {
-        let mut state = self.state.write().await;
-        state.zoom_level = level;
-    }
-
-    pub async fn get_keys(&self) -> Vec<u8> {
-        let state = self.state.read().await;
-        state.keys.clone()
-    }
-
-    pub async fn shutdown(&self) -> io::Result<()> {
-        let mut writer = self.writer.lock().await;
-        writer.shutdown().await
+    pub fn get_state(&self) -> Arc<RwLock<SessionState>> {
+        self.state.clone()
     }
 }
 
-pub type SessionArc = Arc<AsyncSession>;
+/// Type alias for Arc-wrapped SplitSession
+pub type SplitSessionArc = Arc<SplitSession>;

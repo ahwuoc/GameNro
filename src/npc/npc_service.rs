@@ -7,7 +7,7 @@ use crate::entities::npc_template;
 use crate::entities::npc_template::Model as NpcTemplate;
 use crate::entities::player;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc;
 use crate::npc::handlers::bahatmit::BahatmitHandler;
 use crate::npc::handlers::conmeo::ConMeoHandler;
@@ -25,11 +25,7 @@ pub mod npc_service {
 
     use super::*;
 
-    pub async fn npc_chat(
-        session: &mut AsyncSession,
-        message: &str,
-        npc_id: i16,
-    ) -> anyhow::Result<()> {
+    pub async fn npc_chat(session: &SessionArc, message: &str, npc_id: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(124);
         msg.write_short(npc_id)?;
         msg.write_utf(message)?;
@@ -37,14 +33,14 @@ pub mod npc_service {
         Ok(())
     }
 
-    pub async fn hide_wait_dialog(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn hide_wait_dialog(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-99);
         msg.write_byte(-1);
         session.send_message(&msg).await?;
         Ok(())
     }
-    pub async fn can_open_npc(session: &mut AsyncSession, npc_id: i16) -> bool {
-        let Some(player) = session.get_player() else {
+    pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
+        let Some(player) = session.get_player().await else {
             return false;
         };
 
@@ -82,11 +78,8 @@ pub mod npc_service {
         false
     }
 
-    pub async fn open_menu_controller(
-        session: &mut AsyncSession,
-        npc_id: i16,
-    ) -> anyhow::Result<()> {
-        if session.get_player().is_none() {
+    pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
+        if session.get_player().await.is_none() {
             return Ok(());
         }
         if !can_open_npc(session, npc_id).await {
@@ -118,11 +111,11 @@ pub mod npc_service {
     }
 
     pub async fn handle_menu_confirm(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
-        let state = match session.get_player() {
+        let state = match session.get_player().await {
             Some(p) => p.interaction_state.get_index_menu(),
             None => return Ok(()),
         };
@@ -141,13 +134,13 @@ pub mod npc_service {
     }
 
     pub async fn create_menu(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         npc_id: i16,
         npc_say: &str,
         menu_options: Vec<&str>,
         state: MenuId,
     ) -> anyhow::Result<()> {
-        let Some(player) = session.get_player_mut() else {
+        let Some(mut player) = session.take_player().await else {
             return Ok(());
         };
 
@@ -162,6 +155,7 @@ pub mod npc_service {
             msg.write_utf(option)?;
         }
         session.send_message(&msg).await?;
+        session.set_player(player).await;
         Ok(())
     }
     pub fn create_npc(template_id: i32, map_id: i32, x: i32, y: i32) -> Option<RtNpc> {

@@ -76,9 +76,9 @@ pub async fn update(zone: &Zone) {
                     for entry in zone.players.iter() {
                         let player = entry.value();
                         if !player.is_die() {
-                            let dist = ((mob.location.x - player.location.x).pow(2)
-                                + (mob.location.y - player.location.y).pow(2))
-                                as f32;
+                            let dx = (mob.location.x - player.location.x) as i32;
+                            let dy = (mob.location.y - player.location.y) as i32;
+                            let dist = ((dx * dx + dy * dy) as f32).sqrt();
                             let limit = if mob.temporary_enemies.contains(&player.id) {
                                 300.0
                             } else {
@@ -124,8 +124,8 @@ pub async fn update(zone: &Zone) {
         let _ = zone.send_message_to_all_players(msg).await;
     }
     for (player_id, msg) in player_specific_msgs {
-        if let Some(mut p_entry) = zone.players.get_mut(&player_id) {
-            let player = p_entry.value_mut();
+        if let Some(p_entry) = zone.players.get(&player_id) {
+            let player = p_entry.value();
             let _ = player.send_message(msg).await;
         }
     }

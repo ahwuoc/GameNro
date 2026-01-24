@@ -2,7 +2,7 @@
 use crate::map::map_template_manager;
 use crate::mob::mob_template_manager;
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::npc_template_manager;
 use crate::services::{head_avatar_manager, skill_template_manager};
 use dashmap::DashMap;
@@ -59,8 +59,8 @@ impl DataGame {
         }
         Ok(())
     }
-    pub async fn send_size_res(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let zoom_level = session.zoom_level;
+    pub async fn send_size_res(session: &SessionArc) -> anyhow::Result<()> {
+        let zoom_level = session.get_zoom_level().await;
         let res_path = format!("data/girlkun/res/x{}", zoom_level);
 
         let mut file_count: i32 = 0;
@@ -82,8 +82,8 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_res(session: &mut AsyncSession) -> anyhow::Result<()> {
-        let zoom_level = session.zoom_level;
+    pub async fn send_res(session: &SessionArc) -> anyhow::Result<()> {
+        let zoom_level = session.get_zoom_level().await;
         let res_path = format!("data/girlkun/res/x{}", zoom_level);
 
         if let Ok(entries) = std::fs::read_dir(&res_path) {
@@ -115,7 +115,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_version_res(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_version_res(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-74);
         msg.write_byte(0)?;
         msg.write_int(Self::VS_RES)?;
@@ -124,9 +124,9 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_small_version(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_small_version(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-77);
-        let zoom_level = session.zoom_level;
+        let zoom_level = session.get_zoom_level().await;
         let file_path = format!("data/girlkun/data_img_version/x{}/img_version", zoom_level);
 
         match std::fs::read(&file_path) {
@@ -142,7 +142,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_version_game(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_version_game(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(4);
         msg.write_byte(Self::VS_DATA)?;
@@ -161,7 +161,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_data_item_bg(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_data_item_bg(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-31);
 
         match std::fs::read("data/girlkun/item_bg_temp/item_bg_data") {
@@ -177,7 +177,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn update_data(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn update_data(session: &SessionArc) -> anyhow::Result<()> {
         println!("Updating data for client");
 
         let dart_data = match std::fs::read("data/girlkun/update_data/dart") {
@@ -236,7 +236,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn update_map(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn update_map(session: &SessionArc) -> anyhow::Result<()> {
         let npc_templates = npc_template_manager::get_all();
         let map_templates = map_template_manager::get_all();
         let mut msg = Message::new(-28);
@@ -277,7 +277,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn update_skill(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn update_skill(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(7)?;
         msg.write_byte(1)?;
@@ -360,7 +360,7 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_map_temp(session: &mut AsyncSession, map_id: u8) -> anyhow::Result<()> {
+    pub async fn send_map_temp(session: &SessionArc, map_id: u8) -> anyhow::Result<()> {
         let file_path = format!("data/girlkun/map/tile_map_data/{}", map_id);
 
         match fs::read(&file_path) {
@@ -394,14 +394,14 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_skill_data(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_skill_data(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-72);
         response.write_byte(0)?;
         session.send_message(&response).await?;
         Ok(())
     }
 
-    pub async fn send_item_data(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_item_data(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-73);
         response.write_byte(0)?;
         session.send_message(&response).await?;
@@ -409,15 +409,15 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_mob_temp(sesssion: &mut AsyncSession, mob_id: i8) -> anyhow::Result<()> {
-        let zoom = sesssion.zoom_level;
+    pub async fn send_mob_temp(session: &SessionArc, mob_id: i8) -> anyhow::Result<()> {
+        let zoom = session.get_zoom_level().await;
         let file_path = format!("data/girlkun/mob/x{zoom}/{mob_id}");
         let mut msg = Message::new(11);
         match std::fs::read(&file_path) {
             Ok(mob) => {
                 msg.write_byte(mob_id)?;
                 msg.write(&mob)?;
-                sesssion.send_message(&msg).await?;
+                session.send_message(&msg).await?;
             }
             Err(_) => {
                 println!("Warning: Mob temp file not found")
@@ -448,8 +448,8 @@ impl DataGame {
 
         Ok(out)
     }
-    pub async fn send_icon(session: &mut AsyncSession, id: i32) -> anyhow::Result<()> {
-        let zoom = session.zoom_level;
+    pub async fn send_icon(session: &SessionArc, id: i32) -> anyhow::Result<()> {
+        let zoom = session.get_zoom_level().await;
         let base_zoom = 4;
         let key = format!("{}_{}", zoom, id);
 
@@ -484,11 +484,11 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn update_item(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn update_item(session: &SessionArc) -> anyhow::Result<()> {
         crate::data::ItemData::update_item(session).await
     }
 
-    pub async fn send_tile_set_info(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_tile_set_info(session: &SessionArc) -> anyhow::Result<()> {
         if let Ok(data) = std::fs::read("data/girlkun/map/tile_set_info") {
             let mut msg = Message::new(-82);
             msg.write(&data)?;
@@ -500,14 +500,14 @@ impl DataGame {
         Ok(())
     }
 
-    pub async fn send_client_ok(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_client_ok(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-75);
         response.write_byte(0)?;
         session.send_message(&response).await?;
         Ok(())
     }
 
-    pub async fn send_link_ip(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn send_link_ip(session: &SessionArc) -> anyhow::Result<()> {
         dotenv().ok();
         let link_data = env::var("GAME_LINK")
             .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());

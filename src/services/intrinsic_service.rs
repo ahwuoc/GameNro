@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::models::{Intrinsic, IntrinsicPlayer};
 use crate::network::message::Message;
-use crate::network::session::AsyncSession;
+use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::npc_service;
 use crate::player::Player as RtPlayer;
 use crate::services::intrinsic_template_manager;
@@ -25,7 +25,7 @@ impl IntrinsicService {
         intrinsic_template_manager::get(id).map(|t| Intrinsic::from_entity(&t))
     }
 
-    pub async fn send_info_intrinsic(session: &mut AsyncSession, player: &RtPlayer) -> Result<()> {
+    pub async fn send_info_intrinsic(session: &SessionArc, player: &RtPlayer) -> Result<()> {
         let player_instrict = &player.intrinsic;
         let mut msg = Message::new(112);
         msg.write_byte(0);
@@ -35,7 +35,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_all_intrinsic(session: &mut AsyncSession, player_gender: i8) -> Result<()> {
+    pub async fn show_all_intrinsic(session: &SessionArc, player_gender: i8) -> Result<()> {
         let list_intrinsic = Self::get_intrinsics(player_gender);
         let mut msg = Message::new(112);
 
@@ -51,7 +51,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_menu(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn show_menu(session: &SessionArc) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
         use crate::npc::npc_service;
 
@@ -67,7 +67,7 @@ impl IntrinsicService {
     }
 
     pub async fn show_confirm_open(
-        session: &mut AsyncSession,
+        session: &SessionArc,
         count_open: i8,
     ) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
@@ -90,7 +90,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_confirm_open_vip(session: &mut AsyncSession) -> anyhow::Result<()> {
+    pub async fn show_confirm_open_vip(session: &SessionArc) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
         npc_service::npc_service::create_menu(
             session,
