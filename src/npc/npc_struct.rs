@@ -1,9 +1,9 @@
+use crate::network::session::SessionArc;
 use crate::{
     entities::npc_template::Model as NpcTemplate,
     network::{message::Message, session::AsyncSession},
     utils::Location,
 };
-use crate::network::session::SessionArc;
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
@@ -118,7 +118,7 @@ impl RtNpc {
         msg.write_utf("Ta co the giup gi cho nguoi")?;
         msg.write_byte(1)?;
         msg.write_utf("Tu choi")?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
     pub fn update(&mut self) {}

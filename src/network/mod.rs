@@ -9,7 +9,6 @@ pub mod controller;
 pub mod message;
 pub mod session;
 pub mod session_manager;
-pub mod split_session;
 
 use once_cell::sync::Lazy;
 use session_manager::SessionManager;
@@ -40,71 +39,72 @@ pub async fn start_server(config: &ServerConfig) -> anyhow::Result<()> {
 }
 
 async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
-    // Create session with internal locks - no RwLock<AsyncSession> needed!
     let session = AsyncSession::new(socket);
-
-    // Setup message queue
-    let (tx, mut rx) = mpsc::channel::<message::Message>(256);
+    let (tx, rx) = mpsc::channel::<message::Message>(256);
     session.set_message_channel(tx).await;
-
-    // Wrap in Arc for sharing (just Arc, not RwLock!)
     let session_arc: SessionArc = Arc::new(session);
+    let write_task = spawn_write_task(session_arc.get_writer(), rx);
+    run_read_loop(session_arc.clone()).await;
+    cleanup_session(session_arc, write_task).await;
+    println!("Connection closed");
+    Ok(())
+}
 
-    // Get separate locks for tasks
-    let writer = session_arc.get_writer();
-    let reader = session_arc.get_reader();
-
-    // Spawn write task - uses only writer lock
-    let write_task = tokio::spawn(async move {
+fn spawn_write_task(
+    writer: Arc<tokio::sync::Mutex<session::SessionWriter>>,
+    mut rx: mpsc::Receiver<message::Message>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             let mut w = writer.lock().await;
             if let Err(e) = w.send_message(&msg).await {
                 eprintln!("[WRITE_TASK] Error: {:?}", e);
                 break;
             }
-            // Writer lock released immediately
         }
-    });
+    })
+}
 
-    // Main read loop - uses only reader lock for reading
+async fn run_read_loop(session: SessionArc) {
+    let reader = session.get_reader();
     loop {
-        // Read uses SEPARATE reader lock - doesn't block writer!
-        let message = {
+        let message_result = {
             let mut r = reader.lock().await;
             r.read_message().await
         };
-        // Reader lock released here
 
-        match message {
+        match message_result {
             Ok(msg) => {
-                // Process uses session (internal locks as needed)
-                if let Err(e) = AsyncController::process(session_arc.clone(), msg).await {
+                if let Err(e) = AsyncController::process(session.clone(), msg).await {
                     eprintln!("Error handling message: {:?}", e);
                     break;
                 }
             }
             Err(e) => {
-                match e.kind() {
-                    std::io::ErrorKind::UnexpectedEof
-                    | std::io::ErrorKind::ConnectionReset
-                    | std::io::ErrorKind::BrokenPipe => {
-                        println!("Client disconnected normally - Error: {}", e);
-                    }
-                    _ => {
-                        eprintln!("[Error] {} (kind={:?})", e, e.kind());
-                    }
-                }
+                handle_socket_error(e);
                 break;
             }
         }
     }
+}
 
-    // Cleanup
+fn handle_socket_error(e: std::io::Error) {
+    match e.kind() {
+        std::io::ErrorKind::UnexpectedEof
+        | std::io::ErrorKind::ConnectionReset
+        | std::io::ErrorKind::BrokenPipe => {
+            println!("Client disconnected normally - Error: {}", e);
+        }
+        _ => {
+            eprintln!("[Error] {} (kind={:?})", e, e.kind());
+        }
+    }
+}
+
+async fn cleanup_session(session: SessionArc, write_task: tokio::task::JoinHandle<()>) {
     write_task.abort();
 
-    let player = session_arc.get_player().await;
-
-    if let Some(mut player) = player {
+    if let Some(mut player) = session.get_player().await {
         use crate::map::ChangeMapService;
         let change_map_service = ChangeMapService::new();
         if let Err(e) = change_map_service.exit_map_async(&mut player).await {
@@ -114,7 +114,4 @@ async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
         (&*SESSION_MANAGER).remove_session(player.id as i64).await;
         println!("Player {} disconnected and session removed", player.id);
     }
-
-    println!("Connection closed");
-    Ok(())
 }

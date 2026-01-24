@@ -1,280 +1,3 @@
-// use std::{collections::HashMap, sync::Arc};
-
-// use dashmap::DashMap;
-// use once_cell::sync::Lazy;
-// use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-// use crate::{
-//     database::DbManager,
-//     entities::{item_shop, item_shop_option, shop, tab_shop},
-//     item::{item_template_manager, InventoryService, ItemService},
-//     network::{message::Message, session::AsyncSession},
-// };
-use crate::network::session::SessionArc;
-// const CMD_SHOP_OPEN: i8 = -44;
-
-// #[derive(Debug, Clone, Copy)]
-// pub enum ShopType {
-//     Normal = 0,
-//     Special = 1,
-//     Unknown,
-// }
-
-// impl From<i32> for ShopType {
-//     fn from(value: i32) -> Self {
-//         match value {
-//             0 => ShopType::Normal,
-//             1 => ShopType::Special,
-//             _ => ShopType::Unknown,
-//         }
-//     }
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct ShopData {
-//     pub shop: shop::Model,
-//     pub tabs: Vec<ShopTab>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct ShopTab {
-//     pub tab: tab_shop::Model,
-//     pub items: Vec<ShopItem>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct ShopItem {
-//     pub item: item_shop::Model,
-//     pub options: Vec<item_shop_option::Model>,
-// }
-
-// impl ShopData {
-//     pub async fn get(tag_name: &str) -> Option<Arc<ShopData>> {
-
-//         match Self::load_from_db(tag_name).await {
-//             Ok(data) => {
-//                 let arc_data = Arc::new(data);
-//                 SHOP_DATA.insert(tag_name.to_string(), arc_data.clone());
-//                 Some(arc_data)
-//             }
-//             Err(e) => {
-//                 println!("Error loading shop {}: {:?}", tag_name, e);
-//                 None
-//             }
-//         }
-//     }
-
-//     async fn load_from_db(tag_name: &str) -> anyhow::Result<ShopData> {
-//         let db = DbManager::get_pool();
-
-//         let shop_model = shop::Entity::find()
-//             .filter(shop::Column::TagName.eq(tag_name))
-//             .one(db)
-//             .await?
-//             .ok_or_else(|| anyhow::anyhow!("Shop not found"))?;
-
-//         let tab_shops = tab_shop::Entity::find()
-//             .filter(tab_shop::Column::ShopId.eq(shop_model.id))
-//             .all(db)
-//             .await?;
-
-//         if tab_shops.is_empty() {
-//             return Ok(ShopData {
-//                 shop: shop_model,
-//                 tabs: Vec::new(),
-//             });
-//         }
-
-//         let tab_ids: Vec<i32> = tab_shops.iter().map(|t| t.id).collect();
-//         let item_shops = item_shop::Entity::find()
-//             .filter(item_shop::Column::TabId.is_in(tab_ids))
-//             .all(db)
-//             .await?;
-
-//         if item_shops.is_empty() {
-//             let tabs = tab_shops
-//                 .into_iter()
-//                 .map(|tab| ShopTab {
-//                     tab,
-//                     items: Vec::new(),
-//                 })
-//                 .collect();
-//             return Ok(ShopData {
-//                 shop: shop_model,
-//                 tabs,
-//             });
-//         }
-
-//         let item_ids: Vec<i32> = item_shops.iter().map(|i| i.id).collect();
-//         let item_shop_options = item_shop_option::Entity::find()
-//             .filter(item_shop_option::Column::ItemShopId.is_in(item_ids))
-//             .all(db)
-//             .await?;
-//         let mut option_map: HashMap<i32, Vec<item_shop_option::Model>> = HashMap::new();
-//         for opt in item_shop_options {
-//             option_map.entry(opt.item_shop_id).or_default().push(opt);
-//         }
-
-//         let mut item_map: HashMap<i32, Vec<ShopItem>> = HashMap::new();
-//         for item in item_shops {
-//             let options = option_map.remove(&item.id).unwrap_or_default();
-//             item_map
-//                 .entry(item.tab_id)
-//                 .or_default()
-//                 .push(ShopItem { item, options });
-//         }
-
-//         let tabs = tab_shops
-//             .into_iter()
-//             .map(|tab| {
-//                 let items = item_map.remove(&tab.id).unwrap_or_default();
-//                 ShopTab { tab, items }
-//             })
-//             .collect();
-
-//         Ok(ShopData {
-//             shop: shop_model,
-//             tabs,
-//         })
-//     }
-// }
-
-// pub mod shop_service {
-//     use super::*;
-
-//     pub async fn open_shop(tag_name: &str, session: &SessionArc) -> anyhow::Result<()> {
-//         let shop_data = match ShopData::get(tag_name).await {
-//             Some(data) => data,
-//             None => {
-//                 return Ok(());
-//             }
-//         };
-
-//         let shop_type_raw = shop_data.shop.type_shop.unwrap_or(0);
-//         let shop_type = ShopType::from(shop_type_raw);
-
-//         if let Some(pl) = session.get_player().await {
-//             pl.interaction_state.set_tag_shop(tag_name.to_string());
-//         }
-//         let mut msg = Message::new(CMD_SHOP_OPEN as i8);
-//         msg.write_byte(shop_type_raw as i8)?;
-//         msg.write_byte(shop_data.tabs.len() as i8)?;
-
-//         for tab in &shop_data.tabs {
-//             msg.write_utf(&tab.tab.name)?;
-//             msg.write_byte(tab.items.len() as i8)?;
-//             for item in &tab.items {
-//                 if let Err(e) = write_shop_item(&mut msg, item, shop_type) {
-//                     return Err(e);
-//                 }
-//             }
-//         }
-
-//         session.send_message(&msg).await?;
-//         Ok(())
-//     }
-
-//     fn write_shop_item(
-//         msg: &mut Message,
-//         shop_item: &ShopItem,
-//         shop_type: ShopType,
-//     ) -> anyhow::Result<()> {
-//         let item = &shop_item.item;
-//         msg.write_short(item.temp_id as i16)?;
-
-//         match shop_type {
-//             ShopType::Normal => {
-//                 let cost = item.cost.unwrap_or(0);
-//                 let type_sell = item.type_sell.unwrap_or(0);
-//                 if type_sell == 0 {
-//                     msg.write_int(cost)?;
-//                     msg.write_int(0)?;
-//                 } else {
-//                     msg.write_int(0)?;
-//                     msg.write_int(cost)?;
-//                 }
-//             }
-//             ShopType::Special => {
-//                 msg.write_short(item.icon_spec.unwrap_or(0) as i16)?;
-//                 msg.write_int(item.cost.unwrap_or(0))?;
-//             }
-//             ShopType::Unknown => {}
-//         }
-
-//         msg.write_byte(shop_item.options.len() as i8)?;
-//         for option in &shop_item.options {
-//             msg.write_byte(1)?;
-//             msg.write_short(1)?;
-//         }
-
-//         msg.write_byte(if item.is_new != 0 { 1 } else { 0 })?;
-
-//         let mut is_have_parent = false;
-//         if let Some(template) = item_template_manager::get(item.temp_id as i16) {
-//             if template.r#type == 5 {
-//                 msg.write_byte(1)?;
-//                 msg.write_short(template.head as i16)?;
-//                 msg.write_short(template.body as i16)?;
-//                 msg.write_short(template.leg as i16)?;
-//                 msg.write_short(-1)?;
-//                 is_have_parent = true;
-//             }
-//         }
-
-//         if !is_have_parent {
-//             msg.write_byte(0)?;
-//         }
-
-//         Ok(())
-//     }
-
-//     pub async fn take_item_shop(
-//         session: &SessionArc,
-//         _type_shop: i8,
-//         temp_id: i16,
-//     ) -> anyhow::Result<()> {
-//         let tag_shop = session
-//             .get_player()
-//             .map(|p| p.interaction_state.get_tag_shop().to_string())
-//             .ok_or_else(|| anyhow::anyhow!("Player not found or Shop Tag missing"))?;
-//         let shop_data = ShopData::get(&tag_shop)
-//             .await
-//             .ok_or_else(|| anyhow::anyhow!("Shop data missing"))?;
-//         let shop_item = shop_data
-//             .tabs
-//             .iter()
-//             .flat_map(|tab| tab.items.iter())
-//             .find(|it| it.item.temp_id == temp_id as i32)
-//             .ok_or_else(|| anyhow::anyhow!("Shop item {} not found in {}", temp_id, tag_shop))?;
-//         let player = session
-//             .get_player_mut()
-//             .ok_or_else(|| anyhow::anyhow!("Player not found"))?;
-
-//         let idx_bag = match player
-//             .inventory
-//             .items_bag
-//             .iter()
-//             .position(|it| it.is_null_item())
-//         {
-//             Some(idx) => idx,
-//             None => {
-//                 return Ok(());
-//             }
-//         };
-//         if let Some(mut new_item) = ItemService::create_new_item(shop_item.item.temp_id as i16) {
-//             for opt in &shop_item.options {
-//                 new_item.add_option_param(opt.option_id as i8, opt.param as i16);
-//             }
-
-//             player.inventory.items_bag[idx_bag] = new_item;
-//             InventoryService::send_item_bag_to_client(session).await?;
-//             println!("DEBUG: Mua thanh cong item_id: {}", temp_id);
-//         }
-
-//         Ok(())
-//     }
-// }
-
 use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
@@ -283,10 +6,12 @@ use once_cell::sync::Lazy;
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
+use crate::network::session::SessionArc;
+use crate::templates::item_template_manager;
 use crate::{
     database::DbManager,
     entities::{item_shop, item_shop_option, shop, tab_shop},
-    item::{item_template_manager, InventoryService, ItemService},
+    item::{InventoryService, ItemService},
     network::{message::Message, session::AsyncSession},
 };
 
@@ -426,7 +151,7 @@ pub mod shop_service {
             }
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         println!("Sent shop data for: {}", tag_name);
 
@@ -542,8 +267,8 @@ pub mod shop_service {
                     // Note: inventory bag message requires &Player, but we modified player in place
                     // So we can send it directly using the modified player object if we refactor InventoryService to take &Player
                     // or use the static method with the modified player
-                    if let Ok(msg) = InventoryService::create_item_bag_message(&player) {
-                        let _ = session.send_message(&msg).await;
+                    if let Ok(msg) = InventoryService::create_item_bag_to_client(&player) {
+                        session.transmit(msg);
                     }
 
                     println!("mua thanh cong {}", temp_id);

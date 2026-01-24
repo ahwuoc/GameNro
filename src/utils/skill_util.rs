@@ -1,5 +1,5 @@
 use crate::models::skill_model::Skill;
-use crate::services::skill_template_manager;
+use crate::templates::skill_template_manager;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]

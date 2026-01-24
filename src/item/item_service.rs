@@ -1,5 +1,5 @@
 use crate::item::item::Item;
-use crate::item::{item_template_manager, option_template_manager};
+use crate::templates::{item_template_manager, option_template_manager};
 pub struct ItemService;
 
 impl ItemService {

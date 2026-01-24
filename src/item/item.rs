@@ -67,7 +67,7 @@ impl Item {
     }
 
     fn is_valid_option_id(option_id: i8) -> bool {
-        use crate::item::option_template_manager;
+        use crate::templates::option_template_manager;
         option_template_manager::get(option_id).is_some()
     }
 

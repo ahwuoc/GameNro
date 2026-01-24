@@ -1,9 +1,9 @@
 use crate::entities::skill_template;
 use crate::utils::skill_util;
-use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::collections::HashMap;
+use std::sync::RwLock;
 
 #[derive(Debug, Clone)]
 pub struct Skill {
@@ -40,13 +40,14 @@ pub struct NClass {
     pub skill_templates: Vec<SkillTemplate>,
 }
 
-static SKILL_TEMPLATES: Lazy<DashMap<i32, SkillTemplate>> = Lazy::new(|| DashMap::new());
-static NCLASSES: Lazy<DashMap<i32, NClass>> = Lazy::new(|| DashMap::new());
+static SKILL_TEMPLATES: Lazy<RwLock<Vec<SkillTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static NCLASSES: Lazy<RwLock<Vec<NClass>>> = Lazy::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let templates = skill_template::Entity::find().all(db).await?;
 
     let mut nclass_map: HashMap<i32, Vec<SkillTemplate>> = HashMap::new();
+    let mut skill_templates_vec = Vec::new();
 
     for template in templates {
         // Parse skills JSON once here
@@ -64,8 +65,8 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
             skills,
         };
 
-        // Store in template cache
-        SKILL_TEMPLATES.insert(template.id, skill_template.clone());
+        // Store in local vec
+        skill_templates_vec.push(skill_template.clone());
 
         // Group by nclass
         nclass_map
@@ -74,9 +75,12 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
             .push(skill_template);
     }
 
+    // Sort global skills
+    skill_templates_vec.sort_by_key(|t| t.id);
+
     // Build NClass cache
+    let mut nclasses_vec = Vec::new();
     for (nclass_id, mut templates) in nclass_map {
-        // Sort by id for consistent ordering
         templates.sort_by_key(|t| t.id);
 
         let nclass = NClass {
@@ -84,14 +88,20 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
             name: get_nclass_name(nclass_id),
             skill_templates: templates,
         };
-        NCLASSES.insert(nclass_id, nclass);
+        nclasses_vec.push(nclass);
+    }
+    nclasses_vec.sort_by_key(|n| n.class_id);
+
+    {
+        let mut lock = SKILL_TEMPLATES.write().unwrap();
+        *lock = skill_templates_vec;
+    }
+    {
+        let mut lock = NCLASSES.write().unwrap();
+        *lock = nclasses_vec;
     }
 
-    println!(
-        "Loaded {} skill templates, {} nclasses into cache",
-        SKILL_TEMPLATES.len(),
-        NCLASSES.len()
-    );
+    println!("Loaded skill templates and nclasses into cache");
     Ok(())
 }
 
@@ -125,35 +135,32 @@ fn get_nclass_name(nclass_id: i32) -> String {
 
 /// Get a parsed skill template by its id
 pub fn get(id: i32) -> Option<SkillTemplate> {
-    SKILL_TEMPLATES.get(&id).map(|v| v.clone())
+    let lock = SKILL_TEMPLATES.read().unwrap();
+    lock.binary_search_by_key(&(id as i8), |t| t.id)
+        .ok()
+        .map(|idx| lock[idx].clone())
 }
 
 /// Get all parsed skill templates
 pub fn get_all() -> Vec<SkillTemplate> {
-    SKILL_TEMPLATES
-        .iter()
-        .map(|kv| kv.value().clone())
-        .collect()
+    SKILL_TEMPLATES.read().unwrap().clone()
 }
 
 /// Get all skill templates grouped by nclass_id
 pub fn get_by_nclass(nclass_id: i32) -> Vec<SkillTemplate> {
-    SKILL_TEMPLATES
-        .iter()
-        .filter(|kv| kv.value().class_id == nclass_id)
-        .map(|kv| kv.value().clone())
-        .collect()
+    let lock = NCLASSES.read().unwrap();
+    if let Ok(idx) = lock.binary_search_by_key(&nclass_id, |n| n.class_id) {
+        lock[idx].skill_templates.clone()
+    } else {
+        Vec::new()
+    }
 }
 
 /// Get all NClasses with their skill templates
 pub fn get_all_nclasses() -> Vec<NClass> {
-    let mut nclasses: Vec<NClass> = NCLASSES.iter().map(|kv| kv.value().clone()).collect();
-    nclasses.sort_by_key(|n| n.class_id);
-    nclasses
+    NCLASSES.read().unwrap().clone()
 }
 
-/// Get raw skills JSON for a template (for skill_util::create_skill)
-pub fn get_raw_skills(id: i32) -> Option<String> {
-    // Not needed anymore since we store parsed skills
+pub fn get_raw_skills(_id: i32) -> Option<String> {
     None
 }

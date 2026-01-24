@@ -1,4 +1,4 @@
-use crate::network::session::SessionArc;
+use crate::network::session::{self, SessionArc};
 use crate::{
     constant::cmd::cmd,
     entities::player,
@@ -18,12 +18,9 @@ impl UseItem {
         if index < 0 {
             return Ok(());
         }
-
-        let mut messages = Vec::new();
-
         session
             .modify_player(|pl| {
-                let msgs = match type_item_inventory {
+                match type_item_inventory {
                     TypeItemInventory::BodyToBag => {
                         let bag_idx_opt = pl
                             .inventory
@@ -35,14 +32,11 @@ impl UseItem {
                                 std::mem::take(&mut pl.inventory.items_body[index as usize]);
                             if !item.is_null_item() {
                                 pl.inventory.items_bag[bag_idx] = item;
-                                let bag_msg = InventoryService::create_item_bag_message(pl)?;
+                                let bag_msg = InventoryService::create_item_bag_to_client(pl)?;
                                 let body_msg = InventoryService::create_item_body_to_client(pl)?;
-                                vec![bag_msg, body_msg]
-                            } else {
-                                Vec::new()
+                                session.transmit(bag_msg);
+                                session.transmit(body_msg);
                             }
-                        } else {
-                            Vec::new()
                         }
                     }
                     TypeItemInventory::BagToBody => {
@@ -53,11 +47,10 @@ impl UseItem {
                                 &mut pl.inventory.items_bag[index as usize],
                                 &mut pl.inventory.items_body[body_slot],
                             );
-                            let bag_msg = InventoryService::create_item_bag_message(pl)?;
+                            let bag_msg = InventoryService::create_item_bag_to_client(pl)?;
                             let body_msg = InventoryService::create_item_body_to_client(pl)?;
-                            vec![bag_msg, body_msg]
-                        } else {
-                            Vec::new()
+                            session.transmit(bag_msg);
+                            session.transmit(body_msg);
                         }
                     }
                     TypeItemInventory::BagToBox => {
@@ -71,16 +64,13 @@ impl UseItem {
                                 std::mem::take(&mut pl.inventory.items_bag[index as usize]);
                             if !it_bag.is_null_item() {
                                 pl.inventory.items_box[box_idx] = it_bag;
-                                let bag_msg = InventoryService::create_item_bag_message(pl)?;
-                                let box_msg = InventoryService::create_item_box_message(pl)?;
-                                let mut open_box = Message::new(-35);
-                                open_box.write_byte(1)?;
-                                vec![bag_msg, box_msg, open_box]
-                            } else {
-                                Vec::new()
+                                let bag_msg = InventoryService::create_item_bag_to_client(pl)?;
+                                let box_msg = InventoryService::create_item_box_to_client(pl)?;
+                                let open_msg = InventoryService::create_open_box(session)?;
+                                session.transmit(box_msg);
+                                session.transmit(open_msg);
+                                session.transmit(bag_msg);
                             }
-                        } else {
-                            Vec::new()
                         }
                     }
                     TypeItemInventory::BodyToBox => {
@@ -94,14 +84,11 @@ impl UseItem {
                                 std::mem::take(&mut pl.inventory.items_body[index as usize]);
                             if !it_body.is_null_item() {
                                 pl.inventory.items_box[box_idx] = it_body;
-                                let box_msg = InventoryService::create_item_box_message(pl)?;
+                                let box_msg = InventoryService::create_item_box_to_client(pl)?;
                                 let body_msg = InventoryService::create_item_body_to_client(pl)?;
-                                vec![box_msg, body_msg]
-                            } else {
-                                Vec::new()
+                                session.transmit(box_msg);
+                                session.transmit(body_msg);
                             }
-                        } else {
-                            Vec::new()
                         }
                     }
                     TypeItemInventory::BoxToBodyOrBag => {
@@ -124,26 +111,20 @@ impl UseItem {
                                     pl.inventory.items_bag[bag_idx] = it_box;
                                 }
                                 let body_msg = InventoryService::create_item_body_to_client(pl)?;
-                                let bag_msg = InventoryService::create_item_bag_message(pl)?;
-                                let box_msg = InventoryService::create_item_box_message(pl)?;
-                                vec![bag_msg, box_msg, body_msg]
-                            } else {
-                                Vec::new()
+                                let bag_msg = InventoryService::create_item_bag_to_client(pl)?;
+                                let box_msg = InventoryService::create_item_box_to_client(pl)?;
+                                session.transmit(bag_msg);
+                                session.transmit(box_msg);
+                                session.transmit(body_msg);
                             }
-                        } else {
-                            Vec::new()
                         }
                     }
-                    _ => Vec::new(),
+                    _ => {}
                 };
-                messages = msgs;
                 Ok(())
             })
             .await?;
 
-        for msg in messages {
-            session.send_message(&msg).await?;
-        }
         Ok(())
     }
 }

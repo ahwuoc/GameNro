@@ -1,3 +1,5 @@
+use sqlx::any;
+
 use crate::item::inventory::Inventory;
 use crate::item::item::Item;
 use crate::network::message::Message;
@@ -22,7 +24,12 @@ impl InventoryService {
         None
     }
 
-    pub fn create_item_box_message(pl: &Player) -> anyhow::Result<Message> {
+    pub fn create_open_box(session: &SessionArc) -> anyhow::Result<Message> {
+        let mut open = Message::new(-32);
+        open.write_byte(1)?;
+        Ok(open)
+    }
+    pub fn create_item_box_to_client(pl: &Player) -> anyhow::Result<Message> {
         let mut msg = Message::new(-35);
         msg.write_byte(0)?;
         msg.write_byte(pl.inventory.items_box.len() as i8);
@@ -43,7 +50,7 @@ impl InventoryService {
         }
         return Ok(msg);
     }
-    pub fn create_item_bag_message(pl: &Player) -> anyhow::Result<Message> {
+    pub fn create_item_bag_to_client(pl: &Player) -> anyhow::Result<Message> {
         let mut msg = Message::new(-36);
         msg.write_byte(0)?;
         msg.write_byte(pl.inventory.items_bag.len() as i8)?;
@@ -63,12 +70,6 @@ impl InventoryService {
             }
         }
         Ok(msg)
-    }
-
-    pub async fn send_item_bag_to_client(session: &SessionArc) -> anyhow::Result<()> {
-        let msg = Self::create_item_bag_message(&session.get_player().await.unwrap())?;
-        session.send_message(&msg).await?;
-        Ok(())
     }
 
     pub fn create_item_body_to_client(pl: &Player) -> anyhow::Result<Message> {
@@ -92,26 +93,5 @@ impl InventoryService {
             }
         }
         Ok(msg)
-    }
-    pub async fn send_item_body_to_client(pl: &mut Player) -> anyhow::Result<()> {
-        let mut response = Message::new(-37);
-        response.write_byte(0);
-        response.write_short(pl.get_head());
-        response.write_byte(pl.inventory.items_body.len() as i8);
-        for item in &pl.inventory.items_body {
-            if item.is_not_null_item() {
-                continue;
-            };
-            response.write_short(item.get_template_id().unwrap_or(1));
-            response.write_int(item.quantity);
-            response.write_utf(&item.get_description());
-            response.write_utf(&item.get_content());
-            for option in &item.item_options {
-                response.write_byte(option.option_id);
-                response.write_short(option.param);
-            }
-        }
-        pl.send_message(response).await?;
-        Ok(())
     }
 }

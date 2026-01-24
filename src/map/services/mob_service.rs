@@ -136,7 +136,7 @@ impl MobService {
         for (player_id, msg) in player_specific_msgs {
             if let Some(mut p_entry) = zone.players.get_mut(&player_id) {
                 let player = p_entry.value_mut();
-                let _ = player.send_message(msg).await;
+                let _ = player.send_to_client(msg).await;
             }
         }
     }

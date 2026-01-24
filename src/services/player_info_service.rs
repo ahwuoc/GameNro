@@ -43,7 +43,7 @@ impl PlayerInfoService {
         msg.write_int(player.n_point.defg)?;
         msg.write_byte(player.n_point.critg)?;
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -87,7 +87,7 @@ impl PlayerInfoService {
             msg.write_short(sub_task.max_count)?;
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -143,7 +143,7 @@ impl PlayerInfoService {
 
     pub async fn clear_map(session: &SessionArc) -> anyhow::Result<()> {
         let msg = Message::new(-22);
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -153,7 +153,7 @@ impl PlayerInfoService {
         let mut msg = Message::new(-53);
         msg.write_int(-1)?; // clan.id or -1 if no clan
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -164,7 +164,7 @@ impl PlayerInfoService {
         let mut msg = Message::new(-69);
         msg.write_int(100)?; // max stamina
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl PlayerInfoService {
         let mut msg = Message::new(-68);
         msg.write_int(100)?; // current stamina
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -182,7 +182,7 @@ impl PlayerInfoService {
         println!("Sending pet info");
         let mut msg = Message::new(-107);
         msg.write_byte(0)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -192,14 +192,14 @@ impl PlayerInfoService {
         let mut msg = Message::new(-119);
         msg.write_utf("1630679754740_-119_r")?;
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
     pub async fn send_notification_tab(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-50);
         msg.write_byte(0)?; // notification count
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -209,7 +209,7 @@ impl PlayerInfoService {
         let mut msg = Message::new(-30);
         msg.write_byte(62)?; // sub command
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -300,7 +300,7 @@ impl PlayerInfoService {
         msg.write_byte(0)?; // idEff_Set_Item
         msg.write_short(0)?; // idHat
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -321,7 +321,7 @@ impl PlayerInfoService {
         if let Some(zone) = &player.zone {
             zone.send_message_to_all_players(message.clone()).await?;
         }
-        session.send_message(&message).await?;
+        session.transmit(message);
         Ok(())
     }
 

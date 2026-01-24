@@ -128,7 +128,7 @@ impl Zone {
 
     pub async fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
         for player in self.players.iter() {
-            player.send_message(msg.clone()).await;
+            player.send_to_client(msg.clone()).await;
         }
         Ok(())
     }
@@ -142,7 +142,7 @@ impl Zone {
             return Ok(());
         }
         for pl in self.players.iter() {
-            pl.send_message(msg.clone()).await;
+            pl.send_to_client(msg.clone()).await;
         }
         Ok(())
     }
@@ -154,7 +154,7 @@ impl Zone {
     ) -> anyhow::Result<()> {
         for entry in self.players.iter() {
             if *entry.key() != except_player_id {
-                entry.value().send_message(msg.clone()).await;
+                entry.value().send_to_client(msg.clone()).await;
             }
         }
         Ok(())
@@ -184,7 +184,7 @@ impl Zone {
 
                     if info_player.is_die() {
                         let death_msg = Self::build_player_death_message(&info_player);
-                        receiver.send_message(death_msg);
+                        receiver.send_to_client(death_msg);
                     }
                 }
             }
@@ -213,7 +213,7 @@ impl Zone {
 
             if other.is_die() {
                 let death_msg = Self::build_player_death_message(&other);
-                let _ = receiver.send_message(death_msg);
+                let _ = receiver.send_to_client(death_msg);
             }
         }
         Ok(())
@@ -266,7 +266,7 @@ impl Zone {
             let _ = msg.write_short(0); // aura
             let _ = msg.write_byte(0); // eff front
         }
-        pl_receiver.send_message(msg).await?;
+        pl_receiver.send_to_client(msg).await?;
         Ok(())
     }
 
@@ -366,7 +366,7 @@ impl Zone {
                     Vec::new()
                 };
                 let avatars: std::collections::HashMap<i32, i32> =
-                    crate::npc::npc_template_manager::get_all()
+                    crate::templates::npc_template_manager::get_all()
                         .iter()
                         .map(|t| (t.id, t.avatar.unwrap_or(0)))
                         .collect();
@@ -421,7 +421,7 @@ impl Zone {
             msg.get_data().len()
         );
 
-        session.send_message(&msg).await?;
+        let _ = session.transmit(msg);
         Ok(())
     }
 }

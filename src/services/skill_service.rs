@@ -1,9 +1,8 @@
+use crate::mob::mob::RtMob;
 use crate::models::skill_model::Skill;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
-use crate::services::manager::Manager;
-use crate::{mob::mob::RtMob, network::session::AsyncSession};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn can_use_skill_with_mana(player: &Player) -> bool {
@@ -141,7 +140,7 @@ pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
     msg_k.write_utf("KSkill")?;
     msg_k.write_int(skill_data.len() as i32)?;
     msg_k.write(&skill_data)?;
-    session.queue_message(msg_k);
+    session.transmit(msg_k);
 
     // Send OSkill
     let mut msg_o = Message::new(-30);
@@ -149,7 +148,7 @@ pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
     msg_o.write_utf("OSkill")?;
     msg_o.write_int(skill_data.len() as i32)?;
     msg_o.write(&skill_data)?;
-    session.queue_message(msg_o);
+    session.transmit(msg_o);
 
     Ok(())
 }

@@ -126,7 +126,7 @@ pub async fn update(zone: &Zone) {
     for (player_id, msg) in player_specific_msgs {
         if let Some(p_entry) = zone.players.get(&player_id) {
             let player = p_entry.value();
-            let _ = player.send_message(msg).await;
+            let _ = player.send_to_client(msg);
         }
     }
 }

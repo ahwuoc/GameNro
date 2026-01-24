@@ -62,7 +62,7 @@ impl SessionManager {
             }
 
             let kick_result = tokio::time::timeout(Duration::from_secs(3), async {
-                let _ = session.send_message(&response).await;
+                let _ = session.transmit(response);
                 session.shutdown().await
             })
             .await;

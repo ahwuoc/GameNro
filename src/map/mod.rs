@@ -28,7 +28,6 @@ pub use map_service::MapService;
 
 // Re-export managers modules
 pub use managers::map_manager;
-pub use managers::map_template_manager;
 pub use managers::tile_loader;
 pub use managers::zone_manager;
 

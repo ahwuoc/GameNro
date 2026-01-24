@@ -185,7 +185,7 @@ impl ChangeMapService {
             msg.write_utf(&destination.planet_name)?;
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -298,7 +298,7 @@ impl ChangeMapService {
             // Send error message if player is not in a valid zone
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đổi khu vực trong map này")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         };
 
@@ -306,7 +306,7 @@ impl ChangeMapService {
         if Self::is_special_map(zone.map_id) && !player.is_admin {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đổi khu vực trong map này")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         }
 
@@ -333,7 +333,7 @@ impl ChangeMapService {
             msg.write_byte(0)?; // not competing
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -346,21 +346,21 @@ impl ChangeMapService {
         let Some(current_zone) = &player.zone else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này @")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         };
 
         if !player.is_admin && !player.is_boss && !Self::can_change_zone_now(player) {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Chưa thể chuyển khu vực lúc này vui lòng chờ")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         }
 
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         }
 
@@ -368,7 +368,7 @@ impl ChangeMapService {
             if target_zone.is_full().await && !player.is_admin && !player.is_boss {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực này đã đầy")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
                 return Ok(());
             }
 
@@ -385,7 +385,7 @@ impl ChangeMapService {
         } else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể thực hiện")?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
         }
 
         Ok(())
@@ -423,14 +423,21 @@ impl ChangeMapService {
                     self.reset_player_position(player, 2000);
                     let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                     msg.write_utf("Lỗi khi chuyển map")?;
-                    session.send_message(&msg).await?;
+                    session.transmit(msg);
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
+                println!(
+                    "Player {} at position ({}, {}) on map {}: Waypoint found: false",
+                    player.name,
+                    player.location.x,
+                    player.location.y,
+                    player.zone.as_ref().unwrap().map_id
+                );
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             WaypointChangeResult::TaskRequirementNotMet {
                 required_task_id: _,
@@ -438,18 +445,18 @@ impl ChangeMapService {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             WaypointChangeResult::InvalidPlayerZone => {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Lỗi hệ thống")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             WaypointChangeResult::DestinationUnavailable => {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực đích không khả dụng")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
         }
 
@@ -476,12 +483,12 @@ impl ChangeMapService {
             GoHomeResult::NoAvailableZone => {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Không thể về nhà lúc này")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             GoHomeResult::PlayerIsBoss => {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Boss không thể sử dụng chức năng này")?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
         }
 
@@ -660,26 +667,19 @@ impl ChangeMapService {
             // Task 20.0 maps - núi khỉ vàng
             80 => TASK_20_0,
 
-            // Task 21.0 maps - nhà bunma, thành phố phía đông, thành phố phía nam, đảo balê, cao nguyên
             102 | 92 | 93 | 94 | 96 => TASK_21_0,
 
-            // Task 24.0 maps - thành phố phía bắc, ngọn núi phía bắc, thung lũng phía bắc, thị trấn ginder
             97 | 98 | 99 | 100 => TASK_24_0,
 
-            // Task 27.0 maps - cánh đồng tuyết, rừng tuyết, núi tuyết, dòng sông băng, rừng băng, hang băng, võ đài xên
             105 | 106 | 107 | 108 | 109 | 110 | 103 | 154 => TASK_27_0,
 
-            // No task requirement for other maps
             _ => 0,
         }
     }
 
-    /// Reset player position when waypoint change fails
-    /// Requirements: 2.4
     pub fn reset_player_position(&self, player: &mut Player, map_width: i32) {
         let mut x = player.location.x;
 
-        // Clamp position to valid range
         if x >= (map_width - 60) as i16 {
             x = (map_width - 60) as i16;
         } else if x <= 60 {
@@ -690,10 +690,7 @@ impl ChangeMapService {
     }
     pub async fn exit_map_async(&self, player: &mut Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
-            // Remove player from zone
             zone.remove_player(player.id).await?;
-
-            // Broadcast leave message to other players (CMD -6)
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
             zone.send_message_to_other_players(player.id, msg).await?;
@@ -939,7 +936,7 @@ impl ChangeMapService {
                 }
             }
             SpaceshipSendType::SelfOnly => {
-                player.send_message(msg).await?;
+                player.send_to_client(msg).await?;
             }
             SpaceshipSendType::OthersInMap => {
                 if let Some(zone) = &player.zone {

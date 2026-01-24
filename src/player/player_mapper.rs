@@ -5,9 +5,9 @@ use crate::item::item::{self, Item as RtItem};
 use crate::item::item_option::ItemOption as RtItemOption;
 use crate::item::item_service::ItemService;
 use crate::models::Intrinsic;
-use crate::player::NPoint;
 use crate::player::player::Player;
-use crate::services::intrinsic_template_manager;
+use crate::player::NPoint;
+use crate::templates::intrinsic_template_manager;
 use crate::utils::skill_util;
 use crate::{data, entities};
 use anyhow::Result;
@@ -15,7 +15,6 @@ use chrono::format::Item;
 use chrono::TimeZone;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing_subscriber::layer;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

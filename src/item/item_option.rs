@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::item::{item_template_manager, option_template_manager};
+use crate::templates::{item_template_manager, option_template_manager};
 
 #[derive(Debug, Clone)]
 pub struct ItemOption {

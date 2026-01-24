@@ -3,7 +3,8 @@ use crate::map::tile_loader::TileLoader;
 pub use crate::map::waypoint::WayPoint;
 use crate::map::zone::Zone;
 use crate::map::zone_manager::ZoneManager;
-use crate::mob::{mob_template_manager, RtMob};
+use crate::mob::RtMob;
+use crate::templates::mob_template_manager;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -260,13 +261,10 @@ impl Map {
         _npc_x: &[i16],
         _npc_y: &[i16],
     ) -> anyhow::Result<()> {
-        // NPCs are now part of MapInfo and handled in Zone::map_info
         Ok(())
     }
 
-    pub async fn add_waypoint(&self, _wp: WayPoint) {
-        // Waypoints are now part of MapInfo
-    }
+    pub async fn add_waypoint(&self, _wp: WayPoint) {}
 
     /// Get waypoint at position
     pub fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
@@ -284,7 +282,6 @@ impl Map {
         zones.get(zone_id as usize).cloned()
     }
 
-    /// Get best zone for player (least populated)
     pub async fn get_best_zone(&self) -> Option<Zone> {
         let zones = self.zones.read().await;
 
@@ -302,7 +299,6 @@ impl Map {
         best_zone.cloned()
     }
 
-    /// Get all zones
     pub async fn get_all_zones(&self) -> Vec<Zone> {
         let zones = self.zones.read().await;
         zones.clone()

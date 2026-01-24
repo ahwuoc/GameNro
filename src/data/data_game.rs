@@ -1,10 +1,10 @@
 #![allow(dead_code)]
-use crate::map::map_template_manager;
-use crate::mob::mob_template_manager;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
-use crate::npc::npc_template_manager;
-use crate::services::{head_avatar_manager, skill_template_manager};
+use crate::templates::map_template_manager;
+use crate::templates::mob_template_manager;
+use crate::templates::npc_template_manager;
+use crate::templates::{head_avatar_manager, skill_template_manager};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use fast_image_resize as fir;
@@ -13,7 +13,7 @@ use once_cell::sync::Lazy;
 use std::env;
 use std::fs;
 
-pub use skill_template_manager::{NClass, Skill, SkillTemplate};
+pub use crate::templates::skill_template_manager::{NClass, Skill, SkillTemplate};
 
 pub static CACHE_ICON: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
 pub static CACHE_IMG_BY_NAME: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
@@ -77,7 +77,7 @@ impl DataGame {
         let mut msg = Message::new(-74);
         msg.write_byte(1)?;
         msg.write_short(file_count as i16)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         Ok(())
     }
@@ -99,7 +99,7 @@ impl DataGame {
                                     msg.write_utf(name_str)?;
                                     msg.write_int(content.len() as i32)?;
                                     msg.write(&content)?;
-                                    session.send_message(&msg).await?;
+                                    session.transmit(msg);
                                 }
                             }
                         }
@@ -110,7 +110,7 @@ impl DataGame {
         let mut msg = Message::new(-74);
         msg.write_byte(3)?;
         msg.write_int(Self::VS_RES)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         Ok(())
     }
@@ -119,7 +119,7 @@ impl DataGame {
         let mut msg = Message::new(-74);
         msg.write_byte(0)?;
         msg.write_int(Self::VS_RES)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         Ok(())
     }
@@ -138,7 +138,7 @@ impl DataGame {
             }
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -157,7 +157,7 @@ impl DataGame {
             msg.write_long(level)?;
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -173,7 +173,7 @@ impl DataGame {
             }
         }
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -230,7 +230,7 @@ impl DataGame {
         msg.write_int(skill_data.len() as i32)?;
         msg.write(&skill_data)?;
 
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         println!("Update data sent successfully");
         Ok(())
@@ -238,7 +238,7 @@ impl DataGame {
 
     pub async fn update_map(session: &SessionArc) -> anyhow::Result<()> {
         let npc_templates = npc_template_manager::get_all();
-        let map_templates = map_template_manager::get_all();
+        let map_templates = crate::templates::map_template_manager::get_all();
         let mut msg = Message::new(-28);
         msg.write_byte(6)?;
         msg.write_byte(Self::VS_MAP)?;
@@ -267,7 +267,7 @@ impl DataGame {
             msg.write_byte(mob_template.speed as i8)?;
             msg.write_byte(mob_template.dart_type as i8)?;
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         println!(
             "Map data updated successfully with {} maps, {} NPCs, {} mobs",
             map_templates.len(),
@@ -356,7 +356,7 @@ impl DataGame {
         }
 
         println!("[UPDATE_SKILL] Finished sending skill data");
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -369,7 +369,7 @@ impl DataGame {
                     let mut msg = Message::new(-28);
                     msg.write_byte(0)?;
                     msg.write_byte(0)?;
-                    session.send_message(&msg).await?;
+                    session.transmit(msg);
                     return Ok(());
                 }
 
@@ -386,7 +386,7 @@ impl DataGame {
                 let mut msg = Message::new(-28);
                 msg.write_byte(10)?;
                 msg.write(to_send)?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             Err(_) => {}
         }
@@ -397,14 +397,14 @@ impl DataGame {
     pub async fn send_skill_data(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-72);
         response.write_byte(0)?;
-        session.send_message(&response).await?;
+        session.transmit(response);
         Ok(())
     }
 
     pub async fn send_item_data(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-73);
         response.write_byte(0)?;
-        session.send_message(&response).await?;
+        session.transmit(response);
 
         Ok(())
     }
@@ -417,7 +417,7 @@ impl DataGame {
             Ok(mob) => {
                 msg.write_byte(mob_id)?;
                 msg.write(&mob)?;
-                session.send_message(&msg).await?;
+                session.transmit(msg);
             }
             Err(_) => {
                 println!("Warning: Mob temp file not found")
@@ -458,7 +458,7 @@ impl DataGame {
             msg.write_int(id)?;
             msg.write_int(icon.len() as i32)?;
             msg.write(&*icon)?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
             return Ok(());
         }
 
@@ -479,7 +479,7 @@ impl DataGame {
         msg.write_int(id)?;
         msg.write_int(icon.len() as i32)?;
         msg.write(&icon)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         Ok(())
     }
@@ -492,7 +492,7 @@ impl DataGame {
         if let Ok(data) = std::fs::read("data/girlkun/map/tile_set_info") {
             let mut msg = Message::new(-82);
             msg.write(&data)?;
-            session.send_message(&msg).await?;
+            session.transmit(msg);
         } else {
             println!("Warning: Tile set info file not found");
         }
@@ -503,7 +503,7 @@ impl DataGame {
     pub async fn send_client_ok(session: &SessionArc) -> anyhow::Result<()> {
         let mut response = Message::new(-75);
         response.write_byte(0)?;
-        session.send_message(&response).await?;
+        session.transmit(response);
         Ok(())
     }
 
@@ -516,7 +516,7 @@ impl DataGame {
         msg.write_byte(2)?;
         msg.write_utf(&link_data)?;
         msg.write_byte(1)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
 
         Ok(())
     }

@@ -1,4 +1,4 @@
-# Phân Tích Chuyên Sâu Kiến Trúc Mạng SplitSession
+# Phân Tích Chuyên Sâu Kiến Trúc Mạng SplitSession (Update v2)
 
 Tài liệu này cung cấp cái nhìn **cực kỳ chi tiết** về kiến trúc mạng mới, dành cho những ai muốn hiểu sâu về cơ chế hoạt động, lý do kỹ thuật và các mẫu thiết kế (design patterns) được áp dụng.
 
@@ -51,25 +51,25 @@ pub struct AsyncSession {
     // Nhưng chỉ 1 luồng được sửa đổi (tránh race condition)
     pub state: RwLock<SessionState>,
     
-    // 4. Hàng Đợi Bất Đồng Bộ (Async Queue)
-    // Đây là "phép màu" giúp gỡ bỏ hoàn toàn sự phụ thuộc giữa Logic và IO
-    pub message_tx: mpsc::Sender<Message>,
+    // 4. Hàng Đợi Đồng Bộ (Synchronous Queue) << CẢI TIẾN QUAN TRỌNG
+    // Sử dụng std::sync::RwLock thay vì tokio::sync::RwLock để truy cập NHANH & ĐỒNG BỘ
+    pub message_tx: std::sync::RwLock<Option<mpsc::Sender<Message>>>,
 }
 ```
 
-## 3. Luồng Dữ Liệu (Data Flow) Chi Tiết
+## 3. Luồng Dữ Liệu (Data Flow) & Tối Ưu Hóa Queue
 
 Chúng ta hãy đi theo hành trình của một tin nhắn để thấy sự khác biệt.
 
-### 3.1. Luồng Gửi (Sending Flow)
+### 3.1. Luồng Gửi (Sending Flow) - Non-Blocking & Sync
 
 **Trường hợp: Người chơi đánh quái -> Cần gửi tin hiển thị sát thương.**
 
 1.  **Caller (Controller/Service):**
     *   Gọi `session.send_message(msg)`.
     *   Hành động: Clone message và đẩy vào channel `message_tx`.
-    *   **Chi phí:** Cực thấp (Microseconds). Không đụng đến Socket. Không chờ đợi I/O.
-    *   *Trạng thái:* Caller tiếp tục thực thi logic ngay lập tức (Non-blocking).
+    *   **Cải tiến:** Hàm `queue_message` bây giờ là **Synchronous** (không cần `await`).
+    *   *Lợi ích:* Có thể gọi trực tiếp bên trong các closure đồng bộ (như `modify_player`).
 
 2.  **MPSC Channel (Hàng đợi):**
     *   Đóng vai trò bộ đệm (Buffer). Nếu mạng chậm, tin nhắn sẽ xếp hàng ở đây thay vì chặn đứng Server.
@@ -77,7 +77,7 @@ Chúng ta hãy đi theo hành trình của một tin nhắn để thấy sự kh
 3.  **Write Task (Background Worker):**
     *   Một vòng lặp vô tận: `while let Some(msg) = rx.recv().await`.
     *   Khi có tin nhắn:
-        1.  Lock `writer` (`Mutex`). *Lưu ý: Khóa này hoàn toàn độc lập với khóa `reader`.*
+        1.  Lock `writer` (`Mutex`).
         2.  Mã hóa (Encrypt) tin nhắn.
         3.  Ghi xuống `TcpStream` (Syscall).
         4.  Unlock `writer`.
@@ -105,47 +105,41 @@ Chúng ta sử dụng `Option.take()` để "move" (di chuyển) quyền sở h�
 
 1.  **Take:** `let player = session.take_player().await;`
     *   Trong Session, `state.player` trở thành `None`.
-    *   Bạn đang cầm `Player` trên tay (Owned). Bạn là "vua" của object này. Không ai khác có thể nhìn thấy nó lúc này.
+    *   Bạn đang cầm `Player` trên tay (Owned).
 
 2.  **Modify:** Bạn thích làm gì thì làm: trừ máu, thêm item, đổi map...
-    *   Vì bạn sở hữu nó, không cần locking gì cả!
+3.  **Set:** `session.set_player(player).await;` (Trả về).
 
-3.  **IO/Async:** Bạn có thể gọi database, tính toán nặng...
-    *   Trong lúc bạn làm việc này, Session vẫn mở khóa (cho các trường, state khác). Chỉ có `player` là tạm vắng mặt.
+### 3.3. Sử Dụng Helper `modify_player` (Khuyên Dùng)
 
-4.  **Set:** `session.set_player(player).await;`
-    *   Trả lại `Player` vào vị trí cũ.
+Để tránh quên `set_player`, mình đã thêm hàm tiện ích `modify_player`. Bây giờ nó hỗ trợ gửi tin nhắn trực tiếp bên trong closure nhờ tối ưu hóa `std::sync::RwLock`.
 
-**Ví dụ Code So Sánh:**
-
-*Sai (Gây lock lâu):*
 ```rust
-{
-    let mut guard = session.write().await; // Lock cả session!
-    guard.player.hp -= 100;
-    save_to_db(&guard.player).await; // Vẫn đang lock trong khi chờ DB!
-} 
+// An toàn & Gọn gàng hơn
+session.modify_player(|player| {
+    player.map_id = 5;
+    player.inventory.add_item(...);
+    
+    // Gửi tin nhắn ngay lập tức (không cần gom vào Vector nữa!)
+    session.queue_message(msg_hp_update); 
+    session.queue_message(msg_bag_update);
+    
+    Ok(())
+}).await?;
 ```
 
-*Đúng (Tối ưu):*
-```rust
-if let Some(mut player) = session.take_player().await { // Lock cực ngắn để lấy ra
-    player.hp -= 100;
-    save_to_db(&player).await; // Không lock session! Các luồng khác vẫn chạy.
-    session.set_player(player).await; // Lock cực ngắn để trả về
-}
-```
+Nếu dùng cách này, bạn **không cần gọi** `take_player` và `set_player` thủ công nữa.
 
 ## 5. Tổng Kết
 
-Kiến trúc SplitSession không chỉ sửa lỗi, nó là một bước nâng cấp về tư duy thiết kế hệ thống phân tán (Concurrent System Design) trong Rust.
+Kiến trúc SplitSession (v2) mang lại hiệu năng tối đa nhờ loại bỏ gần như toàn bộ các tác vụ async không cần thiết ở tầng gửi tin nhắn.
 
-| Đặc Điểm | Cũ (Single Lock) | Mới (SplitSession) |
+| Đặc Điểm | Cũ (Single Lock) | Mới (SplitSession v2) |
 | :--- | :--- | :--- |
 | **Độ Phức Tạp** | Thấp | Trung bình |
 | **An Toàn Data** | Tốt | Rất tốt (Type System đảm bảo) |
-| **Hiệu Năng** | Thấp (High Contention) | Cao (Lock-free writing) |
+| **Gửi Tin Nhắn** | Blocking (Chậm) | **Non-blocking & Sync (Siêu nhanh)** |
 | **Rủi Ro Deadlock** | Rất cao | Gần như bằng 0 |
-| **Khả Năng Mở Rộng** | Kém | Tốt (Có thể scale thêm worker) |
+| **Code Logic** | Rắc rối (phải gom msg) | Gọn gàng (gửi thẳng trong closure) |
 
 Hy vọng tài liệu này giúp bạn hiểu rõ "chân tơ kẽ tóc" của hệ thống mạng mới!

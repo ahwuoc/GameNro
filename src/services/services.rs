@@ -1,3 +1,4 @@
+use crate::network::session::SessionArc;
 use crate::{
     constant::cmd::cmd,
     network::{
@@ -6,7 +7,6 @@ use crate::{
     },
     player::Player,
 };
-use crate::network::session::SessionArc;
 use anyhow::Result;
 
 pub struct ServiceHandles {}
@@ -14,7 +14,7 @@ impl ServiceHandles {
     pub async fn send_message_alert(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
         response.write_utf(text);
-        session.send_message(&response).await?;
+        session.transmit(response);
         Ok(())
     }
     pub async fn chat(session: &SessionArc, text: &str) -> Result<()> {
@@ -27,7 +27,7 @@ impl ServiceHandles {
         let mut response = Message::new(cmd::CHAT);
         response.write_int(player_id as i32)?;
         response.write_utf(text)?;
-        session.send_message(&response).await?;
+        session.transmit(response.clone());
         if let Some(zone) = zone {
             zone.send_message_to_other_players(player_id, response)
                 .await?;

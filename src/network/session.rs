@@ -70,7 +70,6 @@ impl SessionReader {
     }
 }
 
-/// Separate writer struct - can be locked independently
 pub struct SessionWriter {
     write_half: OwnedWriteHalf,
     keys: Vec<u8>,
@@ -166,7 +165,6 @@ impl SessionWriter {
     }
 }
 
-/// Session state (player data, user info, etc.) - separate from I/O
 pub struct SessionState {
     pub keys: Vec<u8>,
     pub sent_key: bool,
@@ -196,13 +194,11 @@ impl SessionState {
         }
     }
 }
-
-/// Main session struct with separate locks for reader, writer, and state
 pub struct AsyncSession {
     pub reader: Arc<Mutex<SessionReader>>,
     pub writer: Arc<Mutex<SessionWriter>>,
     pub state: Arc<RwLock<SessionState>>,
-    pub message_tx: Arc<RwLock<Option<mpsc::Sender<Message>>>>,
+    pub message_tx: Arc<std::sync::RwLock<Option<mpsc::Sender<Message>>>>,
 }
 
 impl AsyncSession {
@@ -224,7 +220,7 @@ impl AsyncSession {
                 sent_key: false,
             })),
             state: Arc::new(RwLock::new(SessionState::new(keys))),
-            message_tx: Arc::new(RwLock::new(None)),
+            message_tx: Arc::new(std::sync::RwLock::new(None)),
         }
     }
 
@@ -241,23 +237,27 @@ impl AsyncSession {
     }
 
     pub async fn set_message_channel(&self, tx: mpsc::Sender<Message>) {
-        let mut guard = self.message_tx.write().await;
-        *guard = Some(tx);
+        if let Ok(mut guard) = self.message_tx.write() {
+            *guard = Some(tx);
+        }
     }
 
-    pub async fn queue_message(&self, msg: Message) -> bool {
-        let guard = self.message_tx.read().await;
-        if let Some(tx) = guard.as_ref() {
-            match tx.try_send(msg) {
-                Ok(_) => true,
-                Err(mpsc::error::TrySendError::Full(_)) => {
-                    eprintln!("[WARN] Message queue full");
-                    false
+    pub fn transmit(&self, msg: Message) -> bool {
+        if let Ok(guard) = self.message_tx.read() {
+            if let Some(tx) = guard.as_ref() {
+                match tx.try_send(msg) {
+                    Ok(_) => true,
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        eprintln!("[WARN] Message queue full");
+                        false
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        // Suppress logs for closed channel to avoid spam on disconnect
+                        false
+                    }
                 }
-                Err(mpsc::error::TrySendError::Closed(_)) => {
-                    eprintln!("[WARN] Message channel closed");
-                    false
-                }
+            } else {
+                false
             }
         } else {
             false
@@ -286,11 +286,6 @@ impl AsyncSession {
         };
         let mut writer = self.writer.lock().await;
         writer.send_key(&keys).await
-    }
-
-    pub async fn send_message(&self, msg: &Message) -> io::Result<()> {
-        let mut writer = self.writer.lock().await;
-        writer.send_message(msg).await
     }
 
     pub async fn set_player(&self, player: RtPlayer) {

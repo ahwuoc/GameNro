@@ -2,9 +2,9 @@ use std::any::Any;
 
 use crate::data::data_game;
 use crate::database::DbManager;
-use crate::item::{item_template_manager, option_template_manager};
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
+use crate::templates::{item_template_manager, option_template_manager};
 use sea_orm::EntityTrait;
 pub struct ItemData;
 
@@ -26,12 +26,13 @@ impl ItemData {
         msg.write_byte(8)?;
         msg.write_byte(data_game::DataGame::VS_ITEM)?;
         msg.write_byte(0)?;
-        msg.write_byte(option_template_manager::get_all().len() as i8)?;
-        for opt in option_template_manager::get_all().iter() {
+        let options = option_template_manager::get_all();
+        msg.write_byte(options.len() as i8)?;
+        for opt in options.iter() {
             msg.write_utf(&opt.name)?;
             msg.write_byte(0)?;
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -76,7 +77,7 @@ impl ItemData {
                 msg.write_short(*val)?;
             }
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -99,7 +100,7 @@ impl ItemData {
                 msg.write_boolean(item_template.is_up_to_up != 0)?;
             }
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -128,7 +129,7 @@ impl ItemData {
                 msg.write_boolean(item.is_up_to_up != 0)?;
             }
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 }

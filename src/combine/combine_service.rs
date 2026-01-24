@@ -22,7 +22,7 @@ pub async fn open_tab_combine(
     msg.write_utf(&text_info)?;
     msg.write_utf(&text_top)?;
     msg.write_short(npc_id)?;
-    session.send_message(&msg).await?;
+    let _ = session.transmit(msg);
     Ok(())
 }
 pub async fn show_info_combine(session: &SessionArc, index: Vec<i16>) -> anyhow::Result<()> {

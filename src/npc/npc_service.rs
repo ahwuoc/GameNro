@@ -16,8 +16,8 @@ use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::santa::SantaHandler;
 use crate::npc::handlers::NpcHandler;
 use crate::npc::npc_manager;
-use crate::npc::npc_template_manager;
 use crate::npc::{BaseMenu, RtNpc};
+use crate::templates::npc_template_manager;
 use std::collections::HashMap;
 
 pub mod npc_service {
@@ -29,14 +29,14 @@ pub mod npc_service {
         let mut msg = Message::new(124);
         msg.write_short(npc_id)?;
         msg.write_utf(message)?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
     pub async fn hide_wait_dialog(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-99);
         msg.write_byte(-1);
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
     pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
@@ -154,7 +154,7 @@ pub mod npc_service {
         for option in menu_options {
             msg.write_utf(option)?;
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         session.set_player(player).await;
         Ok(())
     }

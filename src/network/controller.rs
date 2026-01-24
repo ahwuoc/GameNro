@@ -74,7 +74,7 @@ impl AsyncController {
                         let mut msg = Message::new(-41);
                         msg.write_byte(1);
                         msg.write_utf("Dau vuong cuong gia")?;
-                        session.send_message(&msg).await?;
+                        session.transmit(msg);
                     }
                     Err(e) => {
                         println!("Error reading byte {}", e);
@@ -102,8 +102,7 @@ impl AsyncController {
             6 => {
                 let type_shop = msg.read_byte()?;
                 let temp_id = msg.read_short()?;
-                if let Err(e) = shop_service::take_item_shop(&session, type_shop, temp_id).await
-                {
+                if let Err(e) = shop_service::take_item_shop(&session, type_shop, temp_id).await {
                     println!("Shop Error: {:?}", e);
                 }
                 Ok(())
@@ -240,8 +239,7 @@ impl AsyncController {
                 for _ in 0..len {
                     index_item.push(msg.read_byte()? as i16);
                 }
-                crate::combine::combine_service::show_info_combine(&session, index_item)
-                    .await?;
+                crate::combine::combine_service::show_info_combine(&session, index_item).await?;
                 Ok(())
             }
             _ => {
@@ -376,7 +374,7 @@ impl AsyncController {
 
                     let mut msg = Message::new(122);
                     msg.write_short(wait_time as i16)?;
-                    session.send_message(&msg).await?;
+                    session.transmit(msg);
                     return Ok(());
                 }
 
@@ -437,7 +435,7 @@ impl AsyncController {
                             }
                         }
 
-                        player_with_zone.session_arc = Some(session.clone());
+                        player_with_zone.session = Some(session.clone());
                         if let Some(zone) = &player_with_zone.zone {
                             if let Err(e) = zone.add_player(player_with_zone.clone()).await {
                                 println!("Error adding player to zone: {:?}", e);
@@ -490,7 +488,7 @@ impl AsyncController {
     async fn send_message_93(session: &SessionArc) -> Result<()> {
         let mut msg = Message::new(-93);
         msg.write_utf("1630679752231_-93_r")?;
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -619,8 +617,7 @@ impl AsyncController {
             .get_player()
             .await
             .ok_or(anyhow!("Player not set"))?;
-        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player)
-            .await?;
+        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player).await?;
         player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
 
         println!("Client ok enhanced initialization completed");

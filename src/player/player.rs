@@ -61,8 +61,7 @@ pub struct Player {
     pub task_id: i32,
     pub is_boss: bool,
     pub notify: Option<String>,
-    pub session: Option<Arc<RwLock<AsyncSession>>>,
-    pub session_arc: Option<SessionArc>,
+    pub session: Option<SessionArc>,
 }
 
 impl Player {
@@ -108,7 +107,6 @@ impl Player {
             is_boss: false,
             notify: None,
             session: None,
-            session_arc: None,
         }
     }
 
@@ -166,14 +164,9 @@ impl Player {
             58
         }
     }
-    pub async fn send_message(&self, msg: Message) -> anyhow::Result<()> {
-        if let Some(session) = &self.session_arc {
-            session.queue_message(msg).await;
-            return Ok(());
-        }
+    pub async fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(session) = &self.session {
-            let guard = session.read().await;
-            guard.queue_message(msg);
+            session.transmit(msg);
         }
         Ok(())
     }
@@ -274,7 +267,7 @@ impl Player {
         self.notify = None;
     }
 
-    pub fn set_session(&mut self, session: Arc<RwLock<AsyncSession>>) {
+    pub fn set_session(&mut self, session: SessionArc) {
         self.session = Some(session);
     }
 

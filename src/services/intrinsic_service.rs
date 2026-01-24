@@ -4,7 +4,7 @@ use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::npc_service;
 use crate::player::Player as RtPlayer;
-use crate::services::intrinsic_template_manager;
+use crate::templates::intrinsic_template_manager;
 use anyhow::Result;
 use rand::Rng;
 
@@ -31,7 +31,7 @@ impl IntrinsicService {
         msg.write_byte(0);
         msg.write_short(player_instrict.intrinsic.icon);
         msg.write_utf(&player_instrict.intrinsic.get_name());
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -47,7 +47,7 @@ impl IntrinsicService {
             msg.write_short(intrinsic.icon);
             msg.write_utf(&intrinsic.get_description());
         }
-        session.send_message(&msg).await?;
+        session.transmit(msg);
         Ok(())
     }
 
@@ -66,10 +66,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_confirm_open(
-        session: &SessionArc,
-        count_open: i8,
-    ) -> anyhow::Result<()> {
+    pub async fn show_confirm_open(session: &SessionArc, count_open: i8) -> anyhow::Result<()> {
         use crate::constant::menu_enum::MenuId;
 
         let index = if count_open as usize >= Self::COST_OPEN.len() {

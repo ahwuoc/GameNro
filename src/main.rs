@@ -16,6 +16,7 @@ mod npc;
 mod player;
 mod services;
 mod shop;
+mod templates;
 mod utils;
 use anyhow::Result;
 use config::Config;
@@ -26,21 +27,13 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
     DbManager::init(&config.database).await?;
 
-    {
-        let manager = services::Manager::get_instance();
-        let mut manager_guard = manager.lock().await;
-        if let Err(e) = manager_guard.init().await {
-            return Err(anyhow::anyhow!("Manager initialization failed: {:?}", e));
-        }
-        if let Err(e) = manager_guard.init_maps_world().await {
-            return Err(anyhow::anyhow!("Map world init failed: {:?}", e));
-        }
-        manager_guard.start_map_update_task();
-    }
+    services::manager::init().await?;
 
-    if let Err(e) = network::start_server(&config.server).await {
-        return Err(anyhow::anyhow!("Server failed: {:?}", e));
-    }
+    services::manager::init_maps_world().await?;
+
+    services::manager::start_map_update_task();
+
+    network::start_server(&config.server).await?;
 
     Ok(())
 }
