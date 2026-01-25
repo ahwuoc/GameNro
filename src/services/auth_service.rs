@@ -13,18 +13,24 @@ pub async fn create_new_player(
     account_id: i32,
     name: &str,
     gender: i32,
+    hair: i32,
 ) -> Result<player::Model, DbErr> {
     let db = DbManager::get_pool();
+    let home_map = match gender {
+        0 => 21,
+        1 => 22,
+        _ => 23,
+    };
     let player_data = player::ActiveModel {
         account_id: Set(Some(account_id)),
         name: Set(name.to_string()),
-        head: Set(102),
+        head: Set(hair as i16),
         gender: Set(gender),
-        have_tennis_space_ship: Set(Some(false)),
+        have_tennis_space_ship: Set(Some(true)),
         clan_id: Set(-1),
-        data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
-        data_location: Set(r#"[0, 300, 336]"#.to_string()),
-        data_point: Set(r#"[0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 100, 100]"#.to_string()),
+        data_inventory: Set(r#"[0, 0, 0, 0]"#.to_string()),
+        data_location: Set(format!(r#"[{0}, 300, 336]"#, home_map)),
+        data_point: Set(r#"[0, 0, 0, 100, 100, 100, 100, 10, 0, 0, 0, 0, 100, 100]"#.to_string()),
         data_magic_tree: Set(r#"[0, 0, 0, 0, 0]"#.to_string()),
         items_body: Set(r#"[]"#.to_string()),
         items_bag: Set(r#"[]"#.to_string()),
@@ -61,24 +67,38 @@ pub async fn create_new_player(
         data_item_event: Set(r#"[]"#.to_string()),
         data_luyentap: Set(r#"[]"#.to_string()),
         data_clan_task: Set(r#"[]"#.to_string()),
-        data_vip: Set(None),
+        data_vip: Set(Some(r#"[]"#.to_string())),
         rank: Set(0),
         data_achievement: Set(r#"[]"#.to_string()),
         giftcode: Set("".to_string()),
         event_point: Set(0),
-        data_event: Set(None),
-        data_badges: Set(None),
-        data_task_badges: Set(None),
+        data_event: Set(Some(r#"[]"#.to_string())),
+        data_badges: Set(Some(r#"[]"#.to_string())),
+        data_task_badges: Set(Some(r#"[]"#.to_string())),
         first_time_login: Set(Utc::now()),
-        bought_skill: Set(None),
-        learn_skill: Set(None),
-        daily_gift: Set(None),
+        bought_skill: Set(Some(r#"[]"#.to_string())),
+        learn_skill: Set(Some(r#"[]"#.to_string())),
+        daily_gift: Set(Some(r#"[]"#.to_string())),
         ..Default::default()
     };
 
     AccountDao::create_player(db, player_data).await
 }
 
+pub async fn name_is_taken(name: &str) -> anyhow::Result<()> {
+    let db = DbManager::get_pool();
+    let player_opt = player::Entity::find()
+        .filter(player::Column::Name.eq(name))
+        .one(db)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    if player_opt.is_some() {
+        return Err(anyhow::anyhow!("Tên nhân vật đã tồn tại"));
+    }
+
+    Ok(())
+}
 pub async fn update_account_last_login(account_id: i32) -> Result<account::Model, DbErr> {
     let db = DbManager::get_pool();
     if let Some(account_model) = account::Entity::find_by_id(account_id).one(db).await? {

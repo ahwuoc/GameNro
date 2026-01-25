@@ -165,19 +165,14 @@ impl MapService {
     /// Check if player can join map
     pub fn can_player_join_map(&self, player: &Player, map_id: i32) -> bool {
         if let Some(map) = self.get_map_by_id(map_id) {
-            // TODO: Implement async zone access
-            // For now, return false as zones are async
             false
         } else {
             false
         }
     }
 
-    /// Get best zone for player in map
     pub fn get_best_zone_for_player(&self, player: &Player, map_id: i32) -> Option<&Zone> {
         if let Some(map) = self.get_map_by_id(map_id) {
-            // TODO: Implement async zone access
-            // For now, return None as zones are async
             None
         } else {
             None

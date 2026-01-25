@@ -10,7 +10,7 @@ pub struct ItemTime {
 
     // Basic status flags
     pub is_use_bo_huyet: bool,
-    pub is_use_bo_khi: bool,            
+    pub is_use_bo_khi: bool,
     pub is_use_giap_xen: bool,
     pub is_use_cuong_no: bool,
     pub is_use_an_danh: bool,
@@ -27,9 +27,9 @@ impl ItemTime {
     pub fn new() -> Self {
         let now = Utc::now();
         Self {
-            const_time_item: 600000, // 10 minutes
+            const_time_item: 600000,         // 10 minutes
             const_time_open_power: 86400000, // 24 hours
-            
+
             is_use_bo_huyet: false,
             is_use_bo_khi: false,
             is_use_giap_xen: false,
@@ -46,7 +46,6 @@ impl ItemTime {
 
     /// Update item time effects
     pub fn update(&mut self) {
-        // Basic update logic
         if self.is_use_bo_huyet {
             if self.can_do_with_time(self.last_time_bo_huyet, self.const_time_item) {
                 self.is_use_bo_huyet = false;

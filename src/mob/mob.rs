@@ -23,6 +23,11 @@ pub struct RtMob {
     pub percent_dame: i16,
     pub last_time_attack_player: u64,
     pub temporary_enemies: Vec<u64>,
+    pub spawn_status: i8,
+    pub last_time_recovery: u64,
+    pub origin_x: i16,
+    pub origin_y: i16,
+    pub last_time_move: u64,
 }
 
 impl RtMob {
@@ -47,6 +52,11 @@ impl RtMob {
             percent_dame: 0,
             last_time_attack_player: 0,
             temporary_enemies: Vec::new(),
+            spawn_status: 5,
+            last_time_recovery: 0,
+            origin_x: 0,
+            origin_y: 0,
+            last_time_move: 0,
         }
     }
 
@@ -59,6 +69,7 @@ impl RtMob {
         mob.max_mp = 50;
         mob.mp = 50;
         mob.percent_dame = template.percent_dame;
+        mob.spawn_status = 5; // Default for now, can be overridden
         mob
     }
 
@@ -121,6 +132,8 @@ impl RtMob {
         self.zone_id = zone_id;
         self.location.set_map(map_id, zone_id);
         self.location.set_position(x, y);
+        self.origin_x = x;
+        self.origin_y = y;
     }
 
     pub fn get_x(&self) -> i16 {

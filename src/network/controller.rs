@@ -10,8 +10,8 @@ use crate::item::{type_item_inventory, use_item};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
-use crate::services::mob_service;
-use crate::services::{self, player_info_service, PlayerInfoService, ServiceHandles};
+use crate::services::{self, player_info_service, ServiceHandles};
+use crate::services::{auth_service, mob_service};
 use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
@@ -318,7 +318,6 @@ impl AsyncController {
         let password = msg.read_utf()?;
         session.set_version(version).await;
         Self::handle_login_authentication(session, &username, &password).await?;
-
         Ok(())
     }
 
@@ -482,7 +481,7 @@ impl AsyncController {
         Self::send_message_93(session).await?;
         DataGame::send_version_game(session).await?;
         DataGame::send_data_item_bg(session).await?;
-        PlayerInfoService::send_all_player_info(session).await?;
+        player_info_service::send_all_player_info(session).await?;
         Ok(())
     }
 
@@ -498,65 +497,25 @@ impl AsyncController {
         DataGame::send_version_game(session).await?;
         DataGame::send_tile_set_info(session).await?;
         DataGame::update_data(session).await?;
+        session.transmit(Message::new(2));
         Ok(())
     }
 
-    async fn handle_create_char(session: &SessionArc, mut msg: Message) -> Result<()> {
-        let sub_cmd = msg.read_byte()?;
-        if sub_cmd != 2 {
-            return Err(anyhow!("Invalid sub command"));
-        }
-
+    async fn handle_create_char(session: &SessionArc, mut msg: Message) -> anyhow::Result<()> {
         let name = msg.read_utf()?;
-        let gender = msg.read_byte()? as i32;
-        let hair = msg.read_byte()? as i32;
-        if !Self::is_valid_name(&name) {
-            return Err(anyhow!("Invalid character name"));
-        }
+        let gender = msg.read_byte()?;
+        let hair = msg.read_byte()?;
 
-        if Self::is_name_taken(&name)
-            .await
-            .map_err(|_| anyhow!("Name check failed"))?
-        {
-            return Err(anyhow!("Character name already taken"));
+        if name.len() < 5 || name.len() > 12 {
+            return Err(anyhow!("Tên nhân vật phải từ 5 đến 12 ký tự"));
         }
-
-        if Self::is_ignored_name(&name) {
-            return Err(anyhow!("Character name not allowed"));
-        }
+        auth_service::name_is_taken(&name).await?;
 
         let account_id = session.get_user_id().await.unwrap_or(0);
         let db = DbManager::get_pool();
 
-        let player_result = {
-            let player_data = player::ActiveModel {
-                account_id: Set(Some(account_id)),
-                name: Set(name.to_string()),
-                head: Set(hair as i16),
-                gender: Set(gender),
-                have_tennis_space_ship: Set(Some(true)),
-                data_inventory: Set(r#"{"gold": 0, "gem": 0, "ruby": 0}"#.to_string()),
-                data_location: Set(r#"[0, 300, 336]"#.to_string()),
-                data_point: Set(r#"[0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 100, 100]"#.to_string()),
-                data_magic_tree: Set(r#"[0, 0, 0, 0, 0]"#.to_string()),
-                items_body: Set(r#"[]"#.to_string()),
-                items_bag: Set(r#"[]"#.to_string()),
-                items_box: Set(r#"[]"#.to_string()),
-                items_box_lucky_round: Set(r#"[]"#.to_string()),
-                friends: Set(r#"[]"#.to_string()),
-                enemies: Set(r#"[]"#.to_string()),
-                data_intrinsic: Set(r#"[]"#.to_string()),
-                data_item_time: Set(r#"[]"#.to_string()),
-                data_task: Set(r#"[]"#.to_string()),
-                data_mabu_egg: Set(r#"[]"#.to_string()),
-                data_charm: Set(r#"[]"#.to_string()),
-                skills: Set(r#"[]"#.to_string()),
-                skills_shortcut: Set(r#"[]"#.to_string()),
-                pet: Set(r#"[]"#.to_string()),
-                ..Default::default()
-            };
-            AccountDao::create_player(db, player_data).await
-        };
+        let player_result =
+            auth_service::create_new_player(account_id, &name, gender as i32, hair as i32).await;
 
         match player_result {
             Ok(db_player) => {
@@ -565,7 +524,6 @@ impl AsyncController {
                     .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
 
-                // Fetch account to pass to initialize logic
                 if let Ok(Some(account)) = AccountDao::get_account_by_id(db, account_id).await {
                     Self::initialize_logged_in_session(session, account, rt_player).await?;
                 } else {
@@ -619,27 +577,18 @@ impl AsyncController {
     }
 
     async fn handle_client_ok_enhanced(session: &SessionArc) -> anyhow::Result<()> {
-        let player = session
-            .get_player()
-            .await
-            .ok_or(anyhow!("Player not set"))?;
-        player_info_service::PlayerInfoService::send_player_blob_internal(session, &player).await?;
-        player_info_service::PlayerInfoService::send_cai_trang(session, &player).await?;
-
-        println!("Client ok enhanced initialization completed");
+        let player_opt = session.get_player().await;
+        if let Some(player) = player_opt {
+            player_info_service::send_player_blob_internal(session, &player).await?;
+            player_info_service::send_cai_trang(session, &player).await?;
+            println!(
+                "Client ok enhanced initialization completed for player: {}",
+                player.name
+            );
+        } else {
+            println!("Client ok enhanced: Player not set yet, ignoring");
+        }
         Ok(())
-    }
-
-    fn is_valid_name(name: &str) -> bool {
-        name.len() >= 3 && name.len() <= 20
-    }
-
-    async fn is_name_taken(_name: &str) -> Result<bool> {
-        Ok(false)
-    }
-
-    fn is_ignored_name(_name: &str) -> bool {
-        false
     }
 
     async fn handle_player_move(session: &SessionArc, mut msg: Message) -> Result<()> {

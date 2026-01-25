@@ -11,12 +11,12 @@ use crate::templates::intrinsic_template_manager;
 use crate::utils::skill_util;
 use crate::{data, entities};
 use anyhow::Result;
-use chrono::format::Item;
 use chrono::TimeZone;
+use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct SkillData {
     id: i32,
@@ -25,7 +25,7 @@ struct SkillData {
     curr_level: i16,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 struct IntrinsicData {
     #[serde(default)]
     intrinsic_id: i32,
@@ -36,7 +36,7 @@ struct IntrinsicData {
     #[serde(default)]
     count_open: i8,
 }
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 struct PointData {
     #[serde(default)]
     limit_power: i8,
@@ -67,7 +67,7 @@ struct PointData {
     #[serde(default)]
     pl_mp: i32,
 }
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct InventoryData {
     #[serde(default)]
     gold: i64,
@@ -255,6 +255,112 @@ pub async fn from_entity(model: &entities::player::Model) -> Result<Player, Stri
     Ok(p)
 }
 
+pub fn to_active_model(p: &Player) -> player::ActiveModel {
+    use sea_orm::ActiveValue::Set;
+
+    let data_inventory = serde_json::to_string(&vec![
+        p.inventory.gold,
+        p.inventory.gem as i64,
+        p.inventory.ruby as i64,
+        0, // coupon
+    ])
+    .unwrap_or_else(|_| "[0,0,0,0]".to_string());
+
+    let data_location = serde_json::to_string(&vec![
+        p.map_id as i64,
+        p.location.x as i64,
+        p.location.y as i64,
+    ])
+    .unwrap_or_else(|_| "[0,0,0]".to_string());
+
+    let data_point = serde_json::to_string(&vec![
+        p.n_point.limit_power as i64,
+        p.n_point.power as i64,
+        p.n_point.tiem_nang as i64,
+        p.n_point.stamina as i64,
+        p.n_point.max_stamina as i64,
+        p.n_point.hpg as i64,
+        p.n_point.mpg as i64,
+        p.n_point.dameg as i64,
+        p.n_point.defg as i64,
+        p.n_point.critg as i64,
+        0, // crit_max/dragon
+        0, // nang_dong
+        p.n_point.hp as i64,
+        p.n_point.mp as i64,
+    ])
+    .unwrap_or_else(|_| "[]".to_string());
+
+    let items_body = serde_json::to_string(&map_items_to_json(&p.inventory.items_body))
+        .unwrap_or_else(|_| "[]".to_string());
+    let items_bag = serde_json::to_string(&map_items_to_json(&p.inventory.items_bag))
+        .unwrap_or_else(|_| "[]".to_string());
+    let items_box = serde_json::to_string(&map_items_to_json(&p.inventory.items_box))
+        .unwrap_or_else(|_| "[]".to_string());
+
+    let skills: Vec<SkillData> = p
+        .player_skill
+        .skills
+        .iter()
+        .map(|s| SkillData {
+            id: s.template_id,
+            point: s.point as i32,
+            last_time_use: s.last_time_use,
+            curr_level: s.curr_level,
+        })
+        .collect();
+    let skills_str = serde_json::to_string(&skills).unwrap_or_else(|_| "[]".to_string());
+
+    let skills_shortcut_str = serde_json::to_string(&p.player_skill.skill_shortcut.to_vec())
+        .unwrap_or_else(|_| "[]".to_string());
+
+    player::ActiveModel {
+        id: Set(p.id as i32),
+        name: Set(p.name.clone()),
+        head: Set(p.head),
+        gender: Set(p.gender as i32),
+        data_inventory: Set(data_inventory),
+        data_location: Set(data_location),
+        data_point: Set(data_point),
+        items_body: Set(items_body),
+        items_bag: Set(items_bag),
+        items_box: Set(items_box),
+        skills: Set(skills_str),
+        skills_shortcut: Set(skills_shortcut_str),
+        ..Default::default()
+    }
+}
+
+fn map_items_to_json(items: &[RtItem]) -> Vec<ItemDataJson> {
+    items
+        .iter()
+        .map(|item| {
+            if let Some(tpl) = &item.template {
+                ItemDataJson {
+                    id: tpl.id as i32,
+                    quantity: item.quantity,
+                    options: item
+                        .item_options
+                        .iter()
+                        .map(|opt| ItemOptionJson {
+                            id: opt.option_id as i32,
+                            value: opt.param as i32,
+                        })
+                        .collect(),
+                    create_time: item.create_time.timestamp_millis(),
+                }
+            } else {
+                ItemDataJson {
+                    id: -1,
+                    quantity: 0,
+                    options: vec![],
+                    create_time: 0,
+                }
+            }
+        })
+        .collect()
+}
+
 fn parse_raw_skills(s: &str) -> anyhow::Result<Vec<SkillData>> {
     if s.is_empty() {
         return Ok(Vec::new());
@@ -272,9 +378,29 @@ fn parse_location_array(s: &str) -> anyhow::Result<(i32, i16, i16), String> {
 }
 
 fn parse_point_array(s: &str) -> anyhow::Result<PointData> {
-    let data: PointData = serde_json::from_str(s)
-        .map_err(|e| anyhow::anyhow!("Failed to parse point data: {}", e))?;
-    Ok(data)
+    if s.is_empty() || s == "[]" {
+        return Ok(PointData::default());
+    }
+
+    let array: Vec<serde_json::Value> = serde_json::from_str(s)
+        .map_err(|e| anyhow::anyhow!("Failed to parse point data array: {}", e))?;
+
+    Ok(PointData {
+        limit_power: array.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as i8,
+        power: array.get(1).and_then(|v| v.as_i64()).unwrap_or(0) as i64,
+        tiem_nang: array.get(2).and_then(|v| v.as_i64()).unwrap_or(0) as i64,
+        stamina: array.get(3).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
+        max_stamina: array.get(4).and_then(|v| v.as_i64()).unwrap_or(0) as i16,
+        hp_goc: array.get(5).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        mp_goc: array.get(6).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        damege_goc: array.get(7).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        defen_goc: array.get(8).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        crit_goc: array.get(9).and_then(|v| v.as_i64()).unwrap_or(0) as i8,
+        crit_max: array.get(10).and_then(|v| v.as_i64()).unwrap_or(0) as i8,
+        nang_dong: array.get(11).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        pl_hp: array.get(12).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        pl_mp: array.get(13).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+    })
 }
 fn parse_intrinsic_array(s: &str) -> anyhow::Result<IntrinsicData> {
     if s.is_empty() || s == "[]" {
@@ -298,13 +424,13 @@ struct ItemDataParsed {
     created: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct ItemOptionJson {
     id: i32,
     value: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct ItemDataJson {
     id: i32,
     #[serde(default)]

@@ -4,6 +4,7 @@ use crate::network::message::Message;
 use crate::player::player::Player;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Xử lý khi người chơi tấn công quái
 pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     if let Some(zone) = &player.zone {
         let msg_opt = {
@@ -18,6 +19,7 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                     "[MOB_SERVICE] Player {} attacked mob {} for {} damage (HP: {} -> {})",
                     player.name, mob_id, real_damage, old_hp, new_hp
                 );
+
                 if !mob.is_dead() {
                     Some(build_mob_alive_message(
                         mob.id as i8,
@@ -26,14 +28,7 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                         false,
                     ))
                 } else {
-                    mob.status = 0;
-                    mob.is_alive = false;
-                    mob.temporary_enemies.clear();
-                    mob.last_time_die = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis() as u64;
-
+                    handle_mob_death(mob);
                     Some(build_mob_die_message(mob.id as i8, real_damage, false))
                 }
             } else {
@@ -47,90 +42,168 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     }
 }
 
+/// Cập nhật logic của quái trong Zone (hồi sinh, tấn công, hồi máu)
 pub async fn update(zone: &Zone) {
-    let current_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-    let mut msgs = Vec::new();
-    let mut player_specific_msgs = Vec::new(); // Messages for specific players
+    let current_time = get_current_time();
+    let mut global_msgs = Vec::new();
+    let mut player_specific_msgs = Vec::new();
 
     {
         let mut mobs = zone.active_mobs.write().await;
         for mob in mobs.iter_mut() {
             if !mob.is_alive {
-                if current_time > mob.last_time_die + 3000 {
-                    mob.is_alive = true;
-                    mob.hp = mob.max_hp;
-                    mob.status = 5;
-                    msgs.push(build_mob_respawn_message(
-                        mob.id as i8,
-                        mob.template_id,
-                        mob.hp,
-                    ));
-                    println!("[MOB_SERVICE] Mob {} respawned at HP {}", mob.id, mob.hp);
-                }
+                handle_respawn(mob, current_time, &mut global_msgs);
             } else {
-                if current_time > mob.last_time_attack_player + 2000 {
-                    let mut target_id = None;
-                    for entry in zone.players.iter() {
-                        let player = entry.value();
-                        if !player.is_die() {
-                            let dx = (mob.location.x - player.location.x) as i32;
-                            let dy = (mob.location.y - player.location.y) as i32;
-                            let dist = ((dx * dx + dy * dy) as f32).sqrt();
-                            let limit = if mob.temporary_enemies.contains(&player.id) {
-                                300.0
-                            } else {
-                                100.0
-                            };
-                            if dist.sqrt() <= limit {
-                                target_id = Some(player.id);
-                                break;
-                            }
-                        }
-                    }
-
-                    if let Some(pid) = target_id {
-                        if let Some(mut p_entry) = zone.players.get_mut(&pid) {
-                            let player = p_entry.value_mut();
-                            mob.last_time_attack_player = current_time;
-                            let dame_mob = mob.get_dame_attack();
-                            let damage_taken = player.injured(dame_mob as u64, false);
-
-                            println!(
-                                "[MOB_SERVICE] Mob {} attacked Player {} for {} damage (HP: {} -> {})",
-                                mob.id, player.name, damage_taken, player.n_point.hp as i64 + damage_taken as i64, player.n_point.hp
-                            );
-
-                            let msg_me =
-                                build_mob_attack_me_message(mob.id as i8, damage_taken as i32);
-                            player_specific_msgs.push((player.id, msg_me));
-
-                            let msg_other = build_mob_attack_player_message(
-                                mob.id as i8,
-                                player.id as i32,
-                                player.n_point.hp as i32,
-                            );
-                            msgs.push(msg_other);
-                        }
-                    }
-                }
+                handle_ai_attack(
+                    mob,
+                    zone,
+                    current_time,
+                    &mut global_msgs,
+                    &mut player_specific_msgs,
+                )
+                .await;
+                handle_self_recovery(mob, current_time, &mut global_msgs);
             }
         }
     }
 
-    for msg in msgs {
-        let _ = zone.send_message_to_all_players(msg).await;
+    broadcast_messages(zone, global_msgs, player_specific_msgs).await;
+}
+
+fn handle_mob_death(mob: &mut RtMob) {
+    mob.status = 0;
+    mob.is_alive = false;
+    mob.temporary_enemies.clear();
+    mob.last_time_die = get_current_time();
+}
+
+fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
+    if current_time > mob.last_time_die + 3000 {
+        mob.is_alive = true;
+        mob.hp = mob.max_hp;
+        mob.status = mob.spawn_status;
+        msgs.push(build_mob_respawn_message(
+            mob.id as i8,
+            mob.template_id,
+            mob.hp,
+        ));
+        println!("[MOB_SERVICE] Mob {} respawned at HP {}", mob.id, mob.hp);
     }
-    for (player_id, msg) in player_specific_msgs {
-        if let Some(p_entry) = zone.players.get(&player_id) {
-            let player = p_entry.value();
-            let _ = player.send_to_client(msg);
+}
+
+fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
+    if current_time > mob.last_time_recovery + 30000 {
+        mob.last_time_recovery = current_time;
+        if mob.hp < mob.max_hp {
+            let recover_amount = mob.max_hp / 10;
+            mob.hp = (mob.hp + recover_amount).min(mob.max_hp);
+
+            msgs.push(build_mob_alive_message(
+                mob.id as i8,
+                mob.hp,
+                recover_amount,
+                false,
+            ));
+            println!(
+                "[MOB_SERVICE] Mob {} recovered {} HP (Current HP: {})",
+                mob.id, recover_amount, mob.hp
+            );
+        } else {
+            // Nếu đã đầy máu, gửi tin refresh thông tin quái cho Client
+            msgs.push(build_mob_respawn_message(
+                mob.id as i8,
+                mob.template_id,
+                mob.hp,
+            ));
         }
     }
 }
 
+/// Xử lý trí tuệ nhân tạo (AI) - Quái tìm và tấn công người chơi
+async fn handle_ai_attack(
+    mob: &mut RtMob,
+    zone: &Zone,
+    current_time: u64,
+    global_msgs: &mut Vec<Message>,
+    player_msgs: &mut Vec<(u64, Message)>,
+) {
+    if current_time > mob.last_time_attack_player + 2000 {
+        let target_id = find_target_in_range(mob, zone);
+
+        if let Some(pid) = target_id {
+            if let Some(mut p_entry) = zone.players.get_mut(&pid) {
+                let player = p_entry.value_mut();
+                mob.last_time_attack_player = current_time;
+
+                let damage = mob.get_dame_attack();
+                let damage_taken = player.injured(damage as u64, false);
+
+                println!(
+                    "[MOB_SERVICE] Mob {} attacked Player {} for {} damage (HP: {} -> {})",
+                    mob.id,
+                    player.name,
+                    damage_taken,
+                    player.n_point.hp as i64 + damage_taken as i64,
+                    player.n_point.hp
+                );
+
+                player_msgs.push((
+                    player.id,
+                    build_mob_attack_me_message(mob.id as i8, damage_taken as i32),
+                ));
+                global_msgs.push(build_mob_attack_player_message(
+                    mob.id as i8,
+                    player.id as i32,
+                    player.n_point.hp as i32,
+                ));
+            }
+        }
+    }
+}
+
+fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
+    for entry in zone.players.iter() {
+        let player = entry.value();
+        if !player.is_die() {
+            let dx = (mob.location.x - player.location.x) as i32;
+            let dy = (mob.location.y - player.location.y) as i32;
+            let dist = ((dx * dx + dy * dy) as f32).sqrt();
+
+            let limit = if mob.temporary_enemies.contains(&player.id) {
+                300.0 // Phạm vi đuổi theo kẻ thù
+            } else {
+                100.0 // Phạm vi tấn công mặc định
+            };
+
+            if dist <= limit {
+                return Some(player.id);
+            }
+        }
+    }
+    None
+}
+
+async fn broadcast_messages(
+    zone: &Zone,
+    global_msgs: Vec<Message>,
+    player_msgs: Vec<(u64, Message)>,
+) {
+    for msg in global_msgs {
+        let _ = zone.send_message_to_all_players(msg).await;
+    }
+    for (player_id, msg) in player_msgs {
+        if let Some(entry) = zone.players.get(&player_id) {
+            let _ = entry.value().send_to_client(msg).await;
+        }
+    }
+}
+
+fn get_current_time() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
 pub fn build_mob_attack_me_message(mob_id: i8, damage: i32) -> Message {
     let mut msg = Message::new(-11);
     let _ = msg.write_byte(mob_id);
@@ -162,7 +235,6 @@ pub fn build_mob_die_message(mob_id: i8, damage: i32, is_crit: bool) -> Message 
     let _ = msg.write_int(damage);
     let _ = msg.write_bool(is_crit);
     let _ = msg.write_byte(0); // item count
-                               // TODO: Add items
     msg
 }
 

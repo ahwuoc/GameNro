@@ -56,6 +56,7 @@ pub use super::skill_template::Entity as SkillTemplate;
 pub use super::small_version::Entity as SmallVersion;
 pub use super::tab_shop::Entity as TabShop;
 pub use super::task_main_template::Entity as TaskMainTemplate;
+pub use super::task_sub_template::Entity as TaskSubTemplate;
 pub use super::tb_transactions::Entity as TbTransactions;
 pub use super::type_item::Entity as TypeItem;
 pub use super::type_map::Entity as TypeMap;

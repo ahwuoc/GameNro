@@ -59,6 +59,7 @@ pub mod skill_template;
 pub mod small_version;
 pub mod tab_shop;
 pub mod task_main_template;
+pub mod task_sub_template;
 pub mod tb_transactions;
 pub mod type_item;
 pub mod type_map;

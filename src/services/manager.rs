@@ -4,6 +4,7 @@ use crate::map::map_manager;
 use crate::templates::{
     head_avatar_manager, intrinsic_template_manager, item_template_manager, map_template_manager,
     mob_template_manager, npc_template_manager, option_template_manager, skill_template_manager,
+    task_template_manager,
 };
 use sea_orm::{ConnectionTrait, DatabaseBackend, QueryResult, Statement};
 use serde_json::Value as JsonValue;
@@ -25,6 +26,9 @@ pub async fn init() -> Result<()> {
     skill_template_manager::load(&pool).await?;
     npc_template_manager::load(&pool).await?;
     intrinsic_template_manager::load(&pool).await?;
+    task_template_manager::TASK_TEMPLATE_MANAGER
+        .init(&pool)
+        .await?;
 
     if let Err(e) = load_part_update_data().await {
         eprintln!("Failed to load part update data: {:?}", e);

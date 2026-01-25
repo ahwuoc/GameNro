@@ -18,6 +18,12 @@ pub struct MobSpawn {
     pub hp: i32,
     pub x: i16,
     pub y: i16,
+    #[serde(default = "default_status")]
+    pub status: i8,
+}
+
+fn default_status() -> i8 {
+    5
 }
 
 impl MobSpawn {
@@ -145,6 +151,8 @@ impl Map {
                 if let Some(template) = mob_template_manager::get(mob.temp_id as i8) {
                     let mut rt_mob = RtMob::from_template(template.clone(), idx as u64);
                     rt_mob.set_location(self.info.id, zone_index.try_into().unwrap(), mob.x, mob.y);
+                    rt_mob.spawn_status = mob.status;
+                    rt_mob.status = mob.status;
                     if mob.level > 0 {
                         rt_mob.level = mob.level as i8;
                     }

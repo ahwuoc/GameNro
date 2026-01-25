@@ -2,7 +2,6 @@ use crate::constant::menu_enum::MenuId;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::handlers::NpcHandler;
 use crate::npc::npc_service;
-use crate::services::player_info_service::PlayerInfoService;
 use crate::services::ServiceHandles;
 use crate::shop::shop_services::shop_service;
 
