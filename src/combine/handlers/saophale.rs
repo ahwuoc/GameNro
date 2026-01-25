@@ -1,18 +1,25 @@
+use crate::network::session::SessionArc;
 use crate::{
     combine::{combine_type::CombineType, CombineHandler},
     constant::{const_npc, menu_enum::MenuId},
     network::session::AsyncSession,
     npc::{handlers::bahatmit, npc_service},
 };
-use crate::network::session::SessionArc;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SaoPhaLe;
 #[async_trait::async_trait]
 impl CombineHandler for SaoPhaLe {
     async fn show_info_combine(&self, session: &SessionArc) -> anyhow::Result<()> {
-        let player = session.get_player().await.unwrap();
-        if player.combine_new.items_combine.is_empty() {
+        let is_empty = session
+            .get_player_ref(|player| {
+                player
+                    .map(|p| p.combine_new.items_combine.is_empty())
+                    .unwrap_or(true)
+            })
+            .await;
+
+        if is_empty {
             return Ok(());
         }
         let menu_items = vec!["Ep", "Tu Chon"];

@@ -507,7 +507,6 @@ impl ChangeMapService {
         false
     }
 
-    /// Check if player can change zone now (cooldown check)
     fn can_change_zone_now(_player: &Player) -> bool {
         true
     }
@@ -520,8 +519,8 @@ impl ChangeMapService {
             player.zone.as_ref().map(|z| z.zone_id)
         );
 
-        if player.zone.is_none() && player.map_id == 0 {
-            println!("[WAYPOINT] Player has no zone and map_id is 0, returning InvalidPlayerZone");
+        if player.zone.is_none() {
+            println!("[WAYPOINT] Player has no zone, returning InvalidPlayerZone");
             return WaypointChangeResult::InvalidPlayerZone;
         }
         let waypoint = self.get_waypoint_at_player_position(player).await;
@@ -954,7 +953,6 @@ impl ChangeMapService {
         None
     }
 
-    /// Calculate random x position for landing
     fn calculate_random_x_position(map_width: i32) -> i16 {
         use std::time::SystemTime;
         let usable = (map_width.max(200) - 200) as u32;

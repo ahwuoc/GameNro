@@ -376,11 +376,11 @@ impl Zone {
             let _ = msg.write_byte(count)?;
             for npc in npcs_for_map.into_iter().take(count as usize) {
                 let status: i8 = 1;
-                let avatar: i16 = avatar_lookup.get(&npc.id).cloned().unwrap_or(0) as i16;
+                let avatar: i16 = avatar_lookup.get(&npc.temp_id).cloned().unwrap_or(0) as i16;
                 msg.write_byte(status)?;
                 msg.write_short(npc.x)?;
                 msg.write_short(npc.y)?;
-                msg.write_byte(npc.id as i8)?;
+                msg.write_byte(npc.temp_id as i8)?;
                 msg.write_short(avatar)?;
             }
         }

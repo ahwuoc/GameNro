@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MobSpawn {
-    pub template: i32,
+    pub temp_id: i32,
     pub level: i32,
     pub hp: i32,
     pub x: i16,
@@ -22,122 +22,26 @@ pub struct MobSpawn {
 
 impl MobSpawn {
     pub fn parse(json_str: &str) -> Vec<Self> {
-        let mut mobs = Vec::new();
         if json_str.is_empty() {
-            return mobs;
+            return Vec::new();
         }
-
-        let outer_json: Value = match serde_json::from_str(json_str) {
-            Ok(v) => v,
-            Err(_) => {
-                let cleaned = json_str.replace('\"', "");
-                serde_json::from_str(&cleaned).unwrap_or(Value::Array(vec![]))
-            }
-        };
-
-        if let Some(arr) = outer_json.as_array() {
-            for element in arr {
-                let inner_value = match element {
-                    Value::String(s) => serde_json::from_str::<Value>(s).ok(),
-                    _ => Some(element.clone()),
-                };
-
-                if let Some(val) = inner_value {
-                    if let Ok(mob) = serde_json::from_value::<MobSpawn>(val.clone()) {
-                        mobs.push(mob);
-                        continue;
-                    }
-                    let t = val
-                        .get("template")
-                        .and_then(|v| v.as_i64())
-                        .map(|v| v as i32);
-                    let l = val.get("level").and_then(|v| v.as_i64()).map(|v| v as i32);
-                    let h = val.get("hp").and_then(|v| v.as_i64()).map(|v| v as i32);
-                    let x = val.get("x").and_then(|v| v.as_i64()).map(|v| v as i16);
-                    let y = val.get("y").and_then(|v| v.as_i64()).map(|v| v as i16);
-
-                    if let (Some(template), Some(level), Some(hp), Some(x), Some(y)) =
-                        (t, l, h, x, y)
-                    {
-                        mobs.push(MobSpawn {
-                            template,
-                            level,
-                            hp,
-                            x,
-                            y,
-                        });
-                        continue;
-                    }
-
-                    // Fallback to array format
-                    if let Some(ma) = val.as_array() {
-                        if ma.len() >= 5 {
-                            let template = ma[0].as_i64().unwrap_or(0) as i32;
-                            let level = ma[1].as_i64().unwrap_or(1) as i32;
-                            let hp = ma[2].as_i64().unwrap_or(0) as i32;
-                            let x = ma[3].as_i64().unwrap_or(0) as i16;
-                            let y = ma[4].as_i64().unwrap_or(0) as i16;
-                            mobs.push(MobSpawn {
-                                template,
-                                level,
-                                hp,
-                                x,
-                                y,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        mobs
+        serde_json::from_str(json_str).unwrap_or_default()
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NpcSpawn {
-    pub id: i32,
+    pub temp_id: i32,
     pub x: i16,
     pub y: i16,
 }
 
 impl NpcSpawn {
     pub fn parse(json_str: &str) -> Vec<Self> {
-        let mut npcs = Vec::new();
         if json_str.is_empty() {
-            return npcs;
+            return Vec::new();
         }
-
-        let cleaned = json_str.replace('\"', "");
-        if let Ok(json) = serde_json::from_str::<Value>(&cleaned) {
-            if let Some(arr) = json.as_array() {
-                for nv in arr {
-                    match nv {
-                        Value::Array(a) => {
-                            if a.len() >= 3 {
-                                let id = a[0].as_i64().unwrap_or(0) as i32;
-                                let x = a[1].as_i64().unwrap_or(0) as i16;
-                                let y = a[2].as_i64().unwrap_or(0) as i16;
-                                npcs.push(NpcSpawn { id, x, y });
-                            }
-                        }
-                        Value::String(s) => {
-                            if let Ok(val) = serde_json::from_str::<Value>(s) {
-                                if let Some(a) = val.as_array() {
-                                    if a.len() >= 3 {
-                                        let id = a[0].as_i64().unwrap_or(0) as i32;
-                                        let x = a[1].as_i64().unwrap_or(0) as i16;
-                                        let y = a[2].as_i64().unwrap_or(0) as i16;
-                                        npcs.push(NpcSpawn { id, x, y });
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-        npcs
+        serde_json::from_str(json_str).unwrap_or_default()
     }
 }
 
@@ -238,7 +142,7 @@ impl Map {
         let zones = self.zones.read().await;
         for (zone_index, zone) in zones.iter().enumerate() {
             for (idx, mob) in self.info.mobs.iter().enumerate() {
-                if let Some(template) = mob_template_manager::get(mob.template as i8) {
+                if let Some(template) = mob_template_manager::get(mob.temp_id as i8) {
                     let mut rt_mob = RtMob::from_template(template.clone(), idx as u64);
                     rt_mob.set_location(self.info.id, zone_index.try_into().unwrap(), mob.x, mob.y);
                     if mob.level > 0 {
@@ -264,9 +168,6 @@ impl Map {
         Ok(())
     }
 
-    pub async fn add_waypoint(&self, _wp: WayPoint) {}
-
-    /// Get waypoint at position
     pub fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
         for waypoint in self.info.waypoints.iter() {
             if waypoint.contains_position(x, y) {

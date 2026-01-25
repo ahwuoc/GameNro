@@ -17,6 +17,12 @@ impl AccountDao {
 
         Ok(account)
     }
+    pub async fn get_account_by_id(
+        pool: &DatabaseConnection,
+        id: i32,
+    ) -> Result<Option<account::Model>, DbErr> {
+        account::Entity::find_by_id(id).one(pool).await
+    }
     pub async fn get_player_by_account_id(
         pool: &DatabaseConnection,
         account_id: i32,

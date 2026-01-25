@@ -214,7 +214,7 @@ impl AsyncController {
             }
             -63 => Ok(()),
             112 => {
-                if session.get_player().await.is_some() {
+                if session.get_player_ref(|p| p.is_some()).await {
                     services::IntrinsicService::show_menu(&session).await?;
                 }
                 Ok(())
@@ -275,9 +275,6 @@ impl AsyncController {
                 let username = msg.read_utf()?;
                 let password = msg.read_utf()?;
                 session.set_version(240).await;
-                session
-                    .set_credentials(username.clone(), password.clone())
-                    .await;
                 Self::handle_login_authentication(session, &username, &password).await?;
             }
 
@@ -319,12 +316,82 @@ impl AsyncController {
         let version = msg.read_int()?;
         let username = msg.read_utf()?;
         let password = msg.read_utf()?;
-        session
-            .set_credentials(username.clone(), password.clone())
-            .await;
         session.set_version(version).await;
         Self::handle_login_authentication(session, &username, &password).await?;
 
+        Ok(())
+    }
+
+    async fn initialize_logged_in_session(
+        session: &SessionArc,
+        account: account::Model,
+        mut player_with_zone: crate::player::Player,
+    ) -> Result<()> {
+        let player_id = player_with_zone.id;
+        player_with_zone.is_admin = account.is_admin;
+
+        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
+        if has_old_session {
+            println!(
+                "[LOGIN] Found old session for player {}, kicking old session",
+                player_id
+            );
+            (&*SESSION_MANAGER)
+                .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
+                .await;
+            println!(
+                "[LOGIN] Old session kicked, allowing new login for player {}",
+                player_id
+            );
+        }
+
+        {
+            let pool = DbManager::get_pool();
+            let mut account_data = account.into_active_model();
+            account_data.last_time_login = Set(Some(Utc::now()));
+            AccountDao::update_account(&pool, account_data).await?;
+        }
+
+        {
+            let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
+            if let Some(zone) = zone_manager
+                .get_best_zone(player_with_zone.map_id as i32)
+                .await
+            {
+                player_with_zone.set_zone(zone);
+            } else {
+                println!(
+                    "[LOGIN] No zone found for map {}, creating default zone",
+                    player_with_zone.map_id
+                );
+                let default_zone = crate::map::Zone::new(
+                    player_with_zone.map_id as i32,
+                    player_with_zone.zone_id as i32,
+                    100,
+                );
+                player_with_zone.set_zone(default_zone);
+            }
+        }
+
+        player_with_zone.session = Some(session.clone());
+        if let Some(zone) = &player_with_zone.zone {
+            if let Err(e) = zone.add_player(player_with_zone.clone()).await {
+                println!("Error adding player to zone: {:?}", e);
+            } else {
+                println!(
+                    "Player {} added to zone {} map {}",
+                    player_with_zone.name, zone.zone_id, zone.map_id
+                );
+            }
+        }
+
+        session.set_player(player_with_zone.clone()).await;
+        {
+            (&*SESSION_MANAGER)
+                .add_session(player_id as i64, session.clone())
+                .await;
+        }
+        Self::send_login_success_data(session).await?;
         Ok(())
     }
 
@@ -386,74 +453,8 @@ impl AsyncController {
                         let rt_player = crate::player::player_mapper::from_entity(&db_player)
                             .await
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
-                        let mut player_with_zone = rt_player.clone();
-                        player_with_zone.is_admin = account.is_admin;
 
-                        let player_id = player_with_zone.id;
-                        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
-
-                        if has_old_session {
-                            println!(
-                                "[LOGIN] Found old session for player {}, kicking old session",
-                                player_id
-                            );
-
-                            (&*SESSION_MANAGER)
-                                .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
-                                .await;
-
-                            println!(
-                                "[LOGIN] Old session kicked, allowing new login for player {}",
-                                player_id
-                            );
-                        }
-
-                        {
-                            let mut account_data = account.into_active_model();
-                            account_data.last_time_login = Set(Some(Utc::now()));
-                            AccountDao::update_account(&pool, account_data).await?;
-                        }
-
-                        {
-                            let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
-                            if let Some(zone) = zone_manager
-                                .get_best_zone(player_with_zone.map_id as i32)
-                                .await
-                            {
-                                player_with_zone.set_zone(zone);
-                            } else {
-                                println!(
-                                    "[LOGIN] No zone found for map {}, creating default zone",
-                                    player_with_zone.map_id
-                                );
-                                let default_zone = crate::map::Zone::new(
-                                    player_with_zone.map_id as i32,
-                                    player_with_zone.zone_id as i32,
-                                    100,
-                                );
-                                player_with_zone.set_zone(default_zone);
-                            }
-                        }
-
-                        player_with_zone.session = Some(session.clone());
-                        if let Some(zone) = &player_with_zone.zone {
-                            if let Err(e) = zone.add_player(player_with_zone.clone()).await {
-                                println!("Error adding player to zone: {:?}", e);
-                            } else {
-                                println!(
-                                    "Player {} added to zone {} map {}",
-                                    player_with_zone.name, zone.zone_id, zone.map_id
-                                );
-                            }
-                        }
-
-                        session.set_player(player_with_zone.clone()).await;
-                        {
-                            (&*SESSION_MANAGER)
-                                .add_session(player_id as i64, session.clone())
-                                .await;
-                        }
-                        Self::send_login_success_data(session).await?;
+                        Self::initialize_logged_in_session(session, account, rt_player).await?;
                     }
                     Ok(None) => {
                         session.set_user_id(account_id).await;
@@ -563,10 +564,15 @@ impl AsyncController {
                 let rt_player = crate::player::player_mapper::from_entity(&db_player)
                     .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
-                session.set_player(rt_player).await;
-                let username = session.get_username().await.unwrap_or_default();
-                let password = session.get_password().await.unwrap_or_default();
-                Self::handle_login_authentication(session, &username, &password).await?;
+
+                // Fetch account to pass to initialize logic
+                if let Ok(Some(account)) = AccountDao::get_account_by_id(db, account_id).await {
+                    Self::initialize_logged_in_session(session, account, rt_player).await?;
+                } else {
+                    return Err(anyhow!(
+                        "Failed to retrieve account after character creation"
+                    ));
+                }
             }
             Err(e) => {
                 println!("Error creating character: {:?}", e);
@@ -637,20 +643,23 @@ impl AsyncController {
     }
 
     async fn handle_player_move(session: &SessionArc, mut msg: Message) -> Result<()> {
-        let _can_fly = msg.read_byte()?;
+        let _can_fly = msg.read_byte()?; // Unused but must be read to advance cursor
         let to_x = msg.read_short()?;
-        let to_y = msg.read_short().unwrap_or_else(|_| {
-            // Can't easily get player here synchronously, use default
-            0
-        });
+        let to_y_result = msg.read_short();
 
         if let Some(mut player) = session.take_player().await {
             if player.is_die() {
                 session.set_player(player).await;
                 return Ok(());
             }
+
+            let final_y = match to_y_result {
+                Ok(y) => y,
+                Err(_) => player.location.y,
+            };
+
             player.location.x = to_x;
-            player.location.y = to_y;
+            player.location.y = final_y;
 
             let zone_opt = player.zone.clone();
             if let Some(zone) = &zone_opt {

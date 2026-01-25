@@ -18,11 +18,20 @@ impl ServiceHandles {
         Ok(())
     }
     pub async fn chat(session: &SessionArc, text: &str) -> Result<()> {
-        let (player_id, zone) = if let Some(player) = session.get_player().await {
-            (player.id, player.zone.clone())
-        } else {
+        let (player_id, zone) = session
+            .get_player_ref(|player| {
+                if let Some(player) = player {
+                    Some((player.id, player.zone.clone()))
+                } else {
+                    None
+                }
+            })
+            .await
+            .unwrap_or_else(|| (0, None));
+
+        if player_id == 0 {
             return Ok(());
-        };
+        }
 
         let mut response = Message::new(cmd::CHAT);
         response.write_int(player_id as i32)?;

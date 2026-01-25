@@ -29,12 +29,13 @@ impl NpcHandler for ConMeoHandler {
             },
             MenuId::Intrinsic => match select {
                 0 => {
-                    let gender = {
-                        let Some(pl) = session.get_player().await else {
-                            return Ok(());
-                        };
-                        pl.gender
-                    };
+                    let gender = session
+                        .get_player_ref(|pl| pl.map(|p| p.gender).unwrap_or(0))
+                        .await;
+
+                    if gender == 0 && session.get_player_ref(|p| p.is_none()).await {
+                        return Ok(());
+                    }
                     IntrinsicService::show_all_intrinsic(session, gender).await?;
                 }
                 _ => {}

@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, Mutex, RwLock};
 
 pub struct SessionReader {
     read_half: OwnedReadHalf,
-    keys: Vec<u8>,
+    keys: Arc<Vec<u8>>,
     cur_r: usize,
     sent_key: bool,
 }
@@ -30,7 +30,7 @@ impl SessionReader {
         self.reset_key_position();
     }
 
-    pub fn update_keys(&mut self, keys: Vec<u8>) {
+    pub fn update_keys(&mut self, keys: Arc<Vec<u8>>) {
         self.keys = keys;
     }
 
@@ -72,7 +72,7 @@ impl SessionReader {
 
 pub struct SessionWriter {
     write_half: OwnedWriteHalf,
-    keys: Vec<u8>,
+    keys: Arc<Vec<u8>>,
     cur_w: usize,
     sent_key: bool,
 }
@@ -166,29 +166,23 @@ impl SessionWriter {
 }
 
 pub struct SessionState {
-    pub keys: Vec<u8>,
+    pub keys: Arc<Vec<u8>>,
     pub sent_key: bool,
     pub zoom_level: u8,
     pub player: Option<RtPlayer>,
     pub user_id: Option<i32>,
-    pub username: Option<String>,
-    pub password: Option<String>,
-    pub is_admin: bool,
     pub version: i32,
     pub vnd: i32,
 }
 
 impl SessionState {
-    pub fn new(keys: Vec<u8>) -> Self {
+    pub fn new(keys: Arc<Vec<u8>>) -> Self {
         Self {
             keys,
             sent_key: false,
             zoom_level: 1,
             player: None,
             user_id: None,
-            username: None,
-            password: None,
-            is_admin: false,
             version: 0,
             vnd: 0,
         }
@@ -204,7 +198,7 @@ pub struct AsyncSession {
 impl AsyncSession {
     pub fn new(stream: TcpStream) -> Self {
         let (read_half, write_half) = stream.into_split();
-        let keys = b"AHWUOCDZ".to_vec();
+        let keys = Arc::new(b"AHWUOCDZ".to_vec());
 
         Self {
             reader: Arc::new(Mutex::new(SessionReader {
@@ -251,10 +245,7 @@ impl AsyncSession {
                         eprintln!("[WARN] Message queue full");
                         false
                     }
-                    Err(mpsc::error::TrySendError::Closed(_)) => {
-                        // Suppress logs for closed channel to avoid spam on disconnect
-                        false
-                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => false,
                 }
             } else {
                 false
@@ -282,7 +273,7 @@ impl AsyncSession {
     pub async fn send_key_async(&self) -> io::Result<()> {
         let keys = {
             let state = self.state.read().await;
-            state.keys.clone()
+            state.keys.as_ref().clone()
         };
         let mut writer = self.writer.lock().await;
         writer.send_key(&keys).await
@@ -304,14 +295,6 @@ impl AsyncSession {
     {
         let state = self.state.read().await;
         f(state.player.as_ref())
-    }
-
-    pub async fn with_player_mut<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Option<&mut RtPlayer>) -> R,
-    {
-        let mut state = self.state.write().await;
-        f(state.player.as_mut())
     }
 
     pub async fn take_player(&self) -> Option<RtPlayer> {
@@ -342,32 +325,6 @@ impl AsyncSession {
         state.user_id
     }
 
-    pub async fn set_is_admin(&self, is_admin: bool) {
-        let mut state = self.state.write().await;
-        state.is_admin = is_admin;
-    }
-
-    pub async fn is_admin(&self) -> bool {
-        let state = self.state.read().await;
-        state.is_admin
-    }
-
-    pub async fn set_credentials(&self, username: String, password: String) {
-        let mut state = self.state.write().await;
-        state.username = Some(username);
-        state.password = Some(password);
-    }
-
-    pub async fn get_username(&self) -> Option<String> {
-        let state = self.state.read().await;
-        state.username.clone()
-    }
-
-    pub async fn get_password(&self) -> Option<String> {
-        let state = self.state.read().await;
-        state.password.clone()
-    }
-
     pub async fn set_version(&self, version: i32) {
         let mut state = self.state.write().await;
         state.version = version;
@@ -390,7 +347,7 @@ impl AsyncSession {
 
     pub async fn get_keys(&self) -> Vec<u8> {
         let state = self.state.read().await;
-        state.keys.clone()
+        state.keys.as_ref().clone()
     }
 
     pub async fn shutdown(&self) -> io::Result<()> {

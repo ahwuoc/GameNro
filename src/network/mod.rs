@@ -40,7 +40,7 @@ pub async fn start_server(config: &ServerConfig) -> anyhow::Result<()> {
 
 async fn handle_connection(socket: tokio::net::TcpStream) -> Result<(), ()> {
     let session = AsyncSession::new(socket);
-    let (tx, rx) = mpsc::channel::<message::Message>(256);
+    let (tx, rx) = mpsc::channel::<message::Message>(2024);
     session.set_message_channel(tx).await;
     let session_arc: SessionArc = Arc::new(session);
     let write_task = spawn_write_task(session_arc.get_writer(), rx);

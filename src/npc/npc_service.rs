@@ -40,12 +40,26 @@ pub mod npc_service {
         Ok(())
     }
     pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
-        let Some(player) = session.get_player().await else {
-            return false;
-        };
+        let (map_id, loc_x, loc_y) = session
+            .get_player_ref(|player| {
+                if let Some(player) = player {
+                    Some((player.map_id, player.location.x, player.location.y))
+                } else {
+                    None
+                }
+            })
+            .await
+            .unwrap_or((0, 0, 0));
+
+        if map_id == 0 {
+            // assuming 0 is invalid/not set or simply if player was None
+            if session.get_player_ref(|p| p.is_none()).await {
+                return false;
+            }
+        }
 
         if npc_id == DAU_THAN as i16 {
-            if player.map_id == 21 || player.map_id == 22 || player.map_id == 23 {
+            if map_id == 21 || map_id == 22 || map_id == 23 {
                 return true;
             } else {
                 if let Err(e) = hide_wait_dialog(session).await {
@@ -59,14 +73,14 @@ pub mod npc_service {
             return true;
         }
         let map_manage = &map_manager::MAP_MANAGER;
-        if let Some(map) = map_manage.find_by_id(player.map_id) {
-            if let Some(npc_spawnd) = map.info.npcs.iter().find(|n| n.id == npc_id as i32) {
+        if let Some(map) = map_manage.find_by_id(map_id) {
+            if let Some(npc_spawnd) = map.info.npcs.iter().find(|n| n.temp_id == npc_id as i32) {
                 let is_black_war = false;
                 if !is_black_war {
                     return true;
                 } else {
-                    let dx = (npc_spawnd.x as i32 - player.location.x as i32).abs();
-                    let dy = (npc_spawnd.y as i32 - player.location.y as i32).abs();
+                    let dx = (npc_spawnd.x as i32 - loc_x as i32).abs();
+                    let dy = (npc_spawnd.y as i32 - loc_y as i32).abs();
                     if dx * dx + dy * dy <= 60_i32.pow(2) {
                         return true;
                     } else {
@@ -79,7 +93,7 @@ pub mod npc_service {
     }
 
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        if session.get_player().await.is_none() {
+        if session.get_player_ref(|p| p.is_none()).await {
             return Ok(());
         }
         if !can_open_npc(session, npc_id).await {
@@ -115,8 +129,12 @@ pub mod npc_service {
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
-        let state = match session.get_player().await {
-            Some(p) => p.interaction_state.get_index_menu(),
+        let state = session
+            .get_player_ref(|player| player.map(|p| p.interaction_state.get_index_menu()))
+            .await;
+
+        let state = match state {
+            Some(s) => s,
             None => return Ok(()),
         };
 
