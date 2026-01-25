@@ -386,7 +386,7 @@ impl Zone {
         }
         let _ = msg.write_byte(0)?;
         {
-            let bg_item_path = format!("data/girlkun/map/item_bg_map_data/{}", self.map_id);
+            let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
             match std::fs::read(&bg_item_path) {
                 Ok(data) => {
                     let _ = msg.write(&data)?;
@@ -398,7 +398,7 @@ impl Zone {
         }
 
         {
-            let eff_item_path = format!("data/girlkun/map/eff_map/{}", self.map_id);
+            let eff_item_path = format!("data/arc/map/eff_map/{}", self.map_id);
             match std::fs::read(&eff_item_path) {
                 Ok(data) => {
                     let _ = msg.write(&data)?;

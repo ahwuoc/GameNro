@@ -131,7 +131,7 @@ async fn load_part_update_data() -> Result<()> {
             details,
         });
     }
-    let dir = "data/girlkun/update_data";
+    let dir = "data/arc/update_data";
     fs::create_dir_all(dir)?;
     let path = format!("{}/part", dir);
     let mut buf: Vec<u8> = Vec::new();

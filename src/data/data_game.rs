@@ -61,7 +61,7 @@ impl DataGame {
     }
     pub async fn send_size_res(session: &SessionArc) -> anyhow::Result<()> {
         let zoom_level = session.get_zoom_level().await;
-        let res_path = format!("data/girlkun/res/x{}", zoom_level);
+        let res_path = format!("data/arc/res/x{}", zoom_level);
 
         let mut file_count: i32 = 0;
         if let Ok(entries) = std::fs::read_dir(&res_path) {
@@ -84,7 +84,7 @@ impl DataGame {
 
     pub async fn send_res(session: &SessionArc) -> anyhow::Result<()> {
         let zoom_level = session.get_zoom_level().await;
-        let res_path = format!("data/girlkun/res/x{}", zoom_level);
+        let res_path = format!("data/arc/res/x{}", zoom_level);
 
         if let Ok(entries) = std::fs::read_dir(&res_path) {
             for entry in entries {
@@ -127,7 +127,7 @@ impl DataGame {
     pub async fn send_small_version(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-77);
         let zoom_level = session.get_zoom_level().await;
-        let file_path = format!("data/girlkun/data_img_version/x{}/img_version", zoom_level);
+        let file_path = format!("data/arc/data_img_version/x{}/img_version", zoom_level);
 
         match std::fs::read(&file_path) {
             Ok(data) => {
@@ -164,7 +164,7 @@ impl DataGame {
     pub async fn send_data_item_bg(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-31);
 
-        match std::fs::read("data/girlkun/item_bg_temp/item_bg_data") {
+        match std::fs::read("data/arc/item_bg_temp/item_bg_data") {
             Ok(data) => {
                 msg.write(&data)?;
             }
@@ -180,32 +180,32 @@ impl DataGame {
     pub async fn update_data(session: &SessionArc) -> anyhow::Result<()> {
         println!("Updating data for client");
 
-        let dart_data = match std::fs::read("data/girlkun/update_data/dart") {
+        let dart_data = match std::fs::read("data/arc/update_data/dart") {
             Ok(data) => data,
             Err(_) => vec![],
         };
 
-        let arrow_data = match std::fs::read("data/girlkun/update_data/arrow") {
+        let arrow_data = match std::fs::read("data/arc/update_data/arrow") {
             Ok(data) => data,
             Err(_) => vec![],
         };
 
-        let effect_data = match std::fs::read("data/girlkun/update_data/effect") {
+        let effect_data = match std::fs::read("data/arc/update_data/effect") {
             Ok(data) => data,
             Err(_) => vec![],
         };
 
-        let image_data = match std::fs::read("data/girlkun/update_data/image") {
+        let image_data = match std::fs::read("data/arc/update_data/image") {
             Ok(data) => data,
             Err(_) => vec![],
         };
 
-        let part_data = match std::fs::read("data/girlkun/update_data/part") {
+        let part_data = match std::fs::read("data/arc/update_data/part") {
             Ok(data) => data,
             Err(_) => vec![],
         };
 
-        let skill_data = match std::fs::read("data/girlkun/update_data/skill") {
+        let skill_data = match std::fs::read("data/arc/update_data/skill") {
             Ok(data) => data,
             Err(_) => vec![],
         };
@@ -361,7 +361,7 @@ impl DataGame {
     }
 
     pub async fn send_map_temp(session: &SessionArc, map_id: u8) -> anyhow::Result<()> {
-        let file_path = format!("data/girlkun/map/tile_map_data/{}", map_id);
+        let file_path = format!("data/arc/map/tile_map_data/{}", map_id);
 
         match fs::read(&file_path) {
             Ok(data) => {
@@ -411,7 +411,7 @@ impl DataGame {
 
     pub async fn send_mob_temp(session: &SessionArc, mob_id: i8) -> anyhow::Result<()> {
         let zoom = session.get_zoom_level().await;
-        let file_path = format!("data/girlkun/mob/x{zoom}/{mob_id}");
+        let file_path = format!("data/arc/mob/x{zoom}/{mob_id}");
         let mut msg = Message::new(11);
         match std::fs::read(&file_path) {
             Ok(mob) => {
@@ -462,7 +462,7 @@ impl DataGame {
             return Ok(());
         }
 
-        let file_path = format!("data/girlkun/icon/x{}/{}.png", base_zoom, id);
+        let file_path = format!("data/arc/icon/x{}/{}.png", base_zoom, id);
         let icon_bytes = tokio::fs::read(&file_path).await?;
 
         let icon = if zoom == base_zoom {
@@ -489,7 +489,7 @@ impl DataGame {
     }
 
     pub async fn send_tile_set_info(session: &SessionArc) -> anyhow::Result<()> {
-        if let Ok(data) = std::fs::read("data/girlkun/map/tile_set_info") {
+        if let Ok(data) = std::fs::read("data/arc/map/tile_set_info") {
             let mut msg = Message::new(-82);
             msg.write(&data)?;
             session.transmit(msg);

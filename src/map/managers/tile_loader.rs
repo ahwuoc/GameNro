@@ -5,7 +5,7 @@ pub struct TileLoader;
 
 impl TileLoader {
     pub fn read_tile_map_file(map_id: i32) -> Option<(i32, i32, Vec<Vec<i32>>)> {
-        let path = format!("data/girlkun/map/tile_map_data/{}", map_id);
+        let path = format!("data/arc/map/tile_map_data/{}", map_id);
         let data = fs::read(&path).ok()?;
         if data.len() < 2 {
             return None;
@@ -30,7 +30,7 @@ impl TileLoader {
     }
 
     pub fn read_tile_top_file(tile_id: i32) -> Option<Vec<i32>> {
-        let path = format!("data/girlkun/map/tile_top/{}", tile_id);
+        let path = format!("data/arc/map/tile_top/{}", tile_id);
         let data = fs::read(&path).ok()?;
         Some(data.into_iter().map(|b| b as i32).collect())
     }
