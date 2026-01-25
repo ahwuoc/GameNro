@@ -1,12 +1,18 @@
 pub enum TypeItemInventory {
-    BoxToBodyOrBag ,
-    BagToBox ,
+    BoxToBodyOrBag,
+    BagToBox,
     BodyToBox,
     BagToBody,
     BodyToBag,
 }
-impl TryFrom<i8> for TypeItemInventory{
-    type Error= anyhow::Error;
+pub enum TypeItemAction {
+    DoUseItem,
+    DoThrowItem,
+    AcceptThrowItem,
+    AcceptUseItem,
+}
+impl TryFrom<i8> for TypeItemInventory {
+    type Error = anyhow::Error;
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::BoxToBodyOrBag),
@@ -14,7 +20,7 @@ impl TryFrom<i8> for TypeItemInventory{
             3 => Ok(Self::BodyToBox),
             4 => Ok(Self::BagToBody),
             5 => Ok(Self::BodyToBag),
-            _ => Err(anyhow::anyhow!("Invalid type error {}",value))
+            _ => Err(anyhow::anyhow!("Invalid type error {}", value)),
         }
     }
 }

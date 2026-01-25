@@ -10,6 +10,8 @@ use crate::{
 pub struct UseItem;
 
 impl UseItem {
+    pub async fn handle_item_action() {}
+
     pub async fn get_item(
         session: &SessionArc,
         type_item_inventory: TypeItemInventory,

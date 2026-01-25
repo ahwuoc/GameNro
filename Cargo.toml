@@ -1,5 +1,5 @@
 [package]
-name = "gamenro"
+name = "arc_nro"
 version = "0.1.0"
 edition = "2021"
 
@@ -23,5 +23,5 @@ image = { version = "0.25.9", default-features = false, features = ["png"] }
 fast_image_resize = { version = "6.0.0", features = ["image"] }
 enum_dispatch = "0.3.13"
 [[bin]]
-name = "gamenro"
+name = "arc_nro"
 path = "src/main.rs"
