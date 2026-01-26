@@ -29,6 +29,10 @@ impl UseItem {
                             .items_bag
                             .iter()
                             .position(|it: &Item| it.is_null_item());
+                        if bag_idx_opt.is_none() {
+                            ServiceHandles::send_message_alert(session, "Hành trang đã đầy");
+                            return Ok(());
+                        }
                         if let Some(bag_idx) = bag_idx_opt {
                             let item: Item =
                                 std::mem::take(&mut pl.inventory.items_body[index as usize]);

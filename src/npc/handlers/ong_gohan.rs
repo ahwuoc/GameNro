@@ -34,15 +34,13 @@ impl NpcHandler for NpcHomeHandler {
                     ServiceHandles::send_message_alert(
                         session,
                         "Chức năng Giftcode đang được phát triển",
-                    )
-                    .await?;
+                    )?;
                 }
                 1 => {
                     ServiceHandles::send_message_alert(
                         session,
                         "Chức năng Đổi Mật Khẩu đang được phát triển",
-                    )
-                    .await?;
+                    )?;
                 }
                 2 => {}
                 3 => {

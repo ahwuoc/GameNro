@@ -1,23 +1,31 @@
 #![allow(dead_code)]
-use dashmap::DashMap;
+use std::{collections::HashMap, hash::Hash, sync::RwLock};
+
 use once_cell::sync::Lazy;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
-use crate::entities::mob_template::{self, Model as MobTemplate};
+use crate::{
+    entities::mob_template::{self, Model as MobTemplate},
+    mob,
+};
 
-static MOB_TEMPLATES: Lazy<DashMap<i8, MobTemplate>> = Lazy::new(|| DashMap::new());
+static MOB_TEMPLATES: Lazy<RwLock<HashMap<i8, MobTemplate>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mobs = mob_template::Entity::find().all(pool).await?;
+    let mut map = MOB_TEMPLATES.write().unwrap();
     for mob in mobs {
-        MOB_TEMPLATES.insert(mob.id as i8, mob);
+        map.insert(mob.id as i8, mob);
     }
     Ok(())
 }
-
 pub fn get(id: i8) -> Option<MobTemplate> {
-    MOB_TEMPLATES.get(&id).map(|kv| kv.value().clone())
+    let map = MOB_TEMPLATES.read().unwrap();
+    map.get(&id).cloned()
 }
-
 pub fn get_all() -> Vec<MobTemplate> {
-    MOB_TEMPLATES.iter().map(|kv| kv.value().clone()).collect()
+    let map = MOB_TEMPLATES.read().unwrap();
+    let mut mobs: Vec<MobTemplate> = map.values().cloned().collect();
+    mobs.sort_by(|a, b| a.id.cmp(&b.id));
+    mobs
 }

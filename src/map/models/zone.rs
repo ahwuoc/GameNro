@@ -234,37 +234,67 @@ impl Zone {
 
     pub async fn send_player_info(pl_receiver: &Player, pl_target: &Player) -> Result<()> {
         let mut msg = Message::new(-5);
-        let mockup_level = 10;
-        let _ = msg.write_int(pl_target.id as i32);
-        let _ = msg.write_int(-1); // clan id (unknown)
-        let _ = msg.write_byte(mockup_level);
-        let _ = msg.write_bool(false);
-        let _ = msg.write_byte(pl_target.type_pk);
-        let _ = msg.write_byte(pl_target.gender);
-        let _ = msg.write_byte(pl_target.gender);
-        let _ = msg.write_short(pl_target.get_head());
-        let _ = msg.write_utf(pl_target.get_name());
-        let _ = msg.write_int(pl_target.n_point.hp);
-        let _ = msg.write_int(pl_target.n_point.hp_max);
-        let _ = msg.write_short(pl_target.get_body());
-        let _ = msg.write_short(pl_target.get_leg());
-        let _ = msg.write_byte(0); // flag bag
-        let _ = msg.write_byte(-1); // unknown
-        let _ = msg.write_short(pl_target.location.x);
-        let _ = msg.write_short(pl_target.location.y);
-        let _ = msg.write_short(0);
-        let _ = msg.write_short(0);
-        let _ = msg.write_byte(0);
-        let _ = msg.write_byte(0); // spaceship id
-        let _ = msg.write_byte(0); // is monkey
-        let _ = msg.write_short(0); // mount
-        let _ = msg.write_byte(0); // cFlag
-        let _ = msg.write_byte(0);
+
+        let id = pl_target.id as i32;
+        let clan_id = -1;
+        let level = 10;
+        let is_invis = false;
+        let type_pk = pl_target.type_pk;
+        let gender = pl_target.gender;
+        let class = pl_target.gender;
+        let head = pl_target.get_head();
+        let name = pl_target.get_name();
+        let hp = pl_target.n_point.hp;
+        let max_hp = pl_target.n_point.hp_max;
+        let body = pl_target.get_body();
+        let leg = pl_target.get_leg();
+        let bag = 0;
+        let unknown_byte = -1;
+        let x = pl_target.location.x;
+        let y = pl_target.location.y;
+        let eff_buff_1 = 0;
+        let eff_buff_2 = 0;
+        let eff_buff_3 = 0;
+        let spaceship_id = 0;
+        let is_monkey = 0;
+        let mount_id = 0;
+        let c_flag = 0;
+        let none = 0;
+
+        let _ = msg.write_int(id);
+        let _ = msg.write_int(clan_id);
+        let _ = msg.write_byte(level);
+        let _ = msg.write_bool(is_invis);
+        let _ = msg.write_byte(type_pk);
+        let _ = msg.write_byte(gender);
+        let _ = msg.write_byte(class);
+        let _ = msg.write_short(head);
+        let _ = msg.write_utf(name);
+        let _ = msg.write_int(hp);
+        let _ = msg.write_int(max_hp);
+        let _ = msg.write_short(body);
+        let _ = msg.write_short(leg);
+        let _ = msg.write_byte(bag);
+        let _ = msg.write_byte(unknown_byte);
+        let _ = msg.write_short(x);
+        let _ = msg.write_short(y);
+        let _ = msg.write_short(eff_buff_1);
+        let _ = msg.write_short(eff_buff_2);
+        let _ = msg.write_byte(eff_buff_3);
+        let _ = msg.write_byte(spaceship_id);
+        let _ = msg.write_byte(is_monkey);
+        let _ = msg.write_short(mount_id);
+        let _ = msg.write_byte(c_flag);
+        let _ = msg.write_byte(none);
 
         if pl_target.is_pl() {
-            let _ = msg.write_short(0); // idAura
-            let _ = msg.write_short(0); // aura
-            let _ = msg.write_byte(0); // eff front
+            let id_aura = 0;
+            let aura = 0;
+            let eff_front = 0;
+
+            let _ = msg.write_short(id_aura);
+            let _ = msg.write_short(aura);
+            let _ = msg.write_byte(eff_front);
         }
         pl_receiver.send_to_client(msg).await?;
         Ok(())
@@ -283,7 +313,6 @@ impl Zone {
         let Some(player) = self.players.get(&player_id) else {
             return Ok(());
         };
-
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (

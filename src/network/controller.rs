@@ -405,7 +405,7 @@ impl AsyncController {
                 Ok(account) => Ok(Some(account)),
                 Err(e) => {
                     let text = e.to_string();
-                    ServiceHandles::send_message_alert(session, &text).await?;
+                    ServiceHandles::send_message_alert(session, &text)?;
                     return Ok(());
                 }
             }

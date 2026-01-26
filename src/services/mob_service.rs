@@ -104,12 +104,11 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
                 recover_amount,
                 false,
             ));
-            println!(
-                "[MOB_SERVICE] Mob {} recovered {} HP (Current HP: {})",
-                mob.id, recover_amount, mob.hp
-            );
+            // println!(
+            //     "[MOB_SERVICE] Mob {} recovered {} HP (Current HP: {})",
+            //     mob.id, recover_amount, mob.hp
+            // );
         } else {
-            // Nếu đã đầy máu, gửi tin refresh thông tin quái cho Client
             msgs.push(build_mob_respawn_message(
                 mob.id as i8,
                 mob.template_id,
@@ -118,8 +117,6 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
         }
     }
 }
-
-/// Xử lý trí tuệ nhân tạo (AI) - Quái tìm và tấn công người chơi
 async fn handle_ai_attack(
     mob: &mut RtMob,
     zone: &Zone,
@@ -170,9 +167,9 @@ fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
             let dist = ((dx * dx + dy * dy) as f32).sqrt();
 
             let limit = if mob.temporary_enemies.contains(&player.id) {
-                300.0 // Phạm vi đuổi theo kẻ thù
+                300.0
             } else {
-                100.0 // Phạm vi tấn công mặc định
+                100.0
             };
 
             if dist <= limit {

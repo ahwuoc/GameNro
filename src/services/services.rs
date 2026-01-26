@@ -11,7 +11,7 @@ use anyhow::Result;
 
 pub struct ServiceHandles {}
 impl ServiceHandles {
-    pub async fn send_message_alert(session: &SessionArc, text: &str) -> Result<()> {
+    pub fn send_message_alert(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
         response.write_utf(text);
         session.transmit(response);

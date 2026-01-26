@@ -260,6 +260,10 @@ impl DataGame {
         let mob_count = mob_templates.len() as i8;
         msg.write_byte(mob_count)?;
         for mob_template in mob_templates {
+            println!(
+                "Mob template: {} mob id {}",
+                mob_template.name, mob_template.id
+            );
             msg.write_byte(mob_template.r#type as i8)?;
             msg.write_utf(&mob_template.name)?;
             msg.write_int(mob_template.hp)?;
