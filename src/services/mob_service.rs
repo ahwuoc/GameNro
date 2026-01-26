@@ -54,7 +54,7 @@ pub async fn update(zone: &Zone) {
             if !mob.is_alive {
                 handle_respawn(mob, current_time, &mut global_msgs);
             } else {
-                handle_ai_attack(
+                hanlde_mob_attack_player(
                     mob,
                     zone,
                     current_time,
@@ -104,10 +104,6 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
                 recover_amount,
                 false,
             ));
-            // println!(
-            //     "[MOB_SERVICE] Mob {} recovered {} HP (Current HP: {})",
-            //     mob.id, recover_amount, mob.hp
-            // );
         } else {
             msgs.push(build_mob_respawn_message(
                 mob.id as i8,
@@ -117,13 +113,16 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
         }
     }
 }
-async fn handle_ai_attack(
+async fn hanlde_mob_attack_player(
     mob: &mut RtMob,
     zone: &Zone,
     current_time: u64,
     global_msgs: &mut Vec<Message>,
     player_msgs: &mut Vec<(u64, Message)>,
 ) {
+    if mob.template_id == 0 {
+        return;
+    }
     if current_time > mob.last_time_attack_player + 2000 {
         let target_id = find_target_in_range(mob, zone);
 
@@ -136,8 +135,9 @@ async fn handle_ai_attack(
                 let damage_taken = player.injured(damage as u64, false);
 
                 println!(
-                    "[MOB_SERVICE] Mob {} attacked Player {} for {} damage (HP: {} -> {})",
+                    "[MOB_SERVICE] Mob {} (Type: {}) attacked Player {} for {} damage (HP: {} -> {})",
                     mob.id,
+                    mob.template_id,
                     player.name,
                     damage_taken,
                     player.n_point.hp as i64 + damage_taken as i64,
