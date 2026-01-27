@@ -6,7 +6,7 @@ use crate::map::Zone;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::Player as RtPlayer;
-use crate::services::IntrinsicService;
+use crate::services::{IntrinsicService, ServiceHandles};
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -22,6 +22,23 @@ struct SubTaskInfo {
 
 pub async fn send_point_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
     send_point_info_sync(session, player)
+}
+pub fn send_message_info_hpmp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+    send_hp(session, player)?;
+    send_mp(session, player)?;
+    Ok(())
+}
+pub fn send_hp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+    let mut msg = ServiceHandles::sub_command_30(5)?;
+    msg.write_int(player.n_point.hp)?;
+    session.transmit(msg);
+    Ok(())
+}
+pub fn send_mp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+    let mut msg = ServiceHandles::sub_command_30(6)?;
+    msg.write_int(player.n_point.mp)?;
+    session.transmit(msg);
+    Ok(())
 }
 
 pub fn send_point_info_sync(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {

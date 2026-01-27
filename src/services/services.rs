@@ -20,6 +20,29 @@ impl ServiceHandles {
         Ok(())
     }
 
+    pub fn send_message_eat_dauthan(pl: &Player) -> Result<()> {
+        let mut msg = Self::sub_command_30(14)?;
+
+        msg.write_int(pl.id as i32)?;
+        msg.write_int(pl.n_point.hp)?;
+        msg.write_byte(1)?;
+        msg.write_int(pl.n_point.hp_max)?;
+
+        if let Some(zone) = &pl.zone {
+            let zone = zone.clone();
+            let msg = msg.clone();
+            let player_id = pl.id;
+            tokio::spawn(async move {
+                let _ = zone.send_message_to_other_players(player_id, msg).await;
+            });
+        }
+        Ok(())
+    }
+    pub fn sub_command_30(byte: i8) -> Result<Message> {
+        let mut msg = Message::new(30);
+        msg.write_byte(byte)?;
+        Ok(msg)
+    }
     pub fn send_message_alert(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
         response.write_utf(text);

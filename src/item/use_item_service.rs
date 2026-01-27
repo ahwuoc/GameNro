@@ -21,12 +21,40 @@ impl UseItemService {
         };
 
         match type_item {
+            6 => {
+                let Some(item) = pl
+                    .inventory
+                    .items_bag
+                    .iter()
+                    .find(|it| it.is_not_null_item() && it.get_type() == 6)
+                else {
+                    return Ok(());
+                };
+                let Some(hp_ki_hoiphuc) = item
+                    .item_options
+                    .iter()
+                    .find(|op| matches!(op.get_option_id(), 2 | 48))
+                    .map(|op| match op.get_option_id() {
+                        2 => op.get_param() * 1000,
+                        48 => op.get_param(),
+                        _ => unreachable!(),
+                    })
+                else {
+                    return Ok(());
+                };
+                pl.n_point.set_hp(pl.n_point.hp + hp_ki_hoiphuc as i32);
+                pl.n_point.set_mp(pl.n_point.mp + hp_ki_hoiphuc as i32);
+                player_info_service::send_message_info_hpmp(session, pl)?;
+                ServiceHandles::send_message_eat_dauthan(pl);
+                InventoryService::sub_quantity_item_bag(pl, index, 1);
+                InventoryService::send_item_bag_to_client(session, pl)?;
+                println!("chay vao day");
+            }
             _ => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
                 match item_id {
                     457 => {
                         pl.inventory.add_gold(500_000_000);
-                        player_info_service::send_point_info_sync(session, pl)?;
                         InventoryService::sub_quantity_item_bag(pl, index, 1);
                         InventoryService::send_item_bag_to_client(session, pl)?;
                         ServiceHandles::send_gold_gem_ruby_to_client(session, pl)?;
