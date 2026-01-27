@@ -1,6 +1,7 @@
 use crate::map::zone::Zone;
 use crate::network::message::Message;
 use crate::player::player::Player;
+use crate::player::player_manager::PLAYER_MANAGER;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
@@ -48,7 +49,7 @@ pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
 }
 
 pub async fn update(zone: &Zone) {
-    if zone.players.is_empty() {
+    if zone.player_ids.is_empty() {
         return;
     }
 
@@ -76,26 +77,28 @@ pub async fn update(zone: &Zone) {
                 }
             } else if current_time > mob.last_time_attack_player + 2000 {
                 let mut target_id = None;
-                for entry in zone.players.iter() {
-                    let player = entry.value();
-                    if !player.is_die() {
-                        let dist = ((mob.location.x - player.location.x).pow(2)
-                            + (mob.location.y - player.location.y).pow(2))
-                            as f32;
-                        let limit = if mob.temporary_enemies.contains(&player.id) {
-                            300.0
-                        } else {
-                            100.0
-                        };
-                        if dist.sqrt() <= limit {
-                            target_id = Some(player.id);
-                            break;
+                for entry in zone.player_ids.iter() {
+                    let pid = *entry.key();
+                    if let Some(player) = PLAYER_MANAGER.get(pid) {
+                        if !player.is_die() {
+                            let dist = ((mob.location.x - player.location.x).pow(2)
+                                + (mob.location.y - player.location.y).pow(2))
+                                as f32;
+                            let limit = if mob.temporary_enemies.contains(&player.id) {
+                                300.0
+                            } else {
+                                100.0
+                            };
+                            if dist.sqrt() <= limit {
+                                target_id = Some(player.id);
+                                break;
+                            }
                         }
                     }
                 }
 
                 if let Some(pid) = target_id {
-                    if let Some(mut p_entry) = zone.players.get_mut(&pid) {
+                    if let Some(mut p_entry) = PLAYER_MANAGER.get_mut(pid) {
                         let player = p_entry.value_mut();
                         mob.last_time_attack_player = current_time;
                         let dame_mob = mob.get_dame_attack();
@@ -129,7 +132,7 @@ pub async fn update(zone: &Zone) {
         let _ = zone.send_message_to_all_players(msg);
     }
     for (player_id, msg) in player_specific_msgs {
-        if let Some(mut p_entry) = zone.players.get_mut(&player_id) {
+        if let Some(mut p_entry) = PLAYER_MANAGER.get_mut(player_id) {
             let player = p_entry.value_mut();
             let _ = player.send_to_client(msg);
         }

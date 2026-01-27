@@ -2,6 +2,7 @@ use crate::map::zone::Zone;
 use crate::mob::mob::RtMob;
 use crate::network::message::Message;
 use crate::player::player::Player;
+use crate::player::player_manager::PLAYER_MANAGER;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
@@ -126,7 +127,7 @@ fn hanlde_mob_attack_player(
         let target_id = find_target_in_range(mob, zone);
 
         if let Some(pid) = target_id {
-            if let Some(mut p_entry) = zone.players.get_mut(&pid) {
+            if let Some(mut p_entry) = PLAYER_MANAGER.get_mut(pid) {
                 let player = p_entry.value_mut();
                 mob.last_time_attack_player = current_time;
 
@@ -158,23 +159,25 @@ fn hanlde_mob_attack_player(
 }
 
 fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
-    for entry in zone.players.iter() {
-        let player = entry.value();
-        if !player.is_die() {
-            let dx = (mob.location.x - player.location.x) as i32;
-            let dy = (mob.location.y - player.location.y) as i32;
-            let dist = ((dx * dx + dy * dy) as f32).sqrt();
+    for player_id in zone.player_ids.iter() {
+        if let Some(player) = PLAYER_MANAGER.get(*player_id) {
+            // let player = entry.value(); // No longer needed
+            if !player.is_die() {
+                let dx = (mob.location.x - player.location.x) as i32;
+                let dy = (mob.location.y - player.location.y) as i32;
+                let dist = ((dx * dx + dy * dy) as f32).sqrt();
 
-            let limit = if mob.temporary_enemies.contains(&player.id) {
-                300.0
-            } else {
-                100.0
-            };
+                let limit = if mob.temporary_enemies.contains(&player.id) {
+                    300.0
+                } else {
+                    100.0
+                };
 
-            if dist <= limit {
-                return Some(player.id);
+                if dist <= limit {
+                    return Some(player.id);
+                }
             }
-        }
+        } // Close if let Some(player)
     }
     None
 }
@@ -184,8 +187,8 @@ fn broadcast_messages(zone: &Zone, global_msgs: Vec<Message>, player_msgs: Vec<(
         let _ = zone.send_message_to_all_players(msg);
     }
     for (player_id, msg) in player_msgs {
-        if let Some(entry) = zone.players.get(&player_id) {
-            let _ = entry.value().send_to_client(msg);
+        if let Some(player) = PLAYER_MANAGER.get(player_id) {
+            let _ = player.send_to_client(msg);
         }
     }
 }

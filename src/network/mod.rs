@@ -10,6 +10,7 @@ pub mod message;
 pub mod session;
 pub mod session_manager;
 
+use crate::player::player_manager::PLAYER_MANAGER;
 use once_cell::sync::Lazy;
 use session_manager::SessionManager;
 
@@ -116,6 +117,7 @@ async fn cleanup_session(session: SessionArc, write_task: tokio::task::JoinHandl
         }
 
         (&*SESSION_MANAGER).remove_session(player.id as i64);
+        PLAYER_MANAGER.remove(player.id);
         println!("Player {} disconnected and session removed", player.id);
     }
 }

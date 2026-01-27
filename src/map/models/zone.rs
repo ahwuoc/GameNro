@@ -5,8 +5,10 @@ use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player::Player;
+use crate::player::player_manager::PLAYER_MANAGER;
 use anyhow::Result;
 use dashmap::DashMap;
+use dashmap::DashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -16,7 +18,7 @@ pub struct Zone {
     pub zone_id: i32,
     pub max_player: i32,
 
-    pub players: Arc<DashMap<u64, Player>>,
+    pub player_ids: Arc<DashSet<u64>>,
     pub active_mobs: Arc<RwLock<Vec<RtMob>>>,
     pub active_items: Arc<RwLock<Vec<ItemMap>>>,
 }
@@ -27,44 +29,54 @@ impl Zone {
             map_id,
             zone_id,
             max_player,
-            players: Arc::new(DashMap::new()),
+            player_ids: Arc::new(DashSet::new()),
             active_mobs: Arc::new(RwLock::new(Vec::new())),
             active_items: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.players.is_empty()
+        self.player_ids.is_empty()
     }
 
     pub fn is_full(&self) -> bool {
-        self.players.len() >= self.max_player as usize
+        self.player_ids.len() >= self.max_player as usize
     }
 
     pub fn get_num_players(&self) -> usize {
-        self.players.len()
+        self.player_ids.len()
     }
 
     pub fn add_player(&self, player: Player) -> anyhow::Result<()> {
-        if self.players.len() >= self.max_player as usize {
+        if self.player_ids.len() >= self.max_player as usize {
             return Err(anyhow::anyhow!("Zone is full"));
         }
         let player_id = player.id;
-        self.players.insert(player_id, player);
+        PLAYER_MANAGER.add(player); // Central update
+        self.player_ids.insert(player_id);
         Ok(())
     }
 
     pub fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
-        self.players.remove(&player_id);
+        self.player_ids.remove(&player_id);
+        // Note: We DO NOT remove from PLAYER_MANAGER here, as player might just be changing zones.
+        // Removal from PLAYER_MANAGER happens on session disconnect.
         Ok(())
     }
 
     pub fn get_player(&self, player_id: u64) -> Option<Player> {
-        self.players.get(&player_id).map(|p| p.clone())
+        if self.player_ids.contains(&player_id) {
+            PLAYER_MANAGER.get(player_id)
+        } else {
+            None
+        }
     }
 
     pub fn get_all_players(&self) -> Vec<Player> {
-        self.players.iter().map(|p| p.value().clone()).collect()
+        self.player_ids
+            .iter()
+            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
+            .collect()
     }
 
     pub fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
@@ -120,15 +132,17 @@ impl Zone {
             map_id: self.map_id,
             zone_id: self.zone_id,
             max_player: self.max_player,
-            current_players: self.players.len() as i32,
+            current_players: self.player_ids.len() as i32,
             mob_count: mobs.len() as i32,
             item_count: items.len() as i32,
         }
     }
 
     pub fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
-        for player in self.players.iter() {
-            let _ = player.send_to_client(msg.clone());
+        for player_id in self.player_ids.iter() {
+            if let Some(player) = PLAYER_MANAGER.get(*player_id) {
+                let _ = player.send_to_client(msg.clone());
+            }
         }
         Ok(())
     }
@@ -141,8 +155,10 @@ impl Zone {
         if player.zone_id == 0 && player.map_id == 0 {
             return Ok(());
         }
-        for pl in self.players.iter() {
-            let _ = pl.send_to_client(msg.clone());
+        for player_id in self.player_ids.iter() {
+            if let Some(player) = PLAYER_MANAGER.get(*player_id) {
+                let _ = player.send_to_client(msg.clone());
+            }
         }
         Ok(())
     }
@@ -152,40 +168,39 @@ impl Zone {
         except_player_id: u64,
         msg: Message,
     ) -> anyhow::Result<()> {
-        for entry in self.players.iter() {
-            if *entry.key() != except_player_id {
-                let _ = entry.value().send_to_client(msg.clone());
+        for player_id in self.player_ids.iter() {
+            if *player_id != except_player_id {
+                if let Some(player) = PLAYER_MANAGER.get(*player_id) {
+                    let _ = player.send_to_client(msg.clone());
+                }
             }
         }
         Ok(())
     }
 
     pub fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
-        if !self.players.contains_key(&player_id) {
+        // Load myself (player_id) to all other players in this zone
+        if !self.player_ids.contains(&player_id) {
             return Ok(());
         }
-        let target_and_receivers: Vec<u64> = self
-            .players
+
+        let target_player = PLAYER_MANAGER.get(player_id);
+
+        // Get all receivers (other players in zone)
+        let receivers: Vec<Player> = self
+            .player_ids
             .iter()
-            .filter_map(|entry| {
-                if *entry.key() != player_id {
-                    Some(*entry.key())
-                } else {
-                    None
-                }
-            })
+            .filter(|id_ref| **id_ref != player_id)
+            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
             .collect();
-        let target_player = self.players.get(&player_id).map(|p| p.clone());
 
         if let Some(info_player) = target_player {
-            for receiver_id in target_and_receivers {
-                if let Some(receiver) = self.get_player(receiver_id) {
-                    let _ = Self::send_player_info(&receiver, &info_player);
+            for receiver in receivers {
+                let _ = Self::send_player_info(&receiver, &info_player);
 
-                    if info_player.is_die() {
-                        let death_msg = Self::build_player_death_message(&info_player);
-                        let _ = receiver.send_to_client(death_msg);
-                    }
+                if info_player.is_die() {
+                    let death_msg = Self::build_player_death_message(&info_player);
+                    let _ = receiver.send_to_client(death_msg);
                 }
             }
         }
@@ -193,19 +208,16 @@ impl Zone {
     }
 
     pub fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
-        let Some(receiver) = self.players.get(&player_id).map(|p| p.clone()) else {
+        // Load all other players in zone to myself (player_id)
+        let Some(receiver) = PLAYER_MANAGER.get(player_id) else {
             return Ok(());
         };
+
         let others: Vec<Player> = self
-            .players
+            .player_ids
             .iter()
-            .filter_map(|entry| {
-                if *entry.key() != player_id {
-                    Some(entry.value().clone())
-                } else {
-                    None
-                }
-            })
+            .filter(|id_ref| **id_ref != player_id)
+            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
             .collect();
 
         for other in others.into_iter() {
@@ -311,7 +323,7 @@ impl Zone {
     }
 
     pub fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
-        let Some(player) = self.players.get(&player_id) else {
+        let Some(player) = PLAYER_MANAGER.get(player_id) else {
             return Ok(());
         };
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
@@ -473,7 +485,7 @@ impl Clone for Zone {
             map_id: self.map_id,
             zone_id: self.zone_id,
             max_player: self.max_player,
-            players: Arc::clone(&self.players),
+            player_ids: Arc::clone(&self.player_ids),
             active_mobs: Arc::clone(&self.active_mobs),
             active_items: Arc::clone(&self.active_items),
         }
