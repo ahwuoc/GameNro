@@ -1,3 +1,5 @@
+use crate::player::components::PointType;
+
 #[derive(Debug, Clone)]
 pub struct NPoint {
     // Chỉ số gốc (base stats từ database hoặc level up)
@@ -203,81 +205,78 @@ impl NPoint {
     }
 
     pub fn increase_point(&mut self, type_incr: u8, point: i16) -> Result<(), &'static str> {
-        if point <= 0 || point > 1000 {
-            return Ok(());
+        if !(1..1000).contains(&point) {
+            return Err("Số lượng điểm không hợp lệ");
         }
-        let mut tiem_nang_use: i64 = 0;
-        match type_incr {
-            0 => {
-                let point_hp = (point as i32) * 20;
-                tiem_nang_use =
-                    (point as i64) * (2 * (self.hpg as i64 + 1000) + point_hp as i64 - 20) / 2;
-                if (self.hpg + point_hp) <= self.get_hp_mp_limit() {
-                    if self.do_use_tiem_nang(tiem_nang_use) {
-                        self.hpg += point_hp;
-                    } else {
-                        return Err("Bạn không đủ tiềm năng");
-                    }
-                } else {
+        let point_type = PointType::try_from(type_incr)?;
+
+        let p = i32::from(point);
+        let p64 = i64::from(p);
+        match point_type {
+            PointType::Hp => {
+                let inc = p * 20;
+                let cost = p64 * (2 * (self.hpg as i64 + 1000) + inc as i64 - 20) / 2;
+
+                if self.hpg + inc > self.get_hp_mp_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
+                if !self.do_use_tiem_nang(cost) {
+                    return Err("Bạn không đủ tiềm năng");
+                }
+                self.hpg += inc;
             }
-            1 => {
-                // MP
-                let point_mp = (point as i32) * 20;
-                tiem_nang_use =
-                    (point as i64) * (2 * (self.mpg as i64 + 1000) + point_mp as i64 - 20) / 2;
-                if (self.mpg + point_mp) <= self.get_hp_mp_limit() {
-                    if self.do_use_tiem_nang(tiem_nang_use) {
-                        self.mpg += point_mp;
-                    } else {
-                        return Err("Bạn không đủ tiềm năng");
-                    }
-                } else {
+
+            PointType::Mp => {
+                let inc = p * 20;
+                let cost = p64 * (2 * (self.mpg as i64 + 1000) + inc as i64 - 20) / 2;
+
+                if self.mpg + inc > self.get_hp_mp_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
+                if !self.do_use_tiem_nang(cost) {
+                    return Err("Bạn không đủ tiềm năng");
+                }
+                self.mpg += inc;
             }
-            2 => {
-                tiem_nang_use =
-                    (point as i64) * (2 * self.dameg as i64 + point as i64 - 1) / 2 * 100;
-                if (self.dameg + point as i32) <= self.get_dame_limit() {
-                    if self.do_use_tiem_nang(tiem_nang_use) {
-                        self.dameg += point as i32;
-                    } else {
-                        return Err("Bạn không đủ tiềm năng");
-                    }
-                } else {
+
+            PointType::Dame => {
+                let cost = p64 * (2 * self.dameg as i64 + p64 - 1) / 2 * 100;
+
+                if self.dameg + p > self.get_dame_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
+                if !self.do_use_tiem_nang(cost) {
+                    return Err("Bạn không đủ tiềm năng");
+                }
+                self.dameg += p;
             }
-            3 => {
-                tiem_nang_use = 2 * (self.defg as i64 + 5) / 2 * 100_000;
-                if (self.defg + point as i32) <= self.get_def_limit() {
-                    if self.do_use_tiem_nang(tiem_nang_use) {
-                        self.defg += point as i32;
-                    } else {
-                        return Err("Bạn không đủ tiềm năng");
-                    }
-                } else {
+
+            PointType::Def => {
+                let cost = (self.defg as i64 + 5) * 100_000;
+
+                if self.defg + p > self.get_def_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
+                if !self.do_use_tiem_nang(cost) {
+                    return Err("Bạn không đủ tiềm năng");
+                }
+                self.defg += p;
             }
-            4 => {
-                tiem_nang_use = 50_000_000;
+
+            PointType::Crit => {
+                let mut cost = 50_000_000i64;
                 for _ in 0..self.critg {
-                    tiem_nang_use *= 5;
+                    cost *= 5;
                 }
-                if (self.critg as i16 + point) <= self.get_crit_limit() as i16 {
-                    if self.do_use_tiem_nang(tiem_nang_use) {
-                        self.critg += point as i8;
-                    } else {
-                        return Err("Bạn không đủ tiềm năng");
-                    }
-                } else {
+
+                if i16::from(self.critg) + point > self.get_crit_limit() as i16 {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
+                if !self.do_use_tiem_nang(cost) {
+                    return Err("Bạn không đủ tiềm năng");
+                }
+                self.critg += point as i8;
             }
-            _ => {}
         }
         Ok(())
     }
