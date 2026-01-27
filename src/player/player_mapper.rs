@@ -38,33 +38,33 @@ struct IntrinsicData {
 }
 #[derive(Debug, Deserialize, Serialize, Default)]
 struct PointData {
-    #[serde(default)]
+    #[serde(default, rename = "limitPower")]
     limit_power: i8,
     #[serde(default)]
     power: i64,
-    #[serde(default)]
+    #[serde(default, rename = "tiemNang")]
     tiem_nang: i64,
     #[serde(default)]
     stamina: i16,
-    #[serde(default)]
+    #[serde(default, rename = "maxStamina")]
     max_stamina: i16,
-    #[serde(default)]
+    #[serde(default, rename = "hpg")]
     hp_goc: i32,
-    #[serde(default)]
+    #[serde(default, rename = "mpg")]
     mp_goc: i32,
-    #[serde(default)]
+    #[serde(default, rename = "dameg")]
     damege_goc: i32,
-    #[serde(default)]
+    #[serde(default, rename = "defg")]
     defen_goc: i32,
-    #[serde(default)]
+    #[serde(default, rename = "critg")]
     crit_goc: i8,
     #[serde(default)]
     crit_max: i8,
-    #[serde(default)]
+    #[serde(default, rename = "nangDong")]
     nang_dong: i32,
-    #[serde(default)]
+    #[serde(default, rename = "plHp")]
     pl_hp: i32,
-    #[serde(default)]
+    #[serde(default, rename = "plMp")]
     pl_mp: i32,
 }
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -273,23 +273,23 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
     ])
     .unwrap_or_else(|_| "[0,0,0]".to_string());
 
-    let data_point = serde_json::to_string(&vec![
-        p.n_point.limit_power as i64,
-        p.n_point.power as i64,
-        p.n_point.tiem_nang as i64,
-        p.n_point.stamina as i64,
-        p.n_point.max_stamina as i64,
-        p.n_point.hpg as i64,
-        p.n_point.mpg as i64,
-        p.n_point.dameg as i64,
-        p.n_point.defg as i64,
-        p.n_point.critg as i64,
-        0, // crit_max/dragon
-        0, // nang_dong
-        p.n_point.hp as i64,
-        p.n_point.mp as i64,
-    ])
-    .unwrap_or_else(|_| "[]".to_string());
+    let point_data = PointData {
+        limit_power: p.n_point.limit_power,
+        power: p.n_point.power,
+        tiem_nang: p.n_point.tiem_nang,
+        stamina: p.n_point.stamina,
+        max_stamina: p.n_point.max_stamina,
+        hp_goc: p.n_point.hpg,
+        mp_goc: p.n_point.mpg,
+        damege_goc: p.n_point.dameg,
+        defen_goc: p.n_point.defg,
+        crit_goc: p.n_point.critg,
+        crit_max: 0,
+        nang_dong: 0,
+        pl_hp: p.n_point.hp,
+        pl_mp: p.n_point.mp,
+    };
+    let data_point = serde_json::to_string(&point_data).unwrap_or_else(|_| "{}".to_string());
 
     let items_body = serde_json::to_string(&map_items_to_json(&p.inventory.items_body))
         .unwrap_or_else(|_| "[]".to_string());
@@ -389,6 +389,12 @@ fn parse_point_array(s: &str) -> anyhow::Result<PointData> {
         return Ok(PointData::default());
     }
 
+    // Try parsing as Object (new format)
+    if let Ok(data) = serde_json::from_str::<PointData>(s) {
+        return Ok(data);
+    }
+
+    // Fallback parsing as Array (old format)
     let array: Vec<serde_json::Value> = serde_json::from_str(s)
         .map_err(|e| anyhow::anyhow!("Failed to parse point data array: {}", e))?;
 

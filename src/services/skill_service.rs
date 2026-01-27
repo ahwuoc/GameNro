@@ -125,14 +125,8 @@ pub fn after_use_skill(player: &mut Player) {
     }
 }
 
-pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
-    let skill_data = session
-        .get_player()
-        .await
-        .unwrap()
-        .player_skill
-        .skill_shortcut
-        .clone();
+pub fn send_skill_shortcut(player: &Player) -> anyhow::Result<()> {
+    let skill_data = player.player_skill.skill_shortcut.clone();
 
     // Send KSkill
     let mut msg_k = Message::new(-30);
@@ -140,7 +134,7 @@ pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
     msg_k.write_utf("KSkill")?;
     msg_k.write_int(skill_data.len() as i32)?;
     msg_k.write(&skill_data)?;
-    session.transmit(msg_k);
+    player.send_to_client(msg_k)?;
 
     // Send OSkill
     let mut msg_o = Message::new(-30);
@@ -148,7 +142,7 @@ pub async fn send_skill_shortcut(session: &SessionArc) -> anyhow::Result<()> {
     msg_o.write_utf("OSkill")?;
     msg_o.write_int(skill_data.len() as i32)?;
     msg_o.write(&skill_data)?;
-    session.transmit(msg_o);
+    player.send_to_client(msg_o)?;
 
     Ok(())
 }

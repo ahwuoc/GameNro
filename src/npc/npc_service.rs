@@ -17,6 +17,7 @@ use crate::npc::handlers::santa::SantaHandler;
 use crate::npc::handlers::NpcHandler;
 use crate::npc::npc_manager;
 use crate::npc::{BaseMenu, RtNpc};
+use crate::player::Player;
 use crate::templates::npc_template_manager;
 use std::collections::HashMap;
 
@@ -160,7 +161,18 @@ pub mod npc_service {
         let Some(mut player) = session.take_player().await else {
             return Ok(());
         };
+        create_menu_player(&mut player, npc_id, npc_say, menu_options, state)?;
+        session.set_player(player).await;
+        Ok(())
+    }
 
+    pub fn create_menu_player(
+        player: &mut Player,
+        npc_id: i16,
+        npc_say: &str,
+        menu_options: Vec<&str>,
+        state: MenuId,
+    ) -> anyhow::Result<()> {
         player.interaction_state.set_index_menu(state);
 
         let mut msg = Message::new(32);
@@ -171,8 +183,7 @@ pub mod npc_service {
         for option in menu_options {
             msg.write_utf(option)?;
         }
-        session.transmit(msg);
-        session.set_player(player).await;
+        player.send_to_client(msg)?;
         Ok(())
     }
     pub fn create_npc(template_id: i32, map_id: i32, x: i32, y: i32) -> Option<RtNpc> {

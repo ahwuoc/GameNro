@@ -49,14 +49,14 @@ impl NPoint {
             defg: 5,
             critg: 1,
 
-            hp: 1000000,
-            mp: 1000000,
-            dame: 100000,
+            hp: 100,
+            mp: 100,
+            dame: 10,
             def: 5,
             crit: 1,
 
-            hp_max: 1000000,
-            mp_max: 1000000,
+            hp_max: 100,
+            mp_max: 100,
             max_stamina: 100,
             stamina: 100,
 
@@ -104,17 +104,11 @@ impl NPoint {
         self.clamp_current_values();
     }
 
-    /// Tính HP Max = hpg + hp_add + (hpg * sum(tl_hp) / 100)
     fn set_hp_max(&mut self) {
         let mut hp_max: i64 = (self.hpg + self.hp_add) as i64;
-
-        // Cộng thêm % từ trang bị
         for tl in &self.tl_hp {
             hp_max += hp_max * (*tl as i64) / 100;
         }
-
-        // TODO: Thêm các bonus khác (set đồ, buff, ...)
-
         self.hp_max = hp_max.min(i32::MAX as i64) as i32;
     }
 
@@ -207,6 +201,153 @@ impl NPoint {
         }
         dame
     }
+
+    pub fn increase_point(&mut self, type_incr: u8, point: i16) -> Result<(), &'static str> {
+        if point <= 0 || point > 1000 {
+            return Ok(());
+        }
+        let mut tiem_nang_use: i64 = 0;
+        match type_incr {
+            0 => {
+                let point_hp = (point as i32) * 20;
+                tiem_nang_use =
+                    (point as i64) * (2 * (self.hpg as i64 + 1000) + point_hp as i64 - 20) / 2;
+                if (self.hpg + point_hp) <= self.get_hp_mp_limit() {
+                    if self.do_use_tiem_nang(tiem_nang_use) {
+                        self.hpg += point_hp;
+                    } else {
+                        return Err("Bạn không đủ tiềm năng");
+                    }
+                } else {
+                    return Err("Vui lòng mở giới hạn sức mạnh");
+                }
+            }
+            1 => {
+                // MP
+                let point_mp = (point as i32) * 20;
+                tiem_nang_use =
+                    (point as i64) * (2 * (self.mpg as i64 + 1000) + point_mp as i64 - 20) / 2;
+                if (self.mpg + point_mp) <= self.get_hp_mp_limit() {
+                    if self.do_use_tiem_nang(tiem_nang_use) {
+                        self.mpg += point_mp;
+                    } else {
+                        return Err("Bạn không đủ tiềm năng");
+                    }
+                } else {
+                    return Err("Vui lòng mở giới hạn sức mạnh");
+                }
+            }
+            2 => {
+                tiem_nang_use =
+                    (point as i64) * (2 * self.dameg as i64 + point as i64 - 1) / 2 * 100;
+                if (self.dameg + point as i32) <= self.get_dame_limit() {
+                    if self.do_use_tiem_nang(tiem_nang_use) {
+                        self.dameg += point as i32;
+                    } else {
+                        return Err("Bạn không đủ tiềm năng");
+                    }
+                } else {
+                    return Err("Vui lòng mở giới hạn sức mạnh");
+                }
+            }
+            3 => {
+                tiem_nang_use = 2 * (self.defg as i64 + 5) / 2 * 100_000;
+                if (self.defg + point as i32) <= self.get_def_limit() {
+                    if self.do_use_tiem_nang(tiem_nang_use) {
+                        self.defg += point as i32;
+                    } else {
+                        return Err("Bạn không đủ tiềm năng");
+                    }
+                } else {
+                    return Err("Vui lòng mở giới hạn sức mạnh");
+                }
+            }
+            4 => {
+                tiem_nang_use = 50_000_000;
+                for _ in 0..self.critg {
+                    tiem_nang_use *= 5;
+                }
+                if (self.critg as i16 + point) <= self.get_crit_limit() as i16 {
+                    if self.do_use_tiem_nang(tiem_nang_use) {
+                        self.critg += point as i8;
+                    } else {
+                        return Err("Bạn không đủ tiềm năng");
+                    }
+                } else {
+                    return Err("Vui lòng mở giới hạn sức mạnh");
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn do_use_tiem_nang(&mut self, tiem_nang: i64) -> bool {
+        if self.tiem_nang < tiem_nang {
+            return false;
+        }
+        self.tiem_nang -= tiem_nang;
+        true
+    }
+
+    pub fn get_hp_mp_limit(&self) -> i32 {
+        match self.limit_power {
+            0 => 220000,
+            1 => 240000,
+            2 => 300000,
+            3 => 350000,
+            4 => 400000,
+            5 => 450000,
+            6 => 500000,
+            7 => 525000,
+            8 => 550000,
+            _ => 0,
+        }
+    }
+
+    pub fn get_dame_limit(&self) -> i32 {
+        match self.limit_power {
+            0 => 11000,
+            1 => 12000,
+            2 => 15000,
+            3 => 18000,
+            4 => 20000,
+            5 => 22000,
+            6 => 24000,
+            7 => 24500,
+            8 => 25000,
+            _ => 0,
+        }
+    }
+
+    pub fn get_def_limit(&self) -> i32 {
+        match self.limit_power {
+            0 => 550,
+            1 => 600,
+            2 => 700,
+            3 => 800,
+            4 => 1000,
+            5 => 1200,
+            6 => 1400,
+            7 => 1500,
+            8 => 1600,
+            _ => 0,
+        }
+    }
+
+    pub fn get_crit_limit(&self) -> i8 {
+        match self.limit_power {
+            0 => 5,
+            1 => 6,
+            2 => 7,
+            3 => 8,
+            4 => 9,
+            5 => 10,
+            6..=8 => 10,
+            _ => 0,
+        }
+    }
+    pub fn increnement_poin() {}
 }
 
 impl Default for NPoint {

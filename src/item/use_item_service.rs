@@ -44,10 +44,10 @@ impl UseItemService {
                 };
                 pl.n_point.set_hp(pl.n_point.hp + hp_ki_hoiphuc as i32);
                 pl.n_point.set_mp(pl.n_point.mp + hp_ki_hoiphuc as i32);
-                player_info_service::send_message_info_hpmp(session, pl)?;
+                player_info_service::send_message_info_hpmp(pl)?;
                 ServiceHandles::send_message_eat_dauthan(pl);
                 InventoryService::sub_quantity_item_bag(pl, index, 1);
-                InventoryService::send_item_bag_to_client(session, pl)?;
+                InventoryService::send_item_bag_to_client(pl)?;
             }
             _ => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
@@ -55,14 +55,11 @@ impl UseItemService {
                     457 => {
                         pl.inventory.add_gold(500_000_000);
                         InventoryService::sub_quantity_item_bag(pl, index, 1);
-                        InventoryService::send_item_bag_to_client(session, pl)?;
-                        ServiceHandles::send_gold_gem_ruby_to_client(session, pl)?;
+                        InventoryService::send_item_bag_to_client(pl)?;
+                        ServiceHandles::send_gold_gem_ruby_to_client(pl)?;
                     }
                     _ => {
-                        ServiceHandles::send_message_alert(
-                            session,
-                            "Không thể sử dụng vật phẩm này",
-                        )?;
+                        ServiceHandles::send_message_alert(pl, "Không thể sử dụng vật phẩm này")?;
                         return Ok(());
                     }
                 }

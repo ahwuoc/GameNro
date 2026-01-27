@@ -22,15 +22,15 @@ impl InventoryTransferService {
                     .iter()
                     .position(|it: &Item| it.is_null_item());
                 if bag_idx_opt.is_none() {
-                    ServiceHandles::send_message_alert(session, "Hành trang đã đầy")?;
+                    ServiceHandles::send_message_alert(pl, "Hành trang đã đầy")?;
                     return Ok(());
                 }
                 if let Some(bag_idx) = bag_idx_opt {
                     let item: Item = std::mem::take(&mut pl.inventory.items_body[index]);
                     if !item.is_null_item() {
                         pl.inventory.items_bag[bag_idx] = item;
-                        InventoryService::send_item_bag_to_client(session, pl)?;
-                        InventoryService::send_item_body_to_client(session, pl)?;
+                        InventoryService::send_item_bag_to_client(pl)?;
+                        InventoryService::send_item_body_to_client(pl)?;
                     }
                 }
             }
@@ -46,8 +46,8 @@ impl InventoryTransferService {
                     &mut pl.inventory.items_body[body_idx],
                 );
 
-                InventoryService::send_item_bag_to_client(session, pl)?;
-                InventoryService::send_item_body_to_client(session, pl)?;
+                InventoryService::send_item_bag_to_client(pl)?;
+                InventoryService::send_item_body_to_client(pl)?;
             }
             TypeItemInventory::BagToBox => {
                 if let Some(box_idx) = pl
@@ -59,12 +59,12 @@ impl InventoryTransferService {
                     let it_bag: Item = std::mem::take(&mut pl.inventory.items_bag[index]);
                     if !it_bag.is_null_item() {
                         pl.inventory.items_box[box_idx] = it_bag;
-                        InventoryService::send_item_box_to_client(session, pl)?;
-                        InventoryService::send_item_bag_to_client(session, pl)?;
-                        InventoryService::send_open_box(session)?;
+                        InventoryService::send_item_box_to_client(pl)?;
+                        InventoryService::send_item_bag_to_client(pl)?;
+                        InventoryService::send_open_box(pl)?;
                     }
                 } else {
-                    ServiceHandles::send_message_alert(session, "Hòm đồ đã đầy")?;
+                    ServiceHandles::send_message_alert(pl, "Hòm đồ đã đầy")?;
                 }
             }
             TypeItemInventory::BodyToBox => {
@@ -77,12 +77,12 @@ impl InventoryTransferService {
                     let it_body: Item = std::mem::take(&mut pl.inventory.items_body[index]);
                     if it_body.is_not_null_item() {
                         pl.inventory.items_box[box_idx] = it_body;
-                        InventoryService::send_item_box_to_client(session, pl)?;
-                        InventoryService::send_item_body_to_client(session, pl)?;
-                        InventoryService::send_open_box(session)?;
+                        InventoryService::send_item_box_to_client(pl)?;
+                        InventoryService::send_item_body_to_client(pl)?;
+                        InventoryService::send_open_box(pl)?;
                     }
                 } else {
-                    ServiceHandles::send_message_alert(session, "Hòm đồ đã đầy")?;
+                    ServiceHandles::send_message_alert(pl, "Hòm đồ đã đầy")?;
                 }
             }
             TypeItemInventory::BoxToBodyOrBag => {
@@ -99,14 +99,14 @@ impl InventoryTransferService {
                         if it_box.is_item_body()
                             && pl.inventory.items_body[it_box_type].is_null_item()
                         {
-                            InventoryService::set_item_body(session, pl, it_box)?;
-                            InventoryService::send_item_box_to_client(session, pl)?;
+                            InventoryService::set_item_body(pl, it_box)?;
+                            InventoryService::send_item_box_to_client(pl)?;
                         } else {
                             pl.inventory.items_bag[bag_idx] = it_box;
-                            InventoryService::send_item_bag_to_client(session, pl)?;
-                            InventoryService::send_item_box_to_client(session, pl)?;
+                            InventoryService::send_item_bag_to_client(pl)?;
+                            InventoryService::send_item_box_to_client(pl)?;
                         }
-                        InventoryService::send_open_box(session)?;
+                        InventoryService::send_open_box(pl)?;
                     }
                 }
             }

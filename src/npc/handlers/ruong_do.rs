@@ -10,7 +10,9 @@ pub struct RuongDoHandler;
 #[async_trait]
 impl NpcHandler for RuongDoHandler {
     async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        InventoryService::send_open_box(session)?;
+        if let Some(player) = session.get_player().await {
+            InventoryService::send_open_box(&player)?;
+        }
         Ok(())
     }
     async fn handle_menu(

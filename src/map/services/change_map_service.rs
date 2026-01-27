@@ -164,11 +164,7 @@ impl ChangeMapService {
         matches!(map_id, 105 | 106 | 107 | 108 | 109 | 110)
     }
 
-    pub fn open_capsule_menu(
-        &self,
-        player: &Player,
-        session: &crate::network::session::SessionArc,
-    ) -> anyhow::Result<()> {
+    pub fn open_capsule_menu(&self, player: &Player) -> anyhow::Result<()> {
         let destinations = self.get_capsule_destinations(player);
         let mut msg = Message::new(cmd::CAPSULE_MENU);
         msg.write_byte(destinations.len() as i8)?;
@@ -184,7 +180,7 @@ impl ChangeMapService {
             msg.write_utf(&destination.planet_name)?;
         }
 
-        session.transmit(msg);
+        player.send_to_client(msg)?;
         Ok(())
     }
 
@@ -287,17 +283,13 @@ impl ChangeMapService {
         }
     }
 
-    pub fn open_zone_ui(
-        &self,
-        player: &Player,
-        session: &crate::network::session::SessionArc,
-    ) -> anyhow::Result<()> {
+    pub fn open_zone_ui(&self, player: &Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             // Send error message if player is not in a valid zone
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đổi khu vực trong map này")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
             return Ok(());
         };
 
@@ -305,7 +297,7 @@ impl ChangeMapService {
         if Self::is_special_map(zone.map_id) && !player.is_admin {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đổi khu vực trong map này")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
             return Ok(());
         }
 
@@ -332,7 +324,7 @@ impl ChangeMapService {
             msg.write_byte(0)?; // not competing
         }
 
-        session.transmit(msg);
+        player.send_to_client(msg)?;
         Ok(())
     }
 
@@ -340,27 +332,27 @@ impl ChangeMapService {
         &self,
         player: &mut Player,
         zone_id: i32,
-        session: &crate::network::session::SessionArc,
+        session: &crate::network::session::SessionArc, // Session still needed for change_map_to_zone
     ) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(current_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này @")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
             return Ok(());
         };
 
         if !player.is_admin && !player.is_boss && !Self::can_change_zone_now(player) {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Chưa thể chuyển khu vực lúc này vui lòng chờ")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
             return Ok(());
         }
 
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
             return Ok(());
         }
 
@@ -368,7 +360,7 @@ impl ChangeMapService {
             if target_zone.is_full() && !player.is_admin && !player.is_boss {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực này đã đầy")?;
-                session.transmit(msg);
+                player.send_to_client(msg)?;
                 return Ok(());
             }
 
@@ -384,7 +376,7 @@ impl ChangeMapService {
         } else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể thực hiện")?;
-            session.transmit(msg);
+            player.send_to_client(msg)?;
         }
 
         Ok(())
@@ -393,7 +385,7 @@ impl ChangeMapService {
     pub fn change_map_waypoint_handler(
         &self,
         player: &mut Player,
-        session: &crate::network::session::SessionArc,
+        session: &crate::network::session::SessionArc, // Still needed for map_info
     ) -> anyhow::Result<()> {
         match self.change_map_waypoint(player) {
             WaypointChangeResult::Success {
@@ -420,7 +412,7 @@ impl ChangeMapService {
                     self.reset_player_position(player, 2000);
                     let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                     msg.write_utf("Lỗi khi chuyển map")?;
-                    session.transmit(msg);
+                    player.send_to_client(msg)?;
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
@@ -431,7 +423,7 @@ impl ChangeMapService {
                     player.name, player.location.x, player.location.y, player.map_id
                 );
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                session.transmit(msg);
+                player.send_to_client(msg)?;
             }
             WaypointChangeResult::TaskRequirementNotMet {
                 required_task_id: _,
@@ -439,23 +431,23 @@ impl ChangeMapService {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                session.transmit(msg);
+                player.send_to_client(msg)?;
             }
             WaypointChangeResult::InvalidPlayerZone => {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Lỗi hệ thống")?;
-                session.transmit(msg);
+                player.send_to_client(msg)?;
             }
             WaypointChangeResult::DestinationUnavailable => {
                 self.reset_player_position(player, 2000);
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Khu vực đích không khả dụng")?;
-                session.transmit(msg);
+                msg.write_utf("Khu vực không khả dụng")?;
+                player.send_to_client(msg)?;
             }
         }
-
         Ok(())
     }
+
     pub fn go_home_handler(
         &self,
         player: &mut Player,

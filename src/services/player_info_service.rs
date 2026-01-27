@@ -20,28 +20,28 @@ struct SubTaskInfo {
     max_count: i16,
 }
 
-pub async fn send_point_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
-    send_point_info_sync(session, player)
+pub async fn send_point_info(player: &RtPlayer) -> anyhow::Result<()> {
+    send_point_info_sync(player)
 }
-pub fn send_message_info_hpmp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
-    send_hp(session, player)?;
-    send_mp(session, player)?;
+pub fn send_message_info_hpmp(player: &RtPlayer) -> anyhow::Result<()> {
+    send_hp(player)?;
+    send_mp(player)?;
     Ok(())
 }
-pub fn send_hp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+pub fn send_hp(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = ServiceHandles::sub_command_30(5)?;
     msg.write_int(player.n_point.hp)?;
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
-pub fn send_mp(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+pub fn send_mp(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = ServiceHandles::sub_command_30(6)?;
     msg.write_int(player.n_point.mp)?;
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_point_info_sync(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-42);
     msg.write_int(player.n_point.hpg)?;
     msg.write_int(player.n_point.mpg)?;
@@ -55,18 +55,18 @@ pub fn send_point_info_sync(session: &SessionArc, player: &RtPlayer) -> anyhow::
     msg.write_byte(20)?;
     msg.write_byte(1)?;
     msg.write_int(player.n_point.dame)?;
-    msg.write_short(player.n_point.def as i16)?;
+    msg.write_int(player.n_point.def)?;
     msg.write_byte(player.n_point.crit)?;
     msg.write_long(player.n_point.tiem_nang)?;
     msg.write_short(100)?;
-    msg.write_int(player.n_point.defg)?;
+    msg.write_short(player.n_point.defg as i16)?;
     msg.write_byte(player.n_point.critg)?;
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub async fn send_task_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+pub async fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
     let task_main_id = player.task_id >> 10;
     let task_index = (player.task_id >> 1) & 0x1FF;
 
@@ -101,7 +101,7 @@ pub async fn send_task_info(session: &SessionArc, player: &RtPlayer) -> anyhow::
         msg.write_short(sub_task.max_count)?;
     }
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
@@ -162,75 +162,74 @@ fn get_sub_tasks(task_main_id: i32, gender: i8) -> Vec<SubTaskInfo> {
         .collect()
 }
 
-pub fn clear_map(session: &SessionArc) -> anyhow::Result<()> {
+pub fn clear_map(player: &RtPlayer) -> anyhow::Result<()> {
     let msg = Message::new(-22);
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_clan_info(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_clan_info(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending clan info");
 
     let mut msg = Message::new(-53);
     msg.write_int(-1)?;
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-/// Send max stamina (-69)
-pub fn send_max_stamina(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending max stamina");
 
     let mut msg = Message::new(-69);
     msg.write_int(100)?; // max stamina
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_current_stamina(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_current_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending current stamina");
 
     let mut msg = Message::new(-68);
     msg.write_int(100)?; // current stamina
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_pet_info(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_pet_info(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending pet info");
     let mut msg = Message::new(-107);
     msg.write_byte(0)?;
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_top_rank_info(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_top_rank_info(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending top rank info");
 
     let mut msg = Message::new(-119);
     msg.write_utf("1630679754740_-119_r")?;
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
-pub fn send_notification_tab(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_notification_tab(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-50);
     msg.write_byte(0)?; // notification count
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn send_time_skill(session: &SessionArc) -> anyhow::Result<()> {
+pub fn send_time_skill(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending time skill info");
 
     let mut msg = Message::new(-30);
     msg.write_byte(62)?; // sub command
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
@@ -272,10 +271,7 @@ pub fn write_inventory(
     Ok(())
 }
 
-pub async fn send_player_blob_internal(
-    session: &SessionArc,
-    player: &RtPlayer,
-) -> anyhow::Result<()> {
+pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = sub_command_30(0)?;
     msg.write_int(player.id as i32)?; // charID
     msg.write_byte(0)?; // ctaskId
@@ -321,25 +317,25 @@ pub async fn send_player_blob_internal(
     msg.write_byte(0)?; // idEff_Set_Item
     msg.write_short(0)?; // idHat
 
-    session.transmit(msg);
+    player.send_to_client(msg)?;
     Ok(())
 }
 
-pub async fn send_cai_trang(session: &SessionArc, _player: &RtPlayer) -> anyhow::Result<()> {
+pub async fn send_cai_trang(player: &RtPlayer) -> anyhow::Result<()> {
     let mut message = Message::new(-90);
     message.write_byte(1)?;
-    message.write_int(_player.id as i32)?;
+    message.write_int(player.id as i32)?;
 
-    message.write_short(_player.get_head())?;
-    message.write_short(_player.get_body())?;
-    message.write_short(_player.get_leg())?;
+    message.write_short(player.get_head())?;
+    message.write_short(player.get_body())?;
+    message.write_short(player.get_leg())?;
     message.write_byte(0)?;
 
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-    if let Some(zone) = zone_manager.get_zone(_player.map_id, _player.zone_id) {
+    if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         zone.send_message_to_all_players(message.clone())?;
     }
-    session.transmit(message);
+    player.send_to_client(message)?;
     Ok(())
 }
 
@@ -360,45 +356,45 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     DataGame::send_tile_set_info(session).await?;
 
     // -112 intrinsic
-    IntrinsicService::send_info_intrinsic(session, &player).await?;
+    IntrinsicService::send_info_intrinsic(&player).await?;
 
     // -42 my point
-    send_point_info(session, &player).await?;
+    send_point_info(&player).await?;
 
     // 40 task
-    send_task_info(session, &player).await?;
+    send_task_info(&player).await?;
 
     // -22 reset all
-    clear_map(session)?;
+    clear_map(&player)?;
 
     // -30 sub 0 player blob
-    send_player_blob_internal(session, &player).await?;
+    send_player_blob_internal(&player).await?;
 
     // -53 my clan
-    send_clan_info(session)?;
+    send_clan_info(&player)?;
 
     // -69 max stamina
-    send_max_stamina(session)?;
+    send_max_stamina(&player)?;
 
     // -68 cur stamina
-    send_current_stamina(session)?;
+    send_current_stamina(&player)?;
 
     // -107 have pet
-    send_pet_info(session)?;
+    send_pet_info(&player)?;
 
     // -119 top rank
-    send_top_rank_info(session)?;
+    send_top_rank_info(&player)?;
 
     // -50 thông tin bảng thông báo
-    send_notification_tab(session)?;
+    send_notification_tab(&player)?;
     {
         let zone_manager = &ZONE_MANAGER;
         zone_manager.load_player_to_best_zone(player.clone(), session)?;
     }
 
-    send_cai_trang(session, &player).await?;
+    send_cai_trang(&player).await?;
 
-    send_time_skill(session)?;
+    send_time_skill(&player)?;
 
     // clear vt sk
     clear_vtsk(session).await?;

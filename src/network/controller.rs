@@ -141,7 +141,15 @@ impl AsyncController {
             }
             44 => {
                 let text = msg.read_utf()?;
-                if !services::command::CommandService::check(&session, &text).await? {
+                let mut is_command = false;
+                if let Some(mut player) = session.take_player().await {
+                    is_command =
+                        services::command::CommandService::check(&mut player, &session, &text)
+                            .await?;
+                    session.set_player(player).await;
+                }
+
+                if !is_command {
                     ServiceHandles::chat(&session, &text).await?;
                 }
                 Ok(())
@@ -159,6 +167,10 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            -30 => {
+                Self::sub_command_30(&session, msg).await;
+                Ok(())
+            }
             -38 => Ok(()),
             -39 => {
                 if let Some(player) = session.get_player().await {
@@ -169,7 +181,7 @@ impl AsyncController {
             29 => {
                 if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_zone_ui(&player, &session);
+                    let res = change_map_service.open_zone_ui(&player);
                     session.set_player(player).await;
                     res?;
                 }
@@ -206,7 +218,7 @@ impl AsyncController {
             -91 => {
                 if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_capsule_menu(&player, &session);
+                    let res = change_map_service.open_capsule_menu(&player);
                     session.set_player(player).await;
                     res?;
                 }
@@ -231,8 +243,8 @@ impl AsyncController {
                             player.player_skill.skill_shortcut[i] = skill_id;
                         }
                     }
+                    services::skill_service::send_skill_shortcut(&player)?;
                     session.set_player(player).await;
-                    services::skill_service::send_skill_shortcut(&session).await?;
                 }
                 Ok(())
             }
@@ -253,6 +265,33 @@ impl AsyncController {
         }
     }
 
+    async fn sub_command_30(session: &SessionArc, mut msg: Message) -> anyhow::Result<()> {
+        let type_byte = msg.read_byte()?;
+        match type_byte {
+            16 => {
+                let type_increment = msg.read_byte()?;
+                let point = msg.read_short()?;
+                if let Some(mut player) = session.take_player().await {
+                    match player.n_point.increase_point(type_increment as u8, point) {
+                        Ok(_) => {
+                            use crate::services::player_info_service;
+                            player_info_service::send_point_info(&player).await?;
+                        }
+                        Err(e) => {
+                            use crate::services::ServiceHandles;
+                            ServiceHandles::send_message_alert(&player, e)?;
+                        }
+                    }
+                    session.set_player(player).await;
+                }
+            }
+            64 => {}
+            _ => {
+                println!("Unknown type for -30 command: {}", type_byte);
+            }
+        }
+        Ok(())
+    }
     async fn handle_get_image_source(session: &SessionArc, mut msg: Message) -> Result<()> {
         let type_byte = msg.read_byte()?;
 
@@ -395,7 +434,7 @@ impl AsyncController {
                 Ok(account) => Ok(Some(account)),
                 Err(e) => {
                     let text = e.to_string();
-                    ServiceHandles::send_message_alert(session, &text)?;
+                    ServiceHandles::send_message_alert_session(session, &text)?;
                     return Ok(());
                 }
             }
@@ -569,8 +608,8 @@ impl AsyncController {
     async fn handle_client_ok_enhanced(session: &SessionArc) -> anyhow::Result<()> {
         let player_opt = session.get_player().await;
         if let Some(player) = player_opt {
-            player_info_service::send_player_blob_internal(session, &player).await?;
-            player_info_service::send_cai_trang(session, &player).await?;
+            player_info_service::send_player_blob_internal(&player).await?;
+            player_info_service::send_cai_trang(&player).await?;
             println!(
                 "Client ok enhanced initialization completed for player: {}",
                 player.name

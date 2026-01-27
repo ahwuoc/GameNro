@@ -25,18 +25,18 @@ impl IntrinsicService {
         intrinsic_template_manager::get(id).map(|t| Intrinsic::from_entity(&t))
     }
 
-    pub async fn send_info_intrinsic(session: &SessionArc, player: &RtPlayer) -> Result<()> {
+    pub async fn send_info_intrinsic(player: &RtPlayer) -> Result<()> {
         let player_instrict = &player.intrinsic;
         let mut msg = Message::new(112);
         msg.write_byte(0);
         msg.write_short(player_instrict.intrinsic.icon);
         msg.write_utf(&player_instrict.intrinsic.get_name());
-        session.transmit(msg);
+        player.send_to_client(msg)?;
         Ok(())
     }
 
-    pub async fn show_all_intrinsic(session: &SessionArc, player_gender: i8) -> Result<()> {
-        let list_intrinsic = Self::get_intrinsics(player_gender);
+    pub async fn show_all_intrinsic(player: &RtPlayer) -> Result<()> {
+        let list_intrinsic = Self::get_intrinsics(player.gender);
         let mut msg = Message::new(112);
 
         msg.write_byte(1);
@@ -47,7 +47,7 @@ impl IntrinsicService {
             msg.write_short(intrinsic.icon);
             msg.write_utf(&intrinsic.get_description());
         }
-        session.transmit(msg);
+        player.send_to_client(msg)?;
         Ok(())
     }
 

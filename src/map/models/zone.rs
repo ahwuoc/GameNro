@@ -179,14 +179,11 @@ impl Zone {
     }
 
     pub fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
-        // Load myself (player_id) to all other players in this zone
         if !self.player_ids.contains(&player_id) {
             return Ok(());
         }
 
         let target_player = PLAYER_MANAGER.get(player_id);
-
-        // Get all receivers (other players in zone)
         let receivers: Vec<Player> = self
             .player_ids
             .iter()

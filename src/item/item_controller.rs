@@ -63,15 +63,12 @@ impl ItemController {
                             return Ok(());
                         }
                         if item.get_template_id() == Some(457) {
-                            ServiceHandles::send_message_alert(
-                                session,
-                                "Bạn không thể bỏ vật phẩm này",
-                            );
+                            ServiceHandles::send_message_alert(pl, "Bạn không thể bỏ vật phẩm này");
                             return Ok(());
                         }
                         std::mem::take(item);
-                        InventoryService::send_item_bag_to_client(session, pl)?;
-                        InventoryService::send_item_body_to_client(session, pl)?;
+                        InventoryService::send_item_bag_to_client(pl)?;
+                        InventoryService::send_item_body_to_client(pl)?;
                         Ok(())
                     })
                     .await?;

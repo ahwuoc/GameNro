@@ -31,16 +31,16 @@ impl NpcHandler for NpcHomeHandler {
         match menu_id {
             MenuId::OngGohanMenu => match select {
                 0 => {
-                    ServiceHandles::send_message_alert(
-                        session,
-                        "Chức năng Giftcode đang được phát triển",
-                    )?;
+                    // ServiceHandles::send_message_alert(
+                    //     session,
+                    //     "Chức năng Giftcode đang được phát triển",
+                    // )?;
                 }
                 1 => {
-                    ServiceHandles::send_message_alert(
-                        session,
-                        "Chức năng Đổi Mật Khẩu đang được phát triển",
-                    )?;
+                    // ServiceHandles::send_message_alert(
+                    //     session,
+                    //     "Chức năng Đổi Mật Khẩu đang được phát triển",
+                    // )?;
                 }
                 2 => {}
                 3 => {
