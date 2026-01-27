@@ -1,5 +1,7 @@
 use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
+use crate::item::InventoryService;
+use crate::item::ItemService;
 use crate::map::change_map_service::{ChangeMapService, SpaceShipType};
 use crate::network::session::SessionArc;
 use crate::network::{session::AsyncSession, SESSION_MANAGER};
@@ -45,6 +47,19 @@ impl CommandService {
                     MenuId::Admin,
                 )
                 .await?;
+                return Ok(true);
+            } else if text.starts_with("i_") {
+                let item_id = text.strip_prefix("i_").unwrap_or("");
+                if let Ok(item_id) = item_id.trim().parse::<i16>() {
+                    let item = match ItemService::create_new_item(item_id) {
+                        Some(mut it) => it,
+                        None => {
+                            ServiceHandles::send_message_alert(session, "Item not found");
+                            return Ok(true);
+                        }
+                    };
+                    InventoryService::add_item_bag(session, item).await;
+                }
                 return Ok(true);
             } else if text.starts_with("m ") {
                 let map_id_str = text.strip_prefix("m ").unwrap_or("");

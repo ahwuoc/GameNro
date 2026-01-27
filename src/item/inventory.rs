@@ -15,14 +15,6 @@ pub struct Inventory {
     pub items_box: Vec<Item>,
     pub items_box_crack_ball: Vec<Item>,
     pub train_armor: Option<Item>,
-
-    // Gift codes
-    pub gift_codes: Vec<String>,
-
-    // Constants
-    pub const_limit_gold: i64,
-    pub const_max_items_bag: usize,
-    pub const_max_items_box: usize,
 }
 
 impl Inventory {
@@ -38,10 +30,6 @@ impl Inventory {
             items_box: Vec::new(),
             items_box_crack_ball: Vec::new(),
             train_armor: None,
-            gift_codes: Vec::new(),
-            const_limit_gold: 2000000000000,
-            const_max_items_bag: 100,
-            const_max_items_box: 100,
         }
     }
 
@@ -58,169 +46,30 @@ impl Inventory {
     }
 
     pub fn add_gold(&mut self, amount: i64) {
-        self.gold += amount;
-        if self.gold > self.const_limit_gold {
-            self.gold = self.const_limit_gold;
-        }
+        self.gold = self
+            .gold
+            .saturating_add(amount)
+            .min(crate::constant::limit::LIMIT_GOLD);
     }
 
     pub fn sub_gold(&mut self, amount: i64) {
-        self.gold = (self.gold - amount).max(0);
+        self.gold = self.gold.saturating_sub(amount).max(0);
     }
 
     pub fn add_gem(&mut self, amount: i32) {
-        self.gem += amount;
+        self.gem = self.gem.saturating_add(amount);
     }
 
     pub fn sub_gem(&mut self, amount: i32) {
-        self.gem = (self.gem - amount).max(0);
+        self.gem = self.gem.saturating_sub(amount).max(0);
     }
 
     pub fn add_ruby(&mut self, amount: i32) {
-        self.ruby += amount;
+        self.ruby = self.ruby.saturating_add(amount);
     }
 
     pub fn sub_ruby(&mut self, amount: i32) {
-        self.ruby = (self.ruby - amount).max(0);
-    }
-
-    pub fn sub_gem_and_ruby(&mut self, amount: i32) {
-        self.ruby -= amount;
-        if self.ruby < 0 {
-            self.gem += self.ruby;
-            self.ruby = 0;
-        }
-    }
-
-    pub fn add_item_bag(&mut self, item: Item) -> bool {
-        if self.items_bag.len() < self.const_max_items_bag {
-            self.items_bag.push(item);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn add_item_body(&mut self, item: Item) -> bool {
-        self.items_body.push(item);
-        true
-    }
-
-    pub fn add_item_box(&mut self, item: Item) -> bool {
-        if self.items_box.len() < self.const_max_items_box {
-            self.items_box.push(item);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn remove_item_bag(&mut self, index: usize) -> Option<Item> {
-        if index < self.items_bag.len() {
-            Some(self.items_bag.remove(index))
-        } else {
-            None
-        }
-    }
-
-    pub fn remove_item_body(&mut self, index: usize) -> Option<Item> {
-        if index < self.items_body.len() {
-            Some(self.items_body.remove(index))
-        } else {
-            None
-        }
-    }
-
-    pub fn remove_item_box(&mut self, index: usize) -> Option<Item> {
-        if index < self.items_box.len() {
-            Some(self.items_box.remove(index))
-        } else {
-            None
-        }
-    }
-
-    pub fn get_item_bag(&self, index: usize) -> Option<&Item> {
-        self.items_bag.get(index)
-    }
-
-    pub fn get_item_body(&self, index: usize) -> Option<&Item> {
-        self.items_body.get(index)
-    }
-
-    pub fn get_item_box(&self, index: usize) -> Option<&Item> {
-        self.items_box.get(index)
-    }
-
-    pub fn get_item_count_by_id(&self, template_id: i16) -> i32 {
-        let mut count = 0;
-        for item in &self.items_bag {
-            if item.is_not_null_item() {
-                if let Some(item_template_id) = item.get_template_id() {
-                    if item_template_id == template_id {
-                        count += item.quantity;
-                    }
-                }
-            }
-        }
-        count
-    }
-
-    pub fn sub_quantity_item_by_id(&mut self, template_id: i16, quantity: i32) -> bool {
-        let mut remaining = quantity;
-        let mut i = 0;
-
-        while i < self.items_bag.len() && remaining > 0 {
-            let item = &mut self.items_bag[i];
-            if item.is_not_null_item() {
-                if let Some(item_template_id) = item.get_template_id() {
-                    if item_template_id == template_id {
-                        if remaining >= item.quantity {
-                            remaining -= item.quantity;
-                            self.items_bag.remove(i);
-                        } else {
-                            item.quantity -= remaining;
-                            remaining = 0;
-                        }
-                    } else {
-                        i += 1;
-                    }
-                } else {
-                    i += 1;
-                }
-            } else {
-                i += 1;
-            }
-        }
-
-        remaining == 0
-    }
-
-    pub fn is_bag_full(&self) -> bool {
-        self.items_bag.len() >= self.const_max_items_bag
-    }
-
-    pub fn is_box_full(&self) -> bool {
-        self.items_box.len() >= self.const_max_items_box
-    }
-
-    pub fn get_bag_item_count(&self) -> usize {
-        self.items_bag.len()
-    }
-
-    pub fn get_body_item_count(&self) -> usize {
-        self.items_body.len()
-    }
-
-    pub fn get_box_item_count(&self) -> usize {
-        self.items_box.len()
-    }
-
-    pub fn add_gift_code(&mut self, code: String) {
-        self.gift_codes.push(code);
-    }
-
-    pub fn has_gift_code(&self, code: &str) -> bool {
-        self.gift_codes.contains(&code.to_string())
+        self.ruby = self.ruby.saturating_sub(amount).max(0);
     }
 
     pub fn clear_all_items(&mut self) {

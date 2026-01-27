@@ -353,7 +353,14 @@ fn map_items_to_json(items: &[RtItem]) -> Vec<ItemDataJson> {
                 ItemDataJson {
                     id: -1,
                     quantity: 0,
-                    options: vec![],
+                    options: item
+                        .item_options
+                        .iter()
+                        .map(|opt| ItemOptionJson {
+                            id: opt.option_id as i32,
+                            value: opt.param as i32,
+                        })
+                        .collect(),
                     create_time: 0,
                 }
             }

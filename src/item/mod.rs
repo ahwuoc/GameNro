@@ -1,9 +1,11 @@
 // Core item modules
+pub mod inventory_transfer_service;
 pub mod item;
+pub mod item_controller;
 pub mod item_dao;
 pub mod item_option;
 pub mod item_service;
-pub mod use_item;
+pub mod use_item_service;
 
 // Item components
 pub mod inventory;

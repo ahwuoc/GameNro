@@ -24,3 +24,15 @@ impl TryFrom<i8> for TypeItemInventory {
         }
     }
 }
+impl TryFrom<i8> for TypeItemAction {
+    type Error = anyhow::Error;
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::DoUseItem),
+            1 => Ok(Self::DoThrowItem),
+            2 => Ok(Self::AcceptThrowItem),
+            3 => Ok(Self::AcceptUseItem),
+            _ => Err(anyhow::anyhow!("Invalid type error {}", value)),
+        }
+    }
+}

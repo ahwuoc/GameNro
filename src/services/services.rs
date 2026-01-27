@@ -11,6 +11,15 @@ use anyhow::Result;
 
 pub struct ServiceHandles {}
 impl ServiceHandles {
+    pub fn send_gold_gem_ruby_to_client(session: &SessionArc, pl: &Player) -> Result<()> {
+        let mut msg = Message::new(6);
+        msg.write_long(pl.inventory.get_gold())?;
+        msg.write_int(pl.inventory.get_gem())?;
+        msg.write_int(pl.inventory.get_ruby())?;
+        session.transmit(msg);
+        Ok(())
+    }
+
     pub fn send_message_alert(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
         response.write_utf(text);

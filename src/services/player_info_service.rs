@@ -21,6 +21,10 @@ struct SubTaskInfo {
 }
 
 pub async fn send_point_info(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
+    send_point_info_sync(session, player)
+}
+
+pub fn send_point_info_sync(session: &SessionArc, player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-42);
     msg.write_int(player.n_point.hpg)?;
     msg.write_int(player.n_point.mpg)?;

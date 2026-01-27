@@ -16,25 +16,29 @@ pub struct Item {
 
 impl Item {
     pub fn new() -> Self {
-        Self {
+        let mut item = Self {
             template: None,
             info: String::new(),
             quantity: 0,
             quantity_gd: 0,
             item_options: Vec::new(),
             create_time: Utc::now(),
-        }
+        };
+        item.item_options.push(ItemOption::new_null());
+        item
     }
 
     pub fn with_template(template: ItemTemplate, quantity: i32) -> Self {
-        Self {
+        let mut item = Self {
             template: Some(template),
             info: String::new(),
             quantity,
             quantity_gd: 0,
             item_options: Vec::new(),
             create_time: Utc::now(),
-        }
+        };
+        item.item_options.push(ItemOption::new_null());
+        item
     }
 
     pub fn is_not_null_item(&self) -> bool {
@@ -84,6 +88,13 @@ impl Item {
         "todos".to_string()
     }
 
+    pub fn get_is_up_to(&self) -> bool {
+        if let Some(ref template) = self.template {
+            template.is_up_to_up == 1
+        } else {
+            false
+        }
+    }
     pub fn get_info(&self) -> String {
         if let Some(ref template) = self.template {
             format!("{} - {}", template.name, self.get_option_info())
@@ -116,7 +127,6 @@ impl Item {
         }
     }
 
-    /// Check if item is Cong Thuc Thuong (Normal Recipe)
     pub fn is_cong_thuc_thuong(&self) -> bool {
         if let Some(ref template) = self.template {
             template.id >= 1071 && template.id <= 1073
@@ -132,7 +142,6 @@ impl Item {
         }
     }
 
-    /// Check if item is Da May Man (Lucky Stone)
     pub fn is_da_may_man(&self) -> bool {
         if let Some(ref template) = self.template {
             template.id >= 1090 && template.id <= 1092
@@ -158,10 +167,12 @@ impl Item {
     pub fn get_str_require(&self) -> Option<i32> {
         self.template.as_ref().map(|t| t.power_require as i32)
     }
-    pub fn get_name(&self) -> Option<&str> {
-        self.template.as_ref().map(|t| t.name.as_str())
+    pub fn get_name(&self) -> &str {
+        self.template
+            .as_ref()
+            .map(|t| t.name.as_str())
+            .unwrap_or("unknow item")
     }
-
     pub fn can_use(&self, player_str: i32) -> bool {
         if let Some(str_require) = self.get_str_require() {
             player_str >= str_require

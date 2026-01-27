@@ -5,8 +5,7 @@ use crate::data::data_game::DataGame;
 use crate::data::ItemData;
 use crate::database::DbManager;
 use crate::entities::{account, player};
-use crate::item::use_item::UseItem;
-use crate::item::{type_item_inventory, use_item};
+use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
@@ -52,7 +51,7 @@ impl AsyncController {
                 if let Some(player) = session.take_player().await {
                     if !is_mob_me {
                         let dame = player.n_point.get_dame_attack(false);
-                        mob_service::attack_mob(&player, mob_id, dame).await;
+                        mob_service::player_attack_mob(&player, mob_id, dame).await;
                     } else {
                         println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
                     }
@@ -64,7 +63,7 @@ impl AsyncController {
                 let type_byte = msg.read_byte()?;
                 let type_inventory = type_item_inventory::TypeItemInventory::try_from(type_byte)?;
                 let index = msg.read_byte()?;
-                use_item::UseItem::get_item(&session, type_inventory, index).await?;
+                item_controller::ItemController::get_item(&session, type_inventory, index).await?;
                 Ok(())
             }
             -41 => {
@@ -83,7 +82,20 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -43 => Ok(()),
+            -43 => {
+                let type_byte = msg.read_byte()?;
+                let type_action = type_item_inventory::TypeItemAction::try_from(type_byte)?;
+                let where_item = msg.read_byte()?;
+                let index = msg.read_byte()?;
+                item_controller::ItemController::handle_item_action(
+                    &session,
+                    type_action,
+                    where_item,
+                    index,
+                )
+                .await?;
+                Ok(())
+            }
             -93 => {
                 Self::handle_not_login(&session, msg).await?;
                 Ok(())

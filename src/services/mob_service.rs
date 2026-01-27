@@ -5,7 +5,7 @@ use crate::player::player::Player;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Xử lý khi người chơi tấn công quái
-pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
+pub async fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
     if let Some(zone) = &player.zone {
         let msg_opt = {
             let mut mobs = zone.active_mobs.write().await;
@@ -42,7 +42,7 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     }
 }
 
-/// Cập nhật logic của quái trong Zone (hồi sinh, tấn công, hồi máu)
+// Update mob hoi hp, tan cong player
 pub async fn update(zone: &Zone) {
     let current_time = get_current_time();
     let mut global_msgs = Vec::new();
