@@ -8,8 +8,8 @@ use crate::player::player::Player;
 use anyhow::Result;
 use dashmap::DashMap;
 use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::RwLock;
 
 pub struct Zone {
     pub map_id: i32,
@@ -33,19 +33,19 @@ impl Zone {
         }
     }
 
-    pub async fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.players.is_empty()
     }
 
-    pub async fn is_full(&self) -> bool {
+    pub fn is_full(&self) -> bool {
         self.players.len() >= self.max_player as usize
     }
 
-    pub async fn get_num_players(&self) -> usize {
+    pub fn get_num_players(&self) -> usize {
         self.players.len()
     }
 
-    pub async fn add_player(&self, player: Player) -> anyhow::Result<()> {
+    pub fn add_player(&self, player: Player) -> anyhow::Result<()> {
         if self.players.len() >= self.max_player as usize {
             return Err(anyhow::anyhow!("Zone is full"));
         }
@@ -54,57 +54,57 @@ impl Zone {
         Ok(())
     }
 
-    pub async fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
+    pub fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
         self.players.remove(&player_id);
         Ok(())
     }
 
-    pub async fn get_player(&self, player_id: u64) -> Option<Player> {
+    pub fn get_player(&self, player_id: u64) -> Option<Player> {
         self.players.get(&player_id).map(|p| p.clone())
     }
 
-    pub async fn get_all_players(&self) -> Vec<Player> {
+    pub fn get_all_players(&self) -> Vec<Player> {
         self.players.iter().map(|p| p.value().clone()).collect()
     }
 
-    pub async fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
-        let mut mobs = self.active_mobs.write().await;
+    pub fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
+        let mut mobs = self.active_mobs.write().unwrap();
         mobs.push(mob);
         Ok(())
     }
 
-    pub async fn remove_mob(&self, mob_id: u64) -> anyhow::Result<()> {
-        let mut mobs = self.active_mobs.write().await;
+    pub fn remove_mob(&self, mob_id: u64) -> anyhow::Result<()> {
+        let mut mobs = self.active_mobs.write().unwrap();
         mobs.retain(|mob| mob.id != mob_id);
         Ok(())
     }
 
-    pub async fn get_all_mobs(&self) -> Vec<RtMob> {
-        let mobs = self.active_mobs.read().await;
+    pub fn get_all_mobs(&self) -> Vec<RtMob> {
+        let mobs = self.active_mobs.read().unwrap();
         mobs.clone()
     }
 
-    pub async fn add_item(&self, item: ItemMap) -> anyhow::Result<()> {
-        let mut items = self.active_items.write().await;
+    pub fn add_item(&self, item: ItemMap) -> anyhow::Result<()> {
+        let mut items = self.active_items.write().unwrap();
         items.push(item);
         Ok(())
     }
 
-    pub async fn remove_item(&self, item_id: i16) -> anyhow::Result<()> {
-        let mut items = self.active_items.write().await;
+    pub fn remove_item(&self, item_id: i16) -> anyhow::Result<()> {
+        let mut items = self.active_items.write().unwrap();
         items.retain(|item| item.id != item_id);
         Ok(())
     }
 
-    pub async fn get_all_items(&self) -> Vec<ItemMap> {
-        let items = self.active_items.read().await;
+    pub fn get_all_items(&self) -> Vec<ItemMap> {
+        let items = self.active_items.read().unwrap();
         items.clone()
     }
 
-    pub async fn update(&self) -> anyhow::Result<()> {
-        crate::services::mob_service::update(self).await;
+    pub fn update(&self) -> anyhow::Result<()> {
+        crate::services::mob_service::update(self);
 
-        let mut items = self.active_items.write().await;
+        let mut items = self.active_items.write().unwrap();
         for _item in items.iter_mut() {
             // TODO: Implement item update logic
             // item.update();
@@ -112,9 +112,9 @@ impl Zone {
 
         Ok(())
     }
-    pub async fn get_zone_info(&self) -> ZoneInfo {
-        let mobs = self.active_mobs.read().await;
-        let items = self.active_items.read().await;
+    pub fn get_zone_info(&self) -> ZoneInfo {
+        let mobs = self.active_mobs.read().unwrap();
+        let items = self.active_items.read().unwrap();
 
         ZoneInfo {
             map_id: self.map_id,
@@ -126,14 +126,14 @@ impl Zone {
         }
     }
 
-    pub async fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
+    pub fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
         for player in self.players.iter() {
-            player.send_to_client(msg.clone()).await;
+            let _ = player.send_to_client(msg.clone());
         }
         Ok(())
     }
 
-    pub async fn send_message_all_player_in_map(
+    pub fn send_message_all_player_in_map(
         &self,
         player: &Player,
         msg: Message,
@@ -142,25 +142,25 @@ impl Zone {
             return Ok(());
         }
         for pl in self.players.iter() {
-            pl.send_to_client(msg.clone()).await;
+            let _ = pl.send_to_client(msg.clone());
         }
         Ok(())
     }
 
-    pub async fn send_message_to_other_players(
+    pub fn send_message_to_other_players(
         &self,
         except_player_id: u64,
         msg: Message,
     ) -> anyhow::Result<()> {
         for entry in self.players.iter() {
             if *entry.key() != except_player_id {
-                entry.value().send_to_client(msg.clone()).await;
+                let _ = entry.value().send_to_client(msg.clone());
             }
         }
         Ok(())
     }
 
-    pub async fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
+    pub fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
         if !self.players.contains_key(&player_id) {
             return Ok(());
         }
@@ -179,12 +179,12 @@ impl Zone {
 
         if let Some(info_player) = target_player {
             for receiver_id in target_and_receivers {
-                if let Some(receiver) = self.get_player(receiver_id).await {
-                    let _ = Self::send_player_info(&receiver, &info_player).await;
+                if let Some(receiver) = self.get_player(receiver_id) {
+                    let _ = Self::send_player_info(&receiver, &info_player);
 
                     if info_player.is_die() {
                         let death_msg = Self::build_player_death_message(&info_player);
-                        receiver.send_to_client(death_msg);
+                        let _ = receiver.send_to_client(death_msg);
                     }
                 }
             }
@@ -192,7 +192,7 @@ impl Zone {
         Ok(())
     }
 
-    pub async fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
+    pub fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
         let Some(receiver) = self.players.get(&player_id).map(|p| p.clone()) else {
             return Ok(());
         };
@@ -209,7 +209,7 @@ impl Zone {
             .collect();
 
         for other in others.into_iter() {
-            let _ = Self::send_player_info(&receiver, &other).await;
+            let _ = Self::send_player_info(&receiver, &other);
 
             if other.is_die() {
                 let death_msg = Self::build_player_death_message(&other);
@@ -219,20 +219,20 @@ impl Zone {
         Ok(())
     }
 
-    pub async fn load_player_to_zone(
+    pub fn load_player_to_zone(
         &self,
         mut player: Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
         player.set_zone(self.clone());
-        self.add_player(player.clone()).await?;
-        self.load_another_to_me(player.id).await?;
-        self.load_me_to_another(player.id).await?;
-        self.map_info(session, player.id).await?;
+        self.add_player(player.clone())?;
+        self.load_another_to_me(player.id)?;
+        self.load_me_to_another(player.id)?;
+        self.map_info(session, player.id)?;
         Ok(())
     }
 
-    pub async fn send_player_info(pl_receiver: &Player, pl_target: &Player) -> Result<()> {
+    pub fn send_player_info(pl_receiver: &Player, pl_target: &Player) -> Result<()> {
         let mut msg = Message::new(-5);
 
         let id = pl_target.id as i32;
@@ -296,7 +296,7 @@ impl Zone {
             let _ = msg.write_short(aura);
             let _ = msg.write_byte(eff_front);
         }
-        pl_receiver.send_to_client(msg).await?;
+        pl_receiver.send_to_client(msg)?;
         Ok(())
     }
 
@@ -309,7 +309,7 @@ impl Zone {
         msg
     }
 
-    pub async fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
+    pub fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
         let Some(player) = self.players.get(&player_id) else {
             return Ok(());
         };
@@ -362,7 +362,7 @@ impl Zone {
         };
         let _ = wp_count;
         {
-            let mobs_guard = self.active_mobs.read().await;
+            let mobs_guard = self.active_mobs.read().unwrap();
             let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
             msg.write_byte(mob_count)?;
             for mob in mobs_guard.iter().take(mob_count as usize) {

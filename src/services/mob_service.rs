@@ -4,11 +4,10 @@ use crate::network::message::Message;
 use crate::player::player::Player;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Xử lý khi người chơi tấn công quái
-pub async fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
+pub fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
     if let Some(zone) = &player.zone {
         let msg_opt = {
-            let mut mobs = zone.active_mobs.write().await;
+            let mut mobs = zone.active_mobs.write().unwrap();
             if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
                 let old_hp = mob.hp;
                 let real_damage = mob.take_damage(damage);
@@ -37,19 +36,19 @@ pub async fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
         };
 
         if let Some(msg) = msg_opt {
-            let _ = zone.send_message_to_all_players(msg).await;
+            let _ = zone.send_message_to_all_players(msg);
         }
     }
 }
 
 // Update mob hoi hp, tan cong player
-pub async fn update(zone: &Zone) {
+pub fn update(zone: &Zone) {
     let current_time = get_current_time();
     let mut global_msgs = Vec::new();
     let mut player_specific_msgs = Vec::new();
 
     {
-        let mut mobs = zone.active_mobs.write().await;
+        let mut mobs = zone.active_mobs.write().unwrap();
         for mob in mobs.iter_mut() {
             if !mob.is_alive {
                 handle_respawn(mob, current_time, &mut global_msgs);
@@ -60,14 +59,13 @@ pub async fn update(zone: &Zone) {
                     current_time,
                     &mut global_msgs,
                     &mut player_specific_msgs,
-                )
-                .await;
+                );
                 handle_self_recovery(mob, current_time, &mut global_msgs);
             }
         }
     }
 
-    broadcast_messages(zone, global_msgs, player_specific_msgs).await;
+    broadcast_messages(zone, global_msgs, player_specific_msgs);
 }
 
 fn handle_mob_death(mob: &mut RtMob) {
@@ -113,7 +111,7 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
         }
     }
 }
-async fn hanlde_mob_attack_player(
+fn hanlde_mob_attack_player(
     mob: &mut RtMob,
     zone: &Zone,
     current_time: u64,
@@ -180,17 +178,13 @@ fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
     None
 }
 
-async fn broadcast_messages(
-    zone: &Zone,
-    global_msgs: Vec<Message>,
-    player_msgs: Vec<(u64, Message)>,
-) {
+fn broadcast_messages(zone: &Zone, global_msgs: Vec<Message>, player_msgs: Vec<(u64, Message)>) {
     for msg in global_msgs {
-        let _ = zone.send_message_to_all_players(msg).await;
+        let _ = zone.send_message_to_all_players(msg);
     }
     for (player_id, msg) in player_msgs {
         if let Some(entry) = zone.players.get(&player_id) {
-            let _ = entry.value().send_to_client(msg).await;
+            let _ = entry.value().send_to_client(msg);
         }
     }
 }

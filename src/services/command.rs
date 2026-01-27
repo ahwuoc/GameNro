@@ -22,7 +22,7 @@ impl CommandService {
         }
         if is_admin {
             if text == "menu" {
-                let online_players = SESSION_MANAGER.get_online_count().await;
+                let online_players = SESSION_MANAGER.get_online_count();
                 let online_sessions = online_players;
                 let threads = System::new_all().cpus().len();
 
@@ -66,17 +66,15 @@ impl CommandService {
                 if let Ok(map_id) = map_id_str.trim().parse::<i32>() {
                     if let Some(mut player) = session.take_player().await {
                         let change_map_service = ChangeMapService::new();
-                        if let Some(zone) = change_map_service.get_available_zone(map_id).await {
-                            change_map_service
-                                .change_map_to_zone_async(
-                                    &mut player,
-                                    &zone,
-                                    -1,
-                                    -1,
-                                    SpaceShipType::TeleportYardrat,
-                                    session,
-                                )
-                                .await?;
+                        if let Some(zone) = change_map_service.get_available_zone(map_id) {
+                            change_map_service.change_map_to_zone(
+                                &mut player,
+                                &zone,
+                                -1,
+                                -1,
+                                SpaceShipType::TeleportYardrat,
+                                session,
+                            )?;
                         }
                         session.set_player(player).await;
                     }

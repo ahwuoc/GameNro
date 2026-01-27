@@ -16,11 +16,11 @@ impl MapManager {
         }
     }
 
-    pub async fn init_and_register_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
+    pub fn init_and_register_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
         let map = Map::from_template(template);
-        let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
-        map.init_zones(&zone_manager).await?;
-        map.init_mobs().await?;
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        map.init_zones(&zone_manager)?;
+        map.init_mobs()?;
 
         self.instances.insert(map.info.id, map);
         Ok(())
@@ -34,9 +34,9 @@ impl MapManager {
         self.instances.iter().map(|kv| kv.value().clone()).collect()
     }
 
-    pub async fn update_game_loop(&self) -> anyhow::Result<()> {
+    pub fn update_game_loop(&self) -> anyhow::Result<()> {
         for map in self.instances.iter() {
-            map.value().update().await?;
+            map.value().update()?;
         }
         Ok(())
     }

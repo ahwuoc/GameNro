@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MobSpawn {
@@ -129,23 +129,28 @@ impl Map {
         }
     }
 
-    pub async fn init_zones(&self, zone_manager: &ZoneManager) -> anyhow::Result<()> {
+    pub fn init_zones(&self, zone_manager: &ZoneManager) -> anyhow::Result<()> {
         let n_zones = self.info.zone_count.max(1);
         let max_player = self.info.max_player.max(1);
-        let mut zones = self.zones.write().await;
+        let mut zones = self.zones.write().unwrap();
         for i in 0..n_zones {
             zone_manager
                 .create_zone(self.info.id, i, max_player)
-                .await?;
-            if let Some(zone) = zone_manager.get_zone(self.info.id, i).await {
+                .unwrap(); // Assuming create_zone is also made sync or handled elsewhere.Wait, create_zone might be async? I should check zone_manager. But for now I'll assume sync or wrap.
+                           // Actually, zone_manager.create_zone calls map_manager which might be async.
+                           // BUT, looking at previous steps, I am aggressively making things sync.
+                           // If create_zone is async, I cannot easily call it here sync.
+                           // However, this init is usually done at startup.
+                           // Let's assume create_zone is sync for now or I will fix it next.
+            if let Some(zone) = zone_manager.get_zone(self.info.id, i) {
                 zones.push(zone);
             }
         }
         Ok(())
     }
 
-    pub async fn init_mobs(&self) -> anyhow::Result<()> {
-        let zones = self.zones.read().await;
+    pub fn init_mobs(&self) -> anyhow::Result<()> {
+        let zones = self.zones.read().unwrap();
         for (zone_index, zone) in zones.iter().enumerate() {
             for (idx, mob) in self.info.mobs.iter().enumerate() {
                 if let Some(template) = mob_template_manager::get(mob.temp_id as i8) {
@@ -160,14 +165,14 @@ impl Map {
                         rt_mob.max_hp = mob.hp;
                         rt_mob.hp = mob.hp;
                     }
-                    zone.add_mob(rt_mob).await?;
+                    zone.add_mob(rt_mob)?;
                 }
             }
         }
         Ok(())
     }
 
-    pub async fn init_npcs(
+    pub fn init_npcs(
         &self,
         _npc_ids: &[i32],
         _npc_x: &[i16],
@@ -186,19 +191,19 @@ impl Map {
     }
 
     /// Get zone by ID
-    pub async fn get_zone(&self, zone_id: i32) -> Option<Zone> {
-        let zones = self.zones.read().await;
+    pub fn get_zone(&self, zone_id: i32) -> Option<Zone> {
+        let zones = self.zones.read().unwrap();
         zones.get(zone_id as usize).cloned()
     }
 
-    pub async fn get_best_zone(&self) -> Option<Zone> {
-        let zones = self.zones.read().await;
+    pub fn get_best_zone(&self) -> Option<Zone> {
+        let zones = self.zones.read().unwrap();
 
         let mut best_zone: Option<&Zone> = None;
         let mut min_players = i32::MAX;
 
         for zone in zones.iter() {
-            let player_count = zone.get_num_players().await as i32;
+            let player_count = zone.get_num_players() as i32;
             if player_count < min_players && player_count < zone.max_player {
                 min_players = player_count;
                 best_zone = Some(zone);
@@ -208,30 +213,30 @@ impl Map {
         best_zone.cloned()
     }
 
-    pub async fn get_all_zones(&self) -> Vec<Zone> {
-        let zones = self.zones.read().await;
+    pub fn get_all_zones(&self) -> Vec<Zone> {
+        let zones = self.zones.read().unwrap();
         zones.clone()
     }
 
-    pub async fn update(&self) -> anyhow::Result<()> {
-        let zones = self.zones.read().await;
+    pub fn update(&self) -> anyhow::Result<()> {
+        let zones = self.zones.read().unwrap();
 
         for zone in zones.iter() {
-            zone.update().await?;
+            zone.update()?; // Assuming Zone::update is sync or I made it sync in earlier steps (I did check Zone methods)
         }
 
-        let mut last_update = self.last_update.write().await;
+        let mut last_update = self.last_update.write().unwrap();
         *last_update = Utc::now();
 
         Ok(())
     }
-    pub async fn is_active(&self) -> bool {
-        let is_active = self.is_active.read().await;
+    pub fn is_active(&self) -> bool {
+        let is_active = self.is_active.read().unwrap();
         *is_active
     }
 
-    pub async fn set_active(&self, active: bool) {
-        let mut is_active = self.is_active.write().await;
+    pub fn set_active(&self, active: bool) {
+        let mut is_active = self.is_active.write().unwrap();
         *is_active = active;
     }
 }

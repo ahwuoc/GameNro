@@ -29,12 +29,7 @@ impl ServiceHandles {
         msg.write_int(pl.n_point.hp_max)?;
 
         if let Some(zone) = &pl.zone {
-            let zone = zone.clone();
-            let msg = msg.clone();
-            let player_id = pl.id;
-            tokio::spawn(async move {
-                let _ = zone.send_message_to_other_players(player_id, msg).await;
-            });
+            let _ = zone.send_message_to_other_players(pl.id, msg);
         }
         Ok(())
     }
@@ -70,8 +65,7 @@ impl ServiceHandles {
         response.write_utf(text)?;
         session.transmit(response.clone());
         if let Some(zone) = zone {
-            zone.send_message_to_other_players(player_id, response)
-                .await?;
+            zone.send_message_to_other_players(player_id, response)?;
         }
         Ok(())
     }

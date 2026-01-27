@@ -164,7 +164,7 @@ impl Player {
             58
         }
     }
-    pub async fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
+    pub fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(session) = &self.session {
             session.transmit(msg);
         }

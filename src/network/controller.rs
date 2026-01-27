@@ -51,7 +51,7 @@ impl AsyncController {
                 if let Some(player) = session.take_player().await {
                     if !is_mob_me {
                         let dame = player.n_point.get_dame_attack(false);
-                        mob_service::player_attack_mob(&player, mob_id, dame).await;
+                        mob_service::player_attack_mob(&player, mob_id, dame);
                     } else {
                         println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
                     }
@@ -162,14 +162,14 @@ impl AsyncController {
             -38 => Ok(()),
             -39 => {
                 if let Some(player) = session.get_player().await {
-                    ChangeMapService::finish_load_map(&player).await?;
+                    ChangeMapService::finish_load_map(&player)?;
                 }
                 Ok(())
             }
             29 => {
                 if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_zone_ui(&player, &session).await;
+                    let res = change_map_service.open_zone_ui(&player, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -179,9 +179,7 @@ impl AsyncController {
                 if let Some(mut player) = session.take_player().await {
                     let zone_id = msg.read_byte()? as i32;
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service
-                        .change_zone(&mut player, zone_id, &session)
-                        .await;
+                    let res = change_map_service.change_zone(&mut player, zone_id, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -190,9 +188,7 @@ impl AsyncController {
             -33 | -23 => {
                 if let Some(mut player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service
-                        .change_map_waypoint_handler(&mut player, &session)
-                        .await;
+                    let res = change_map_service.change_map_waypoint_handler(&mut player, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -201,9 +197,7 @@ impl AsyncController {
             -15 => {
                 if let Some(mut player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service
-                        .go_home_handler(&mut player, &session)
-                        .await;
+                    let res = change_map_service.go_home_handler(&mut player, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -212,9 +206,7 @@ impl AsyncController {
             -91 => {
                 if let Some(player) = session.take_player().await {
                     let change_map_service = ChangeMapService::new();
-                    let res = change_map_service
-                        .open_capsule_menu(&player, &session)
-                        .await;
+                    let res = change_map_service.open_capsule_menu(&player, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -341,7 +333,7 @@ impl AsyncController {
         let player_id = player_with_zone.id;
         player_with_zone.is_admin = account.is_admin;
 
-        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64).await;
+        let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64);
         if has_old_session {
             println!(
                 "[LOGIN] Found old session for player {}, kicking old session",
@@ -364,11 +356,8 @@ impl AsyncController {
         }
 
         {
-            let zone_manager = crate::map::zone_manager::ZONE_MANAGER.read().await;
-            if let Some(zone) = zone_manager
-                .get_best_zone(player_with_zone.map_id as i32)
-                .await
-            {
+            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+            if let Some(zone) = zone_manager.get_best_zone(player_with_zone.map_id as i32) {
                 player_with_zone.set_zone(zone);
             } else {
                 println!(
@@ -386,7 +375,7 @@ impl AsyncController {
 
         player_with_zone.session = Some(session.clone());
         if let Some(zone) = &player_with_zone.zone {
-            if let Err(e) = zone.add_player(player_with_zone.clone()).await {
+            if let Err(e) = zone.add_player(player_with_zone.clone()) {
                 println!("Error adding player to zone: {:?}", e);
             } else {
                 println!(
@@ -398,9 +387,7 @@ impl AsyncController {
 
         session.set_player(player_with_zone.clone()).await;
         {
-            (&*SESSION_MANAGER)
-                .add_session(player_id as i64, session.clone())
-                .await;
+            (&*SESSION_MANAGER).add_session(player_id as i64, session.clone());
         }
         Self::send_login_success_data(session).await?;
         Ok(())
@@ -641,7 +628,7 @@ impl AsyncController {
         msg.write_int(player.id as i32)?;
         msg.write_short(player.location.x)?;
         msg.write_short(player.location.y)?;
-        zone.send_message_to_other_players(player.id, msg).await?;
+        zone.send_message_to_other_players(player.id, msg)?;
 
         Ok(())
     }

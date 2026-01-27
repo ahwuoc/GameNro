@@ -42,9 +42,7 @@ pub async fn init() -> Result<()> {
 pub async fn init_maps_world() -> Result<()> {
     let map_templates = map_template_manager::get_all();
     for template in &map_templates {
-        let _ = map_manager::MAP_MANAGER
-            .init_and_register_map(template)
-            .await;
+        let _ = map_manager::MAP_MANAGER.init_and_register_map(template);
         let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id);
     }
     println!("Initialized {} maps into world", map_templates.len());
@@ -58,7 +56,7 @@ pub fn start_map_update_task() {
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
-            if let Err(e) = map_manager::MAP_MANAGER.update_game_loop().await {
+            if let Err(e) = map_manager::MAP_MANAGER.update_game_loop() {
                 println!("Failed to update map: {:?}", e);
             }
         }

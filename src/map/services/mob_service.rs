@@ -3,10 +3,10 @@ use crate::network::message::Message;
 use crate::player::player::Player;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
+pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     if let Some(zone) = &player.zone {
         let msg_opt = {
-            let mut mobs = zone.active_mobs.write().await;
+            let mut mobs = zone.active_mobs.write().unwrap();
             if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
                 let old_hp = mob.hp;
                 let real_damage = mob.take_damage(damage);
@@ -41,7 +41,7 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
         };
 
         if let Some(msg) = msg_opt {
-            let _ = zone.send_message_to_all_players(msg).await;
+            let _ = zone.send_message_to_all_players(msg);
         }
     }
 }
@@ -59,7 +59,7 @@ pub async fn update(zone: &Zone) {
     let mut player_specific_msgs = Vec::new();
 
     {
-        let mut mobs = zone.active_mobs.write().await;
+        let mut mobs = zone.active_mobs.write().unwrap();
         for mob in mobs.iter_mut() {
             if !mob.is_alive {
                 if current_time > mob.last_time_die + 3000 {
@@ -125,12 +125,12 @@ pub async fn update(zone: &Zone) {
     }
 
     for msg in msgs {
-        let _ = zone.send_message_to_all_players(msg).await;
+        let _ = zone.send_message_to_all_players(msg);
     }
     for (player_id, msg) in player_specific_msgs {
         if let Some(mut p_entry) = zone.players.get_mut(&player_id) {
             let player = p_entry.value_mut();
-            let _ = player.send_to_client(msg).await;
+            let _ = player.send_to_client(msg);
         }
     }
 }

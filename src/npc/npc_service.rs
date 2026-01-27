@@ -25,7 +25,7 @@ pub mod npc_service {
 
     use super::*;
 
-    pub async fn npc_chat(session: &SessionArc, message: &str, npc_id: i16) -> anyhow::Result<()> {
+    pub fn npc_chat(session: &SessionArc, message: &str, npc_id: i16) -> anyhow::Result<()> {
         let mut msg = Message::new(124);
         msg.write_short(npc_id)?;
         msg.write_utf(message)?;
@@ -33,7 +33,7 @@ pub mod npc_service {
         Ok(())
     }
 
-    pub async fn hide_wait_dialog(session: &SessionArc) -> anyhow::Result<()> {
+    pub fn hide_wait_dialog(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-99);
         msg.write_byte(-1);
         session.transmit(msg);
@@ -52,7 +52,6 @@ pub mod npc_service {
             .unwrap_or((0, 0, 0));
 
         if map_id == 0 {
-            // assuming 0 is invalid/not set or simply if player was None
             if session.get_player_ref(|p| p.is_none()).await {
                 return false;
             }
@@ -62,7 +61,7 @@ pub mod npc_service {
             if map_id == 21 || map_id == 22 || map_id == 23 {
                 return true;
             } else {
-                if let Err(e) = hide_wait_dialog(session).await {
+                if let Err(e) = hide_wait_dialog(session) {
                     println!("Error sending hide_wait_dialog: {:?}", e);
                 }
                 return false;
@@ -97,8 +96,8 @@ pub mod npc_service {
             return Ok(());
         }
         if !can_open_npc(session, npc_id).await {
-            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id).await?;
-            hide_wait_dialog(session).await?;
+            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
+            hide_wait_dialog(session)?;
             return Ok(());
         }
 
@@ -106,8 +105,8 @@ pub mod npc_service {
             handler.open_menu(session, npc_id as i16).await?;
         } else {
             println!("Unhandled NPC ID: {}", npc_id);
-            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id).await?;
-            hide_wait_dialog(session).await?;
+            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
+            hide_wait_dialog(session)?;
         }
 
         Ok(())

@@ -107,7 +107,7 @@ impl ChangeMapService {
         Self
     }
 
-    pub async fn change_map_to_zone_async(
+    pub fn change_map_to_zone(
         &self,
         player: &mut Player,
         zone: &Zone,
@@ -129,10 +129,9 @@ impl ChangeMapService {
                 player,
                 SpaceshipSendType::AllPlayersInMap,
                 actual_space_type,
-            )
-            .await?;
+            )?;
         }
-        self.exit_map_async(player).await?;
+        self.exit_map(player)?;
         let final_x = if x != -1 {
             x
         } else {
@@ -140,8 +139,8 @@ impl ChangeMapService {
         };
         let final_y = y;
         player.location.set_position(final_x, final_y);
-        self.go_to_map_async(player, zone).await?;
-        zone.map_info(session, player.id).await?;
+        self.go_to_map(player, zone)?;
+        zone.map_info(session, player.id)?;
 
         let cold_planet_effect = if current_map_is_cold != next_map_is_cold && !player.is_boss {
             if !current_map_is_cold && next_map_is_cold {
@@ -165,12 +164,12 @@ impl ChangeMapService {
         matches!(map_id, 105 | 106 | 107 | 108 | 109 | 110)
     }
 
-    pub async fn open_capsule_menu(
+    pub fn open_capsule_menu(
         &self,
         player: &Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        let destinations = self.get_capsule_destinations(player).await;
+        let destinations = self.get_capsule_destinations(player);
         let mut msg = Message::new(cmd::CAPSULE_MENU);
         msg.write_byte(destinations.len() as i8)?;
 
@@ -189,13 +188,13 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn change_map_capsule(
+    pub fn change_map_capsule(
         &self,
         player: &mut Player,
         destination_index: i32,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<CapsuleChangeResult> {
-        let destinations = self.get_capsule_destinations(player).await;
+        let destinations = self.get_capsule_destinations(player);
 
         if destination_index < 0 || destination_index >= destinations.len() as i32 {
             return Ok(CapsuleChangeResult::InvalidDestination);
@@ -204,24 +203,23 @@ impl ChangeMapService {
         let destination = &destinations[destination_index as usize];
 
         let target_zone = if destination_index == 0 && player.has_previous_capsule_location() {
-            self.get_previous_capsule_zone(player).await
+            self.get_previous_capsule_zone(player)
         } else {
-            self.get_available_zone(destination.map_id).await
+            self.get_available_zone(destination.map_id)
         };
 
         match target_zone {
             Some(zone) => {
                 player.save_capsule_location(player.map_id, player.zone_id);
 
-                self.change_map_to_zone_async(
+                self.change_map_to_zone(
                     player,
                     &zone,
                     -1,                  // Random x position
                     100,                 // Standard y position
                     SpaceShipType::None, // No spaceship for capsule
                     session,
-                )
-                .await?;
+                )?;
 
                 Ok(CapsuleChangeResult::Success {
                     map_id: zone.map_id,
@@ -233,7 +231,7 @@ impl ChangeMapService {
     }
 
     /// Get available capsule destinations for player
-    async fn get_capsule_destinations(&self, player: &Player) -> Vec<CapsuleDestination> {
+    fn get_capsule_destinations(&self, player: &Player) -> Vec<CapsuleDestination> {
         // This would typically come from MapService.getMapCapsule(player)
         // For now, return a basic set of destinations based on player progress
 
@@ -241,7 +239,7 @@ impl ChangeMapService {
 
         // Home maps are always available
         let home_map_id = Self::calculate_home_map(player.gender, false);
-        if let Some(zone) = self.get_available_zone(home_map_id).await {
+        if let Some(zone) = self.get_available_zone(home_map_id) {
             destinations.push(CapsuleDestination {
                 map_id: zone.map_id,
                 map_name: Self::get_home_map_name(player.gender),
@@ -256,9 +254,9 @@ impl ChangeMapService {
     }
 
     /// Get previous capsule zone for "return to previous" functionality
-    async fn get_previous_capsule_zone(&self, player: &Player) -> Option<Zone> {
+    fn get_previous_capsule_zone(&self, player: &Player) -> Option<Zone> {
         if let Some((map_id, zone_id)) = player.get_previous_capsule_location() {
-            self.get_specific_zone(map_id, zone_id).await
+            self.get_specific_zone(map_id, zone_id)
         } else {
             None
         }
@@ -289,7 +287,7 @@ impl ChangeMapService {
         }
     }
 
-    pub async fn open_zone_ui(
+    pub fn open_zone_ui(
         &self,
         player: &Player,
         session: &crate::network::session::SessionArc,
@@ -311,7 +309,7 @@ impl ChangeMapService {
         }
 
         // Get all zones for current map
-        let zones = self.get_zones_for_map(zone.map_id).await;
+        let zones = self.get_zones_for_map(zone.map_id);
 
         let mut msg = Message::new(cmd::OPEN_ZONE_UI);
         msg.write_byte(zones.len() as i8)?;
@@ -319,7 +317,7 @@ impl ChangeMapService {
         for zone in zones {
             msg.write_byte(zone.zone_id as i8)?;
 
-            let player_count = zone.get_num_players().await as i8;
+            let player_count = zone.get_num_players() as i8;
             let status = if player_count < 5 {
                 0
             } else if player_count < 8 {
@@ -337,7 +335,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn change_zone(
+    pub fn change_zone(
         &self,
         player: &mut Player,
         zone_id: i32,
@@ -364,23 +362,22 @@ impl ChangeMapService {
             return Ok(());
         }
 
-        if let Some(target_zone) = self.get_specific_zone(current_zone.map_id, zone_id).await {
-            if target_zone.is_full().await && !player.is_admin && !player.is_boss {
+        if let Some(target_zone) = self.get_specific_zone(current_zone.map_id, zone_id) {
+            if target_zone.is_full() && !player.is_admin && !player.is_boss {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực này đã đầy")?;
                 session.transmit(msg);
                 return Ok(());
             }
 
-            self.change_map_to_zone_async(
+            self.change_map_to_zone(
                 player,
                 &target_zone,
                 player.location.x,
                 player.location.y,
                 SpaceShipType::None,
                 session,
-            )
-            .await?;
+            )?;
             player.update_zone_change_time();
         } else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -391,12 +388,12 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn change_map_waypoint_handler(
+    pub fn change_map_waypoint_handler(
         &self,
         player: &mut Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        match self.change_map_waypoint(player).await {
+        match self.change_map_waypoint(player) {
             WaypointChangeResult::Success {
                 destination_map_id,
                 destination_zone_id,
@@ -407,14 +404,12 @@ impl ChangeMapService {
                     "Player {} changed map via waypoint to map {} zone {} at ({}, {})",
                     player.name, destination_map_id, destination_zone_id, x, y
                 );
-                if let Some(zone) = self
-                    .get_specific_zone(destination_map_id, destination_zone_id)
-                    .await
+                if let Some(zone) = self.get_specific_zone(destination_map_id, destination_zone_id)
                 {
-                    self.exit_map_async(player).await?;
+                    self.exit_map(player)?;
                     player.location.set_position(x, y);
-                    self.go_to_map_async(player, &zone).await?;
-                    zone.map_info(session, player.id).await?;
+                    self.go_to_map(player, &zone)?;
+                    zone.map_info(session, player.id)?;
                     println!(
                         "[WAYPOINT] Sent map_info for map {} zone {} to player {}",
                         destination_map_id, destination_zone_id, player.name
@@ -462,12 +457,12 @@ impl ChangeMapService {
 
         Ok(())
     }
-    pub async fn go_home_handler(
+    pub fn go_home_handler(
         &self,
         player: &mut Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        match self.go_home(player).await {
+        match self.go_home(player) {
             GoHomeResult::Success {
                 home_map_id,
                 zone_id,
@@ -475,9 +470,8 @@ impl ChangeMapService {
                 y,
                 space_type,
             } => {
-                if let Some(target_zone) = self.get_specific_zone(home_map_id, zone_id).await {
-                    self.change_map_to_zone_async(player, &target_zone, x, y, space_type, session)
-                        .await?;
+                if let Some(target_zone) = self.get_specific_zone(home_map_id, zone_id) {
+                    self.change_map_to_zone(player, &target_zone, x, y, space_type, session)?;
                 }
             }
             GoHomeResult::NoAvailableZone => {
@@ -496,9 +490,9 @@ impl ChangeMapService {
     }
 
     /// Get zones for a specific map
-    async fn get_zones_for_map(&self, map_id: i32) -> Vec<Zone> {
+    fn get_zones_for_map(&self, map_id: i32) -> Vec<Zone> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
-            return map.get_all_zones().await;
+            return map.get_all_zones();
         }
         Vec::new()
     }
@@ -511,7 +505,7 @@ impl ChangeMapService {
         true
     }
 
-    pub async fn change_map_waypoint(&self, player: &mut Player) -> WaypointChangeResult {
+    pub fn change_map_waypoint(&self, player: &mut Player) -> WaypointChangeResult {
         println!(
             "[WAYPOINT] Starting change_map_waypoint for player {} (map: {}, zone: {:?})",
             player.name,
@@ -523,7 +517,7 @@ impl ChangeMapService {
             println!("[WAYPOINT] Player has no zone, returning InvalidPlayerZone");
             return WaypointChangeResult::InvalidPlayerZone;
         }
-        let waypoint = self.get_waypoint_at_player_position(player).await;
+        let waypoint = self.get_waypoint_at_player_position(player);
 
         match waypoint {
             Some(wp) => {
@@ -545,7 +539,7 @@ impl ChangeMapService {
                     "[WAYPOINT] Task requirement passed, getting available zone for map {}",
                     wp.go_map
                 );
-                let destination_zone = self.get_available_zone(wp.go_map).await;
+                let destination_zone = self.get_available_zone(wp.go_map);
 
                 match destination_zone {
                     Some(zone) => {
@@ -587,7 +581,7 @@ impl ChangeMapService {
         }
     }
 
-    async fn get_waypoint_at_player_position(&self, player: &Player) -> Option<WayPoint> {
+    fn get_waypoint_at_player_position(&self, player: &Player) -> Option<WayPoint> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(player.map_id) {
             let waypoint = map.get_waypoint_at_position(player.location.x, player.location.y);
             println!(
@@ -603,9 +597,9 @@ impl ChangeMapService {
         }
         None
     }
-    pub async fn get_available_zone(&self, map_id: i32) -> Option<Zone> {
+    pub fn get_available_zone(&self, map_id: i32) -> Option<Zone> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
-            return map.get_best_zone().await;
+            return map.get_best_zone();
         }
         None
     }
@@ -687,12 +681,12 @@ impl ChangeMapService {
 
         player.location.set_position(x, player.location.y);
     }
-    pub async fn exit_map_async(&self, player: &mut Player) -> anyhow::Result<()> {
+    pub fn exit_map(&self, player: &mut Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
-            zone.remove_player(player.id).await?;
+            zone.remove_player(player.id)?;
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
-            zone.send_message_to_other_players(player.id, msg).await?;
+            zone.send_message_to_other_players(player.id, msg)?;
 
             println!(
                 "Player {} exited zone {} on map {}",
@@ -707,13 +701,13 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn go_to_map_async(&self, player: &mut Player, zone: &Zone) -> anyhow::Result<()> {
+    pub fn go_to_map(&self, player: &mut Player, zone: &Zone) -> anyhow::Result<()> {
         player.zone_id = zone.zone_id;
         player.map_id = zone.map_id;
         player.location.set_map(player.map_id, player.zone_id);
         player.set_zone(zone.clone());
-        zone.add_player(player.clone()).await?;
-        Self::finish_load_map(player).await?;
+        zone.add_player(player.clone())?;
+        Self::finish_load_map(player)?;
         println!(
             "Player {} entered zone {} on map {}",
             player.name, zone.zone_id, zone.map_id
@@ -721,21 +715,21 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn finish_load_map(player: &Player) -> anyhow::Result<()> {
+    pub fn finish_load_map(player: &Player) -> anyhow::Result<()> {
         if let Some(zone) = &player.zone {
-            zone.load_another_to_me(player.id).await?;
-            zone.load_me_to_another(player.id).await?;
+            zone.load_another_to_me(player.id)?;
+            zone.load_me_to_another(player.id)?;
         }
-        Self::send_effect_map_to_me(player).await?;
-        Self::send_effect_me_to_map(player).await?;
+        Self::send_effect_map_to_me(player)?;
+        Self::send_effect_me_to_map(player)?;
 
         Ok(())
     }
-    pub async fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
+    pub fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
         let Some(zone) = &player.zone else {
             return Ok(());
         };
-        let mobs = zone.get_all_mobs().await;
+        let mobs = zone.get_all_mobs();
         for mob in mobs {
             // Skip dead mobs
             if mob.hp <= 0 {
@@ -744,7 +738,7 @@ impl ChangeMapService {
         }
 
         // Send player effects to this player
-        let players = zone.get_all_players().await;
+        let players = zone.get_all_players();
         for other_player in players {
             if other_player.id == player.id {
                 continue; // Skip self
@@ -754,7 +748,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub async fn send_effect_me_to_map(player: &Player) -> anyhow::Result<()> {
+    pub fn send_effect_me_to_map(player: &Player) -> anyhow::Result<()> {
         let Some(_zone) = &player.zone else {
             return Ok(());
         };
@@ -783,7 +777,7 @@ impl ChangeMapService {
     /// 3. Initiates spaceship travel
     ///
     /// Requirements: 3.1
-    pub async fn go_home(&self, player: &mut Player) -> GoHomeResult {
+    pub fn go_home(&self, player: &mut Player) -> GoHomeResult {
         // Check if player is a boss (bosses cannot use go_home)
         // In Java: if (!pl.isBoss)
 
@@ -795,7 +789,7 @@ impl ChangeMapService {
         let home_map_id = Self::calculate_home_map(player.gender, is_in_mabu);
 
         // Get a zone in the home map
-        let zone = self.get_available_zone(home_map_id).await;
+        let zone = self.get_available_zone(home_map_id);
 
         match zone {
             Some(target_zone) => {
@@ -821,15 +815,7 @@ impl ChangeMapService {
         }
     }
 
-    /// Change map by spaceship - spaceship travel with animation
-    ///
-    /// This function:
-    /// 1. Sends spaceship animation effect (CMD -65)
-    /// 2. Handles tennis spaceship healing
-    /// 3. Handles dead player revival
-    ///
-    /// Requirements: 3.2, 3.3, 3.4
-    pub async fn change_map_by_spaceship(
+    pub fn change_map_by_spaceship(
         &self,
         player: &mut Player,
         map_id: i32,
@@ -838,9 +824,9 @@ impl ChangeMapService {
     ) -> SpaceshipTravelResult {
         // Get target zone
         let target_zone = if zone_id == -1 {
-            self.get_available_zone(map_id).await
+            self.get_available_zone(map_id)
         } else {
-            self.get_specific_zone(map_id, zone_id).await
+            self.get_specific_zone(map_id, zone_id)
         };
 
         let Some(zone) = target_zone else {
@@ -917,7 +903,7 @@ impl ChangeMapService {
         }
     }
 
-    pub async fn spaceship_arrive(
+    pub fn spaceship_arrive(
         &self,
         player: &Player,
         send_type: SpaceshipSendType,
@@ -931,24 +917,24 @@ impl ChangeMapService {
             SpaceshipSendType::AllPlayersInMap => {
                 // Send to all players in zone including self
                 if let Some(zone) = &player.zone {
-                    zone.send_message_all_player_in_map(player, msg).await?;
+                    zone.send_message_all_player_in_map(player, msg)?;
                 }
             }
             SpaceshipSendType::SelfOnly => {
-                player.send_to_client(msg).await?;
+                player.send_to_client(msg)?;
             }
             SpaceshipSendType::OthersInMap => {
                 if let Some(zone) = &player.zone {
-                    zone.send_message_to_other_players(player.id, msg).await?;
+                    zone.send_message_to_other_players(player.id, msg)?;
                 }
             }
         }
 
         Ok(())
     }
-    async fn get_specific_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
+    fn get_specific_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
-            return map.get_zone(zone_id).await;
+            return map.get_zone(zone_id);
         }
         None
     }
@@ -1100,44 +1086,19 @@ pub enum MapAccessResult {
 }
 
 impl ChangeMapService {
-    // ========================================
-    // Map Access Validation Functions (Task 8)
-    // ========================================
-
-    /// Check if player can join a zone
-    ///
-    /// This function validates map access based on:
-    /// 1. Task requirements (Requirements 7.1, 7.2)
-    /// 2. Gender restrictions (Requirements 7.3)
-    /// 3. Admin/boss bypass (Requirements 7.4)
-    ///
-    /// Based on Java checkMapCanJoin implementation in ChangeMapService.java
-    ///
-    /// Property 7: Task requirement validation
-    /// Property 8: Gender restriction validation
-    /// Property 9: Admin bypass all restrictions
     pub fn check_map_can_join(player: &Player, zone: &Zone) -> MapAccessResult {
         // Check for invalid zone
         if zone.map_id == -1 {
             return MapAccessResult::InvalidZone;
         }
 
-        // Admin and boss players bypass all restrictions (Requirements 7.4)
-        // Property 9: Admin bypass all restrictions
         if player.is_boss || player.is_admin {
             return MapAccessResult::Allowed;
         }
-
-        // Check task requirements (Requirements 7.1, 7.2)
-        // Property 7: Task requirement validation
         let required_task_id = Self::get_required_task_id_for_map(zone.map_id);
         if required_task_id > 0 && player.get_task_id() < required_task_id {
             return MapAccessResult::TaskRequirementNotMet { required_task_id };
         }
-
-        // Check gender restrictions for home maps (Requirements 7.3)
-        // Property 8: Gender restriction validation
-        // Home maps: 21 (Trái Đất), 22 (Namếc), 23 (Xayda)
         if let Some(result) = Self::check_gender_restriction(player, zone.map_id) {
             return result;
         }
@@ -1145,15 +1106,6 @@ impl ChangeMapService {
         MapAccessResult::Allowed
     }
 
-    /// Check gender restrictions for home maps
-    ///
-    /// Home maps are gender-restricted:
-    /// - Map 21: Only for gender 0 (Trái Đất)
-    /// - Map 22: Only for gender 1 (Namếc)
-    /// - Map 23: Only for gender 2 (Xayda)
-    ///
-    /// Requirements: 7.3
-    /// Property 8: Gender restriction validation
     fn check_gender_restriction(player: &Player, map_id: i32) -> Option<MapAccessResult> {
         match player.gender {
             GENDER_TRAI_DAT => {

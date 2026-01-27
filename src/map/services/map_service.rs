@@ -146,7 +146,6 @@ impl MapService {
         None
     }
 
-    /// Get maps by planet ID
     pub fn get_maps_by_planet(&self, planet_id: i32) -> Vec<&Map> {
         self.maps
             .values()
@@ -154,7 +153,6 @@ impl MapService {
             .collect()
     }
 
-    /// Get maps by type
     pub fn get_maps_by_type(&self, map_type: i32) -> Vec<&Map> {
         self.maps
             .values()
@@ -162,7 +160,6 @@ impl MapService {
             .collect()
     }
 
-    /// Check if player can join map
     pub fn can_player_join_map(&self, player: &Player, map_id: i32) -> bool {
         if let Some(map) = self.get_map_by_id(map_id) {
             false
@@ -179,14 +176,12 @@ impl MapService {
         }
     }
 
-    /// Update all maps
     pub fn update_all_maps(&mut self) {
         for map in self.maps.values_mut() {
             map.update();
         }
     }
 
-    /// Clear all maps
     pub fn clear_all_maps(&mut self) {
         self.maps.clear();
     }
@@ -197,15 +192,5 @@ impl MapService {
         } else {
             None
         }
-    }
-
-    pub async fn send_player_move(&self, player: &Player) -> anyhow::Result<()> {
-        let mut message = Message::new(-7);
-        message.write_int(player.id as i32)?;
-        if let Some(zone) = &player.zone {
-            zone.send_message_to_all_players(message).await?;
-        }
-
-        Ok(())
     }
 }

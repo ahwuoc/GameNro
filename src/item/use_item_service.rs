@@ -48,7 +48,6 @@ impl UseItemService {
                 ServiceHandles::send_message_eat_dauthan(pl);
                 InventoryService::sub_quantity_item_bag(pl, index, 1);
                 InventoryService::send_item_bag_to_client(session, pl)?;
-                println!("chay vao day");
             }
             _ => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;

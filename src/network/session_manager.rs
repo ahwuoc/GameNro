@@ -17,7 +17,7 @@ impl SessionManager {
         }
     }
 
-    pub async fn add_session(&self, player_id: i64, session: SessionArc) -> bool {
+    pub fn add_session(&self, player_id: i64, session: SessionArc) -> bool {
         let inserted = self.sessions.insert(player_id, session);
         if inserted.is_some() {
             println!(
@@ -28,7 +28,7 @@ impl SessionManager {
         true
     }
 
-    pub async fn remove_session(&self, player_id: i64) -> bool {
+    pub fn remove_session(&self, player_id: i64) -> bool {
         let removed = self.sessions.remove(&player_id).is_some();
         if removed {
             println!("[SESSION_MANAGER] Removed session for player {}", player_id);
@@ -47,7 +47,7 @@ impl SessionManager {
 
             if let Some(player) = session.get_player().await {
                 if let Some(zone) = &player.zone {
-                    let _ = zone.remove_player(player.id).await;
+                    let _ = zone.remove_player(player.id);
                     println!(
                         "[SESSION_MANAGER] Removed player {} from zone {} map {}",
                         player.name, zone.zone_id, zone.map_id
@@ -87,11 +87,11 @@ impl SessionManager {
         }
     }
 
-    pub async fn is_online(&self, player_id: i64) -> bool {
+    pub fn is_online(&self, player_id: i64) -> bool {
         self.sessions.contains_key(&player_id)
     }
 
-    pub async fn get_online_count(&self) -> usize {
+    pub fn get_online_count(&self) -> usize {
         self.sessions.len()
     }
 }
