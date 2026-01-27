@@ -5,7 +5,8 @@ use crate::player::player::Player;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
-    if let Some(zone) = &player.zone {
+    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         let msg_opt = {
             let mut mobs = zone.active_mobs.write().unwrap();
             if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {

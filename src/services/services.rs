@@ -28,7 +28,8 @@ impl ServiceHandles {
         msg.write_byte(1)?;
         msg.write_int(pl.n_point.hp_max)?;
 
-        if let Some(zone) = &pl.zone {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(pl.map_id, pl.zone_id) {
             let _ = zone.send_message_to_other_players(pl.id, msg);
         }
         Ok(())
@@ -45,16 +46,16 @@ impl ServiceHandles {
         Ok(())
     }
     pub async fn chat(session: &SessionArc, text: &str) -> Result<()> {
-        let (player_id, zone) = session
+        let (player_id, map_id, zone_id) = session
             .get_player_ref(|player| {
                 if let Some(player) = player {
-                    Some((player.id, player.zone.clone()))
+                    Some((player.id, player.map_id, player.zone_id))
                 } else {
                     None
                 }
             })
             .await
-            .unwrap_or_else(|| (0, None));
+            .unwrap_or_else(|| (0, 0, 0));
 
         if player_id == 0 {
             return Ok(());
@@ -64,7 +65,8 @@ impl ServiceHandles {
         response.write_int(player_id as i32)?;
         response.write_utf(text)?;
         session.transmit(response.clone());
-        if let Some(zone) = zone {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
             zone.send_message_to_other_players(player_id, response)?;
         }
         Ok(())

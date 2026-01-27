@@ -2,7 +2,7 @@
 use crate::combine::model::Combine;
 use crate::entities;
 use crate::item::inventory::{self, Inventory};
-use crate::map::Zone;
+
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::SESSION_MANAGER;
@@ -52,7 +52,6 @@ pub struct Player {
     pub is_try: bool,
     pub is_try1: bool,
 
-    pub zone: Option<Zone>,
     pub is_admin: bool,
     pub admin_key: bool,
 
@@ -98,7 +97,7 @@ impl Player {
             is_fight1: false,
             is_try: false,
             is_try1: false,
-            zone: None,
+
             is_admin: false,
             admin_key: false,
             interaction_state: InteractionState::new(),
@@ -263,14 +262,6 @@ impl Player {
 
     pub fn clear_notify(&mut self) {
         self.notify = None;
-    }
-
-    pub fn set_zone(&mut self, zone: Zone) {
-        self.zone = Some(zone);
-    }
-
-    pub fn clear_zone(&mut self) {
-        self.zone = None;
     }
 
     pub fn has_tennis_spaceship(&self) -> bool {

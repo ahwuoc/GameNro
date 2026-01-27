@@ -335,7 +335,8 @@ pub async fn send_cai_trang(session: &SessionArc, _player: &RtPlayer) -> anyhow:
     message.write_short(_player.get_leg())?;
     message.write_byte(0)?;
 
-    if let Some(zone) = &_player.zone {
+    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    if let Some(zone) = zone_manager.get_zone(_player.map_id, _player.zone_id) {
         zone.send_message_to_all_players(message.clone())?;
     }
     session.transmit(message);

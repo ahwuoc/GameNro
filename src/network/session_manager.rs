@@ -46,7 +46,8 @@ impl SessionManager {
             );
 
             if let Some(player) = session.get_player().await {
-                if let Some(zone) = &player.zone {
+                let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     let _ = zone.remove_player(player.id);
                     println!(
                         "[SESSION_MANAGER] Removed player {} from zone {} map {}",

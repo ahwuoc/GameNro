@@ -358,29 +358,21 @@ impl AsyncController {
         {
             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
             if let Some(zone) = zone_manager.get_best_zone(player_with_zone.map_id as i32) {
-                player_with_zone.set_zone(zone);
+                player_with_zone.zone_id = zone.zone_id;
+                if let Err(e) = zone.add_player(player_with_zone.clone()) {
+                    println!("Error adding player to zone: {:?}", e);
+                } else {
+                    println!(
+                        "Player {} added to zone {} map {}",
+                        player_with_zone.name, zone.zone_id, zone.map_id
+                    );
+                }
             } else {
                 println!(
-                    "[LOGIN] No zone found for map {}, creating default zone",
+                    "[LOGIN] No zone found for map {}, using default zone_id 0",
                     player_with_zone.map_id
                 );
-                let default_zone = crate::map::Zone::new(
-                    player_with_zone.map_id as i32,
-                    player_with_zone.zone_id as i32,
-                    100,
-                );
-                player_with_zone.set_zone(default_zone);
-            }
-        }
-
-        if let Some(zone) = &player_with_zone.zone {
-            if let Err(e) = zone.add_player(player_with_zone.clone()) {
-                println!("Error adding player to zone: {:?}", e);
-            } else {
-                println!(
-                    "Player {} added to zone {} map {}",
-                    player_with_zone.name, zone.zone_id, zone.map_id
-                );
+                player_with_zone.zone_id = 0;
             }
         }
 
@@ -608,9 +600,10 @@ impl AsyncController {
             player.location.x = to_x;
             player.location.y = final_y;
 
-            let zone_opt = player.zone.clone();
-            if let Some(zone) = &zone_opt {
-                Self::send_player_move_to_zone(&player, zone).await?;
+            let zone_opt =
+                crate::map::zone_manager::ZONE_MANAGER.get_zone(player.map_id, player.zone_id);
+            if let Some(zone) = zone_opt {
+                Self::send_player_move_to_zone(&player, &zone).await?;
             }
 
             session.set_player(player).await;

@@ -292,7 +292,8 @@ impl ChangeMapService {
         player: &Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        let Some(zone) = &player.zone else {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             // Send error message if player is not in a valid zone
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đổi khu vực trong map này")?;
@@ -341,7 +342,8 @@ impl ChangeMapService {
         zone_id: i32,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        let Some(current_zone) = &player.zone else {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let Some(current_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
             msg.write_utf("Không thể đến khu vực này @")?;
             session.transmit(msg);
@@ -426,10 +428,7 @@ impl ChangeMapService {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 println!(
                     "Player {} at position ({}, {}) on map {}: Waypoint found: false",
-                    player.name,
-                    player.location.x,
-                    player.location.y,
-                    player.zone.as_ref().unwrap().map_id
+                    player.name, player.location.x, player.location.y, player.map_id
                 );
                 msg.write_utf("Bạn chưa thể đến khu vực này")?;
                 session.transmit(msg);
@@ -510,10 +509,14 @@ impl ChangeMapService {
             "[WAYPOINT] Starting change_map_waypoint for player {} (map: {}, zone: {:?})",
             player.name,
             player.map_id,
-            player.zone.as_ref().map(|z| z.zone_id)
+            Some(player.zone_id)
         );
 
-        if player.zone.is_none() {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if zone_manager
+            .get_zone(player.map_id, player.zone_id)
+            .is_none()
+        {
             println!("[WAYPOINT] Player has no zone, returning InvalidPlayerZone");
             return WaypointChangeResult::InvalidPlayerZone;
         }
@@ -547,17 +550,6 @@ impl ChangeMapService {
                             "[WAYPOINT] Got destination zone {} for map {}",
                             zone.zone_id, wp.go_map
                         );
-
-                        player.location.set_position(wp.go_x, wp.go_y);
-                        player.map_id = wp.go_map;
-                        player.zone_id = zone.zone_id;
-                        player.location.set_map(wp.go_map, zone.zone_id);
-
-                        println!(
-                            "[WAYPOINT] SUCCESS: Player {} moving to map {} zone {} at ({}, {})",
-                            player.name, wp.go_map, zone.zone_id, wp.go_x, wp.go_y
-                        );
-
                         WaypointChangeResult::Success {
                             destination_map_id: wp.go_map,
                             destination_zone_id: zone.zone_id,
@@ -682,22 +674,25 @@ impl ChangeMapService {
         player.location.set_position(x, player.location.y);
     }
     pub fn exit_map(&self, player: &mut Player) -> anyhow::Result<()> {
-        if let Some(zone) = &player.zone {
-            zone.remove_player(player.id)?;
+        println!(
+            "[EXIT_MAP] Attempting to exit player {} from map {} zone {}",
+            player.name, player.map_id, player.zone_id
+        );
+
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
             zone.send_message_to_other_players(player.id, msg)?;
+
+            zone.remove_player(player.id)?;
 
             println!(
                 "Player {} exited zone {} on map {}",
                 player.name, player.zone_id, player.map_id
             );
         }
-
-        // Clear the zone reference
-        player.clear_zone();
         player.zone_id = 0;
-
         Ok(())
     }
 
@@ -705,7 +700,6 @@ impl ChangeMapService {
         player.zone_id = zone.zone_id;
         player.map_id = zone.map_id;
         player.location.set_map(player.map_id, player.zone_id);
-        player.set_zone(zone.clone());
         zone.add_player(player.clone())?;
         Self::finish_load_map(player)?;
         println!(
@@ -716,7 +710,8 @@ impl ChangeMapService {
     }
 
     pub fn finish_load_map(player: &Player) -> anyhow::Result<()> {
-        if let Some(zone) = &player.zone {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             zone.load_another_to_me(player.id)?;
             zone.load_me_to_another(player.id)?;
         }
@@ -726,7 +721,8 @@ impl ChangeMapService {
         Ok(())
     }
     pub fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
-        let Some(zone) = &player.zone else {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             return Ok(());
         };
         let mobs = zone.get_all_mobs();
@@ -749,7 +745,8 @@ impl ChangeMapService {
     }
 
     pub fn send_effect_me_to_map(player: &Player) -> anyhow::Result<()> {
-        let Some(_zone) = &player.zone else {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let Some(_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             return Ok(());
         };
 
@@ -801,7 +798,7 @@ impl ChangeMapService {
                 };
 
                 // Calculate random x position for landing
-                let x = Self::calculate_random_x_position(2000); // Default map width
+                let x = Self::calculate_random_x_position(300); // Default map width
 
                 GoHomeResult::Success {
                     home_map_id,
@@ -913,10 +910,11 @@ impl ChangeMapService {
         msg.write_int(player.id as i32)?;
         msg.write_byte(space_type as i8)?;
 
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         match send_type {
             SpaceshipSendType::AllPlayersInMap => {
                 // Send to all players in zone including self
-                if let Some(zone) = &player.zone {
+                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     zone.send_message_all_player_in_map(player, msg)?;
                 }
             }
@@ -924,7 +922,7 @@ impl ChangeMapService {
                 player.send_to_client(msg)?;
             }
             SpaceshipSendType::OthersInMap => {
-                if let Some(zone) = &player.zone {
+                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     zone.send_message_to_other_players(player.id, msg)?;
                 }
             }
@@ -933,10 +931,8 @@ impl ChangeMapService {
         Ok(())
     }
     fn get_specific_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
-        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
-            return map.get_zone(zone_id);
-        }
-        None
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        zone_manager.get_zone(map_id, zone_id)
     }
 
     fn calculate_random_x_position(map_width: i32) -> i16 {

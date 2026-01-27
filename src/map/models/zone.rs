@@ -138,7 +138,7 @@ impl Zone {
         player: &Player,
         msg: Message,
     ) -> anyhow::Result<()> {
-        if player.zone.is_none() {
+        if player.zone_id == 0 && player.map_id == 0 {
             return Ok(());
         }
         for pl in self.players.iter() {
@@ -224,7 +224,8 @@ impl Zone {
         mut player: Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
-        player.set_zone(self.clone());
+        player.zone_id = self.zone_id;
+        player.map_id = self.map_id;
         self.add_player(player.clone())?;
         self.load_another_to_me(player.id)?;
         self.load_me_to_another(player.id)?;
