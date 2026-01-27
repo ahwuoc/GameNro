@@ -208,7 +208,6 @@ impl Zone {
     }
 
     pub fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
-        // Load all other players in zone to myself (player_id)
         let Some(receiver) = PLAYER_MANAGER.get(player_id) else {
             return Ok(());
         };
@@ -455,20 +454,11 @@ impl Zone {
         msg.write_byte(0)?;
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
-        println!(
-            "[MAP_INFO] Sending map_info for map {} zone {} to player {}, message size: {} bytes",
-            self.map_id,
-            self.zone_id,
-            player_id,
-            msg.get_data().len()
-        );
-
         let _ = session.transmit(msg);
         Ok(())
     }
 }
 
-/// Zone information for client
 #[derive(Debug, Clone)]
 pub struct ZoneInfo {
     pub map_id: i32,

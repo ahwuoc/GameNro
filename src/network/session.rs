@@ -169,7 +169,7 @@ pub struct SessionState {
     pub keys: Arc<Vec<u8>>,
     pub sent_key: bool,
     pub zoom_level: u8,
-    pub player: Option<RtPlayer>,
+    pub player_id: Option<u64>,
     pub user_id: Option<i32>,
     pub version: i32,
     pub vnd: i32,
@@ -181,7 +181,7 @@ impl SessionState {
             keys,
             sent_key: false,
             zoom_level: 1,
-            player: None,
+            player_id: None,
             user_id: None,
             version: 0,
             vnd: 0,
@@ -281,37 +281,53 @@ impl AsyncSession {
 
     pub async fn set_player(&self, player: RtPlayer) {
         let mut state = self.state.write().await;
-        state.player = Some(player);
+        state.player_id = Some(player.id);
+        crate::player::player_manager::PLAYER_MANAGER.add(player);
     }
 
     pub async fn get_player(&self) -> Option<RtPlayer> {
         let state = self.state.read().await;
-        state.player.clone()
+        if let Some(id) = state.player_id {
+            crate::player::player_manager::PLAYER_MANAGER.get(id)
+        } else {
+            None
+        }
     }
 
     pub async fn get_player_ref<F, R>(&self, f: F) -> R
     where
         F: FnOnce(Option<&RtPlayer>) -> R,
     {
-        let state = self.state.read().await;
-        f(state.player.as_ref())
+        if let Some(player) = self.get_player().await {
+            f(Some(&player))
+        } else {
+            f(None)
+        }
     }
 
     pub async fn take_player(&self) -> Option<RtPlayer> {
-        let mut state = self.state.write().await;
-        state.player.take()
+        let state = self.state.read().await;
+        if let Some(id) = state.player_id {
+            crate::player::player_manager::PLAYER_MANAGER.get(id)
+        } else {
+            None
+        }
     }
 
     pub async fn modify_player<F>(&self, f: F) -> anyhow::Result<()>
     where
         F: FnOnce(&mut RtPlayer) -> anyhow::Result<()>,
     {
-        if let Some(mut player) = self.take_player().await {
-            let result = f(&mut player);
-            self.set_player(player).await;
-            result
+        let state = self.state.read().await;
+        let Some(player_id) = state.player_id else {
+            return Err(anyhow::anyhow!("Player not found or locked"));
+        };
+        if let Some(mut player_ref) =
+            crate::player::player_manager::PLAYER_MANAGER.get_mut(player_id)
+        {
+            f(player_ref.value_mut())
         } else {
-            Err(anyhow::anyhow!("Player not found or locked"))
+            Err(anyhow::anyhow!("Player not found in manager"))
         }
     }
 

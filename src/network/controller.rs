@@ -582,7 +582,7 @@ impl AsyncController {
     }
 
     async fn handle_player_move(session: &SessionArc, mut msg: Message) -> Result<()> {
-        let _can_fly = msg.read_byte()?; // Unused but must be read to advance cursor
+        let _can_fly = msg.read_byte()?;
         let to_x = msg.read_short()?;
         let to_y_result = msg.read_short();
 
