@@ -373,7 +373,6 @@ impl AsyncController {
             }
         }
 
-        player_with_zone.session = Some(session.clone());
         if let Some(zone) = &player_with_zone.zone {
             if let Err(e) = zone.add_player(player_with_zone.clone()) {
                 println!("Error adding player to zone: {:?}", e);

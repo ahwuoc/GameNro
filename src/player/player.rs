@@ -5,7 +5,7 @@ use crate::item::inventory::{self, Inventory};
 use crate::map::Zone;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
-use crate::network::session::{AsyncSession, SessionArc};
+use crate::network::SESSION_MANAGER;
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
@@ -61,7 +61,6 @@ pub struct Player {
     pub task_id: i32,
     pub is_boss: bool,
     pub notify: Option<String>,
-    pub session: Option<SessionArc>,
 }
 
 impl Player {
@@ -106,7 +105,6 @@ impl Player {
             task_id: 0,
             is_boss: false,
             notify: None,
-            session: None,
         }
     }
 
@@ -165,7 +163,7 @@ impl Player {
         }
     }
     pub fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
-        if let Some(session) = &self.session {
+        if let Some(session) = SESSION_MANAGER.get_session(self.id as i64) {
             session.transmit(msg);
         }
         Ok(())
@@ -265,10 +263,6 @@ impl Player {
 
     pub fn clear_notify(&mut self) {
         self.notify = None;
-    }
-
-    pub fn set_session(&mut self, session: SessionArc) {
-        self.session = Some(session);
     }
 
     pub fn set_zone(&mut self, zone: Zone) {

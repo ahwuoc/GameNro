@@ -94,4 +94,8 @@ impl SessionManager {
     pub fn get_online_count(&self) -> usize {
         self.sessions.len()
     }
+
+    pub fn get_session(&self, player_id: i64) -> Option<SessionArc> {
+        self.sessions.get(&player_id).map(|s| s.clone())
+    }
 }
