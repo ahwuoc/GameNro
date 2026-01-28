@@ -3,7 +3,7 @@
 **/*.rs.bk
 *.pdb
 /data/
-/src_java/
+# /src_java/
 # Environment files
 .env
 .env.local

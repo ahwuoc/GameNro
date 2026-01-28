@@ -107,8 +107,7 @@ async fn cleanup_session(session: SessionArc, write_task: tokio::task::JoinHandl
 
     if let Some(mut player) = session.get_player().await {
         use crate::map::ChangeMapService;
-        let change_map_service = ChangeMapService::new();
-        if let Err(e) = change_map_service.exit_map(&mut player) {
+        if let Err(e) = ChangeMapService::exit_map(&mut player) {
             eprintln!("Error exiting map on disconnect: {:?}", e);
         }
 

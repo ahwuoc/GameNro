@@ -24,7 +24,6 @@ pub use services::map_service;
 // Re-export services types
 pub use change_map_service::{ChangeMapService, ChangeMapType, SpaceShipType};
 pub use item_map_service::ItemMapService;
-pub use map_service::MapService;
 
 // Re-export managers modules
 pub use managers::map_manager;

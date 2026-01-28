@@ -6,6 +6,12 @@ pub mod cmd {
     pub const SEND_ALTER_MESSAGE: i8 = -26;
     pub const CHAT: i8 = 44;
 
+    // Combat CMD constants
+    pub const ATTACK_MOB: i8 = 54;
+    pub const USE_SKILL: i8 = -45;
+    pub const SELECT_SKILL: i8 = 34;
+    pub const GET_EFFECT_TEMPLATE: i8 = -66;
+
     // Change Map CMD constants
     pub const OPEN_ZONE_UI: i8 = 29;
     pub const CHANGE_ZONE: i8 = 21;

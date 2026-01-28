@@ -52,16 +52,24 @@ impl Inventory {
             .min(crate::constant::limit::LIMIT_GOLD);
     }
 
-    pub fn sub_gold(&mut self, amount: i64) {
+    pub fn sub_gold(&mut self, amount: i64) -> bool {
+        if self.gold < amount {
+            return false;
+        }
         self.gold = self.gold.saturating_sub(amount).max(0);
+        true
     }
 
     pub fn add_gem(&mut self, amount: i32) {
         self.gem = self.gem.saturating_add(amount);
     }
 
-    pub fn sub_gem(&mut self, amount: i32) {
+    pub fn sub_gem(&mut self, amount: i32) -> bool {
+        if self.gem < amount {
+            return false;
+        }
         self.gem = self.gem.saturating_sub(amount).max(0);
+        true
     }
 
     pub fn add_ruby(&mut self, amount: i32) {

@@ -109,8 +109,8 @@ pub async fn update(zone: &Zone) {
                             mob.id,
                             player.name,
                             damage_taken,
-                            player.n_point.hp as i64 + damage_taken as i64,
-                            player.n_point.hp
+                            player.n_point.hp_current as i64 + damage_taken as i64,
+                            player.n_point.hp_current
                         );
 
                         let msg_me = build_mob_attack_me_message(mob.id as i8, damage_taken as i32);
@@ -119,7 +119,7 @@ pub async fn update(zone: &Zone) {
                         let msg_other = build_mob_attack_player_message(
                             mob.id as i8,
                             player.id as i32,
-                            player.n_point.hp as i32,
+                            player.n_point.hp_current as i32,
                         );
                         msgs.push(msg_other);
                     }

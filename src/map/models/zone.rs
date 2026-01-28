@@ -6,6 +6,7 @@ use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player::Player;
 use crate::player::player_manager::PLAYER_MANAGER;
+use crate::utils::time;
 use anyhow::Result;
 use dashmap::DashMap;
 use dashmap::DashSet;
@@ -59,8 +60,6 @@ impl Zone {
 
     pub fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
         self.player_ids.remove(&player_id);
-        // Note: We DO NOT remove from PLAYER_MANAGER here, as player might just be changing zones.
-        // Removal from PLAYER_MANAGER happens on session disconnect.
         Ok(())
     }
 
@@ -91,6 +90,16 @@ impl Zone {
         Ok(())
     }
 
+    pub fn start_stun_mob(&self, mob_id: u64, time_stun: u64) -> anyhow::Result<()> {
+        let mut mobs = self.active_mobs.write().unwrap();
+        if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id) {
+            crate::services::effect_skill_service::EffectSkillService::start_stun_mob(
+                mob, time_stun,
+            );
+        }
+        Ok(())
+    }
+
     pub fn get_all_mobs(&self) -> Vec<RtMob> {
         let mobs = self.active_mobs.read().unwrap();
         mobs.clone()
@@ -115,6 +124,7 @@ impl Zone {
 
     pub fn update(&self) -> anyhow::Result<()> {
         crate::services::mob_service::update(self);
+        self.update_players()?;
 
         let mut items = self.active_items.write().unwrap();
         for _item in items.iter_mut() {
@@ -122,6 +132,37 @@ impl Zone {
             // item.update();
         }
 
+        Ok(())
+    }
+
+    fn update_players(&self) -> anyhow::Result<()> {
+        let mut shield_removed_players: Vec<u64> = Vec::new();
+        for player_id in self.player_ids.iter() {
+            if let Some(mut player) = PLAYER_MANAGER.get_mut(*player_id) {
+                let current_time = crate::utils::time::current_time_millis();
+                if player.effect_skill.is_shielding
+                    && current_time
+                        > player.effect_skill.last_time_shield_up + player.effect_skill.time_shield
+                {
+                    player.effect_skill.is_shielding = false;
+                    shield_removed_players.push(player.id);
+                }
+                player.n_point.set_base_point();
+                if player.n_point.hp_current <= 0 && !player.dead_flag {
+                    player.dead_flag = true;
+                }
+            }
+        }
+        for player_id in shield_removed_players {
+            if let Some(player) = PLAYER_MANAGER.get(player_id) {
+                crate::services::effect_skill_service::EffectSkillService::send_effect_player(
+                    &player,
+                    &player,
+                    crate::services::effect_skill_service::EffectSkillService::TURN_OFF_EFFECT,
+                    crate::services::effect_skill_service::EffectSkillService::SHIELD_EFFECT,
+                );
+            }
+        }
         Ok(())
     }
     pub fn get_zone_info(&self) -> ZoneInfo {
@@ -253,7 +294,7 @@ impl Zone {
         let class = pl_target.gender;
         let head = pl_target.get_head();
         let name = pl_target.get_name();
-        let hp = pl_target.n_point.hp;
+        let hp = pl_target.n_point.hp_current;
         let max_hp = pl_target.n_point.hp_max;
         let body = pl_target.get_body();
         let leg = pl_target.get_leg();
@@ -311,7 +352,7 @@ impl Zone {
 
     fn build_player_death_message(pl_info: &Player) -> Message {
         let mut msg = Message::new(-8);
-        let _ = msg.write_int(pl_info.id as i32);
+        let _ = msg.write_short(pl_info.id as i16);
         let _ = msg.write_byte(0);
         let _ = msg.write_short(pl_info.location.x);
         let _ = msg.write_short(pl_info.location.y);

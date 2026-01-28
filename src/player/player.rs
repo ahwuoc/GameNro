@@ -3,6 +3,7 @@ use crate::combine::model::Combine;
 use crate::entities;
 use crate::item::inventory::{self, Inventory};
 
+use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::SESSION_MANAGER;
@@ -30,8 +31,9 @@ pub struct Player {
     pub intrinsic: IntrinsicPlayer,
     pub location: Location,
     pub combine_new: Combine,
+    pub effect_skill: EffectSkill,
 
-    pub is_die: bool,
+    pub dead_flag: bool,
     pub is_new_member: bool,
     pub before_dispose: bool,
 
@@ -81,7 +83,8 @@ impl Player {
             intrinsic: IntrinsicPlayer::new(),
             location: Location::new(),
             combine_new: Combine::new(),
-            is_die: false,
+            effect_skill: EffectSkill::new(),
+            dead_flag: false,
             is_new_member: true,
             before_dispose: false,
             is_train: false,
@@ -108,7 +111,7 @@ impl Player {
     }
 
     pub fn is_die(&self) -> bool {
-        self.is_die || self.n_point.hp <= 0
+        self.dead_flag || self.n_point.hp_current <= 0
     }
 
     pub fn get_name(&self) -> &str {
@@ -169,43 +172,42 @@ impl Player {
     }
 
     pub fn is_pl(&self) -> bool {
-        !self.is_die && self.session_id.is_some()
-    }
-
-    pub fn update(&mut self) {
-        if !self.before_dispose {
-            self.n_point.set_base_point();
-            self.location.update();
-            if self.n_point.hp <= 0 && !self.is_die {
-                self.is_die = true;
-            }
-        }
+        !self.is_die() && self.session_id.is_some()
     }
 
     pub fn injured(&mut self, damage: u64, piercing: bool) -> u64 {
         let mut dame = damage as i32;
+
+        if !piercing && self.effect_skill.is_shielding {
+            if dame > self.n_point.hp_max {
+                crate::services::effect_skill_service::EffectSkillService::break_shield(self);
+            }
+            dame = 1;
+        }
+
         if !piercing {
             dame -= self.n_point.def;
         }
         if dame < 0 {
             dame = 1;
         }
-        self.n_point.set_hp(self.n_point.hp - dame);
-        if self.n_point.hp <= 0 {
+        self.n_point.set_hp(self.n_point.hp_current - dame);
+        if self.n_point.hp_current <= 0 {
             self.set_die();
         }
         dame as u64
     }
 
     pub fn set_die(&mut self) {
-        self.is_die = true;
-        self.n_point.hp = 0;
+        self.dead_flag = true;
+        self.n_point.hp_current = 0;
+        let _ = crate::services::services::ServiceHandles::send_player_die(self);
     }
 
     pub fn revive(&mut self) {
-        self.is_die = false;
-        if self.n_point.hp <= 0 {
-            self.n_point.hp = 1;
+        self.dead_flag = false;
+        if self.n_point.hp_current <= 0 {
+            self.n_point.hp_current = 1;
         }
         self.just_revived = true;
         self.last_time_revived = SystemTime::now()

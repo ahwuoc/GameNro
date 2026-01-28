@@ -136,12 +136,7 @@ impl Map {
         for i in 0..n_zones {
             zone_manager
                 .create_zone(self.info.id, i, max_player)
-                .unwrap(); // Assuming create_zone is also made sync or handled elsewhere.Wait, create_zone might be async? I should check zone_manager. But for now I'll assume sync or wrap.
-                           // Actually, zone_manager.create_zone calls map_manager which might be async.
-                           // BUT, looking at previous steps, I am aggressively making things sync.
-                           // If create_zone is async, I cannot easily call it here sync.
-                           // However, this init is usually done at startup.
-                           // Let's assume create_zone is sync for now or I will fix it next.
+                .unwrap();
             if let Some(zone) = zone_manager.get_zone(self.info.id, i) {
                 zones.push(zone);
             }
@@ -187,10 +182,20 @@ impl Map {
                 return Some(waypoint.clone());
             }
         }
+
+        let tolerance = 60i16;
+        for waypoint in self.info.waypoints.iter() {
+            if x >= waypoint.min_x - tolerance
+                && x <= waypoint.max_x + tolerance
+                && y >= waypoint.min_y - tolerance
+                && y <= waypoint.max_y + tolerance
+            {
+                return Some(waypoint.clone());
+            }
+        }
         None
     }
 
-    /// Get zone by ID
     pub fn get_zone(&self, zone_id: i32) -> Option<Zone> {
         let zones = self.zones.read().unwrap();
         zones.get(zone_id as usize).cloned()
@@ -222,7 +227,7 @@ impl Map {
         let zones = self.zones.read().unwrap();
 
         for zone in zones.iter() {
-            zone.update()?; // Assuming Zone::update is sync or I made it sync in earlier steps (I did check Zone methods)
+            zone.update()?;
         }
 
         let mut last_update = self.last_update.write().unwrap();

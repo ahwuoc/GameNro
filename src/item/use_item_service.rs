@@ -42,8 +42,10 @@ impl UseItemService {
                 else {
                     return Ok(());
                 };
-                pl.n_point.set_hp(pl.n_point.hp + hp_ki_hoiphuc as i32);
-                pl.n_point.set_mp(pl.n_point.mp + hp_ki_hoiphuc as i32);
+                pl.n_point
+                    .set_hp(pl.n_point.hp_current + hp_ki_hoiphuc as i32);
+                pl.n_point
+                    .set_mp(pl.n_point.mp_current + hp_ki_hoiphuc as i32);
                 player_info_service::send_message_info_hpmp(pl)?;
                 ServiceHandles::send_message_eat_dauthan(pl);
                 InventoryService::sub_quantity_item_bag(pl, index, 1);

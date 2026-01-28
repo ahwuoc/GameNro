@@ -50,7 +50,6 @@ pub fn parse_skills_json(skills_json: &str) -> Vec<SkillData> {
         return Vec::new();
     }
 
-    // First, try to parse as Vec<String> where each string is a JSON object
     if let Ok(skill_strings) = serde_json::from_str::<Vec<String>>(skills_json) {
         let skills: Vec<SkillData> = skill_strings
             .iter()
@@ -90,6 +89,7 @@ pub async fn create_skill(temp_id: i32, level: i32) -> Option<Skill> {
         if level >= 1 && (level as usize) <= template.skills.len() {
             let skill_data = &template.skills[(level - 1) as usize];
             let mut player_skill = Skill::new(temp_id);
+            player_skill.skill_id = skill_data.skill_id; // Copy skill_id from template
             player_skill.point = skill_data.point;
             player_skill.power_require = skill_data.pow_require;
             player_skill.mana_use = skill_data.mana_use;
@@ -121,4 +121,28 @@ pub async fn create_skill_level0(temp_id: i32) -> Option<Skill> {
     let mut skill = Skill::new(temp_id);
     skill.point = 0;
     Some(skill)
+}
+
+pub fn get_time_stun(skill_point: i8) -> u64 {
+    (skill_point as u64 + 2) * 1000
+}
+
+pub fn get_range_stun(skill_point: i8) -> i16 {
+    120 + (skill_point as i16 * 30)
+}
+
+pub fn get_time_shield(skill_point: i8) -> u64 {
+    (skill_point as u64 + 2) * 5000
+}
+
+pub fn get_range_qckk(skill_point: i8) -> i16 {
+    300 + (skill_point as i16 * 100)
+}
+
+pub fn get_time_dctt(skill_point: i8) -> u64 {
+    (skill_point as u64 + 2) * 500
+}
+
+pub fn get_time_thoi_mien(skill_point: i8) -> u64 {
+    (skill_point as u64 + 4) * 1000
 }

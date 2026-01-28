@@ -24,7 +24,7 @@ impl ServiceHandles {
         let mut msg = Self::sub_command_30(14)?;
 
         msg.write_int(pl.id as i32)?;
-        msg.write_int(pl.n_point.hp)?;
+        msg.write_int(pl.n_point.hp_current)?;
         msg.write_byte(1)?;
         msg.write_int(pl.n_point.hp_max)?;
 
@@ -38,6 +38,15 @@ impl ServiceHandles {
         let mut msg = Message::new(30);
         msg.write_byte(byte)?;
         Ok(msg)
+    }
+
+    pub fn send_player_die(player: &Player) -> Result<()> {
+        let mut msg = Message::new(-17);
+        msg.write_byte(player.id as i8)?;
+        msg.write_short(player.location.x)?;
+        msg.write_short(player.location.y)?;
+        player.send_to_client(msg)?;
+        Ok(())
     }
     pub fn send_message_alert(player: &Player, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -75,6 +84,29 @@ impl ServiceHandles {
         if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
             zone.send_message_to_other_players(player_id, response)?;
         }
+        Ok(())
+    }
+    pub fn send_mess_all_player_in_map(player: &Player, msg: Message) -> Result<()> {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            zone.send_message_to_all_players(msg)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_mess_another_not_me_in_map(player: &Player, msg: Message) -> Result<()> {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            zone.send_message_to_other_players(player.id, msg)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_item_time(player: &Player, item_id: i16, time: i16) -> Result<()> {
+        let mut msg = Message::new(-106);
+        msg.write_short(item_id)?;
+        msg.write_short(time)?;
+        player.send_to_client(msg)?;
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
 pub mod auth_service;
 pub mod command;
+pub mod effect_skill_service;
 pub mod intrinsic_service;
 pub mod manager;
 pub mod mob_service;

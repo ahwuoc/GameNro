@@ -7,6 +7,7 @@ use crate::network::session::SessionArc;
 use crate::network::{session::AsyncSession, SESSION_MANAGER};
 use crate::npc::npc_service;
 use crate::player::Player;
+use crate::services::skill_service;
 use crate::services::ServiceHandles;
 use sysinfo::System;
 
@@ -47,6 +48,14 @@ impl CommandService {
                     MenuId::Admin,
                 )?;
                 return Ok(true);
+            } else if text == "r" {
+                skill_service::send_release_cooldown(player);
+                ServiceHandles::send_message_alert(player, "Đã reset cooldown tất cả kỹ năng!")?;
+                return Ok(true);
+            } else if text == "full_skill" {
+                skill_service::learn_full_skill(player).await?;
+                ServiceHandles::send_message_alert(player, "Đã học toàn bộ kỹ năng hành tinh!")?;
+                return Ok(true);
             } else if text.starts_with("i_") {
                 let item_id = text.strip_prefix("i_").unwrap_or("");
                 if let Ok(item_id) = item_id.trim().parse::<i16>() {
@@ -63,9 +72,8 @@ impl CommandService {
             } else if text.starts_with("m ") {
                 let map_id_str = text.strip_prefix("m ").unwrap_or("");
                 if let Ok(map_id) = map_id_str.trim().parse::<i32>() {
-                    let change_map_service = ChangeMapService::new();
-                    if let Some(zone) = change_map_service.get_available_zone(map_id) {
-                        change_map_service.change_map_to_zone(
+                    if let Some(zone) = ChangeMapService::get_available_zone(map_id) {
+                        ChangeMapService::change_map_to_zone(
                             player,
                             &zone,
                             -1,

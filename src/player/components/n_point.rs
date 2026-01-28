@@ -2,25 +2,34 @@ use crate::player::components::PointType;
 
 #[derive(Debug, Clone)]
 pub struct NPoint {
-    // Chỉ số gốc (base stats từ database hoặc level up)
-    pub hpg: i32,
-    pub mpg: i32,
-    pub dameg: i32,
-    pub defg: i32,
-    pub critg: i8,
+    // ==========================================
+    // 1. CHỈ SỐ GỐC (Base Stats)
+    // ==========================================
+    pub hp_base: i32,   // HP Gốc
+    pub mp_base: i32,   // MP Gốc (KI)
+    pub dame_base: i32, // Sức đánh Gốc
+    pub def_base: i32,  // Giáp Gốc
+    pub crit_base: i8,  // Chí mạng Gốc
 
-    // Chỉ số hiện tại (sau khi tính toán)
-    pub hp: i32,
-    pub mp: i32,
-    pub dame: i32,
-    pub def: i32,
-    pub crit: i8,
+    // ==========================================
+    // 2. CHỈ SỐ HIỆN TẠI (Current Stats)
+    // ==========================================
+    pub hp_current: i32, // HP hiện tại
+    pub mp_current: i32, // MP hiện tại
+    pub dame: i32,       // Sức đánh thực tế
+    pub def: i32,        // Giáp thực tế
+    pub crit: i8,        // Chí mạng thực tế
 
-    // Chỉ số tối đa
-    pub hp_max: i32,
-    pub mp_max: i32,
-    pub max_stamina: i16,
-    pub stamina: i16,
+    // ==========================================
+    // 3. CHỈ SỐ TỐI ĐA (Max Stats)
+    // - Là giới hạn trên của chỉ số hiện tại
+    // - Tính toán từ: Gốc + Đồ + Skill + Buff
+    // - hp_max = hpg + (hpg * %máu đồ) + máu đồ + ...
+    // ==========================================
+    pub hp_max: i32,      // HP Tối đa
+    pub mp_max: i32,      // MP Tối đa
+    pub max_stamina: i16, // Thể lực tối đa (thường là 10000)
+    pub stamina: i16,     // Thể lực hiện tại
 
     // Chỉ số bonus cộng thêm (từ item options, buff, ...)
     pub hp_add: i32,
@@ -45,14 +54,14 @@ pub struct NPoint {
 impl NPoint {
     pub fn new() -> Self {
         NPoint {
-            hpg: 100,
-            mpg: 100,
-            dameg: 10,
-            defg: 5,
-            critg: 1,
+            hp_base: 100,
+            mp_base: 100,
+            dame_base: 10,
+            def_base: 5,
+            crit_base: 1,
 
-            hp: 100,
-            mp: 100,
+            hp_current: 100,
+            mp_current: 100,
             dame: 10,
             def: 5,
             crit: 1,
@@ -107,7 +116,7 @@ impl NPoint {
     }
 
     fn set_hp_max(&mut self) {
-        let mut hp_max: i64 = (self.hpg + self.hp_add) as i64;
+        let mut hp_max: i64 = (self.hp_base + self.hp_add) as i64;
         for tl in &self.tl_hp {
             hp_max += hp_max * (*tl as i64) / 100;
         }
@@ -116,7 +125,7 @@ impl NPoint {
 
     /// Tính MP Max = mpg + mp_add + (mpg * sum(tl_mp) / 100)
     fn set_mp_max(&mut self) {
-        let mut mp_max: i64 = (self.mpg + self.mp_add) as i64;
+        let mut mp_max: i64 = (self.mp_base + self.mp_add) as i64;
 
         for tl in &self.tl_mp {
             mp_max += mp_max * (*tl as i64) / 100;
@@ -125,9 +134,8 @@ impl NPoint {
         self.mp_max = mp_max.min(i32::MAX as i64) as i32;
     }
 
-    /// Tính Dame = dameg + dame_add + (dameg * sum(tl_dame) / 100)
     fn set_dame(&mut self) {
-        let mut dame: i64 = (self.dameg + self.dame_add) as i64;
+        let mut dame: i64 = (self.dame_base + self.dame_add) as i64;
 
         for tl in &self.tl_dame {
             dame += dame * (*tl as i64) / 100;
@@ -136,25 +144,22 @@ impl NPoint {
         self.dame = dame.min(i32::MAX as i64) as i32;
     }
 
-    /// Tính Def = defg + def_add + (defg * tl_def / 100)
     fn set_def(&mut self) {
-        let mut def: i64 = (self.defg + self.def_add) as i64;
+        let mut def: i64 = (self.def_base + self.def_add) as i64;
         def += def * (self.tl_def as i64) / 100;
         self.def = def.min(i32::MAX as i64) as i32;
     }
 
-    /// Tính Crit = critg + crit_add
     fn set_crit(&mut self) {
-        self.crit = self.critg.saturating_add(self.crit_add);
+        self.crit = self.crit_base.saturating_add(self.crit_add);
     }
 
-    /// Đảm bảo hp/mp không vượt quá max
     fn clamp_current_values(&mut self) {
-        if self.hp > self.hp_max {
-            self.hp = self.hp_max;
+        if self.hp_current > self.hp_max {
+            self.hp_current = self.hp_max;
         }
-        if self.mp > self.mp_max {
-            self.mp = self.mp_max;
+        if self.mp_current > self.mp_max {
+            self.mp_current = self.mp_max;
         }
         if self.stamina > self.max_stamina {
             self.stamina = self.max_stamina;
@@ -162,18 +167,17 @@ impl NPoint {
     }
 
     pub fn set_hp(&mut self, value: i32) {
-        self.hp = value.min(self.hp_max).max(0);
+        self.hp_current = value.min(self.hp_max).max(0);
     }
 
     pub fn set_mp(&mut self, value: i32) {
-        self.mp = value.min(self.mp_max).max(0);
+        self.mp_current = value.min(self.mp_max).max(0);
     }
 
     pub fn add_option(&mut self, option_id: i8, param: i16) {
         match option_id {
             0 => self.dame_add += param as i32, // Tấn công +#
             2 => {
-                // HP, KI +#000
                 self.hp_add += (param as i32) * 1000;
                 self.mp_add += (param as i32) * 1000;
             }
@@ -215,67 +219,67 @@ impl NPoint {
         match point_type {
             PointType::Hp => {
                 let inc = p * 20;
-                let cost = p64 * (2 * (self.hpg as i64 + 1000) + inc as i64 - 20) / 2;
+                let cost = p64 * (2 * (self.hp_base as i64 + 1000) + inc as i64 - 20) / 2;
 
-                if self.hpg + inc > self.get_hp_mp_limit() {
+                if self.hp_base + inc > self.get_hp_mp_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
                 if !self.do_use_tiem_nang(cost) {
                     return Err("Bạn không đủ tiềm năng");
                 }
-                self.hpg += inc;
+                self.hp_base += inc;
             }
 
             PointType::Mp => {
                 let inc = p * 20;
-                let cost = p64 * (2 * (self.mpg as i64 + 1000) + inc as i64 - 20) / 2;
+                let cost = p64 * (2 * (self.mp_base as i64 + 1000) + inc as i64 - 20) / 2;
 
-                if self.mpg + inc > self.get_hp_mp_limit() {
+                if self.mp_base + inc > self.get_hp_mp_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
                 if !self.do_use_tiem_nang(cost) {
                     return Err("Bạn không đủ tiềm năng");
                 }
-                self.mpg += inc;
+                self.mp_base += inc;
             }
 
             PointType::Dame => {
-                let cost = p64 * (2 * self.dameg as i64 + p64 - 1) / 2 * 100;
+                let cost = p64 * (2 * self.dame_base as i64 + p64 - 1) / 2 * 100;
 
-                if self.dameg + p > self.get_dame_limit() {
+                if self.dame_base + p > self.get_dame_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
                 if !self.do_use_tiem_nang(cost) {
                     return Err("Bạn không đủ tiềm năng");
                 }
-                self.dameg += p;
+                self.dame_base += p;
             }
 
             PointType::Def => {
-                let cost = (self.defg as i64 + 5) * 100_000;
+                let cost = (self.def_base as i64 + 5) * 100_000;
 
-                if self.defg + p > self.get_def_limit() {
+                if self.def_base + p > self.get_def_limit() {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
                 if !self.do_use_tiem_nang(cost) {
                     return Err("Bạn không đủ tiềm năng");
                 }
-                self.defg += p;
+                self.def_base += p;
             }
 
             PointType::Crit => {
                 let mut cost = 50_000_000i64;
-                for _ in 0..self.critg {
+                for _ in 0..self.crit_base {
                     cost *= 5;
                 }
 
-                if i16::from(self.critg) + point > self.get_crit_limit() as i16 {
+                if i16::from(self.crit_base) + point > self.get_crit_limit() as i16 {
                     return Err("Vui lòng mở giới hạn sức mạnh");
                 }
                 if !self.do_use_tiem_nang(cost) {
                     return Err("Bạn không đủ tiềm năng");
                 }
-                self.critg += point as i8;
+                self.crit_base += point as i8;
             }
         }
         Ok(())

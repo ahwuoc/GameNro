@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::entities::mob_template::Model as MobTemplate;
+use crate::models::EffectSkill;
 use crate::utils::location::Location;
 
 #[derive(Debug, Clone)]
@@ -28,6 +29,7 @@ pub struct RtMob {
     pub origin_x: i16,
     pub origin_y: i16,
     pub last_time_move: u64,
+    pub effect_skill: EffectSkill,
 }
 
 impl RtMob {
@@ -57,6 +59,7 @@ impl RtMob {
             origin_x: 0,
             origin_y: 0,
             last_time_move: 0,
+            effect_skill: EffectSkill::new(),
         }
     }
 
@@ -69,7 +72,7 @@ impl RtMob {
         mob.max_mp = 50;
         mob.mp = 50;
         mob.percent_dame = template.percent_dame;
-        mob.spawn_status = 5; // Default for now, can be overridden
+        mob.spawn_status = 5;
         mob
     }
 
@@ -130,7 +133,7 @@ impl RtMob {
     pub fn set_location(&mut self, map_id: i32, zone_id: i32, x: i16, y: i16) {
         self.map_id = map_id;
         self.zone_id = zone_id;
-        self.location.set_map(map_id, zone_id);
+
         self.location.set_position(x, y);
         self.origin_x = x;
         self.origin_y = y;

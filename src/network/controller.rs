@@ -9,7 +9,7 @@ use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
-use crate::services::{self, player_info_service, ServiceHandles};
+use crate::services::{self, player_info_service, player_service, ServiceHandles};
 use crate::services::{auth_service, mob_service};
 use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
@@ -43,20 +43,51 @@ impl AsyncController {
                 Self::handle_get_image_source(&session, msg).await?;
                 Ok(())
             }
-            54 => {
+            cmd::ATTACK_MOB => {
                 let mob_id = msg.read_byte()? as i32;
                 let is_mob_me = mob_id == -1;
                 let master_id = if is_mob_me { msg.read_int()? } else { -1 };
 
-                if let Some(player) = session.take_player().await {
-                    if !is_mob_me {
-                        let dame = player.n_point.get_dame_attack(false);
-                        mob_service::player_attack_mob(&player, mob_id, dame);
-                    } else {
-                        println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
+                if let Some(mut player) = session.take_player().await {
+                    let mut handled = false;
+                    if let Some(skill) = &player.player_skill.skill_select {
+                        let skill_id = skill.template_id;
+                        if skill_id == 20 || skill_id == 22 {
+                            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                            if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id)
+                            {
+                                let mut mobs = zone.active_mobs.write().unwrap();
+                                if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
+                                    services::skill_service::execute_skill(
+                                        &mut player,
+                                        None,
+                                        Some(mob),
+                                    );
+                                    handled = true;
+                                } else {
+                                    println!("[DEBUG CONTROLLER] Mob {} not found in zone", mob_id);
+                                }
+                            }
+                        }
+                    }
+
+                    if !handled {
+                        if !is_mob_me {
+                            let dame = player.n_point.get_dame_attack(false);
+                            mob_service::player_attack_mob(&player, mob_id, dame);
+                        } else {
+                            println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
+                        }
                     }
                     session.set_player(player).await;
                 }
+                Ok(())
+            }
+            cmd::GET_EFFECT_TEMPLATE => {
+                let eff_id = msg.read_short()?;
+                let id_t = eff_id;
+                DataGame::send_effect_template(&session, eff_id, Some(id_t)).await?;
+
                 Ok(())
             }
             -40 => {
@@ -139,7 +170,15 @@ impl AsyncController {
                 Self::handle_message_not_map(&session, msg).await?;
                 Ok(())
             }
-            44 => {
+            cmd::SELECT_SKILL => {
+                if let Some(mut player) = session.take_player().await {
+                    let skill_template_id = msg.read_short().unwrap_or(0);
+                    services::skill_service::select_skill(&mut player, skill_template_id as i32)?;
+                    session.set_player(player).await;
+                }
+                Ok(())
+            }
+            cmd::CHAT => {
                 let text = msg.read_utf()?;
                 let mut is_command = false;
                 if let Some(mut player) = session.take_player().await {
@@ -154,9 +193,14 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -45 => {
+            cmd::USE_SKILL => {
                 if let Some(mut player) = session.take_player().await {
-                    services::skill_service::use_skill(&mut player, None, None, Some(msg)).await;
+                    services::skill_service::handle_use_skill_packet(
+                        &mut player,
+                        None,
+                        None,
+                        Some(msg),
+                    );
                     session.set_player(player).await;
                 }
                 Ok(())
@@ -180,8 +224,7 @@ impl AsyncController {
             }
             29 => {
                 if let Some(player) = session.take_player().await {
-                    let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_zone_ui(&player);
+                    let res = ChangeMapService::open_zone_ui(&player);
                     session.set_player(player).await;
                     res?;
                 }
@@ -190,8 +233,8 @@ impl AsyncController {
             21 => {
                 if let Some(mut player) = session.take_player().await {
                     let zone_id = msg.read_byte()? as i32;
-                    let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.change_zone(&mut player, zone_id, &session);
+
+                    let res = ChangeMapService::change_zone(&mut player, zone_id, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -199,8 +242,15 @@ impl AsyncController {
             }
             -33 | -23 => {
                 if let Some(mut player) = session.take_player().await {
-                    let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.change_map_waypoint_handler(&mut player, &session);
+                    let res = ChangeMapService::change_map_waypoint_handler(&mut player, &session);
+                    session.set_player(player).await;
+                    res?;
+                }
+                Ok(())
+            }
+            -16 => {
+                if let Some(mut player) = session.take_player().await {
+                    let res = player_service::hoi_sinh(&mut player);
                     session.set_player(player).await;
                     res?;
                 }
@@ -208,8 +258,7 @@ impl AsyncController {
             }
             -15 => {
                 if let Some(mut player) = session.take_player().await {
-                    let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.go_home_handler(&mut player, &session);
+                    let res = ChangeMapService::go_home_handler(&mut player, &session);
                     session.set_player(player).await;
                     res?;
                 }
@@ -217,8 +266,7 @@ impl AsyncController {
             }
             -91 => {
                 if let Some(player) = session.take_player().await {
-                    let change_map_service = ChangeMapService::new();
-                    let res = change_map_service.open_capsule_menu(&player);
+                    let res = ChangeMapService::open_capsule_menu(&player);
                     session.set_player(player).await;
                     res?;
                 }

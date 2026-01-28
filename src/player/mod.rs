@@ -1,7 +1,9 @@
 pub mod components;
 pub mod player;
+pub mod player_data;
 pub mod player_manager;
 pub mod player_mapper;
+pub mod player_parser;
 
 pub use player::Player;
 

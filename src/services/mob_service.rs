@@ -43,7 +43,6 @@ pub fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
     }
 }
 
-// Update mob hoi hp, tan cong player
 pub fn update(zone: &Zone) {
     let current_time = get_current_time();
     let mut global_msgs = Vec::new();
@@ -123,6 +122,60 @@ fn hanlde_mob_attack_player(
     if mob.template_id == 0 {
         return;
     }
+
+    if mob.effect_skill.is_stun {
+        if current_time >= mob.effect_skill.last_time_stun + mob.effect_skill.time_stun {
+            mob.effect_skill.is_stun = false;
+            mob.effect_skill.time_stun = 0;
+            println!("Mob {} het choang", mob.id);
+        } else {
+            println!("Mob {} dang bi choang", mob.id);
+            return;
+        }
+    }
+
+    if mob.effect_skill.is_blind_dctt {
+        if current_time >= mob.effect_skill.last_time_blind_dctt + mob.effect_skill.time_blind_dctt
+        {
+            mob.effect_skill.is_blind_dctt = false;
+            mob.effect_skill.time_blind_dctt = 0;
+            println!("Mob {} het choang DCTT", mob.id);
+            // Optional: Send effect off message if needed, but for now logic unblock is priority
+            let mut msg = Message::new(-124);
+            let _ = msg.write_byte(0); // 0: off
+            let _ = msg.write_byte(1); // 1: mob
+            let _ = msg.write_byte(
+                crate::services::effect_skill_service::EffectSkillService::BLIND_EFFECT as i8,
+            );
+            let _ = msg.write_byte(mob.id as i8);
+            let _ = msg.write_int(-1); // player id (unknown here, pass -1 or dummy)
+            let _ = zone.send_message_to_all_players(msg);
+        } else {
+            println!("Mob {} dang bi choang DCTT -> Skip attack", mob.id);
+            return;
+        }
+    }
+
+    if mob.effect_skill.is_thoi_mien {
+        if current_time >= mob.effect_skill.last_time_thoi_mien + mob.effect_skill.time_thoi_mien {
+            mob.effect_skill.is_thoi_mien = false;
+            mob.effect_skill.time_thoi_mien = 0;
+            println!("Mob {} het thoi mien", mob.id);
+            let mut msg = Message::new(-124);
+            let _ = msg.write_byte(0); // 0: off
+            let _ = msg.write_byte(1); // 1: mob
+            let _ = msg.write_byte(
+                crate::services::effect_skill_service::EffectSkillService::SLEEP_EFFECT as i8,
+            );
+            let _ = msg.write_byte(mob.id as i8);
+            let _ = msg.write_int(-1);
+            let _ = zone.send_message_to_all_players(msg);
+        } else {
+            println!("Mob {} dang bi thoi mien -> Skip attack", mob.id);
+            return;
+        }
+    }
+
     if current_time > mob.last_time_attack_player + 2000 {
         let target_id = find_target_in_range(mob, zone);
 
@@ -134,16 +187,6 @@ fn hanlde_mob_attack_player(
                 let damage = mob.get_dame_attack();
                 let damage_taken = player.injured(damage as u64, false);
 
-                println!(
-                    "[MOB_SERVICE] Mob {} (Type: {}) attacked Player {} for {} damage (HP: {} -> {})",
-                    mob.id,
-                    mob.template_id,
-                    player.name,
-                    damage_taken,
-                    player.n_point.hp as i64 + damage_taken as i64,
-                    player.n_point.hp
-                );
-
                 player_msgs.push((
                     player.id,
                     build_mob_attack_me_message(mob.id as i8, damage_taken as i32),
@@ -151,7 +194,7 @@ fn hanlde_mob_attack_player(
                 global_msgs.push(build_mob_attack_player_message(
                     mob.id as i8,
                     player.id as i32,
-                    player.n_point.hp as i32,
+                    player.n_point.hp_current as i32,
                 ));
             }
         }
@@ -161,7 +204,6 @@ fn hanlde_mob_attack_player(
 fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
     for player_id in zone.player_ids.iter() {
         if let Some(player) = PLAYER_MANAGER.get(*player_id) {
-            // let player = entry.value(); // No longer needed
             if !player.is_die() {
                 let dx = (mob.location.x - player.location.x) as i32;
                 let dy = (mob.location.y - player.location.y) as i32;
@@ -177,7 +219,7 @@ fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
                     return Some(player.id);
                 }
             }
-        } // Close if let Some(player)
+        }
     }
     None
 }

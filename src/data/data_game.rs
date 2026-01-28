@@ -17,6 +17,7 @@ pub use crate::templates::skill_template_manager::{NClass, Skill, SkillTemplate}
 
 pub static CACHE_ICON: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
 pub static CACHE_IMG_BY_NAME: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
+pub static CACHE_EFFECT: Lazy<DashMap<String, (Vec<u8>, Vec<u8>)>> = Lazy::new(|| DashMap::new());
 
 pub struct DataGame;
 
@@ -260,10 +261,6 @@ impl DataGame {
         let mob_count = mob_templates.len() as i8;
         msg.write_byte(mob_count)?;
         for mob_template in mob_templates {
-            println!(
-                "Mob template: {} mob id {}",
-                mob_template.name, mob_template.id
-            );
             msg.write_byte(mob_template.r#type as i8)?;
             msg.write_utf(&mob_template.name)?;
             msg.write_int(mob_template.hp)?;
@@ -284,7 +281,7 @@ impl DataGame {
     pub async fn update_skill(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-28);
         msg.write_byte(7)?;
-        msg.write_byte(1)?;
+        msg.write_byte(Self::VS_SKILL)?;
         msg.write_byte(0)?;
 
         let nclasses = skill_template_manager::get_all_nclasses();
@@ -413,6 +410,93 @@ impl DataGame {
         Ok(())
     }
 
+    pub async fn send_effect_template(
+        session: &SessionArc,
+        id: i16,
+        id_t: Option<i16>,
+    ) -> anyhow::Result<()> {
+        let id_t = id_t.filter(|&v| v != 0).unwrap_or(id);
+
+        let zoom_level = session.get_zoom_level().await;
+        let version = session.get_version().await;
+        let base_zoom = 4;
+        let cache_key = format!("{}_{}", zoom_level, id_t);
+
+        if let Some(cached) = CACHE_EFFECT.get(&cache_key) {
+            let (eff_data, eff_img) = cached.value().clone();
+            let mut msg = Message::new(-66);
+            msg.write_short(id)?;
+            msg.write_int(eff_data.len() as i32)?;
+            msg.write(&eff_data)?;
+
+            if version > 216 {
+                msg.write_byte(if id_t == 60 { 2 } else { 0 })?;
+            }
+
+            msg.write_int(eff_img.len() as i32)?;
+            msg.write(&eff_img)?;
+            session.transmit(msg);
+            println!(
+                "[EFFECT] Sent effect {} (id_t={}) from cache to client",
+                id, id_t
+            );
+            return Ok(());
+        }
+
+        let eff_data_path = format!("data/arc/effdata/DataEffect_{}", id_t);
+        let eff_img_path = format!("data/arc/effect/x{}/ImgEffect_{}.png", base_zoom, id_t);
+
+        let eff_data = match tokio::fs::read(&eff_data_path).await {
+            Ok(v) => v,
+            Err(e) => {
+                println!("[EFFECT] File not found: {} - {}", eff_data_path, e);
+                return Ok(());
+            }
+        };
+
+        let eff_img_bytes = match tokio::fs::read(&eff_img_path).await {
+            Ok(v) => v,
+            Err(e) => {
+                println!("[EFFECT] Image not found: {} - {}", eff_img_path, e);
+                return Ok(());
+            }
+        };
+
+        let eff_img = if zoom_level as i32 != base_zoom {
+            let scale = zoom_level as f32 / base_zoom as f32;
+            match Self::scale_png_async(eff_img_bytes, scale).await {
+                Ok(v) => v,
+                Err(e) => {
+                    println!("Error scaling image effect {}: {}", id_t, e);
+                    return Ok(());
+                }
+            }
+        } else {
+            eff_img_bytes
+        };
+
+        CACHE_EFFECT.insert(cache_key, (eff_data.clone(), eff_img.clone()));
+
+        let mut msg = Message::new(-66);
+        msg.write_short(id)?;
+        msg.write_int(eff_data.len() as i32)?;
+        msg.write(&eff_data)?;
+
+        if version > 216 {
+            msg.write_byte(if id_t == 60 { 2 } else { 0 })?;
+        }
+
+        msg.write_int(eff_img.len() as i32)?;
+        msg.write(&eff_img)?;
+
+        session.transmit(msg);
+        println!(
+            "[EFFECT] Sent effect {} (id_t={}) to client (loaded fresh, zoom={})",
+            id, id_t, zoom_level
+        );
+        Ok(())
+    }
+
     pub async fn send_mob_temp(session: &SessionArc, mob_id: i8) -> anyhow::Result<()> {
         let zoom = session.get_zoom_level().await;
         let file_path = format!("data/arc/mob/x{zoom}/{mob_id}");
@@ -429,6 +513,10 @@ impl DataGame {
         }
         Ok(())
     }
+    pub async fn scale_png_async(bytes: Vec<u8>, scale: f32) -> anyhow::Result<Vec<u8>> {
+        tokio::task::spawn_blocking(move || Self::scale_png(&bytes, scale)).await?
+    }
+
     fn scale_png(bytes: &[u8], scale: f32) -> anyhow::Result<Vec<u8>> {
         let img = image::load_from_memory(bytes)?.to_rgba8();
         let (w, h) = img.dimensions();
@@ -473,8 +561,7 @@ impl DataGame {
             icon_bytes
         } else {
             let scale = zoom as f32 / base_zoom as f32;
-
-            tokio::task::spawn_blocking(move || Self::scale_png(&icon_bytes, scale)).await??
+            Self::scale_png_async(icon_bytes, scale).await?
         };
 
         CACHE_ICON.insert(key, icon.clone());

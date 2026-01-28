@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Skill {
     pub template_id: i32,
+    pub skill_id: i16,
     pub point: i8,
     pub power_require: i64,
     pub cool_down: i32,
@@ -53,9 +54,12 @@ impl Skill {
     pub const LIEN_HOAN_CHUONG: i32 = 25;
     pub const MA_PHONG_BA: i32 = 26;
 
+    pub const USE_SKILL_NOT_FOCUS: i8 = 20;
+
     pub fn new(id: i32) -> Self {
         Skill {
             template_id: id,
+            skill_id: 0,
             point: 0,
             power_require: 0,
             cool_down: 0,

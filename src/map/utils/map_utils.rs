@@ -1,19 +1,21 @@
 #![allow(dead_code)]
+
 use crate::map::Map;
 use crate::map::Zone;
 use crate::player::Player;
+use crate::utils::Location;
 
 pub struct MapUtils;
 
 impl MapUtils {
-    pub fn calculate_distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
-        let dx = (x2 - x1) as f64;
-        let dy = (y2 - y1) as f64;
+    pub fn calculate_distance(source: &Location, target: &Location) -> f64 {
+        let dx = (target.x - source.x) as f64;
+        let dy = (target.y - source.y) as f64;
         (dx * dx + dy * dy).sqrt()
     }
 
-    pub fn is_position_in_range(x1: i32, y1: i32, x2: i32, y2: i32, range: i32) -> bool {
-        Self::calculate_distance(x1, y1, x2, y2) <= range as f64
+    pub fn is_position_in_range(source: &Location, target: &Location, range: i16) -> bool {
+        Self::calculate_distance(source, target) <= range as f64
     }
 
     pub fn get_random_position_in_map(map: &Map) -> (i16, i16) {
@@ -105,36 +107,6 @@ impl MapUtils {
         true
     }
 
-    pub fn get_players_in_range(
-        _zone: &Zone,
-        _center_x: i16,
-        _center_y: i16,
-        _range: i32,
-    ) -> Vec<Player> {
-        // TODO: Implement async player access
-        Vec::new()
-    }
-
-    pub fn get_mobs_in_range(
-        _zone: &Zone,
-        _center_x: i16,
-        _center_y: i16,
-        _range: i32,
-    ) -> Vec<crate::mob::RtMob> {
-        // TODO: Implement async mob access
-        Vec::new()
-    }
-
-    pub fn get_items_in_range(
-        _zone: &Zone,
-        _center_x: i16,
-        _center_y: i16,
-        _range: i32,
-    ) -> Vec<crate::map::ItemMap> {
-        // TODO: Implement async item access
-        Vec::new()
-    }
-
     pub fn validate_map_coordinates(map: &Map, x: i16, y: i16) -> bool {
         x >= 0 && x < map.info.map_width as i16 && y >= 0 && y < map.info.map_height as i16
     }
@@ -156,27 +128,5 @@ impl MapUtils {
                 map.info.map_height as i16 - 1,
             ), // Bottom-right
         ]
-    }
-
-    pub fn is_map_full(_map: &Map) -> bool {
-        // TODO: Implement async zone access to check if all zones are full
-        false
-    }
-
-    pub fn get_map_population(_map: &Map) -> usize {
-        // TODO: Implement async zone access to count total players
-        0
-    }
-
-    pub fn get_map_info_string(map: &Map) -> String {
-        format!(
-            "Map: {} (ID: {}) - Size: {}x{} - Zones: {} - Max Players: {}",
-            map.info.name,
-            map.info.id,
-            map.info.map_width,
-            map.info.map_height,
-            map.info.zone_count,
-            map.info.max_player
-        )
     }
 }

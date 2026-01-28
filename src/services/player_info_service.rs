@@ -30,26 +30,26 @@ pub fn send_message_info_hpmp(player: &RtPlayer) -> anyhow::Result<()> {
 }
 pub fn send_hp(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = ServiceHandles::sub_command_30(5)?;
-    msg.write_int(player.n_point.hp)?;
+    msg.write_int(player.n_point.hp_current)?;
     player.send_to_client(msg)?;
     Ok(())
 }
 pub fn send_mp(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = ServiceHandles::sub_command_30(6)?;
-    msg.write_int(player.n_point.mp)?;
+    msg.write_int(player.n_point.mp_current)?;
     player.send_to_client(msg)?;
     Ok(())
 }
 
 pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-42);
-    msg.write_int(player.n_point.hpg)?;
-    msg.write_int(player.n_point.mpg)?;
-    msg.write_int(player.n_point.dameg)?;
+    msg.write_int(player.n_point.hp_base)?;
+    msg.write_int(player.n_point.mp_base)?;
+    msg.write_int(player.n_point.dame_base)?;
     msg.write_int(player.n_point.hp_max)?;
     msg.write_int(player.n_point.mp_max)?;
-    msg.write_int(player.n_point.hp)?;
-    msg.write_int(player.n_point.mp)?;
+    msg.write_int(player.n_point.hp_current)?;
+    msg.write_int(player.n_point.mp_current)?;
     msg.write_byte(player.n_point.speed)?;
     msg.write_byte(20)?;
     msg.write_byte(20)?;
@@ -59,8 +59,8 @@ pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
     msg.write_byte(player.n_point.crit)?;
     msg.write_long(player.n_point.tiem_nang)?;
     msg.write_short(100)?;
-    msg.write_short(player.n_point.defg as i16)?;
-    msg.write_byte(player.n_point.critg)?;
+    msg.write_short(player.n_point.def_base as i16)?;
+    msg.write_byte(player.n_point.crit_base)?;
 
     player.send_to_client(msg)?;
     Ok(())
@@ -225,10 +225,7 @@ pub fn send_notification_tab(player: &RtPlayer) -> anyhow::Result<()> {
 
 pub fn send_time_skill(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending time skill info");
-
-    let mut msg = Message::new(-30);
-    msg.write_byte(62)?; // sub command
-
+    let mut msg = sub_command_30(62)?;
     player.send_to_client(msg)?;
     Ok(())
 }
@@ -288,12 +285,15 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
 
     msg.write_byte(player.gender)?;
 
-    let skills = player.player_skill.skills.clone();
-    msg.write_byte(skills.len() as i8);
-    for skill in skills {
-        if skill.template_id != -1 {
-            msg.write_short(skill.template_id as i16)?;
-        }
+    let valid_skill: Vec<_> = player
+        .player_skill
+        .skills
+        .iter()
+        .filter(|sk| sk.template_id != -1)
+        .collect();
+    msg.write_byte(valid_skill.len() as i8);
+    for skill in valid_skill {
+        msg.write_short(skill.skill_id)?;
     }
 
     msg.write_long(player.inventory.get_gold())?; // xu
@@ -400,5 +400,12 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     clear_vtsk(session).await?;
 
     println!("All player info sent successfully");
+    Ok(())
+}
+
+pub fn send_info_hp_mp_money(player: &RtPlayer) -> anyhow::Result<()> {
+    send_hp(player)?;
+    send_mp(player)?;
+    // TODO: Send money info if separate packet needed, or rely on other updates
     Ok(())
 }

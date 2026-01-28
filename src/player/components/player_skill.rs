@@ -5,6 +5,8 @@ pub struct PlayerSkill {
     pub skills: Vec<Skill>,
     pub skill_select: Option<Skill>,
     pub skill_shortcut: Vec<u8>,
+    pub prepare_qckk: bool,
+    pub last_time_prepare_qckk: u64,
 }
 
 impl PlayerSkill {
@@ -13,6 +15,8 @@ impl PlayerSkill {
             skills: Vec::new(),
             skill_select: None,
             skill_shortcut: vec![0; 10],
+            prepare_qckk: false,
+            last_time_prepare_qckk: 0,
         }
     }
 }

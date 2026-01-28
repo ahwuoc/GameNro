@@ -1,20 +1,26 @@
-use crate::mob::mob::RtMob;
+use crate::entities::player;
+use crate::map::map_utils::MapUtils;
+use crate::map::{zone, zone_manager};
 use crate::models::skill_model::Skill;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
+use crate::services::effect_skill_service::EffectSkillService;
+use crate::services::player_info_service;
+use crate::utils::{skill_util, time};
+use crate::{mob::mob::RtMob, templates::skill_template_manager};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn can_use_skill_with_mana(player: &Player) -> bool {
+pub fn has_enough_mana_for_skill(player: &Player) -> bool {
     if let Some(skill) = &player.player_skill.skill_select {
-        if player.n_point.mp >= skill.mana_use as i32 {
+        if player.n_point.mp_current >= skill.mana_use as i32 {
             return true;
         }
     }
     false
 }
 
-pub fn can_use_skill_with_cooldown(player: &Player) -> bool {
+pub fn is_skill_off_cooldown(player: &Player) -> bool {
     if let Some(skill) = &player.player_skill.skill_select {
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -25,7 +31,8 @@ pub fn can_use_skill_with_cooldown(player: &Player) -> bool {
     false
 }
 
-pub async fn use_skill(
+/// Handle incoming USE_SKILL packet from client (-45)
+pub fn handle_use_skill_packet(
     player: &mut Player,
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
@@ -38,41 +45,305 @@ pub async fn use_skill(
         }
     }
 
-    if status == 20 {
+    if status == Skill::USE_SKILL_NOT_FOCUS {
         if let Some(msg) = &mut message {
-            let _skill_id = msg.read_byte().unwrap_or(0);
-            let _dx = msg.read_short().unwrap_or(0);
-            let _dy = msg.read_short().unwrap_or(0);
-            let _dir = msg.read_byte().unwrap_or(0);
-            let _x = msg.read_short().unwrap_or(0);
-            let _y = msg.read_short().unwrap_or(0);
+         
         }
     }
+    execute_skill(player, pl_target, mob_target);
+}
 
-    if !can_use_skill_with_cooldown(player) || !can_use_skill_with_mana(player) {
+/// Execute the player's currently selected skill
+pub fn execute_skill(
+    player: &mut Player,
+    pl_target: Option<&mut Player>,
+    mob_target: Option<&mut RtMob>,
+) {
+    if !is_skill_off_cooldown(player) || !has_enough_mana_for_skill(player) {
+        println!("[DEBUG SKILL] Player {} cannot use skill (cooldown or mana)", player.name);
         return;
     }
 
-    let skill_id = if let Some(skill) = &player.player_skill.skill_select {
-        skill.template_id
-    } else {
+    let skill_id = match &player.player_skill.skill_select {
+        Some(s) => s.template_id,
+        None => return,
+    };
+
+    let Some(temp) = crate::templates::skill_template_manager::get(skill_id) else {
         return;
     };
 
-    match skill_id {
-        Skill::DRAGON | Skill::DEMON | Skill::GALICK => {
-            use_skill_attack(player, pl_target, mob_target).await;
+    println!("[DEBUG SKILL] use_skill called. Player: {}, Skill ID: {}, Type: {}", player.name, skill_id, temp.r#type);
+
+    match (temp.r#type, skill_id) {
+        (_, Skill::KAIOKEN) => {
+            let hp_use = player.n_point.hp_max / 10;
+            if player.n_point.hp_current > hp_use {
+                player.n_point.hp_current -= hp_use;
+                execute_attack_skill(player, pl_target, mob_target);
+            }
         }
-        Skill::KAMEJOKO | Skill::MASENKO | Skill::ANTOMIC => {
-            use_skill_attack(player, pl_target, mob_target).await;
+        (_, Skill::QUA_CAU_KENH_KHI) => execute_spirit_bomb(player, pl_target, mob_target),
+        (_, Skill::DICH_CHUYEN_TUC_THOI) => execute_instant_transmission(player, pl_target, mob_target),
+        (_, Skill::THOI_MIEN) => execute_hypnosis(player, pl_target, mob_target),
+        (3, _) => execute_self_skill(player),
+        (1, _) | (4, _) => execute_attack_skill(player, pl_target, mob_target),
+        (t, id) => println!("Skill Type {} / ID {} chua dc trien khai", t, id),
+    }
+}
+
+/// Execute Instant Transmission skill (Dịch Chuyển Tức Thời)
+pub fn execute_instant_transmission(
+    player: &mut Player,
+    pl_target: Option<&mut Player>,
+    mob_target: Option<&mut RtMob>,
+) {
+    println!("[DEBUG SKILL] execute_instant_transmission called for player {} with mob_target: {}", player.name, mob_target.is_some());
+    let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
+    let time_stun = skill_util::get_time_dctt(skill_point);
+
+    if let Some(target) = pl_target {
+        // Teleport
+        player.location.x = target.location.x;
+        player.location.y = target.location.y;
+        crate::map::services::map_service::send_player_teleport(player);
+
+        // Attack & Stun
+        deal_damage_to_player(player, target, false);
+        EffectSkillService::set_blind_dctt(target, time_stun);
+        EffectSkillService::send_effect_player(
+            player,
+            target,
+            EffectSkillService::TURN_ON_EFFECT,
+            EffectSkillService::BLIND_EFFECT,
+        );
+        let _ = crate::services::ServiceHandles::send_item_time(target, 3779, (time_stun / 1000) as i16);
+    }
+
+    if let Some(mob) = mob_target {
+        println!("[DEBUG SKILL] DCTT: Teleporting to mob {} at ({}, {})", mob.id, mob.location.x, mob.location.y);
+        // Teleport
+        player.location.x = mob.location.x;
+        player.location.y = mob.location.y;
+        crate::map::services::map_service::send_player_teleport(player);
+
+        // Stun Mob (Mob Service handles taking damage separate if needed, but here Java just stuns)
+        EffectSkillService::set_blind_dctt_mob(mob, time_stun);
+        EffectSkillService::send_effect_mob(
+            player,
+            mob,
+            EffectSkillService::TURN_ON_EFFECT,
+            EffectSkillService::BLIND_EFFECT,
+        );
+    }
+    
+    // Critical 100% next hit logic (TODO: Implement crit flag in NPoint if not exists)
+    // player.n_point.is_crit_100 = true; 
+
+    apply_skill_cost(player);
+}
+
+/// Execute Hypnosis skill (Thôi Miên)
+/// Puts target to sleep, preventing actions
+pub fn execute_hypnosis(
+    player: &mut Player,
+    pl_target: Option<&mut Player>,
+    mob_target: Option<&mut RtMob>,
+) {
+    println!("[DEBUG SKILL] execute_hypnosis called for player {} with mob_target: {}", player.name, mob_target.is_some());
+    EffectSkillService::send_effect_use_skill(player, Skill::THOI_MIEN as i16);
+    let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
+    let time_sleep = skill_util::get_time_thoi_mien(skill_point);
+
+    if let Some(target) = pl_target {
+        EffectSkillService::set_thoi_mien(target, time_sleep);
+        EffectSkillService::send_effect_player(
+            player,
+            target,
+            EffectSkillService::TURN_ON_EFFECT,
+            EffectSkillService::SLEEP_EFFECT,
+        );
+        let _ = crate::services::ServiceHandles::send_item_time(target, 3782, (time_sleep / 1000) as i16);
+    }
+
+    if let Some(mob) = mob_target {
+        println!("[DEBUG SKILL] Thoi Mien: Applying sleep to mob {}", mob.id);
+        EffectSkillService::set_thoi_mien_mob(mob, time_sleep);
+        EffectSkillService::send_effect_mob(
+            player,
+            mob,
+            EffectSkillService::TURN_ON_EFFECT,
+            EffectSkillService::SLEEP_EFFECT,
+        );
+    }
+    apply_skill_cost(player);
+}
+
+/// Execute Spirit Bomb skill (Quả Cầu Kênh Khí / Genki Dama)
+/// Two-phase skill: charge then release with AoE damage
+pub fn execute_spirit_bomb(
+    player: &mut Player,
+    pl_target: Option<&mut Player>,
+    mob_target: Option<&mut RtMob>,
+) {
+    if !player.player_skill.prepare_qckk {
+        // Phase 1: Start Charging
+        player.player_skill.prepare_qckk = true;
+        player.player_skill.last_time_prepare_qckk = crate::utils::time::current_time_millis();
+        broadcast_skill_charging(player, 4000);
+    } else {
+        // Phase 2: Release
+        player.player_skill.prepare_qckk = false;
+        
+        if let Some(target) = pl_target {
+             deal_damage_to_player(player, target, false);
+             // TODO: Check mobs around player target if needed (Java version checks this)
+        }
+
+        // Handle mob target (attack main target + AoE around it)
+        let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
+        let range = skill_util::get_range_qckk(skill_point);
+        
+        // Find main mob target location to center AoE
+        let mut center_loc = None;
+        let mut mob_target_id = None;
+
+        if let Some(mob) = mob_target.as_ref() { // Borrow immutably first
+             center_loc = Some(mob.location.clone());
+             mob_target_id = Some(mob.id);
+        }
+
+        // If mob_target provided, attack it first (Mutable borrow)
+        if let Some(mob) = mob_target {
+             deal_damage_to_mob(player, mob, false);
+        }
+
+        // Calculate AoE Damage for surrounding mobs
+        if let Some(center) = center_loc {
+             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+                 let mobs = zone.get_all_mobs();
+                 let mut hit_count = 0;
+                 for mut mob in mobs { // Clone from get_all_mobs
+                     if !mob.is_dead() 
+                        && mob_target_id.map_or(true, |id| id != mob.id) // Use captured ID
+                        && MapUtils::is_position_in_range(&center, &mob.location, range) 
+                     {
+                         // Apply damage
+                         let dame_attack = player.n_point.get_dame_attack(true); // True for piercing? Java uses true
+                         mob.take_damage(dame_attack);
+                         
+                         deal_damage_to_mob(player, &mut mob, false);
+                         hit_count += 1;
+                     }
+                 }
+             }
+        }
+
+        
+        player_info_service::send_info_hp_mp_money(player);
+        apply_skill_cost(player);
+    }
+}
+
+/// Broadcast that player is charging a skill to all players in map
+pub fn broadcast_skill_charging(player: &Player, time_prepare: i32) {
+    let mut msg = Message::new(-45);
+    if let Ok(_) = msg.write_byte(4) {
+        let _ = msg.write_int(player.id as i32);
+        let _ = msg.write_short(player.player_skill.skill_select.as_ref().unwrap().skill_id);
+        let _ = msg.write_short(time_prepare as i16);
+        let _ = crate::services::ServiceHandles::send_mess_all_player_in_map(player, msg);
+    }
+}
+
+/// Execute self-targeting skill (type 3)
+pub fn execute_self_skill(player: &mut Player) {
+    let skill_id = player
+        .player_skill
+        .skill_select
+        .as_ref()
+        .unwrap()
+        .template_id;
+    match skill_id {
+        Skill::THAI_DUONG_HA_SAN => {
+            execute_solar_flare(player);
+        }
+        Skill::TAI_TAO_NANG_LUONG => {
+            println!("Use TAI_TAO_NANG_LUONG");
+        }
+        Skill::KHIEN_NANG_LUONG => {
+            EffectSkillService::send_effect_use_skill(
+                player,
+                player.player_skill.skill_select.as_ref().unwrap().skill_id,
+            );
+            EffectSkillService::set_start_shield(player);
+            EffectSkillService::send_effect_player(
+                player,
+                player,
+                EffectSkillService::TURN_ON_EFFECT,
+                EffectSkillService::SHIELD_EFFECT,
+            );
+            let _ = crate::services::ServiceHandles::send_item_time(
+                player,
+                3784,
+                (player.effect_skill.time_shield / 1000) as i16,
+            );
+            apply_skill_cost(player);
         }
         _ => {
-            println!("Skill {} not implemented yet", skill_id);
+            println!("Skill Alone {} not implemented", skill_id);
         }
     }
 }
 
-pub async fn use_skill_attack(
+/// Execute Solar Flare skill (Thái Dương Hạ San)
+/// Stuns all enemies in range
+pub fn execute_solar_flare(player: &mut Player) {
+    let Some(skill) = player.player_skill.skill_select.as_ref() else {
+        return;
+    };
+    let skill_level = skill.point;
+    let time_stun = skill_util::get_time_stun(skill_level);
+    let range_skill = skill_util::get_range_stun(skill_level);
+
+    let Some(zone) = &zone_manager::ZONE_MANAGER.get_zone(player.map_id, player.zone_id) else {
+        return;
+    };
+    let mut affected_mobs = Vec::new();
+    let mobs = zone.get_all_mobs();
+    for mob in mobs {
+        if MapUtils::is_position_in_range(&player.location, &mob.location, range_skill) {
+            let _ = zone.start_stun_mob(mob.id, time_stun);
+            affected_mobs.push(mob.id as u8);
+        }
+    }
+    let affected_players = Vec::new(); //player chua trien khai
+    EffectSkillService::send_effect_blind_thai_duong_ha_san(
+        player,
+        affected_players,
+        affected_mobs,
+        time_stun as i32,
+    );
+    apply_skill_cost(player);
+}
+
+pub async fn learn_full_skill(pl: &mut Player) -> anyhow::Result<()> {
+    let template_skill = skill_template_manager::get_by_nclass(pl.gender as i32);
+    pl.player_skill.skills.clear();
+    for temp in template_skill {
+        let max_level = temp.skills.len() as i32;
+        if let Some(skill) = skill_util::create_skill(temp.id as i32, max_level).await {
+            println!("Skill {} created with level {}", temp.id, max_level);
+            pl.player_skill.skills.push(skill);
+        }
+    }
+    player_info_service::send_player_blob_internal(pl).await?;
+    Ok(())
+}
+
+/// Execute a basic attack skill (type 1 or 4)
+pub fn execute_attack_skill(
     player: &mut Player,
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
@@ -80,17 +351,18 @@ pub async fn use_skill_attack(
     let miss = false;
 
     if let Some(target) = pl_target {
-        player_attack_player(player, target, miss).await;
+        deal_damage_to_player(player, target, miss);
     }
 
     if let Some(mob) = mob_target {
-        player_attack_mob(player, mob, miss).await;
+        deal_damage_to_mob(player, mob, miss);
     }
 
-    after_use_skill(player);
+    apply_skill_cost(player);
 }
 
-pub async fn player_attack_player(player: &mut Player, target: &mut Player, miss: bool) {
+/// Calculate and apply damage from player to another player
+pub fn deal_damage_to_player(player: &mut Player, target: &mut Player, miss: bool) {
     if miss {
         return;
     }
@@ -104,7 +376,8 @@ pub async fn player_attack_player(player: &mut Player, target: &mut Player, miss
     target.injured(dame_hit as u64, false);
 }
 
-pub async fn player_attack_mob(player: &mut Player, mob: &mut RtMob, miss: bool) {
+/// Calculate and apply damage from player to mob
+pub fn deal_damage_to_mob(player: &mut Player, mob: &mut RtMob, miss: bool) {
     if miss {
         return;
     }
@@ -113,14 +386,12 @@ pub async fn player_attack_mob(player: &mut Player, mob: &mut RtMob, miss: bool)
     mob.take_damage(dame_hit);
 }
 
-pub fn after_use_skill(player: &mut Player) {
+/// Apply mana cost and update cooldown after using a skill
+pub fn apply_skill_cost(player: &mut Player) {
     if let Some(ref mut skill) = player.player_skill.skill_select {
-        skill.last_time_use = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-        if player.n_point.mp >= skill.mana_use as i32 {
-            player.n_point.mp -= skill.mana_use as i32;
+        skill.last_time_use = time::current_time_millis();
+        if player.n_point.mp_current >= skill.mana_use as i32 {
+            player.n_point.mp_current -= skill.mana_use as i32;
         }
     }
 }
@@ -144,5 +415,29 @@ pub fn send_skill_shortcut(player: &Player) -> anyhow::Result<()> {
     msg_o.write(&skill_data)?;
     player.send_to_client(msg_o)?;
 
+    Ok(())
+}
+
+pub fn select_skill(player: &mut Player, skill_template_id: i32) -> anyhow::Result<()> {
+    if let Some(skill) = player
+        .player_skill
+        .skills
+        .iter()
+        .find(|s| s.template_id == skill_template_id as i32)
+    {
+        player.player_skill.skill_select = Some(skill.clone());
+    } else {
+        println!("Skill not found with template_id: {}", skill_template_id);
+    }
+    Ok(())
+}
+
+pub fn send_release_cooldown(player: &Player) -> anyhow::Result<()> {
+    let mut msg = Message::new(-94);
+    for skill in &player.player_skill.skills {
+        msg.write_short(skill.skill_id)?;
+        msg.write_int(0)?; 
+    }
+    player.send_to_client(msg)?;
     Ok(())
 }
