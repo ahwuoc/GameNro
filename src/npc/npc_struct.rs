@@ -1,4 +1,5 @@
 use crate::network::session::SessionArc;
+use crate::utils::MapUtils;
 use crate::{
     entities::npc_template::Model as NpcTemplate,
     network::{message::Message, session::AsyncSession},
@@ -124,8 +125,7 @@ impl RtNpc {
     pub fn update(&mut self) {}
 
     pub fn is_in_range(&self, player_x: i32, player_y: i32, range: i32) -> bool {
-        use crate::map::MapUtils;
-        let mut target = crate::utils::Location::new();
+        let mut target = Location::new();
         target.x = player_x as i16;
         target.y = player_y as i16;
         MapUtils::is_position_in_range(&self.location, &target, range as i16)

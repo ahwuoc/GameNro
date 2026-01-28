@@ -1,5 +1,4 @@
 use crate::entities::player;
-use crate::map::map_utils::MapUtils;
 use crate::map::{zone, zone_manager};
 use crate::models::skill_model::Skill;
 use crate::network::message::Message;
@@ -7,7 +6,7 @@ use crate::network::session::SessionArc;
 use crate::player::player::Player;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::player_info_service;
-use crate::utils::{skill_util, time};
+use crate::utils::{skill_util, time, MapUtils};
 use crate::{mob::mob::RtMob, templates::skill_template_manager};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -46,9 +45,7 @@ pub fn handle_use_skill_packet(
     }
 
     if status == Skill::USE_SKILL_NOT_FOCUS {
-        if let Some(msg) = &mut message {
-         
-        }
+        if let Some(msg) = &mut message {}
     }
     execute_skill(player, pl_target, mob_target);
 }
@@ -60,7 +57,10 @@ pub fn execute_skill(
     mob_target: Option<&mut RtMob>,
 ) {
     if !is_skill_off_cooldown(player) || !has_enough_mana_for_skill(player) {
-        println!("[DEBUG SKILL] Player {} cannot use skill (cooldown or mana)", player.name);
+        println!(
+            "[DEBUG SKILL] Player {} cannot use skill (cooldown or mana)",
+            player.name
+        );
         return;
     }
 
@@ -73,7 +73,10 @@ pub fn execute_skill(
         return;
     };
 
-    println!("[DEBUG SKILL] use_skill called. Player: {}, Skill ID: {}, Type: {}", player.name, skill_id, temp.r#type);
+    println!(
+        "[DEBUG SKILL] use_skill called. Player: {}, Skill ID: {}, Type: {}",
+        player.name, skill_id, temp.r#type
+    );
 
     match (temp.r#type, skill_id) {
         (_, Skill::KAIOKEN) => {
@@ -84,7 +87,9 @@ pub fn execute_skill(
             }
         }
         (_, Skill::QUA_CAU_KENH_KHI) => execute_spirit_bomb(player, pl_target, mob_target),
-        (_, Skill::DICH_CHUYEN_TUC_THOI) => execute_instant_transmission(player, pl_target, mob_target),
+        (_, Skill::DICH_CHUYEN_TUC_THOI) => {
+            execute_instant_transmission(player, pl_target, mob_target)
+        }
         (_, Skill::THOI_MIEN) => execute_hypnosis(player, pl_target, mob_target),
         (3, _) => execute_self_skill(player),
         (1, _) | (4, _) => execute_attack_skill(player, pl_target, mob_target),
@@ -98,7 +103,11 @@ pub fn execute_instant_transmission(
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) {
-    println!("[DEBUG SKILL] execute_instant_transmission called for player {} with mob_target: {}", player.name, mob_target.is_some());
+    println!(
+        "[DEBUG SKILL] execute_instant_transmission called for player {} with mob_target: {}",
+        player.name,
+        mob_target.is_some()
+    );
     let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
     let time_stun = skill_util::get_time_dctt(skill_point);
 
@@ -117,11 +126,18 @@ pub fn execute_instant_transmission(
             EffectSkillService::TURN_ON_EFFECT,
             EffectSkillService::BLIND_EFFECT,
         );
-        let _ = crate::services::ServiceHandles::send_item_time(target, 3779, (time_stun / 1000) as i16);
+        let _ = crate::services::ServiceHandles::send_item_time(
+            target,
+            3779,
+            (time_stun / 1000) as i16,
+        );
     }
 
     if let Some(mob) = mob_target {
-        println!("[DEBUG SKILL] DCTT: Teleporting to mob {} at ({}, {})", mob.id, mob.location.x, mob.location.y);
+        println!(
+            "[DEBUG SKILL] DCTT: Teleporting to mob {} at ({}, {})",
+            mob.id, mob.location.x, mob.location.y
+        );
         // Teleport
         player.location.x = mob.location.x;
         player.location.y = mob.location.y;
@@ -136,9 +152,9 @@ pub fn execute_instant_transmission(
             EffectSkillService::BLIND_EFFECT,
         );
     }
-    
+
     // Critical 100% next hit logic (TODO: Implement crit flag in NPoint if not exists)
-    // player.n_point.is_crit_100 = true; 
+    // player.n_point.is_crit_100 = true;
 
     apply_skill_cost(player);
 }
@@ -150,7 +166,11 @@ pub fn execute_hypnosis(
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) {
-    println!("[DEBUG SKILL] execute_hypnosis called for player {} with mob_target: {}", player.name, mob_target.is_some());
+    println!(
+        "[DEBUG SKILL] execute_hypnosis called for player {} with mob_target: {}",
+        player.name,
+        mob_target.is_some()
+    );
     EffectSkillService::send_effect_use_skill(player, Skill::THOI_MIEN as i16);
     let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
     let time_sleep = skill_util::get_time_thoi_mien(skill_point);
@@ -163,7 +183,11 @@ pub fn execute_hypnosis(
             EffectSkillService::TURN_ON_EFFECT,
             EffectSkillService::SLEEP_EFFECT,
         );
-        let _ = crate::services::ServiceHandles::send_item_time(target, 3782, (time_sleep / 1000) as i16);
+        let _ = crate::services::ServiceHandles::send_item_time(
+            target,
+            3782,
+            (time_sleep / 1000) as i16,
+        );
     }
 
     if let Some(mob) = mob_target {
@@ -194,53 +218,53 @@ pub fn execute_spirit_bomb(
     } else {
         // Phase 2: Release
         player.player_skill.prepare_qckk = false;
-        
+
         if let Some(target) = pl_target {
-             deal_damage_to_player(player, target, false);
-             // TODO: Check mobs around player target if needed (Java version checks this)
+            deal_damage_to_player(player, target, false);
+            // TODO: Check mobs around player target if needed (Java version checks this)
         }
 
         // Handle mob target (attack main target + AoE around it)
         let skill_point = player.player_skill.skill_select.as_ref().unwrap().point;
         let range = skill_util::get_range_qckk(skill_point);
-        
+
         // Find main mob target location to center AoE
         let mut center_loc = None;
         let mut mob_target_id = None;
 
-        if let Some(mob) = mob_target.as_ref() { // Borrow immutably first
-             center_loc = Some(mob.location.clone());
-             mob_target_id = Some(mob.id);
+        if let Some(mob) = mob_target.as_ref() {
+            // Borrow immutably first
+            center_loc = Some(mob.location.clone());
+            mob_target_id = Some(mob.id);
         }
 
         // If mob_target provided, attack it first (Mutable borrow)
         if let Some(mob) = mob_target {
-             deal_damage_to_mob(player, mob, false);
+            deal_damage_to_mob(player, mob, false);
         }
 
         // Calculate AoE Damage for surrounding mobs
         if let Some(center) = center_loc {
-             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                 let mobs = zone.get_all_mobs();
-                 let mut hit_count = 0;
-                 for mut mob in mobs { // Clone from get_all_mobs
-                     if !mob.is_dead() 
-                        && mob_target_id.map_or(true, |id| id != mob.id) // Use captured ID
-                        && MapUtils::is_position_in_range(&center, &mob.location, range) 
-                     {
-                         // Apply damage
-                         let dame_attack = player.n_point.get_dame_attack(true); // True for piercing? Java uses true
-                         mob.take_damage(dame_attack);
-                         
-                         deal_damage_to_mob(player, &mut mob, false);
-                         hit_count += 1;
-                     }
-                 }
-             }
+            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+            if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+                let mobs = zone.get_all_mobs();
+                let mut hit_count = 0;
+                for mut mob in mobs {
+                    if !mob.is_dead()
+                        && mob_target_id.map_or(true, |id| id != mob.id)
+                        && MapUtils::is_position_in_range(&center, &mob.location, range)
+                    {
+                        // Apply damage
+                        let dame_attack = player.n_point.get_dame_attack(true);
+                        mob.take_damage(dame_attack);
+
+                        deal_damage_to_mob(player, &mut mob, false);
+                        hit_count += 1;
+                    }
+                }
+            }
         }
 
-        
         player_info_service::send_info_hp_mp_money(player);
         apply_skill_cost(player);
     }
@@ -436,7 +460,7 @@ pub fn send_release_cooldown(player: &Player) -> anyhow::Result<()> {
     let mut msg = Message::new(-94);
     for skill in &player.player_skill.skills {
         msg.write_short(skill.skill_id)?;
-        msg.write_int(0)?; 
+        msg.write_int(0)?;
     }
     player.send_to_client(msg)?;
     Ok(())

@@ -22,7 +22,7 @@ use crate::templates::npc_template_manager;
 use std::collections::HashMap;
 
 pub mod npc_service {
-    use crate::map::map_manager;
+    use crate::{map::map_manager, utils::MapUtils};
 
     use super::*;
 
@@ -79,7 +79,6 @@ pub mod npc_service {
                 if !is_black_war {
                     return true;
                 } else {
-                    use crate::map::MapUtils;
                     return MapUtils::is_position_in_range(&player_loc, &npc_spawnd.location, 60);
                 }
             }
