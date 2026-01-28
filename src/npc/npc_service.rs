@@ -41,16 +41,16 @@ pub mod npc_service {
         Ok(())
     }
     pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
-        let (map_id, loc_x, loc_y) = session
+        let (map_id, player_loc) = session
             .get_player_ref(|player| {
                 if let Some(player) = player {
-                    Some((player.map_id, player.location.x, player.location.y))
+                    Some((player.map_id, player.location.clone()))
                 } else {
                     None
                 }
             })
             .await
-            .unwrap_or((0, 0, 0));
+            .unwrap_or((0, crate::utils::Location::new()));
 
         if map_id == 0 {
             if session.get_player_ref(|p| p.is_none()).await {
@@ -79,13 +79,8 @@ pub mod npc_service {
                 if !is_black_war {
                     return true;
                 } else {
-                    let dx = (npc_spawnd.x as i32 - loc_x as i32).abs();
-                    let dy = (npc_spawnd.y as i32 - loc_y as i32).abs();
-                    if dx * dx + dy * dy <= 60_i32.pow(2) {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    use crate::map::MapUtils;
+                    return MapUtils::is_position_in_range(&player_loc, &npc_spawnd.location, 60);
                 }
             }
         }

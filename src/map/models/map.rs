@@ -40,6 +40,8 @@ pub struct NpcSpawn {
     pub temp_id: i32,
     pub x: i16,
     pub y: i16,
+    #[serde(skip)]
+    pub location: crate::utils::Location,
 }
 
 impl NpcSpawn {
@@ -47,7 +49,12 @@ impl NpcSpawn {
         if json_str.is_empty() {
             return Vec::new();
         }
-        serde_json::from_str(json_str).unwrap_or_default()
+        let mut npcs: Vec<Self> = serde_json::from_str(json_str).unwrap_or_default();
+        for npc in npcs.iter_mut() {
+            npc.location.x = npc.x;
+            npc.location.y = npc.y;
+        }
+        npcs
     }
 }
 

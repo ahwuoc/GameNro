@@ -7,7 +7,7 @@ pub struct ItemUtils;
 impl ItemUtils {
     pub fn calculate_item_value(item: &Item) -> i64 {
         if let Some(template) = &item.template {
-            let base_value = template.gold as i64; // Use gold field instead of price
+            let base_value = template.gold as i64;
             let quantity_multiplier = item.quantity as i64;
             let option_bonus = Self::calculate_option_value(&item.item_options);
 
@@ -77,7 +77,6 @@ impl ItemUtils {
 
     pub fn can_stack(item: &Item) -> bool {
         if let Some(template) = &item.template {
-            // Items that can be stacked
             template.id == 457
                 || template.id == 590
                 || template.id == 610
@@ -101,10 +100,10 @@ impl ItemUtils {
         if Self::can_stack(item) {
             if let Some(template) = &item.template {
                 match template.id {
-                    457 => 9999999, // Special item
-                    590 => 9999999, // Special item
-                    610 => 9999999, // Special item
-                    _ => 999,       // Default stack size
+                    457 => 9999999,
+                    590 => 9999999,
+                    610 => 9999999,
+                    _ => 999,
                 }
             } else {
                 999
@@ -116,7 +115,6 @@ impl ItemUtils {
 
     pub fn can_combine_items(item1: &Item, item2: &Item) -> bool {
         if let (Some(template1), Some(template2)) = (&item1.template, &item2.template) {
-            // Check if items are the same type and can be combined
             template1.id == template2.id && Self::can_stack(item1)
         } else {
             false
@@ -152,9 +150,9 @@ impl ItemUtils {
     pub fn get_item_requirements(item: &Item) -> ItemRequirements {
         if let Some(template) = &item.template {
             ItemRequirements {
-                level: 0, // TODO: Use proper level field when available
+                level: 0,
                 gender: template.gender as i32,
-                class: 0, // TODO: Use proper class field when available
+                class: 0,
             }
         } else {
             ItemRequirements {

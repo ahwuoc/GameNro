@@ -12,8 +12,6 @@ pub mod inventory;
 pub mod inventory_service;
 pub mod item_time;
 pub mod item_time_service;
-// Item utilities
-pub mod item_utils;
 pub mod type_item_inventory;
 
 // Re-exports
@@ -25,4 +23,3 @@ pub use item_option::ItemOption;
 pub use item_service::ItemService;
 pub use item_time::ItemTime;
 pub use item_time_service::ItemTimeService;
-pub use item_utils::ItemUtils;

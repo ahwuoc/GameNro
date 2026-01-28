@@ -1,50 +1,120 @@
-use crate::map::zone::Zone;
+use crate::item::item::Item;
+use crate::item::{ItemOption, ItemService};
+use crate::map::item_map::ItemMap;
+use crate::map::map_service::is_ma_black_ball_war;
+use crate::map::services::item_map_service::ItemMapService;
+use crate::map::{zone::Zone, MapUtils};
 use crate::mob::mob::RtMob;
 use crate::network::message::Message;
 use crate::player::player::Player;
 use crate::player::player_manager::PLAYER_MANAGER;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::templates::item_template_manager;
+use crate::utils::random::{is_true, next_int};
+use crate::utils::time;
 
 pub fn player_attack_mob(player: &Player, mob_id: i32, damage: i32) {
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-        let msg_opt = {
+        let (msg_opt, drop_info) = {
             let mut mobs = zone.active_mobs.write().unwrap();
             if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
-                let old_hp = mob.hp;
                 let real_damage = mob.take_damage(damage);
                 mob.add_temporary_enemy(player.id);
                 let new_hp = mob.hp;
-
-                println!(
-                    "[MOB_SERVICE] Player {} attacked mob {} for {} damage (HP: {} -> {})",
-                    player.name, mob_id, real_damage, old_hp, new_hp
-                );
-
                 if !mob.is_dead() {
-                    Some(build_mob_alive_message(
-                        mob.id as i8,
-                        new_hp,
-                        real_damage,
-                        false,
-                    ))
+                    (
+                        Some(build_mob_alive_message(
+                            mob.id as i8,
+                            new_hp,
+                            real_damage,
+                            false,
+                        )),
+                        None,
+                    )
                 } else {
+                    let drop_x = mob.location.x;
+                    let drop_y = mob.location.y;
+                    let mob_temp_id = mob.template_id;
                     handle_mob_death(mob);
-                    Some(build_mob_die_message(mob.id as i8, real_damage, false))
+                    (
+                        Some(build_mob_die_message(mob.id as i8, real_damage, false)),
+                        Some((drop_x, drop_y, mob_temp_id)),
+                    )
                 }
             } else {
-                None
+                (None, None)
             }
         };
-
         if let Some(msg) = msg_opt {
+            let _ = zone.send_message_to_all_players(msg);
+        }
+        if let Some((x, y, mob_temp_id)) = drop_info {
+            drop_item_on_mob_death(&zone, x as i32, y as i32, player, mob_temp_id as i16);
+        }
+    }
+}
+
+fn drop_item_on_mob_death(zone: &Zone, x: i32, y: i32, player: &Player, mob_template_id: i16) {
+    if mob_template_id == 0 {
+        return;
+    }
+
+    let items = get_mob_rewards(player, mob_template_id);
+
+    for item in items {
+        if item.template.is_none() {
+            continue;
+        }
+
+        static NEXT_ID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(1);
+        let item_map_id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        let mut item_map = ItemMap::new(
+            item_map_id,
+            item.template.clone(),
+            item.quantity,
+            x,
+            y,
+            player.id as i64,
+        );
+        item_map.set_location(player.map_id, player.zone_id, x, y);
+        item_map.options = item.item_options.clone();
+
+        if zone.add_item(item_map.clone()).is_ok() {
+            let msg = ItemMapService::build_item_appear_message(&item_map);
             let _ = zone.send_message_to_all_players(msg);
         }
     }
 }
 
+fn get_mob_rewards(pl: &Player, mob_template_id: i16) -> Vec<Item> {
+    let mut drops: Vec<Item> = Vec::new();
+
+    if is_ma_black_ball_war(pl) {
+        let vang_quantity = next_int(500, 3000);
+        let gold_id = if vang_quantity < 1000 {
+            76
+        } else if vang_quantity < 2000 {
+            188
+        } else {
+            189
+        };
+        if let Some(item) = ItemService::create_new_item(gold_id) {
+            drops.push(item);
+        }
+    }
+    if is_true(1, 1) {
+        if let Some(mut item) = ItemService::create_new_item(14) {
+            item.add_option_param(30, 100);
+            drops.push(item);
+        }
+    }
+
+    drops
+}
+
 pub fn update(zone: &Zone) {
-    let current_time = get_current_time();
+    let current_time = time::current_time_millis();
     let mut global_msgs = Vec::new();
     let mut player_specific_msgs = Vec::new();
 
@@ -73,7 +143,7 @@ fn handle_mob_death(mob: &mut RtMob) {
     mob.status = 0;
     mob.is_alive = false;
     mob.temporary_enemies.clear();
-    mob.last_time_die = get_current_time();
+    mob.last_time_die = time::current_time_millis();
 }
 
 fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
@@ -140,15 +210,14 @@ fn hanlde_mob_attack_player(
             mob.effect_skill.is_blind_dctt = false;
             mob.effect_skill.time_blind_dctt = 0;
             println!("Mob {} het choang DCTT", mob.id);
-            // Optional: Send effect off message if needed, but for now logic unblock is priority
             let mut msg = Message::new(-124);
-            let _ = msg.write_byte(0); // 0: off
-            let _ = msg.write_byte(1); // 1: mob
+            let _ = msg.write_byte(0);
+            let _ = msg.write_byte(1);
             let _ = msg.write_byte(
                 crate::services::effect_skill_service::EffectSkillService::BLIND_EFFECT as i8,
             );
             let _ = msg.write_byte(mob.id as i8);
-            let _ = msg.write_int(-1); // player id (unknown here, pass -1 or dummy)
+            let _ = msg.write_int(-1);
             let _ = zone.send_message_to_all_players(msg);
         } else {
             println!("Mob {} dang bi choang DCTT -> Skip attack", mob.id);
@@ -205,17 +274,12 @@ fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
     for player_id in zone.player_ids.iter() {
         if let Some(player) = PLAYER_MANAGER.get(*player_id) {
             if !player.is_die() {
-                let dx = (mob.location.x - player.location.x) as i32;
-                let dy = (mob.location.y - player.location.y) as i32;
-                let dist = ((dx * dx + dy * dy) as f32).sqrt();
-
                 let limit = if mob.temporary_enemies.contains(&player.id) {
                     300.0
                 } else {
                     100.0
                 };
-
-                if dist <= limit {
+                if MapUtils::is_position_in_range(&mob.location, &player.location, limit as i16) {
                     return Some(player.id);
                 }
             }
@@ -235,12 +299,6 @@ fn broadcast_messages(zone: &Zone, global_msgs: Vec<Message>, player_msgs: Vec<(
     }
 }
 
-fn get_current_time() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
-}
 pub fn build_mob_attack_me_message(mob_id: i8, damage: i32) -> Message {
     let mut msg = Message::new(-11);
     let _ = msg.write_byte(mob_id);

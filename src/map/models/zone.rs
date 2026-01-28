@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::entities::item_template::Model as ItemMap;
+use crate::map::item_map::ItemMap;
 use crate::map::map_manager;
 use crate::mob::RtMob;
 use crate::network::message::Message;
@@ -111,10 +111,18 @@ impl Zone {
         Ok(())
     }
 
-    pub fn remove_item(&self, item_id: i16) -> anyhow::Result<()> {
+    pub fn remove_item(&self, item_map_id: i32) -> Option<ItemMap> {
         let mut items = self.active_items.write().unwrap();
-        items.retain(|item| item.id != item_id);
-        Ok(())
+        if let Some(pos) = items.iter().position(|i| i.item_map_id == item_map_id) {
+            Some(items.remove(pos))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_item(&self, item_map_id: i32) -> Option<ItemMap> {
+        let items = self.active_items.read().unwrap();
+        items.iter().find(|i| i.item_map_id == item_map_id).cloned()
     }
 
     pub fn get_all_items(&self) -> Vec<ItemMap> {

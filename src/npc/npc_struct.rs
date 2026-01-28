@@ -124,10 +124,10 @@ impl RtNpc {
     pub fn update(&mut self) {}
 
     pub fn is_in_range(&self, player_x: i32, player_y: i32, range: i32) -> bool {
-        let (nx, ny) = self.location.get_position();
-        let dx = nx as i32 - player_x;
-        let dy = ny as i32 - player_y;
-        let distance = (((dx * dx) + (dy * dy)) as f64).sqrt();
-        distance <= range as f64
+        use crate::map::MapUtils;
+        let mut target = crate::utils::Location::new();
+        target.x = player_x as i16;
+        target.y = player_y as i16;
+        MapUtils::is_position_in_range(&self.location, &target, range as i16)
     }
 }

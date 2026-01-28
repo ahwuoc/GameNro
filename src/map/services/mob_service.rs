@@ -1,7 +1,7 @@
-use crate::map::zone::Zone;
 use crate::network::message::Message;
 use crate::player::player::Player;
 use crate::player::player_manager::PLAYER_MANAGER;
+use crate::{map::zone::Zone, utils::MapUtils};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
@@ -81,15 +81,17 @@ pub async fn update(zone: &Zone) {
                     let pid = *entry.key();
                     if let Some(player) = PLAYER_MANAGER.get(pid) {
                         if !player.is_die() {
-                            let dist = ((mob.location.x - player.location.x).pow(2)
-                                + (mob.location.y - player.location.y).pow(2))
-                                as f32;
+                            MapUtils;
                             let limit = if mob.temporary_enemies.contains(&player.id) {
-                                300.0
+                                300
                             } else {
-                                100.0
+                                100
                             };
-                            if dist.sqrt() <= limit {
+                            if MapUtils::is_position_in_range(
+                                &mob.location,
+                                &player.location,
+                                limit,
+                            ) {
                                 target_id = Some(player.id);
                                 break;
                             }

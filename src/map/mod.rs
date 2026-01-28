@@ -2,7 +2,6 @@ pub mod dao;
 pub mod managers;
 pub mod models;
 pub mod services;
-pub mod utils;
 
 // Re-export models modules
 pub use models::item_map;
@@ -37,7 +36,3 @@ pub use zone_manager::ZoneManager;
 // Re-export DAO
 pub use dao::map_dao;
 pub use map_dao::MapDao;
-
-// Re-export utilities
-pub use map_utils::MapUtils;
-pub use utils::map_utils;

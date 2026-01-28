@@ -306,6 +306,65 @@ impl AsyncController {
                 crate::combine::combine_service::show_info_combine(&session, index_item).await?;
                 Ok(())
             }
+            cmd::PICK_ITEM => {
+                let item_map_id = msg.read_short()? as i32;
+                if let Some(mut player) = session.take_player().await {
+                    if player.is_die() {
+                        session.set_player(player).await;
+                        return Ok(());
+                    }
+
+                    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                    let zone_opt = zone_manager.get_zone(player.map_id, player.zone_id);
+
+                    if let Some(zone) = zone_opt {
+                        let item_opt = zone.get_item(item_map_id);
+
+                        if let Some(item_map) = item_opt {
+                            if let Some(template) = item_map.item_template {
+                                let mut item = crate::item::item::Item::with_template(
+                                    template,
+                                    item_map.quantity,
+                                );
+                                item.item_options = item_map.options.clone();
+
+                                use crate::item::inventory_service::InventoryService;
+
+                                let result = InventoryService::add_item_bag(&mut player, item);
+
+                                if let Ok(_) = result {
+                                    if let Some(_removed_item) = zone.remove_item(item_map_id) {
+                                        use crate::map::services::item_map_service::ItemMapService;
+
+                                        let disappear_msg =
+                                            ItemMapService::build_item_disappear_message(
+                                                item_map_id,
+                                            );
+                                        let _ = zone.send_message_to_all_players(disappear_msg);
+
+                                        let pickup_msg =
+                                            ItemMapService::build_pickup_notification_message(
+                                                item_map_id,
+                                                player.id,
+                                            );
+                                        let _ = zone
+                                            .send_message_to_other_players(player.id, pickup_msg);
+
+                                        println!(
+                                            "[PICKUP] Success: Player {} picked up item {}",
+                                            player.id, item_map_id
+                                        );
+                                    }
+                                }
+                            }
+                        } else {
+                            println!("[PICKUP] Item {} not found in zone", item_map_id);
+                        }
+                    }
+                    session.set_player(player).await;
+                }
+                Ok(())
+            }
             _ => {
                 println!("Unknown command: {}", msg.command);
                 Ok(())

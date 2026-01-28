@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 
 use crate::map::Map;
-use crate::map::Zone;
-use crate::player::Player;
 use crate::utils::Location;
 
 pub struct MapUtils;

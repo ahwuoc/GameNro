@@ -88,7 +88,6 @@ impl InventoryService {
                 let success =
                     Self::add_item_to_inventory(&mut pl.inventory.items_bag, item.clone());
                 if success {
-                    let _ = ServiceHandles::send_message_alert(pl, "Nhận được vật phẩm thành công");
                     let _ = Self::send_item_bag_to_client(pl);
                 } else {
                     let _ = ServiceHandles::send_message_alert(pl, "Hành trang đầy");

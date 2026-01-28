@@ -12,6 +12,9 @@ pub mod cmd {
     pub const SELECT_SKILL: i8 = 34;
     pub const GET_EFFECT_TEMPLATE: i8 = -66;
 
+    // Item CMD constants
+    pub const PICK_ITEM: i8 = -20;
+
     // Change Map CMD constants
     pub const OPEN_ZONE_UI: i8 = 29;
     pub const CHANGE_ZONE: i8 = 21;

@@ -1,8 +1,62 @@
 #![allow(dead_code)]
 use crate::entities::item_template::Model as ItemTemplate;
-use crate::item::item::Item;
 use crate::item::item_option::ItemOption;
 use chrono::{DateTime, Utc};
+
+// Time constants (milliseconds)
+pub const OWNER_RESET_TIME_MS: i64 = 45_000; // Reset player_id to -1 after 45s
+pub const ITEM_EXPIRE_TIME_MS: i64 = 50_000; // Remove normal items after 50s
+pub const NAMEC_EXPIRE_TIME_MS: i64 = 1_800_000; // Namec balls last 30 minutes
+pub const BLACK_BALL_MOVE_INTERVAL_MS: i64 = 10_000; // Black ball moves every 10s
+
+// Satellite item IDs
+pub const SATELLITE_MP: i16 = 342;
+pub const SATELLITE_INTELLIGENT: i16 = 343;
+pub const SATELLITE_DEFEND: i16 = 344;
+pub const SATELLITE_HP: i16 = 345;
+
+// Special maps (no auto-expire)
+pub const SPECIAL_MAPS: &[i32] = &[21, 22, 23];
+
+// Special item IDs
+pub const ITEM_DHVT: i16 = 726;
+pub const ITEM_992: i16 = 992;
+pub const ITEM_460: i16 = 460;
+pub const ITEM_78: i16 = 78;
+
+// Item type for satellite
+pub const ITEM_TYPE_SATELLITE: i32 = 22;
+
+/// Satellite buff types
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SatelliteType {
+    Mp,          // Item 342 - Restore MP
+    Intelligent, // Item 343 - Intelligence buff
+    Defend,      // Item 344 - Defense buff
+    Hp,          // Item 345 - Restore HP
+}
+
+/// Events that can occur during ItemMap update
+#[derive(Debug, Clone)]
+pub enum ItemMapEvent {
+    OwnerReset,
+    Expired,
+    Moved {
+        new_x: i32,
+        new_y: i32,
+    },
+    SatelliteBuff {
+        satellite_type: SatelliteType,
+        player_id: u64,
+    },
+}
+
+/// Result of update operation
+#[derive(Debug, Default)]
+pub struct UpdateResult {
+    pub should_remove: bool,
+    pub events: Vec<ItemMapEvent>,
+}
 
 #[derive(Debug, Clone)]
 pub struct ItemMap {
@@ -17,6 +71,9 @@ pub struct ItemMap {
     pub clan_id: i32,
     pub is_black_ball: bool,
     pub is_namec_ball: bool,
+    pub is_picked_up: bool,
+    pub map_id: i32,
+    pub zone_id: i32,
     pub last_time_move_to_player: DateTime<Utc>,
 }
 
@@ -30,17 +87,15 @@ impl ItemMap {
         player_id: i64,
     ) -> Self {
         let current_time = Utc::now();
-        let is_black_ball = if let Some(ref template) = template {
-            Self::is_black_ball_template(template.id)
-        } else {
-            false
-        };
+        let is_black_ball = template
+            .as_ref()
+            .map(|t| Self::is_black_ball_template(t.id))
+            .unwrap_or(false);
 
-        let is_namec_ball = if let Some(ref template) = template {
-            Self::is_namec_ball_template(template.id)
-        } else {
-            false
-        };
+        let is_namec_ball = template
+            .as_ref()
+            .map(|t| Self::is_namec_ball_template(t.id))
+            .unwrap_or(false);
 
         Self {
             item_map_id,
@@ -58,8 +113,18 @@ impl ItemMap {
             clan_id: -1,
             is_black_ball,
             is_namec_ball,
+            is_picked_up: false,
+            map_id: 0,
+            zone_id: 0,
             last_time_move_to_player: current_time,
         }
+    }
+
+    pub fn set_location(&mut self, map_id: i32, zone_id: i32, x: i32, y: i32) {
+        self.map_id = map_id;
+        self.zone_id = zone_id;
+        self.x = x;
+        self.y = y;
     }
 
     pub fn is_not_null_item(&self) -> bool {
@@ -71,19 +136,18 @@ impl ItemMap {
     }
 
     pub fn get_item_name(&self) -> String {
-        if let Some(ref template) = self.item_template {
-            template.name.clone()
-        } else {
-            "Empty Item".to_string()
-        }
+        self.item_template
+            .as_ref()
+            .map(|t| t.name.clone())
+            .unwrap_or_else(|| "Empty Item".to_string())
     }
 
     pub fn get_item_id(&self) -> i16 {
-        if let Some(ref template) = self.item_template {
-            template.id
-        } else {
-            -1
-        }
+        self.item_template.as_ref().map(|t| t.id).unwrap_or(-1)
+    }
+
+    pub fn get_item_type(&self) -> i32 {
+        self.item_template.as_ref().map(|t| t.r#type).unwrap_or(0)
     }
 
     pub fn get_quantity(&self) -> i32 {
@@ -139,30 +203,130 @@ impl ItemMap {
         self.last_time_move_to_player = Utc::now();
     }
 
-    pub fn get_age(&self) -> i64 {
+    pub fn get_age_ms(&self) -> i64 {
         let now = Utc::now();
-        (now - self.create_time).num_seconds()
+        (now - self.create_time).num_milliseconds()
     }
 
-    pub fn is_expired(&self, max_age_seconds: i64) -> bool {
-        self.get_age() > max_age_seconds
+    pub fn get_time_since_last_move_ms(&self) -> i64 {
+        let now = Utc::now();
+        (now - self.last_time_move_to_player).num_milliseconds()
     }
 
-    pub fn update(&mut self) {
-        // Update item map logic
-        // For example, check if item should expire or move
+    pub fn should_reset_owner(&self) -> bool {
+        if self.player_id == -1 {
+            return false;
+        }
+        let item_id = self.get_item_id();
+        if item_id == ITEM_DHVT || item_id == ITEM_992 {
+            return false;
+        }
+        self.get_age_ms() > OWNER_RESET_TIME_MS
     }
 
-    pub fn get_info(&self) -> String {
-        if let Some(ref template) = self.item_template {
-            format!("{} x{}", template.name, self.quantity)
-        } else {
-            "Empty Item".to_string()
+    pub fn should_expire(&self) -> bool {
+        if self.is_namec_ball {
+            return false;
+        }
+
+        if SPECIAL_MAPS.contains(&self.map_id) {
+            return false;
+        }
+
+        let item_id = self.get_item_id();
+        let item_type = self.get_item_type();
+
+        if item_type == ITEM_TYPE_SATELLITE {
+            return false;
+        }
+        if item_id == ITEM_78 || item_id == ITEM_DHVT {
+            return false;
+        }
+        let age = self.get_age_ms();
+        if age > ITEM_EXPIRE_TIME_MS {
+            return true;
+        }
+
+        false
+    }
+
+    pub fn is_satellite_item(&self) -> bool {
+        self.get_item_type() == ITEM_TYPE_SATELLITE
+    }
+
+    pub fn get_satellite_type(&self) -> Option<SatelliteType> {
+        match self.get_item_id() {
+            SATELLITE_MP => Some(SatelliteType::Mp),
+            SATELLITE_INTELLIGENT => Some(SatelliteType::Intelligent),
+            SATELLITE_DEFEND => Some(SatelliteType::Defend),
+            SATELLITE_HP => Some(SatelliteType::Hp),
+            _ => None,
         }
     }
 
-    pub fn get_content(&self) -> String {
-        String::new()
+    pub fn should_move_to_player(&self) -> bool {
+        if !self.is_black_ball {
+            return false;
+        }
+        self.get_time_since_last_move_ms() > BLACK_BALL_MOVE_INTERVAL_MS
+    }
+
+    /// Check if player can pick up this item
+    pub fn can_pickup(&self, player_id: u64, player_clan_id: Option<i32>) -> bool {
+        if self.is_picked_up {
+            return false;
+        }
+
+        // Owner can always pick up
+        if self.player_id == player_id as i64 {
+            return true;
+        }
+
+        // If no owner restriction, anyone can pick up
+        if self.player_id == -1 {
+            return true;
+        }
+
+        // Clan members can pick up clan items
+        if self.clan_id != -1 {
+            if let Some(clan_id) = player_clan_id {
+                if clan_id == self.clan_id {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Main update function - returns events and whether item should be removed
+    pub fn update(&mut self) -> UpdateResult {
+        let mut result = UpdateResult::default();
+
+        if !self.is_not_null_item() {
+            return result;
+        }
+
+        // Check owner reset
+        if self.should_reset_owner() {
+            self.player_id = -1;
+            result.events.push(ItemMapEvent::OwnerReset);
+        }
+
+        // Check expiration
+        if self.should_expire() {
+            result.should_remove = true;
+            result.events.push(ItemMapEvent::Expired);
+        }
+
+        result
+    }
+
+    pub fn get_info(&self) -> String {
+        self.item_template
+            .as_ref()
+            .map(|t| format!("{} x{}", t.name, self.quantity))
+            .unwrap_or_else(|| "Empty Item".to_string())
     }
 
     pub fn add_option(&mut self, option: ItemOption) {
@@ -170,21 +334,15 @@ impl ItemMap {
     }
 
     pub fn get_option_param(&self, option_id: i8) -> i16 {
-        for option in &self.options {
-            if option.get_option_id() == option_id {
-                return option.get_param();
-            }
-        }
-        0
+        self.options
+            .iter()
+            .find(|o| o.get_option_id() == option_id)
+            .map(|o| o.get_param())
+            .unwrap_or(0)
     }
 
     pub fn has_option(&self, option_id: i8) -> bool {
-        for option in &self.options {
-            if option.get_option_id() == option_id {
-                return true;
-            }
-        }
-        false
+        self.options.iter().any(|o| o.get_option_id() == option_id)
     }
 
     pub fn get_options(&self) -> &Vec<ItemOption> {
@@ -195,36 +353,33 @@ impl ItemMap {
         self.options.clear();
     }
 
+    // Black ball IDs: 86-105 (20 items)
     pub fn is_black_ball_template(template_id: i16) -> bool {
-        let black_ball_ids = vec![
-            86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
-        ];
-        black_ball_ids.contains(&template_id)
+        (86..=105).contains(&template_id)
     }
 
+    // Namec ball IDs: 106-115 (10 items)
     pub fn is_namec_ball_template(template_id: i16) -> bool {
-        let namec_ball_ids = vec![106, 107, 108, 109, 110, 111, 112, 113, 114, 115];
-        namec_ball_ids.contains(&template_id)
+        (106..=115).contains(&template_id)
     }
 
     pub fn is_valuable_item(template_id: i16) -> bool {
-        let valuable_ids = vec![200, 201, 202, 203, 204, 205, 206, 207, 208, 209];
-        valuable_ids.contains(&template_id)
+        (200..=209).contains(&template_id)
     }
 
-    pub fn get_item_rarity(&self) -> String {
+    pub fn get_item_rarity(&self) -> &'static str {
         if let Some(ref template) = self.item_template {
             if Self::is_black_ball_template(template.id) {
-                "Black Ball".to_string()
+                "Black Ball"
             } else if Self::is_namec_ball_template(template.id) {
-                "Namec Ball".to_string()
+                "Namec Ball"
             } else if Self::is_valuable_item(template.id) {
-                "Valuable".to_string()
+                "Valuable"
             } else {
-                "Common".to_string()
+                "Common"
             }
         } else {
-            "Unknown".to_string()
+            "Unknown"
         }
     }
 }
