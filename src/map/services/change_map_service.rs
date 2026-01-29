@@ -11,18 +11,14 @@ use crate::{
     map::{map_manager, services::change_map_models::*, Zone},
     network::message::Message,
     player::Player,
+    services::ServiceHandles,
 };
 
 use crate::map::WayPoint;
 
-// Re-export types for backward compatibility
-pub use crate::map::services::change_map_models::*;
-
 pub struct ChangeMapService;
 
 impl ChangeMapService {
-    /// Changes the player's map to a specific zone.
-    /// Handles spaceship arrival effects, exit/enter logic, and cold planet effects.
     pub fn change_map_to_zone(
         player: &mut Player,
         zone: &Zone,
@@ -492,13 +488,12 @@ impl ChangeMapService {
         player.location.set_position(x, player.location.y);
     }
 
-    /// Removes player from their current map/zone.
     pub fn exit_map(player: &mut Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
-            zone.send_message_to_other_players(player.id, msg)?;
+            ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
             zone.remove_player(player.id)?;
         }
         player.zone_id = 0;
@@ -661,17 +656,13 @@ impl ChangeMapService {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         match send_type {
             SpaceshipSendType::AllPlayersInMap => {
-                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                    zone.send_message_all_player_in_map(player, msg)?;
-                }
+                ServiceHandles::send_mess_all_player_in_map(player, msg)?;
             }
             SpaceshipSendType::SelfOnly => {
                 player.send_to_client(msg)?;
             }
             SpaceshipSendType::OthersInMap => {
-                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                    zone.send_message_to_other_players(player.id, msg)?;
-                }
+                ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
             }
         }
         Ok(())

@@ -7,10 +7,11 @@ use crate::database::DbManager;
 use crate::entities::{account, player};
 use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
+use crate::map::services::mob_service;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
+use crate::services::auth_service;
 use crate::services::{self, player_info_service, player_service, ServiceHandles};
-use crate::services::{auth_service, mob_service};
 use crate::shop::shop_services::shop_service;
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
@@ -64,8 +65,6 @@ impl AsyncController {
                                         Some(mob),
                                     );
                                     handled = true;
-                                } else {
-                                    println!("[DEBUG CONTROLLER] Mob {} not found in zone", mob_id);
                                 }
                             }
                         }
@@ -74,7 +73,7 @@ impl AsyncController {
                     if !handled {
                         if !is_mob_me {
                             let dame = player.n_point.get_dame_attack(false);
-                            mob_service::player_attack_mob(&player, mob_id, dame);
+                            mob_service::attack_mob(&player, mob_id, dame);
                         } else {
                             println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
                         }
@@ -347,8 +346,9 @@ impl AsyncController {
                                                 item_map_id,
                                                 player.id,
                                             );
-                                        let _ = zone
-                                            .send_message_to_other_players(player.id, pickup_msg);
+                                        let _ = ServiceHandles::send_mess_another_not_me_in_map(
+                                            &player, pickup_msg,
+                                        );
 
                                         println!(
                                             "[PICKUP] Success: Player {} picked up item {}",
@@ -505,6 +505,7 @@ impl AsyncController {
             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
             if let Some(zone) = zone_manager.get_best_zone(player_with_zone.map_id as i32) {
                 player_with_zone.zone_id = zone.zone_id;
+                // let mob_count = zone.active_mobs.read().unwrap().len();
                 if let Err(e) = zone.add_player(player_with_zone.clone()) {
                     println!("Error adding player to zone: {:?}", e);
                 } else {
@@ -512,6 +513,9 @@ impl AsyncController {
                         "Player {} added to zone {} map {}",
                         player_with_zone.name, zone.zone_id, zone.map_id
                     );
+                    zone.load_another_to_me(player_with_zone.id);
+                    zone.load_me_to_another(player_with_zone.id);
+                    zone.map_info(session, player_with_zone.id);
                 }
             } else {
                 println!(
@@ -716,7 +720,6 @@ impl AsyncController {
         let player_opt = session.get_player().await;
         if let Some(player) = player_opt {
             player_info_service::send_player_blob_internal(&player).await?;
-            player_info_service::send_cai_trang(&player).await?;
             println!(
                 "Client ok enhanced initialization completed for player: {}",
                 player.name
@@ -766,7 +769,7 @@ impl AsyncController {
         msg.write_int(player.id as i32)?;
         msg.write_short(player.location.x)?;
         msg.write_short(player.location.y)?;
-        zone.send_message_to_other_players(player.id, msg)?;
+        ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
 
         Ok(())
     }

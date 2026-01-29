@@ -5,6 +5,7 @@ pub mod player_manager;
 pub mod player_mapper;
 pub mod player_parser;
 
+pub use player::ChargeUpdateResult;
 pub use player::Player;
 
 // Re-exports from components

@@ -57,31 +57,6 @@ impl ZoneManager {
             .collect()
     }
 
-    pub fn send_to_players_in_map(
-        &self,
-        map_id: i32,
-        msg: crate::network::message::Message,
-    ) -> anyhow::Result<()> {
-        let zones = self.get_zones_for_map(map_id);
-        for zone in zones.into_iter() {
-            zone.send_message_to_all_players(msg.clone())?;
-        }
-        Ok(())
-    }
-
-    pub fn send_to_players_in_map_except(
-        &self,
-        map_id: i32,
-        except_player_id: u64,
-        msg: crate::network::message::Message,
-    ) -> anyhow::Result<()> {
-        let zones = self.get_zones_for_map(map_id);
-        for zone in zones.into_iter() {
-            zone.send_message_to_other_players(except_player_id, msg.clone())?;
-        }
-        Ok(())
-    }
-
     pub fn get_total_players_in_map(&self, map_id: i32) -> usize {
         let zones = self.get_zones_for_map(map_id);
         let mut total = 0;

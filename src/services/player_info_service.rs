@@ -225,12 +225,12 @@ pub fn send_notification_tab(player: &RtPlayer) -> anyhow::Result<()> {
 
 pub fn send_time_skill(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending time skill info");
-    let mut msg = sub_command_30(62)?;
+    let mut msg = sub_command_i30(62)?;
     player.send_to_client(msg)?;
     Ok(())
 }
 
-pub fn sub_command_30(sub_command: i8) -> anyhow::Result<Message> {
+pub fn sub_command_i30(sub_command: i8) -> anyhow::Result<Message> {
     let mut msg = Message::new(-30);
     msg.write_byte(sub_command)?;
     Ok(msg)
@@ -269,7 +269,7 @@ pub fn write_inventory(
 }
 
 pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> {
-    let mut msg = sub_command_30(0)?;
+    let mut msg = sub_command_i30(0)?;
     msg.write_int(player.id as i32)?; // charID
     msg.write_byte(0)?; // ctaskId
     msg.write_byte(player.gender)?; // cgender
@@ -321,24 +321,6 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
     Ok(())
 }
 
-pub async fn send_cai_trang(player: &RtPlayer) -> anyhow::Result<()> {
-    let mut message = Message::new(-90);
-    message.write_byte(1)?;
-    message.write_int(player.id as i32)?;
-
-    message.write_short(player.get_head())?;
-    message.write_short(player.get_body())?;
-    message.write_short(player.get_leg())?;
-    message.write_byte(0)?;
-
-    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-    if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-        zone.send_message_to_all_players(message.clone())?;
-    }
-    player.send_to_client(message)?;
-    Ok(())
-}
-
 pub async fn clear_vtsk(_session: &SessionArc) -> anyhow::Result<()> {
     Ok(())
 }
@@ -387,12 +369,8 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
 
     // -50 thông tin bảng thông báo
     send_notification_tab(&player)?;
-    {
-        let zone_manager = &ZONE_MANAGER;
-        zone_manager.load_player_to_best_zone(player.clone(), session)?;
-    }
 
-    send_cai_trang(&player).await?;
+    ServiceHandles::send_cai_trang(&player);
 
     send_time_skill(&player)?;
 

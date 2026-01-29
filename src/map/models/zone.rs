@@ -1,18 +1,20 @@
 #![allow(dead_code)]
 use crate::map::item_map::ItemMap;
 use crate::map::map_manager;
+use crate::map::services::mob_service;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player::Player;
 use crate::player::player_manager::PLAYER_MANAGER;
+use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
+use crate::services::player_service;
 use crate::utils::time;
 use anyhow::Result;
 use dashmap::DashMap;
 use dashmap::DashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Zone {
     pub map_id: i32,
@@ -131,48 +133,18 @@ impl Zone {
     }
 
     pub fn update(&self) -> anyhow::Result<()> {
-        crate::services::mob_service::update(self);
-        self.update_players()?;
+        mob_service::update(self);
+        player_service::update(self);
 
         let mut items = self.active_items.write().unwrap();
-        for _item in items.iter_mut() {
-            // TODO: Implement item update logic
-            // item.update();
-        }
+        items.retain_mut(|item| {
+            let result = item.update();
+            !result.should_remove
+        });
 
         Ok(())
     }
 
-    fn update_players(&self) -> anyhow::Result<()> {
-        let mut shield_removed_players: Vec<u64> = Vec::new();
-        for player_id in self.player_ids.iter() {
-            if let Some(mut player) = PLAYER_MANAGER.get_mut(*player_id) {
-                let current_time = crate::utils::time::current_time_millis();
-                if player.effect_skill.is_shielding
-                    && current_time
-                        > player.effect_skill.last_time_shield_up + player.effect_skill.time_shield
-                {
-                    player.effect_skill.is_shielding = false;
-                    shield_removed_players.push(player.id);
-                }
-                player.n_point.set_base_point();
-                if player.n_point.hp_current <= 0 && !player.dead_flag {
-                    player.dead_flag = true;
-                }
-            }
-        }
-        for player_id in shield_removed_players {
-            if let Some(player) = PLAYER_MANAGER.get(player_id) {
-                crate::services::effect_skill_service::EffectSkillService::send_effect_player(
-                    &player,
-                    &player,
-                    crate::services::effect_skill_service::EffectSkillService::TURN_OFF_EFFECT,
-                    crate::services::effect_skill_service::EffectSkillService::SHIELD_EFFECT,
-                );
-            }
-        }
-        Ok(())
-    }
     pub fn get_zone_info(&self) -> ZoneInfo {
         let mobs = self.active_mobs.read().unwrap();
         let items = self.active_items.read().unwrap();
@@ -188,22 +160,6 @@ impl Zone {
     }
 
     pub fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
-        for player_id in self.player_ids.iter() {
-            if let Some(player) = PLAYER_MANAGER.get(*player_id) {
-                let _ = player.send_to_client(msg.clone());
-            }
-        }
-        Ok(())
-    }
-
-    pub fn send_message_all_player_in_map(
-        &self,
-        player: &Player,
-        msg: Message,
-    ) -> anyhow::Result<()> {
-        if player.zone_id == 0 && player.map_id == 0 {
-            return Ok(());
-        }
         for player_id in self.player_ids.iter() {
             if let Some(player) = PLAYER_MANAGER.get(*player_id) {
                 let _ = player.send_to_client(msg.clone());
@@ -242,10 +198,11 @@ impl Zone {
 
         if let Some(info_player) = target_player {
             for receiver in receivers {
-                let _ = Self::send_player_info(&receiver, &info_player);
+                let _ = crate::services::ServiceHandles::send_player_info(&receiver, &info_player);
 
                 if info_player.is_die() {
-                    let death_msg = Self::build_player_death_message(&info_player);
+                    let death_msg =
+                        crate::services::ServiceHandles::build_player_death_message(&info_player);
                     let _ = receiver.send_to_client(death_msg);
                 }
             }
@@ -266,10 +223,10 @@ impl Zone {
             .collect();
 
         for other in others.into_iter() {
-            let _ = Self::send_player_info(&receiver, &other);
+            let _ = crate::services::ServiceHandles::send_player_info(&receiver, &other);
 
             if other.is_die() {
-                let death_msg = Self::build_player_death_message(&other);
+                let death_msg = crate::services::ServiceHandles::build_player_death_message(&other);
                 let _ = receiver.send_to_client(death_msg);
             }
         }
@@ -288,83 +245,6 @@ impl Zone {
         self.load_me_to_another(player.id)?;
         self.map_info(session, player.id)?;
         Ok(())
-    }
-
-    pub fn send_player_info(pl_receiver: &Player, pl_target: &Player) -> Result<()> {
-        let mut msg = Message::new(-5);
-
-        let id = pl_target.id as i32;
-        let clan_id = -1;
-        let level = 10;
-        let is_invis = false;
-        let type_pk = pl_target.type_pk;
-        let gender = pl_target.gender;
-        let class = pl_target.gender;
-        let head = pl_target.get_head();
-        let name = pl_target.get_name();
-        let hp = pl_target.n_point.hp_current;
-        let max_hp = pl_target.n_point.hp_max;
-        let body = pl_target.get_body();
-        let leg = pl_target.get_leg();
-        let bag = 0;
-        let unknown_byte = -1;
-        let x = pl_target.location.x;
-        let y = pl_target.location.y;
-        let eff_buff_1 = 0;
-        let eff_buff_2 = 0;
-        let eff_buff_3 = 0;
-        let spaceship_id = 0;
-        let is_monkey = 0;
-        let mount_id = 0;
-        let c_flag = 0;
-        let none = 0;
-
-        let _ = msg.write_int(id);
-        let _ = msg.write_int(clan_id);
-        let _ = msg.write_byte(level);
-        let _ = msg.write_bool(is_invis);
-        let _ = msg.write_byte(type_pk);
-        let _ = msg.write_byte(gender);
-        let _ = msg.write_byte(class);
-        let _ = msg.write_short(head);
-        let _ = msg.write_utf(name);
-        let _ = msg.write_int(hp);
-        let _ = msg.write_int(max_hp);
-        let _ = msg.write_short(body);
-        let _ = msg.write_short(leg);
-        let _ = msg.write_byte(bag);
-        let _ = msg.write_byte(unknown_byte);
-        let _ = msg.write_short(x);
-        let _ = msg.write_short(y);
-        let _ = msg.write_short(eff_buff_1);
-        let _ = msg.write_short(eff_buff_2);
-        let _ = msg.write_byte(eff_buff_3);
-        let _ = msg.write_byte(spaceship_id);
-        let _ = msg.write_byte(is_monkey);
-        let _ = msg.write_short(mount_id);
-        let _ = msg.write_byte(c_flag);
-        let _ = msg.write_byte(none);
-
-        if pl_target.is_pl() {
-            let id_aura = 0;
-            let aura = 0;
-            let eff_front = 0;
-
-            let _ = msg.write_short(id_aura);
-            let _ = msg.write_short(aura);
-            let _ = msg.write_byte(eff_front);
-        }
-        pl_receiver.send_to_client(msg)?;
-        Ok(())
-    }
-
-    fn build_player_death_message(pl_info: &Player) -> Message {
-        let mut msg = Message::new(-8);
-        let _ = msg.write_short(pl_info.id as i16);
-        let _ = msg.write_byte(0);
-        let _ = msg.write_short(pl_info.location.x);
-        let _ = msg.write_short(pl_info.location.y);
-        msg
     }
 
     pub fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {

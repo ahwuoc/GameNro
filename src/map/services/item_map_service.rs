@@ -168,34 +168,24 @@ impl ItemMapService {
         }
         None
     }
-
-    /// Get item map count
     pub fn get_item_map_count(&self) -> usize {
         self.item_maps.len()
     }
-
-    /// Get item count in zone
     pub fn get_zone_item_count(&self, map_id: i32, zone_id: i32) -> usize {
         self.item_maps
             .values()
             .filter(|item| item.map_id == map_id && item.zone_id == zone_id)
             .count()
     }
-
-    /// Clear all item maps
     pub fn clear_all_item_maps(&mut self) {
         self.item_maps.clear();
     }
-
-    /// Clear items in a specific zone
     pub fn clear_zone(&mut self, map_id: i32, zone_id: i32) {
         self.item_maps
             .retain(|_, item| !(item.map_id == map_id && item.zone_id == zone_id));
     }
 
     // === Message builders ===
-
-    /// Build item appear message (cmd 68) - shows item on map
     pub fn build_item_appear_message(item: &ItemMap) -> Message {
         let mut msg = Message::new(68);
         let _ = msg.write_short(item.item_map_id as i16);

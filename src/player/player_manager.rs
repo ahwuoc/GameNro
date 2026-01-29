@@ -42,4 +42,8 @@ impl PlayerManager {
     pub fn size(&self) -> usize {
         self.players.len()
     }
+
+    pub fn iter_mut(&self) -> dashmap::iter::IterMut<'_, u64, Player> {
+        self.players.iter_mut()
+    }
 }

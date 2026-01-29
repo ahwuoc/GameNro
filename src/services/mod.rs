@@ -3,7 +3,6 @@ pub mod command;
 pub mod effect_skill_service;
 pub mod intrinsic_service;
 pub mod manager;
-pub mod mob_service;
 pub mod player_info_service;
 pub mod player_service;
 pub mod services;

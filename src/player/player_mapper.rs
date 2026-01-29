@@ -11,11 +11,9 @@ use crate::templates::intrinsic_template_manager;
 use crate::utils::skill_util;
 use sea_orm::Set;
 
-/// Load a Player from database entity
 pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Player, String> {
     let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
 
-    // Parse inventory
     match parse_inventory_array(&model.data_inventory) {
         Ok(data_inventory) => {
             p.inventory.gold = data_inventory.gold;
@@ -28,6 +26,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     }
 
     p.head = model.head;
+    p.gender = model.gender as i8;
 
     // Parse point data
     match parse_point_array(&model.data_point) {
@@ -168,7 +167,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
             skill_util::create_skill_level0(temp_id).await
         };
         if let Some(mut skill) = skill_opt {
-            skill.last_time_use = last_time_use;
+            skill.start_time_use = last_time_use;
             skill.curr_level = curr_level;
             p.player_skill.skills.push(skill);
         } else {
@@ -250,7 +249,7 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
             template_id: s.template_id,
             skill_id: s.skill_id,
             point: s.point as i32,
-            last_time_use: s.last_time_use,
+            last_time_use: s.start_time_use,
             curr_level: s.curr_level,
         })
         .collect();

@@ -146,3 +146,11 @@ pub fn get_time_dctt(skill_point: i8) -> u64 {
 pub fn get_time_thoi_mien(skill_point: i8) -> u64 {
     (skill_point as u64 + 4) * 1000
 }
+
+pub fn get_time_monkey(skill_point: i8) -> u64 {
+    (skill_point as u64 + 5) * 10000
+}
+
+pub fn get_percent_charge(skill_point: i8) -> i32 {
+    skill_point as i32 + 3
+}

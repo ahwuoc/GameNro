@@ -10,6 +10,7 @@ use crate::network::SESSION_MANAGER;
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
+use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::utils::Location;
 use serde_json::Value;
 
@@ -178,7 +179,7 @@ impl Player {
     pub fn injured(&mut self, damage: u64, piercing: bool) -> u64 {
         let mut dame = damage as i32;
 
-        if !piercing && self.effect_skill.is_shielding {
+        if !piercing && self.effect_skill.is_shield {
             if dame > self.n_point.hp_max {
                 crate::services::effect_skill_service::EffectSkillService::break_shield(self);
             }
@@ -297,4 +298,117 @@ impl Player {
     pub fn update_zone_change_time(&mut self) {
         println!("Updated zone change time for player {}", self.name);
     }
+
+    pub fn has_enough_mana(&self) -> bool {
+        if let Some(skill) = &self.player_skill.skill_select {
+            return self.n_point.mp_current >= skill.mana_use as i32;
+        }
+        false
+    }
+
+    pub fn is_skill_ready(&self) -> bool {
+        if let Some(skill) = &self.player_skill.skill_select {
+            let now = crate::utils::time::current_time_millis();
+            return now > skill.start_time_use + skill.cool_down as u64;
+        }
+        false
+    }
+
+    pub fn update_charging(&mut self) -> Option<ChargeUpdateResult> {
+        if !self.effect_skill.is_charging {
+            return None;
+        }
+
+        if self.effect_skill.count_charging >= 10 {
+            return Some(ChargeUpdateResult {
+                should_stop: true,
+                hp_recovered: 0,
+                mp_recovered: 0,
+                should_chat: false,
+            });
+        }
+
+        let skill_point = self
+            .player_skill
+            .skill_select
+            .as_ref()
+            .map(|s| s.point)
+            .unwrap_or(1);
+        let percent_charge = crate::utils::skill_util::get_percent_charge(skill_point);
+        let is_dead = self.is_die();
+        let is_full = self.n_point.hp_current >= self.n_point.hp_max
+            && self.n_point.mp_current >= self.n_point.mp_max;
+
+        if is_dead || is_full {
+            return Some(ChargeUpdateResult {
+                should_stop: true,
+                hp_recovered: 0,
+                mp_recovered: 0,
+                should_chat: false,
+            });
+        }
+
+        let hp_recovered = self.n_point.hp_max * percent_charge / 100;
+        let mp_recovered = self.n_point.mp_max * percent_charge / 100;
+
+        self.n_point.hp_current += hp_recovered;
+        if self.n_point.hp_current > self.n_point.hp_max {
+            self.n_point.hp_current = self.n_point.hp_max;
+        }
+
+        // Hồi MP
+        self.n_point.mp_current += mp_recovered;
+        if self.n_point.mp_current > self.n_point.mp_max {
+            self.n_point.mp_current = self.n_point.mp_max;
+        }
+
+        let should_chat = self.effect_skill.count_charging % 3 == 0;
+
+        self.effect_skill.count_charging += 1;
+
+        let should_stop = self.effect_skill.count_charging >= 10;
+
+        Some(ChargeUpdateResult {
+            should_stop,
+            hp_recovered,
+            mp_recovered,
+            should_chat,
+        })
+    }
+
+    pub fn update(&mut self) {
+        let now = crate::utils::time::current_time_millis();
+
+        if self.effect_skill.is_shield
+            && now > self.effect_skill.shield_start_time + self.effect_skill.shield_duration_ms
+        {
+            self.effect_skill.is_shield = false;
+            EffectSkillService::send_effect_player(
+                self,
+                self,
+                EffectAction::REMOVE,
+                EffectSkillService::SHIELD_EFFECT,
+            );
+        }
+
+        if let Some(charge_result) = self.update_charging() {
+            if charge_result.should_stop {
+                self.effect_skill.is_charging = false;
+                self.effect_skill.count_charging = 0;
+                EffectSkillService::send_effect_stop_charge(self);
+            }
+        }
+        self.n_point.set_base_point();
+        if self.n_point.hp_current <= 0 && !self.dead_flag {
+            self.dead_flag = true;
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ChargeUpdateResult {
+    pub should_stop: bool,
+    pub hp_recovered: i32,
+    pub mp_recovered: i32,
+    pub should_chat: bool,
 }

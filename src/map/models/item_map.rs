@@ -322,43 +322,10 @@ impl ItemMap {
         result
     }
 
-    pub fn get_info(&self) -> String {
-        self.item_template
-            .as_ref()
-            .map(|t| format!("{} x{}", t.name, self.quantity))
-            .unwrap_or_else(|| "Empty Item".to_string())
-    }
-
-    pub fn add_option(&mut self, option: ItemOption) {
-        self.options.push(option);
-    }
-
-    pub fn get_option_param(&self, option_id: i8) -> i16 {
-        self.options
-            .iter()
-            .find(|o| o.get_option_id() == option_id)
-            .map(|o| o.get_param())
-            .unwrap_or(0)
-    }
-
-    pub fn has_option(&self, option_id: i8) -> bool {
-        self.options.iter().any(|o| o.get_option_id() == option_id)
-    }
-
-    pub fn get_options(&self) -> &Vec<ItemOption> {
-        &self.options
-    }
-
-    pub fn clear_options(&mut self) {
-        self.options.clear();
-    }
-
-    // Black ball IDs: 86-105 (20 items)
     pub fn is_black_ball_template(template_id: i16) -> bool {
         (86..=105).contains(&template_id)
     }
 
-    // Namec ball IDs: 106-115 (10 items)
     pub fn is_namec_ball_template(template_id: i16) -> bool {
         (106..=115).contains(&template_id)
     }

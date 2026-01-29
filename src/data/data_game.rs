@@ -436,10 +436,6 @@ impl DataGame {
             msg.write_int(eff_img.len() as i32)?;
             msg.write(&eff_img)?;
             session.transmit(msg);
-            println!(
-                "[EFFECT] Sent effect {} (id_t={}) from cache to client",
-                id, id_t
-            );
             return Ok(());
         }
 
@@ -490,10 +486,6 @@ impl DataGame {
         msg.write(&eff_img)?;
 
         session.transmit(msg);
-        println!(
-            "[EFFECT] Sent effect {} (id_t={}) to client (loaded fresh, zoom={})",
-            id, id_t, zoom_level
-        );
         Ok(())
     }
 

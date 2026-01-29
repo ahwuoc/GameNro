@@ -49,7 +49,6 @@ pub async fn init_maps_world() -> Result<()> {
     Ok(())
 }
 
-/// Start the background task that updates all maps every second
 pub fn start_map_update_task() {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(1000));

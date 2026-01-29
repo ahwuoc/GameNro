@@ -5,7 +5,7 @@ pub struct Skill {
     pub point: i8,
     pub power_require: i64,
     pub cool_down: i32,
-    pub last_time_use: u64,
+    pub start_time_use: u64,
     #[serde(default)]
     pub dx: i16,
     #[serde(default)]
@@ -63,7 +63,7 @@ impl Skill {
             point: 0,
             power_require: 0,
             cool_down: 0,
-            last_time_use: 0,
+            start_time_use: 0,
             dx: 0,
             dy: 0,
             max_fight: 0,

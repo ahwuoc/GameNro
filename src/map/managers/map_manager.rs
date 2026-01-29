@@ -35,8 +35,9 @@ impl MapManager {
     }
 
     pub fn update_game_loop(&self) -> anyhow::Result<()> {
-        for map in self.instances.iter() {
-            map.value().update()?;
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        for zone in zone_manager.get_all_zones() {
+            zone.update()?;
         }
         Ok(())
     }
