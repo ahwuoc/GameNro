@@ -132,7 +132,7 @@ pub mod shop_service {
 
         if let Some(mut pl) = session.take_player().await {
             pl.interaction_state.set_tag_shop(tag_name.to_string());
-            session.set_player(pl).await;
+            session.set_player(pl, session.clone()).await;
         }
 
         let mut msg = Message::new(-44);
@@ -274,7 +274,7 @@ pub mod shop_service {
                     println!("mua thanh cong {}", temp_id);
                 }
             }
-            session.set_player(player).await;
+            session.set_player(player, session.clone()).await;
         } else {
             return Err(anyhow::anyhow!("Player not found"));
         }

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
 use crate::item::item_time::ItemTime;
+use std::collections::HashMap;
 
 /// ItemTimeService manages item time effects
 pub struct ItemTimeService {
@@ -16,10 +16,9 @@ impl ItemTimeService {
 
     /// Get or create item time for player
     pub fn get_player_item_time(&mut self, player_id: i64) -> &mut ItemTime {
-        if !self.player_item_times.contains_key(&player_id) {
-            self.player_item_times.insert(player_id, ItemTime::new());
-        }
-        self.player_item_times.get_mut(&player_id).unwrap()
+        self.player_item_times
+            .entry(player_id)
+            .or_insert_with(ItemTime::new)
     }
 
     /// Update all player item times

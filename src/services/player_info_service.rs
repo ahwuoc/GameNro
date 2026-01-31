@@ -384,6 +384,5 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
 pub fn send_info_hp_mp_money(player: &RtPlayer) -> anyhow::Result<()> {
     send_hp(player)?;
     send_mp(player)?;
-    // TODO: Send money info if separate packet needed, or rely on other updates
     Ok(())
 }

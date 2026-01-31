@@ -79,14 +79,20 @@ impl ServiceHandles {
         session.transmit(response.clone());
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
-            zone.send_message_to_other_players(player_id, response)?;
+            for pid in zone.player_ids.iter() {
+                if *pid != player_id {
+                    if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get(*pid) {
+                        let _ = target.send_to_client(response.clone());
+                    }
+                }
+            }
         }
         Ok(())
     }
     pub fn send_mess_all_player_in_map(player: &Player, msg: Message) -> Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-            zone.send_message_to_all_players(msg)?;
+            Self::send_to_all_in_zone(&zone, msg)?;
         }
         Ok(())
     }
@@ -94,7 +100,32 @@ impl ServiceHandles {
     pub fn send_mess_another_not_me_in_map(player: &Player, msg: Message) -> Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-            zone.send_message_to_other_players(player.id, msg)?;
+            Self::send_to_other_in_zone(&zone, msg, player.id)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_to_all_in_zone(zone: &crate::map::models::zone::Zone, msg: Message) -> Result<()> {
+        for player_id in zone.player_ids.iter() {
+            if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get(*player_id) {
+                let _ = player.send_to_client(msg.clone());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn send_to_other_in_zone(
+        zone: &crate::map::models::zone::Zone,
+        msg: Message,
+        except_id: u64,
+    ) -> Result<()> {
+        for player_id in zone.player_ids.iter() {
+            if *player_id != except_id {
+                if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get(*player_id)
+                {
+                    let _ = player.send_to_client(msg.clone());
+                }
+            }
         }
         Ok(())
     }
@@ -111,10 +142,6 @@ impl ServiceHandles {
     }
 
     pub fn send_cai_trang(player: &Player) -> anyhow::Result<()> {
-        println!(
-            "[DEBUG BIENKHI] send_cai_trang called, is_monkey={}",
-            player.effect_skill.is_monkey
-        );
         let mut message = Message::new(-90);
         message.write_byte(1)?;
         message.write_int(player.id as i32)?;
@@ -209,5 +236,53 @@ impl ServiceHandles {
         let _ = msg.write_short(pl_info.location.x);
         let _ = msg.write_short(pl_info.location.y);
         msg
+    }
+
+    pub fn send_player_attack_mob(player: &Player, mob_id: u8) -> Result<()> {
+        let mut msg = Message::new(54);
+        msg.write_int(player.id as i32)?;
+        let skill_id = player
+            .player_skill
+            .skill_select
+            .as_ref()
+            .map(|s| s.skill_id)
+            .unwrap_or(0);
+
+        println!(
+            "[DEBUG ATTACK] Player {} attack mob {} with skill {}",
+            player.id, mob_id, skill_id
+        );
+
+        msg.write_byte(skill_id as i8)?;
+        msg.write_byte(mob_id as i8)?;
+        Self::send_mess_all_player_in_map(player, msg)?;
+        Ok(())
+    }
+
+    pub fn send_player_attack_player(
+        player: &Player,
+        target_id: u64,
+        damage: i32,
+        is_die: bool,
+        is_crit: bool,
+    ) -> Result<()> {
+        let mut msg = Message::new(-60);
+        msg.write_int(player.id as i32)?; // id attacker
+        let skill_id = player
+            .player_skill
+            .skill_select
+            .as_ref()
+            .map(|s| s.skill_id)
+            .unwrap_or(0);
+        msg.write_byte(skill_id as i8)?; // skill id
+        msg.write_byte(1)?; // number of targets
+        msg.write_int(target_id as i32)?; // target id
+        msg.write_byte(1)?; // read continue
+        msg.write_byte(0)?; // type skill (0: attack)
+        msg.write_int(damage)?; // damage
+        msg.write_bool(is_die)?; // is die
+        msg.write_bool(is_crit)?; // is crit
+        Self::send_mess_all_player_in_map(player, msg)?;
+        Ok(())
     }
 }

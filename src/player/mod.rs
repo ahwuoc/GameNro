@@ -8,7 +8,6 @@ pub mod player_parser;
 pub use player::ChargeUpdateResult;
 pub use player::Player;
 
-// Re-exports from components
 pub use components::interaction_state::InteractionState;
 pub use components::n_point::NPoint;
 pub use components::player_friend::Friend as PlayerFriend;

@@ -9,19 +9,26 @@ use crate::network::message::Message;
 use crate::player::player::Player;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::effect_skill_service::EffectSkillService;
+use crate::services::ServiceHandles;
 use crate::templates::item_template_manager;
 use crate::utils::random::{is_true, next_int};
 use crate::utils::{time, MapUtils};
 
 pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
+    // println!("[DEBUG MOB] attack_mob called. Player: {}, MobID: {}, Dmg: {}", player.name, mob_id, damage);
+    let _ = ServiceHandles::send_player_attack_mob(player, mob_id as u8);
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         let (msg_opt, drop_info) = {
             let mut mobs = zone.active_mobs.write().unwrap();
             if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
+                // println!("[DEBUG MOB] Found mob {}. HP: {}", mob.id, mob.hp);
                 let real_damage = mob.take_damage(damage);
                 mob.add_temporary_enemy(player.id);
                 let new_hp = mob.hp;
+
+                // println!("[DEBUG MOB] After dmg. New HP: {}, Real Dmg: {}", new_hp, real_damage);
+
                 if !mob.is_dead() {
                     (
                         Some(build_mob_alive_message(
@@ -33,6 +40,7 @@ pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                         None,
                     )
                 } else {
+                    // println!("[DEBUG MOB] Mob dead!");
                     let drop_x = mob.location.x;
                     let drop_y = mob.location.y;
                     let mob_temp_id = mob.template_id;
@@ -43,15 +51,25 @@ pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                     )
                 }
             } else {
+                println!("[DEBUG MOB] Mob {} NOT FOUND in active_mobs", mob_id);
                 (None, None)
             }
         };
         if let Some(msg) = msg_opt {
-            let _ = zone.send_message_to_all_players(msg);
+            let res = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
+            if let Err(e) = res {
+                println!("[DEBUG MOB] Failed to send msg: {:?}", e);
+            } else {
+                // println!("[DEBUG MOB] Send damage msg OK");
+            }
+        } else {
+            // println!("[DEBUG MOB] No message generated");
         }
         if let Some((x, y, mob_temp_id)) = drop_info {
             drop_item_on_mob_death(&zone, x as i32, y as i32, player, mob_temp_id as i16);
         }
+    } else {
+        println!("[DEBUG MOB] Zone NOT FOUND");
     }
 }
 
@@ -83,7 +101,7 @@ fn drop_item_on_mob_death(zone: &Zone, x: i32, y: i32, player: &Player, mob_temp
 
         if zone.add_item(item_map.clone()).is_ok() {
             let msg = ItemMapService::build_item_appear_message(&item_map);
-            let _ = zone.send_message_to_all_players(msg);
+            let _ = crate::services::ServiceHandles::send_to_all_in_zone(zone, msg);
         }
     }
 }
@@ -283,7 +301,7 @@ fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
 
 fn broadcast_messages(zone: &Zone, global_msgs: Vec<Message>, player_msgs: Vec<(u64, Message)>) {
     for msg in global_msgs {
-        let _ = zone.send_message_to_all_players(msg);
+        let _ = crate::services::ServiceHandles::send_to_all_in_zone(zone, msg);
     }
     for (player_id, msg) in player_msgs {
         if let Some(player) = PLAYER_MANAGER.get(player_id) {

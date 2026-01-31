@@ -279,9 +279,10 @@ impl AsyncSession {
         writer.send_key(&keys).await
     }
 
-    pub async fn set_player(&self, player: RtPlayer) {
+    pub async fn set_player(&self, mut player: RtPlayer, session_arc: SessionArc) {
         let mut state = self.state.write().await;
         state.player_id = Some(player.id);
+        player.session = Some(session_arc);
         crate::player::player_manager::PLAYER_MANAGER.add(player);
     }
 

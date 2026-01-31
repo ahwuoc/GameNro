@@ -6,7 +6,7 @@ use crate::item::inventory::{self, Inventory};
 use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
-use crate::network::SESSION_MANAGER;
+use crate::network::session::SessionArc;
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
@@ -25,6 +25,7 @@ pub struct Player {
     pub gender: i8,
     pub head: i16,
     pub session_id: Option<String>,
+    pub session: Option<SessionArc>,
 
     pub n_point: NPoint,
     pub inventory: Inventory,
@@ -78,6 +79,7 @@ impl Player {
             gender: 0,
             head: 0,
             session_id: None,
+            session: None,
             n_point: NPoint::new(),
             inventory: Inventory::new(),
             player_skill: PlayerSkill::new(),
@@ -118,7 +120,16 @@ impl Player {
     pub fn get_name(&self) -> &str {
         &self.name
     }
+    const HEAD_MONKEY: [i16; 7] = [192, 195, 196, 199, 197, 200, 198];
+    const BODY_MONKEY: [i16; 7] = [193, 193, 193, 193, 193, 193, 193];
+    const LEG_MONKEY: [i16; 7] = [194, 194, 194, 194, 194, 194, 194];
+
     pub fn get_head(&self) -> i16 {
+        if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
+            let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
+            return Self::HEAD_MONKEY[idx];
+        }
+        // Check outfit item
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -132,6 +143,10 @@ impl Player {
         self.head
     }
     pub fn get_body(&self) -> i16 {
+        if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
+            let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
+            return Self::BODY_MONKEY[idx];
+        }
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -149,6 +164,10 @@ impl Player {
         }
     }
     pub fn get_leg(&self) -> i16 {
+        if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
+            let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
+            return Self::LEG_MONKEY[idx];
+        }
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -166,14 +185,14 @@ impl Player {
         }
     }
     pub fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
-        if let Some(session) = SESSION_MANAGER.get_session(self.id as i64) {
+        if let Some(ref session) = self.session {
             session.transmit(msg);
         }
         Ok(())
     }
 
     pub fn is_pl(&self) -> bool {
-        !self.is_die() && self.session_id.is_some()
+        !self.is_die() && self.session.is_some()
     }
 
     pub fn injured(&mut self, damage: u64, piercing: bool) -> u64 {
@@ -235,6 +254,7 @@ impl Player {
     pub fn dispose(&mut self) {
         self.before_dispose = true;
         self.session_id = None;
+        self.session = None; // Clear session reference
         println!("Player {} disposed", self.name);
     }
 

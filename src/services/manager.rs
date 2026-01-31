@@ -11,10 +11,12 @@ use serde_json::Value as JsonValue;
 use std::fs;
 use std::io::Write;
 use tokio::time::Duration;
+use tracing::{error, info, instrument};
 
 use anyhow::Result;
 
 /// Initialize all template managers by loading data from database
+#[instrument]
 pub async fn init() -> Result<()> {
     let pool = DbManager::get_pool();
 
@@ -31,21 +33,22 @@ pub async fn init() -> Result<()> {
         .await?;
 
     if let Err(e) = load_part_update_data().await {
-        eprintln!("Failed to load part update data: {:?}", e);
+        error!("Failed to load part update data: {:?}", e);
     }
 
-    println!("Manager initialized successfully!");
+    info!("Manager initialized successfully!");
     Ok(())
 }
 
 /// Initialize all maps in the world
+#[instrument]
 pub async fn init_maps_world() -> Result<()> {
     let map_templates = map_template_manager::get_all();
     for template in &map_templates {
         let _ = map_manager::MAP_MANAGER.init_and_register_map(template);
         let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id);
     }
-    println!("Initialized {} maps into world", map_templates.len());
+    info!("Initialized {} maps into world", map_templates.len());
     Ok(())
 }
 
@@ -56,12 +59,13 @@ pub fn start_map_update_task() {
         loop {
             interval.tick().await;
             if let Err(e) = map_manager::MAP_MANAGER.update_game_loop() {
-                println!("Failed to update map: {:?}", e);
+                error!("Failed to update map: {:?}", e);
             }
         }
     });
 }
 
+#[instrument]
 async fn load_part_update_data() -> Result<()> {
     let database = DbManager::get_pool();
 
@@ -144,6 +148,6 @@ async fn load_part_update_data() -> Result<()> {
     let mut file = fs::File::create(&path)?;
     file.write_all(&buf)?;
     file.flush()?;
-    println!("Load part thành công ({} parts)", parts.len());
+    info!("Load part thành công ({} parts)", parts.len());
     Ok(())
 }

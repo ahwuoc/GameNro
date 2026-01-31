@@ -44,6 +44,8 @@ pub struct NPoint {
     pub tl_dame: Vec<i32>, // +#% Sức đánh
     pub tl_def: i16,       // +#% Giáp
 
+    pub huyt_sao_buff: i32, // % buff HP max từ skill Huýt Sáo
+
     // Các chỉ số khác
     pub speed: i8,
     pub power: i64,
@@ -81,6 +83,8 @@ impl NPoint {
             tl_mp: Vec::new(),
             tl_dame: Vec::new(),
             tl_def: 0,
+
+            huyt_sao_buff: 0,
 
             speed: 8,
             power: 1000,
@@ -120,10 +124,12 @@ impl NPoint {
         for tl in &self.tl_hp {
             hp_max += hp_max * (*tl as i64) / 100;
         }
+        if self.huyt_sao_buff > 0 {
+            hp_max += hp_max * (self.huyt_sao_buff as i64) / 100;
+        }
         self.hp_max = hp_max.min(i32::MAX as i64) as i32;
     }
 
-    /// Tính MP Max = mpg + mp_add + (mpg * sum(tl_mp) / 100)
     fn set_mp_max(&mut self) {
         let mut mp_max: i64 = (self.mp_base + self.mp_add) as i64;
 

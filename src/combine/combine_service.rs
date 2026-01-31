@@ -51,7 +51,11 @@ pub async fn show_info_combine(session: &SessionArc, index: Vec<i16>) -> anyhow:
 
 pub async fn confirm_combine(session: &SessionArc) -> anyhow::Result<()> {
     let type_combine = session
-        .get_player_ref(|player| player.map(|p| p.combine_new.type_combine).unwrap())
+        .get_player_ref(|player| {
+            player
+                .map(|p| p.combine_new.type_combine)
+                .unwrap_or_default()
+        })
         .await;
     type_combine.confirm_combine(session).await
 }

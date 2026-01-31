@@ -156,7 +156,7 @@ pub mod npc_service {
             return Ok(());
         };
         create_menu_player(&mut player, npc_id, npc_say, menu_options, state)?;
-        session.set_player(player).await;
+        session.set_player(player, session.clone()).await;
         Ok(())
     }
 

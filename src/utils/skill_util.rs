@@ -154,3 +154,11 @@ pub fn get_time_monkey(skill_point: i8) -> u64 {
 pub fn get_percent_charge(skill_point: i8) -> i32 {
     skill_point as i32 + 3
 }
+
+pub fn get_percent_hp_huyt_sao(skill_point: i8) -> i32 {
+    (skill_point as i32 + 3) * 10
+}
+
+pub fn get_range_bom(skill_point: i8) -> i16 {
+    400 + (skill_point as i16 * 30)
+}

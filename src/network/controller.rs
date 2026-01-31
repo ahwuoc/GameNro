@@ -17,6 +17,7 @@ use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
 use std::sync::Arc;
+use tracing::{debug, error, info, instrument, warn};
 
 use super::message::Message;
 use super::session::{AsyncSession, SessionArc};
@@ -24,15 +25,22 @@ use super::session::{AsyncSession, SessionArc};
 pub struct AsyncController;
 
 impl AsyncController {
+    #[instrument(skip(session, msg), fields(command = msg.command, sub_cmd))]
     pub async fn process(session: SessionArc, mut msg: Message) -> Result<()> {
+        let data_len = msg.payload.len();
+        let sub_cmd = msg.payload.get(0).copied().map(|b| b as i8);
+        debug!(
+            "CMD: {} (0x{:02X}), len={}, sub_cmd={:?}",
+            msg.command, msg.command as u8, data_len, sub_cmd
+        );
         match msg.command {
             cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {
-                    println!("Error sending key {}", e);
+                    error!("Error sending key {}", e);
                 }
                 session.set_sent_key(true).await;
                 if let Err(e) = DataGame::send_version_res(&session).await {
-                    println!("Error sending version res {}", e);
+                    error!("Error sending version res {}", e);
                 }
                 Ok(())
             }
@@ -51,20 +59,38 @@ impl AsyncController {
 
                 if let Some(mut player) = session.take_player().await {
                     let mut handled = false;
-                    if let Some(skill) = &player.player_skill.skill_select {
-                        let skill_id = skill.template_id;
-                        if skill_id == 20 || skill_id == 22 {
+
+                    let skill_info = player.player_skill.skill_select.as_ref().map(|s| {
+                        let temp = crate::templates::skill_template_manager::get(s.template_id);
+                        (s.template_id, temp.map(|t| t.r#type).unwrap_or(0))
+                    });
+                    if let Some((skill_id, skill_type)) = skill_info {
+                        if skill_type == 1 || skill_type == 4 || skill_id == 20 || skill_id == 22 {
                             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id)
                             {
-                                let mut mobs = zone.active_mobs.write().unwrap();
-                                if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id as u64) {
-                                    services::skill_service::execute_skill(
-                                        &mut player,
-                                        None,
-                                        Some(mob),
+                                // Two-Phase: Collect damage message inside lock, send after
+                                let damage_msg = {
+                                    let mut mobs = zone.active_mobs.write().unwrap();
+                                    if let Some(mob) =
+                                        mobs.iter_mut().find(|m| m.id == mob_id as u64)
+                                    {
+                                        handled = true;
+                                        services::skill_service::execute_skill(
+                                            &mut player,
+                                            None,
+                                            Some(mob),
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                }; // Lock released here
+
+                                // Phase 2: Send message (no mob lock held)
+                                if let Some(msg) = damage_msg {
+                                    let _ = crate::services::ServiceHandles::send_to_all_in_zone(
+                                        &zone, msg,
                                     );
-                                    handled = true;
                                 }
                             }
                         }
@@ -75,10 +101,10 @@ impl AsyncController {
                             let dame = player.n_point.get_dame_attack(false);
                             mob_service::attack_mob(&player, mob_id, dame);
                         } else {
-                            println!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
+                            debug!("[ATTACK_MOB] Attacking master_id={}'s mob", master_id);
                         }
                     }
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
                 Ok(())
             }
@@ -99,14 +125,14 @@ impl AsyncController {
             -41 => {
                 match msg.read_byte() {
                     Ok(gender) => {
-                        println!("Gender: {}", gender);
+                        info!("Gender: {}", gender);
                         let mut msg = Message::new(-41);
                         msg.write_byte(1);
                         msg.write_utf("Dau vuong cuong gia")?;
                         session.transmit(msg);
                     }
                     Err(e) => {
-                        println!("Error reading byte {}", e);
+                        error!("Error reading byte {}", e);
                         return Ok(());
                     }
                 }
@@ -145,8 +171,23 @@ impl AsyncController {
                 let type_shop = msg.read_byte()?;
                 let temp_id = msg.read_short()?;
                 if let Err(e) = shop_service::take_item_shop(&session, type_shop, temp_id).await {
-                    println!("Shop Error: {:?}", e);
+                    error!("Shop Error: {:?}", e);
                 }
+                Ok(())
+            }
+            66 => {
+                let img_name = msg.read_utf()?;
+                DataGame::send_image_by_name(&session, &img_name).await?;
+                Ok(())
+            }
+            -32 => {
+                let bg_id = msg.read_short()?;
+                DataGame::send_item_bg_template(&session, bg_id).await?;
+                Ok(())
+            }
+
+            -78 => {
+                let _ = msg.read_int();
                 Ok(())
             }
             -67 => {
@@ -155,7 +196,7 @@ impl AsyncController {
                         DataGame::send_icon(&session, id).await?;
                     }
                     Err(e) => {
-                        print!("Error -67 {:?}", e);
+                        error!("Error -67 {:?}", e);
                     }
                 }
                 Ok(())
@@ -173,7 +214,7 @@ impl AsyncController {
                 if let Some(mut player) = session.take_player().await {
                     let skill_template_id = msg.read_short().unwrap_or(0);
                     services::skill_service::select_skill(&mut player, skill_template_id as i32)?;
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
                 Ok(())
             }
@@ -184,7 +225,7 @@ impl AsyncController {
                     is_command =
                         services::command::CommandService::check(&mut player, &session, &text)
                             .await?;
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
 
                 if !is_command {
@@ -200,13 +241,13 @@ impl AsyncController {
                         None,
                         Some(msg),
                     );
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
                 Ok(())
             }
             -87 => {
                 if let Err(e) = DataGame::update_data(&session).await {
-                    println!("Error updating data {}", e);
+                    error!("Error updating data {}", e);
                 }
                 Ok(())
             }
@@ -224,7 +265,7 @@ impl AsyncController {
             29 => {
                 if let Some(player) = session.take_player().await {
                     let res = ChangeMapService::open_zone_ui(&player);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -234,7 +275,7 @@ impl AsyncController {
                     let zone_id = msg.read_byte()? as i32;
 
                     let res = ChangeMapService::change_zone(&mut player, zone_id, &session);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -242,7 +283,7 @@ impl AsyncController {
             -33 | -23 => {
                 if let Some(mut player) = session.take_player().await {
                     let res = ChangeMapService::change_map_waypoint_handler(&mut player, &session);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -250,7 +291,7 @@ impl AsyncController {
             -16 => {
                 if let Some(mut player) = session.take_player().await {
                     let res = player_service::hoi_sinh(&mut player);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -258,7 +299,7 @@ impl AsyncController {
             -15 => {
                 if let Some(mut player) = session.take_player().await {
                     let res = ChangeMapService::go_home_handler(&mut player, &session);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -266,7 +307,7 @@ impl AsyncController {
             -91 => {
                 if let Some(player) = session.take_player().await {
                     let res = ChangeMapService::open_capsule_menu(&player);
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                     res?;
                 }
                 Ok(())
@@ -291,7 +332,7 @@ impl AsyncController {
                         }
                     }
                     services::skill_service::send_skill_shortcut(&player)?;
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
                 Ok(())
             }
@@ -309,7 +350,7 @@ impl AsyncController {
                 let item_map_id = msg.read_short()? as i32;
                 if let Some(mut player) = session.take_player().await {
                     if player.is_die() {
-                        session.set_player(player).await;
+                        session.set_player(player, session.clone()).await;
                         return Ok(());
                     }
 
@@ -339,7 +380,11 @@ impl AsyncController {
                                             ItemMapService::build_item_disappear_message(
                                                 item_map_id,
                                             );
-                                        let _ = zone.send_message_to_all_players(disappear_msg);
+                                        let _ =
+                                            crate::services::ServiceHandles::send_to_all_in_zone(
+                                                &zone,
+                                                disappear_msg,
+                                            );
 
                                         let pickup_msg =
                                             ItemMapService::build_pickup_notification_message(
@@ -361,12 +406,12 @@ impl AsyncController {
                             println!("[PICKUP] Item {} not found in zone", item_map_id);
                         }
                     }
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
                 Ok(())
             }
             _ => {
-                println!("Unknown command: {}", msg.command);
+                warn!("Unknown command: {}", msg.command);
                 Ok(())
             }
         }
@@ -389,12 +434,12 @@ impl AsyncController {
                             ServiceHandles::send_message_alert(&player, e)?;
                         }
                     }
-                    session.set_player(player).await;
+                    session.set_player(player, session.clone()).await;
                 }
             }
             64 => {}
             _ => {
-                println!("Unknown type for -30 command: {}", type_byte);
+                warn!("Unknown type for -30 command: {}", type_byte);
             }
         }
         Ok(())
@@ -410,16 +455,17 @@ impl AsyncController {
                 DataGame::send_res(session).await?;
             }
             _ => {
-                println!("Unknown type for -74 command: {}", type_byte);
+                warn!("Unknown type for -74 command: {}", type_byte);
             }
         }
 
         Ok(())
     }
 
+    #[instrument(skip(session, msg))]
     async fn handle_message_not_login(session: &SessionArc, mut msg: Message) -> Result<()> {
         let sub_cmd = msg.read_byte()?;
-        println!("Handling -29 sub-command: {}", sub_cmd);
+        debug!("Handling -29 sub-command: {}", sub_cmd);
         match sub_cmd {
             0 => {
                 let username = msg.read_utf()?;
@@ -441,9 +487,9 @@ impl AsyncController {
                     let version_str = version_part.replace(".", "");
                     if let Ok(version) = version_str.parse::<i32>() {
                         session.set_version(version).await;
-                        println!("Client platform={} version={}", platform, version);
+                        info!("Client platform={} version={}", platform, version);
                     } else {
-                        println!("Invalid client version string: {}", version_str);
+                        warn!("Invalid client version string: {}", version_str);
                     }
                 }
 
@@ -453,7 +499,7 @@ impl AsyncController {
             }
 
             _ => {
-                println!("Unknown sub-command for -29: {}", sub_cmd);
+                warn!("Unknown sub-command for -29: {}", sub_cmd);
             }
         }
 
@@ -481,14 +527,14 @@ impl AsyncController {
 
         let has_old_session = (&*SESSION_MANAGER).is_online(player_id as i64);
         if has_old_session {
-            println!(
+            info!(
                 "[LOGIN] Found old session for player {}, kicking old session",
                 player_id
             );
             (&*SESSION_MANAGER)
                 .kick_player(player_id as i64, "Tai khoan dang nhap o noi khac")
                 .await;
-            println!(
+            info!(
                 "[LOGIN] Old session kicked, allowing new login for player {}",
                 player_id
             );
@@ -507,9 +553,9 @@ impl AsyncController {
                 player_with_zone.zone_id = zone.zone_id;
                 // let mob_count = zone.active_mobs.read().unwrap().len();
                 if let Err(e) = zone.add_player(player_with_zone.clone()) {
-                    println!("Error adding player to zone: {:?}", e);
+                    error!("Error adding player to zone: {:?}", e);
                 } else {
-                    println!(
+                    info!(
                         "Player {} added to zone {} map {}",
                         player_with_zone.name, zone.zone_id, zone.map_id
                     );
@@ -518,7 +564,7 @@ impl AsyncController {
                     zone.map_info(session, player_with_zone.id);
                 }
             } else {
-                println!(
+                warn!(
                     "[LOGIN] No zone found for map {}, using default zone_id 0",
                     player_with_zone.map_id
                 );
@@ -526,7 +572,9 @@ impl AsyncController {
             }
         }
 
-        session.set_player(player_with_zone.clone()).await;
+        session
+            .set_player(player_with_zone.clone(), session.clone())
+            .await;
         {
             (&*SESSION_MANAGER).add_session(player_id as i64, session.clone());
         }
@@ -600,7 +648,7 @@ impl AsyncController {
                         Self::switch_to_create_char(session).await?;
                     }
                     Err(e) => {
-                        println!("Error getting player: {:?}", e);
+                        error!("Error getting player: {:?}", e);
                         return Err(anyhow!("Database error: {:?}", e));
                     }
                 }
@@ -617,11 +665,17 @@ impl AsyncController {
     }
 
     async fn send_login_success_data(session: &SessionArc) -> Result<()> {
+        debug!("[LEGACY LOGIN] Step 1: send_small_version (-77)");
         DataGame::send_small_version(session).await?;
+        debug!("[LEGACY LOGIN] Step 2: send_message_93 (-93)");
         Self::send_message_93(session).await?;
+        debug!("[LEGACY LOGIN] Step 3: send_version_game (-28)");
         DataGame::send_version_game(session).await?;
+        debug!("[LEGACY LOGIN] Step 4: send_data_item_bg (-31)");
         DataGame::send_data_item_bg(session).await?;
+        debug!("[LEGACY LOGIN] Step 5: send_all_player_info");
         player_info_service::send_all_player_info(session).await?;
+        info!("[LEGACY LOGIN] All login data sent!");
         Ok(())
     }
 
@@ -659,7 +713,7 @@ impl AsyncController {
 
         match player_result {
             Ok(db_player) => {
-                println!("Character created successfully: {}", name);
+                info!("Character created successfully: {}", name);
                 let rt_player = crate::player::player_mapper::from_entity(&db_player)
                     .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
@@ -673,7 +727,7 @@ impl AsyncController {
                 }
             }
             Err(e) => {
-                println!("Error creating character: {:?}", e);
+                error!("Error creating character: {:?}", e);
                 return Err(anyhow!("Failed to create character: {:?}", e));
             }
         }
@@ -691,7 +745,6 @@ impl AsyncController {
                 Ok(())
             }
             7 => {
-                println!("Updating skill data for client");
                 DataGame::update_skill(session).await?;
                 Ok(())
             }
@@ -710,7 +763,7 @@ impl AsyncController {
                 Ok(())
             }
             _ => {
-                println!("Unknown -28 sub-command: {}", sub_cmd);
+                warn!("Unknown -28 sub-command: {}", sub_cmd);
                 Ok(())
             }
         }
@@ -720,12 +773,12 @@ impl AsyncController {
         let player_opt = session.get_player().await;
         if let Some(player) = player_opt {
             player_info_service::send_player_blob_internal(&player).await?;
-            println!(
+            info!(
                 "Client ok enhanced initialization completed for player: {}",
                 player.name
             );
         } else {
-            println!("Client ok enhanced: Player not set yet, ignoring");
+            debug!("Client ok enhanced: Player not set yet, ignoring");
         }
         Ok(())
     }
@@ -737,7 +790,7 @@ impl AsyncController {
 
         if let Some(mut player) = session.take_player().await {
             if player.is_die() {
-                session.set_player(player).await;
+                session.set_player(player, session.clone()).await;
                 return Ok(());
             }
 
@@ -755,7 +808,7 @@ impl AsyncController {
                 Self::send_player_move_to_zone(&player, &zone).await?;
             }
 
-            session.set_player(player).await;
+            session.set_player(player, session.clone()).await;
         }
 
         Ok(())

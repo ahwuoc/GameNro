@@ -592,8 +592,8 @@ impl DataGame {
 
     pub async fn send_link_ip(session: &SessionArc) -> anyhow::Result<()> {
         dotenv().ok();
-        let link_data = env::var("GAME_LINK")
-            .unwrap_or_else(|_| "Ngọc rồng Wars:127.0.0.1:14445:0,0,0".to_string());
+        let link_data =
+            env::var("GAME_LINK").unwrap_or_else(|_| "ArcNro:127.0.0.1:14445:0,0,0".to_string());
 
         let mut msg = Message::new(-29);
         msg.write_byte(2)?;
@@ -601,6 +601,60 @@ impl DataGame {
         msg.write_byte(1)?;
         session.transmit(msg);
 
+        Ok(())
+    }
+
+    pub async fn send_image_by_name(session: &SessionArc, img_name: &str) -> anyhow::Result<()> {
+        let zoom = session.get_zoom_level().await;
+        let base_zoom = 4;
+        let n_frame = 1;
+        let file_path = format!("data/arc/img_by_name/x{}/{}.png", base_zoom, img_name);
+        let img_bytes = match tokio::fs::read(&file_path).await {
+            Ok(v) => v,
+            Err(e) => {
+                // println!("[IMG] File not found: {} - {}", file_path, e);
+                return Ok(());
+            }
+        };
+
+        let img_data = if zoom as i32 != base_zoom {
+            let scale = zoom as f32 / base_zoom as f32;
+            match Self::scale_png_async(img_bytes, scale).await {
+                Ok(v) => v,
+                Err(e) => {
+                    return Ok(());
+                }
+            }
+        } else {
+            img_bytes
+        };
+
+        let mut msg = Message::new(66);
+        msg.write_utf(img_name)?;
+        msg.write_byte(n_frame)?;
+        msg.write_int(img_data.len() as i32)?;
+        msg.write(&img_data)?;
+        session.transmit(msg);
+
+        Ok(())
+    }
+
+    pub async fn send_item_bg_template(session: &SessionArc, id: i16) -> anyhow::Result<()> {
+        let zoom = session.get_zoom_level().await;
+        let file_path = format!("data/arc/item_bg_temp/x{}/{}.png", zoom, id);
+
+        match tokio::fs::read(&file_path).await {
+            Ok(data) => {
+                let mut msg = Message::new(-32);
+                msg.write_short(id)?;
+                msg.write_int(data.len() as i32)?;
+                msg.write(&data)?;
+                session.transmit(msg);
+            }
+            Err(_) => {
+                // Ignore if not found to avoid spamming
+            }
+        }
         Ok(())
     }
 }

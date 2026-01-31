@@ -99,57 +99,44 @@ use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 
 pub fn update(zone: &Zone) {
-    let mut shield_removed_players: Vec<u64> = Vec::new();
-    let mut charge_stopped_players: Vec<u64> = Vec::new();
-    let mut bienkhi_finish_players: Vec<u64> = Vec::new();
-    let mut monkey_down_players: Vec<u64> = Vec::new();
+    let now = current_time_millis();
+
+    let mut shield_removed: Vec<u64> = Vec::new();
+    let mut charge_stopped: Vec<u64> = Vec::new();
+    let mut bienkhi_finished: Vec<u64> = Vec::new();
+    let mut monkey_down: Vec<u64> = Vec::new();
+    let mut huyt_sao_expired: Vec<u64> = Vec::new();
 
     for player_id in zone.player_ids.iter() {
         if let Some(mut player) = PLAYER_MANAGER.get_mut(*player_id) {
-            let now = current_time_millis();
-            if player.effect_skill.is_shield
-                && now
-                    > player.effect_skill.shield_start_time + player.effect_skill.shield_duration_ms
-            {
-                player.effect_skill.is_shield = false;
-                shield_removed_players.push(player.id);
+            let result = player.effect_skill.update(now);
+
+            if result.shield_removed {
+                shield_removed.push(player.id);
+            }
+            if result.charge_stopped {
+                charge_stopped.push(player.id);
+            }
+            if result.bienkhi_finished {
+                bienkhi_finished.push(player.id);
+            }
+            if result.monkey_down {
+                monkey_down.push(player.id);
+            }
+            if result.huyt_sao_expired {
+                player.n_point.huyt_sao_buff = 0;
+                player.n_point.set_base_point();
+                huyt_sao_expired.push(player.id);
             }
 
-            // Charging update
-            if let Some(result) = player.update_charging() {
-                if result.should_stop {
-                    player.effect_skill.is_charging = false;
-                    player.effect_skill.count_charging = 0;
-                    charge_stopped_players.push(player.id);
-                }
-            }
-
-            // Bien Khi animation finish check (after 1500ms, transform into monkey)
-            if player.effect_skill.is_skill_bienkhi
-                && now
-                    > player.effect_skill.time_start_bienkhi
-                        + player.effect_skill.time_duration_bienkhi
-            {
-                bienkhi_finish_players.push(player.id);
-            }
-
-            // Monkey duration expire check
-            if player.effect_skill.is_monkey
-                && now > player.effect_skill.last_time_up_monkey + player.effect_skill.time_monkey
-            {
-                monkey_down_players.push(player.id);
-            }
-
-            // Base stats & death check
             player.n_point.set_base_point();
             if player.n_point.hp_current <= 0 && !player.dead_flag {
                 player.dead_flag = true;
             }
         }
     }
-
-    for player_id in shield_removed_players {
-        if let Some(player) = PLAYER_MANAGER.get(player_id) {
+    for pid in shield_removed {
+        if let Some(player) = PLAYER_MANAGER.get(pid) {
             EffectSkillService::send_effect_player(
                 &player,
                 &player,
@@ -159,38 +146,47 @@ pub fn update(zone: &Zone) {
         }
     }
 
-    for player_id in charge_stopped_players {
-        if let Some(player) = PLAYER_MANAGER.get(player_id) {
+    for pid in charge_stopped {
+        if let Some(player) = PLAYER_MANAGER.get(pid) {
             EffectSkillService::send_effect_stop_charge(&player);
         }
     }
-    // Phase 3: Finish Bien Khi animation -> transform into monkey
-    // Collect state updates first, then send messages after releasing lock
-    let mut monkey_updates: Vec<crate::services::effect_skill_service::MonkeyStateUpdate> =
-        Vec::new();
-    for player_id in bienkhi_finish_players {
-        if let Some(mut player) = PLAYER_MANAGER.get_mut(player_id) {
-            if let Some(update) = EffectSkillService::finish_use_monkey_state(&mut player) {
-                monkey_updates.push(update);
+
+    for pid in bienkhi_finished {
+        let update_opt = {
+            if let Some(mut player) = PLAYER_MANAGER.get_mut(pid) {
+                Some(EffectSkillService::set_is_monkey_state(&mut player))
+            } else {
+                None
             }
+        };
+        if let Some(update) = update_opt {
+            EffectSkillService::send_monkey_messages(&update);
         }
-    }
-    // Now send messages (no locks held)
-    for update in &monkey_updates {
-        EffectSkillService::send_monkey_messages(update);
     }
 
-    // Phase 4: Monkey duration expired -> revert to normal
-    let mut monkey_down_updates: Vec<crate::services::effect_skill_service::MonkeyStateUpdate> =
-        Vec::new();
-    for player_id in monkey_down_players {
-        if let Some(mut player) = PLAYER_MANAGER.get_mut(player_id) {
-            let update = EffectSkillService::monkey_down_state(&mut player);
-            monkey_down_updates.push(update);
+    for pid in monkey_down {
+        let update_opt = {
+            if let Some(mut player) = PLAYER_MANAGER.get_mut(pid) {
+                Some(EffectSkillService::monkey_down_state(&mut player))
+            } else {
+                None
+            }
+        };
+        if let Some(update) = update_opt {
+            EffectSkillService::send_monkey_messages(&update);
         }
     }
-    // Now send messages (no locks held)
-    for update in &monkey_down_updates {
-        EffectSkillService::send_monkey_messages(update);
+
+    for pid in huyt_sao_expired {
+        if let Some(player) = PLAYER_MANAGER.get(pid) {
+            EffectSkillService::send_effect_player(
+                &player,
+                &player,
+                EffectAction::REMOVE,
+                EffectSkillService::HUYT_SAO_EFFECT,
+            );
+            let _ = crate::services::player_info_service::send_point_info_sync(&player);
+        }
     }
 }

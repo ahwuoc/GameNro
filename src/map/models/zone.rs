@@ -55,7 +55,7 @@ impl Zone {
             return Err(anyhow::anyhow!("Zone is full"));
         }
         let player_id = player.id;
-        PLAYER_MANAGER.add(player); // Central update
+        PLAYER_MANAGER.add(player);
         self.player_ids.insert(player_id);
         Ok(())
     }
@@ -157,30 +157,6 @@ impl Zone {
             mob_count: mobs.len() as i32,
             item_count: items.len() as i32,
         }
-    }
-
-    pub fn send_message_to_all_players(&self, msg: Message) -> anyhow::Result<()> {
-        for player_id in self.player_ids.iter() {
-            if let Some(player) = PLAYER_MANAGER.get(*player_id) {
-                let _ = player.send_to_client(msg.clone());
-            }
-        }
-        Ok(())
-    }
-
-    pub fn send_message_to_other_players(
-        &self,
-        except_player_id: u64,
-        msg: Message,
-    ) -> anyhow::Result<()> {
-        for player_id in self.player_ids.iter() {
-            if *player_id != except_player_id {
-                if let Some(player) = PLAYER_MANAGER.get(*player_id) {
-                    let _ = player.send_to_client(msg.clone());
-                }
-            }
-        }
-        Ok(())
     }
 
     pub fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {

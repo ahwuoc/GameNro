@@ -19,6 +19,7 @@ pub struct MonkeyStateUpdate {
     pub speed: i8,
     pub hp_current: i32,
     pub hp_max: i32,
+    pub time_monkey: u64,
 }
 
 pub struct EffectSkillService;
@@ -27,6 +28,7 @@ impl EffectSkillService {
     pub const SHIELD_EFFECT: u8 = 33;
     pub const BLIND_EFFECT: u8 = 40;
     pub const SLEEP_EFFECT: u8 = 41;
+    pub const HUYT_SAO_EFFECT: u8 = 39;
 
     pub fn start_shield(player: &mut Player) {
         let now = time::current_time_millis();
@@ -87,7 +89,13 @@ impl EffectSkillService {
         let mut msg = Message::new(-45);
         if let Ok(_) = msg.write_byte(0) {
             let _ = msg.write_int(player.id as i32);
-            let _ = msg.write_short(player.player_skill.skill_select.as_ref().unwrap().skill_id);
+            let skill_id = player
+                .player_skill
+                .skill_select
+                .as_ref()
+                .map(|s| s.skill_id)
+                .unwrap_or(0);
+            let _ = msg.write_short(skill_id);
             let _ = msg.write_byte(list_mobs.len() as i8);
             for mob_id in list_mobs {
                 let _ = msg.write_byte(mob_id as i8);
@@ -124,6 +132,10 @@ impl EffectSkillService {
         action: EffectAction,
         effect: u8,
     ) {
+        println!(
+            "[DEBUG EFFECT] send_effect_player START - action: {:?}, effect: {}",
+            action, effect
+        );
         let mut msg = Message::new(-124);
         let _ = msg.write_byte(action as i8); // 0: huy, 1: bat dau
         let _ = msg.write_byte(0); // 0: player, 1: mob
@@ -138,7 +150,9 @@ impl EffectSkillService {
                 let _ = msg.write_int(player_use.id as i32);
             }
         }
+        println!("[DEBUG EFFECT] send_effect_player BEFORE send_mess_all_player_in_map");
         ServiceHandles::send_mess_all_player_in_map(player_use, msg);
+        println!("[DEBUG EFFECT] send_effect_player END");
     }
 
     pub fn send_effect_mob(
@@ -172,7 +186,7 @@ impl EffectSkillService {
         msg.write_byte(effect as i8).ok();
         msg.write_byte(mob.id as i8).ok();
         msg.write_int(-1).ok(); // no player reference
-        let _ = zone.send_message_to_all_players(msg);
+        let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
     }
 
     // ========== TAI TAO NANG LUONG (Charging) ==========
@@ -299,6 +313,7 @@ impl EffectSkillService {
             speed: player.n_point.speed,
             hp_current: player.n_point.hp_current,
             hp_max: player.n_point.hp_max * 2,
+            time_monkey,
         }
     }
 
@@ -331,26 +346,19 @@ impl EffectSkillService {
             speed: player.n_point.speed,
             hp_current: player.n_point.hp_current,
             hp_max: player.n_point.hp_max,
+            time_monkey: 0,
         }
     }
 
-    /// Phase 2: Send messages (call after releasing player lock)
     pub fn send_monkey_messages(update: &MonkeyStateUpdate) {
-        println!(
-            "[DEBUG BIENKHI] send_monkey_messages is_monkey={}",
-            update.is_monkey
-        );
-
-        // Send effect monkey (-45 cmd 6)
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(update.map_id, update.zone_id) {
             let mut msg = Message::new(-45);
-            let _ = msg.write_byte(6); // effect type: monkey
+            let _ = msg.write_byte(6);
             let _ = msg.write_int(update.player_id as i32);
             let _ = msg.write_short(update.skill_id);
-            let _ = zone.send_message_to_all_players(msg);
+            let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
 
-            // Send cai trang (-90)
             let mut msg2 = Message::new(-90);
             let _ = msg2.write_byte(1);
             let _ = msg2.write_int(update.player_id as i32);
@@ -358,21 +366,19 @@ impl EffectSkillService {
             let _ = msg2.write_short(update.body);
             let _ = msg2.write_short(update.leg);
             let _ = msg2.write_byte(if update.is_monkey { 1 } else { 0 });
-            let _ = zone.send_message_to_all_players(msg2);
+            let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg2);
 
-            // Send speed
             let mut msg3 = crate::services::player_info_service::sub_command_i30(8).unwrap();
             let _ = msg3.write_int(update.player_id as i32);
             let _ = msg3.write_byte(update.speed);
-            let _ = zone.send_message_to_all_players(msg3);
+            let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg3);
 
-            // Send info player eat pea (-30 subcommand 14) - to update HP display for others
             if let Ok(mut msg4) = crate::services::player_info_service::sub_command_i30(14) {
                 let _ = msg4.write_int(update.player_id as i32);
                 let _ = msg4.write_int(update.hp_current);
                 let _ = msg4.write_byte(1);
                 let _ = msg4.write_int(update.hp_max);
-                let _ = zone.send_message_to_all_players(msg4);
+                let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg4);
             }
         }
         println!("[DEBUG BIENKHI] send_monkey_messages COMPLETE!");
@@ -386,7 +392,7 @@ impl EffectSkillService {
             .map(|s| s.skill_id)
             .unwrap_or(0);
         let mut msg = Message::new(-45);
-        let _ = msg.write_byte(6); // effect type: monkey
+        let _ = msg.write_byte(6);
         let _ = msg.write_int(player.id as i32);
         let _ = msg.write_short(skill_id);
         let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
@@ -400,9 +406,16 @@ impl EffectSkillService {
             .map(|s| s.skill_id)
             .unwrap_or(0);
         let mut msg = Message::new(-45);
-        let _ = msg.write_byte(5); // effect type: end charge
+        let _ = msg.write_byte(5);
         let _ = msg.write_int(player.id as i32);
         let _ = msg.write_short(skill_id);
+        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
+    }
+
+    pub fn send_not_monkey(player: &Player) {
+        let mut msg = Message::new(-90);
+        let _ = msg.write_byte(-1);
+        let _ = msg.write_int(player.id as i32);
         let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
     }
 }
