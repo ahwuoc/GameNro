@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::sync::Arc;
+
 use crate::{
     constant::{
         cmd::cmd,
@@ -29,8 +31,6 @@ impl ChangeMapService {
     ) -> anyhow::Result<ChangeMapResult> {
         let current_map_is_cold = Self::is_cold_planet_map(player.map_id);
         let next_map_is_cold = Self::is_cold_planet_map(zone.map_id);
-
-        // Handle spaceship animation if required
         if space_type == SpaceShipType::Auto {
             let actual_space_type = if player.has_tennis_spaceship() {
                 SpaceShipType::Tennis
@@ -156,13 +156,10 @@ impl ChangeMapService {
                 planet_name: Self::get_planet_name(player.gender),
             });
         }
-
-        // Additional destinations based on task progress would be added here
         destinations
     }
 
-    /// Retrieves the zone for the "Return to Previous Location" capsule option.
-    fn get_previous_capsule_zone(player: &Player) -> Option<Zone> {
+    fn get_previous_capsule_zone(player: &Player) -> Option<Arc<Zone>> {
         if let Some((map_id, zone_id)) = player.get_previous_capsule_location() {
             Self::get_specific_zone(map_id, zone_id)
         } else {
@@ -375,7 +372,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    fn get_zones_for_map(map_id: i32) -> Vec<Zone> {
+    fn get_zones_for_map(map_id: i32) -> Vec<Arc<Zone>> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_all_zones();
         }
@@ -431,7 +428,7 @@ impl ChangeMapService {
     }
 
     /// Finds the best available zone in a map (e.g. least populated).
-    pub fn get_available_zone(map_id: i32) -> Option<Zone> {
+    pub fn get_available_zone(map_id: i32) -> Option<Arc<Zone>> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_best_zone();
         }
@@ -668,7 +665,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    fn get_specific_zone(map_id: i32, zone_id: i32) -> Option<Zone> {
+    fn get_specific_zone(map_id: i32, zone_id: i32) -> Option<Arc<Zone>> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         zone_manager.get_zone(map_id, zone_id)
     }

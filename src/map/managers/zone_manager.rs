@@ -1,98 +1,91 @@
 #![allow(dead_code)]
 use crate::map::Zone;
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 pub struct ZoneManager {
-    zones: Arc<RwLock<HashMap<String, Zone>>>,
+    zones: DashMap<String, Arc<Zone>>,
 }
 
 impl ZoneManager {
     pub fn new() -> Self {
         Self {
-            zones: Arc::new(RwLock::new(HashMap::new())),
+            zones: DashMap::new(),
         }
     }
 
     pub fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
         let zone_key = format!("{}_{}", map_id, zone_id);
-        let zone = Zone::new(map_id, zone_id, max_player);
-        let mut zones = self.zones.write().unwrap();
-        zones.insert(zone_key, zone);
+        let zone = Arc::new(Zone::new(map_id, zone_id, max_player));
+        self.zones.insert(zone_key, zone);
         Ok(())
     }
 
-    pub fn get_zone(&self, map_id: i32, zone_id: i32) -> Option<Zone> {
-        let zone_key = format!("{}_{}", map_id, zone_id);
-        let zones = self.zones.read().unwrap();
-        zones.get(&zone_key).cloned()
+    pub fn get_zone(&self, map_id: i32, zone_id: i32) -> Option<Arc<Zone>> {
+        let key = format!("{}_{}", map_id, zone_id);
+        self.zones.get(&key).map(|z| Arc::clone(z.value()))
     }
 
-    pub fn get_best_zone(&self, map_id: i32) -> Option<Zone> {
-        let zones = self.zones.read().unwrap();
-        let mut best_zone: Option<&Zone> = None;
-        let mut min_players = i32::MAX;
-
-        for (key, zone) in zones.iter() {
-            if key.starts_with(&format!("{}_", map_id)) {
-                let player_count = zone.get_num_players() as i32;
-                if player_count < min_players && player_count < zone.max_player {
-                    min_players = player_count;
-                    best_zone = Some(zone);
-                }
-            }
-        }
-
-        best_zone.cloned()
-    }
-
-    pub fn get_zones_for_map(&self, map_id: i32) -> Vec<Zone> {
-        let zones = self.zones.read().unwrap();
-
-        zones
+    pub fn get_best_zone(&self, map_id: i32) -> Option<Arc<Zone>> {
+        let prefix = format!("{}_", map_id);
+        
+        self.zones
             .iter()
-            .filter(|(key, _)| key.starts_with(&format!("{}_", map_id)))
-            .map(|(_, zone)| zone.clone())
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .filter(|entry| {
+                let zone = entry.value();
+                zone.get_num_players() < zone.max_player as usize
+            })
+            .min_by_key(|entry| entry.value().get_num_players())
+            .map(|entry| Arc::clone(entry.value()))
+    }
+
+    pub fn get_zones_for_map(&self, map_id: i32) -> Vec<Arc<Zone>> {
+        let prefix = format!("{}_", map_id);
+        self.zones
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .map(|entry| Arc::clone(entry.value()))
             .collect()
     }
 
     pub fn get_total_players_in_map(&self, map_id: i32) -> usize {
-        let zones = self.get_zones_for_map(map_id);
-        let mut total = 0;
-        for zone in zones {
-            total += zone.get_num_players();
-        }
-        total
+        let prefix = format!("{}_", map_id);
+        self.zones
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .map(|entry| entry.value().get_num_players())
+            .sum()
     }
 
     pub fn get_zone_count_for_map(&self, map_id: i32) -> usize {
-        let zones = self.zones.read().unwrap();
-        zones
-            .keys()
-            .filter(|key| key.starts_with(&format!("{}_", map_id)))
+        let prefix = format!("{}_", map_id);
+        self.zones
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
             .count()
     }
 
-    pub fn remove_zone(&self, map_id: i32, zone_id: i32) -> bool {
+    pub fn remove_zone(&self, map_id: i32, zone_id: i32) -> Option<Arc<Zone>> {
         let zone_key = format!("{}_{}", map_id, zone_id);
-        let mut zones = self.zones.write().unwrap();
-        zones.remove(&zone_key).is_some()
+        self.zones.remove(&zone_key).map(|(_, zone)| zone)
     }
 
     pub fn clear_zones_for_map(&self, map_id: i32) {
-        let mut zones = self.zones.write().unwrap();
-        zones.retain(|key, _| !key.starts_with(&format!("{}_", map_id)));
+        let prefix = format!("{}_", map_id);
+        self.zones.retain(|key, _| !key.starts_with(&prefix));
     }
 
-    pub fn get_all_zones(&self) -> Vec<Zone> {
-        let zones = self.zones.read().unwrap();
-        zones.values().cloned().collect()
+    pub fn get_all_zones(&self) -> Vec<Arc<Zone>> {
+        self.zones
+            .iter()
+            .map(|entry| Arc::clone(entry.value()))
+            .collect()
     }
 
     pub fn get_zone_count(&self) -> usize {
-        let zones = self.zones.read().unwrap();
-        zones.len()
+        self.zones.len()
     }
 
     pub fn load_player_to_best_zone(
@@ -104,14 +97,6 @@ impl ZoneManager {
             zone.load_player_to_zone(player, session)?;
         }
         Ok(())
-    }
-}
-
-impl Clone for ZoneManager {
-    fn clone(&self) -> Self {
-        Self {
-            zones: Arc::clone(&self.zones),
-        }
     }
 }
 

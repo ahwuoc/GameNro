@@ -5,10 +5,10 @@ use crate::database::DbManager;
 use crate::map::map_service;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::network::message::Message; // [NEW]
-use crate::player::player::Player;
+use crate::player::player::{Player, PlayerEvent}; // [MODIFIED]
 use crate::player::player_mapper;
 use crate::services::ServiceHandles;
-use crate::utils::time::current_time_millis; // [NEW]
+use crate::utils::time::current_time_millis;
 use anyhow::Result;
 use chrono::Duration;
 use sea_orm::ActiveModelTrait;
@@ -99,94 +99,71 @@ use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 
 pub fn update(zone: &Zone) {
-    let now = current_time_millis();
-
-    let mut shield_removed: Vec<u64> = Vec::new();
-    let mut charge_stopped: Vec<u64> = Vec::new();
-    let mut bienkhi_finished: Vec<u64> = Vec::new();
-    let mut monkey_down: Vec<u64> = Vec::new();
-    let mut huyt_sao_expired: Vec<u64> = Vec::new();
+    let mut events_buffer: Vec<(u64, Vec<PlayerEvent>)> = Vec::new();
 
     for player_id in zone.player_ids.iter() {
         if let Some(mut player) = PLAYER_MANAGER.get_mut(*player_id) {
-            let result = player.effect_skill.update(now);
-
-            if result.shield_removed {
-                shield_removed.push(player.id);
-            }
-            if result.charge_stopped {
-                charge_stopped.push(player.id);
-            }
-            if result.bienkhi_finished {
-                bienkhi_finished.push(player.id);
-            }
-            if result.monkey_down {
-                monkey_down.push(player.id);
-            }
-            if result.huyt_sao_expired {
-                player.n_point.huyt_sao_buff = 0;
-                player.n_point.set_base_point();
-                huyt_sao_expired.push(player.id);
-            }
-
-            player.n_point.set_base_point();
-            if player.n_point.hp_current <= 0 && !player.dead_flag {
-                player.dead_flag = true;
+            let events = player.update();
+            if !events.is_empty() {
+                events_buffer.push((player.id, events));
             }
         }
     }
-    for pid in shield_removed {
-        if let Some(player) = PLAYER_MANAGER.get(pid) {
-            EffectSkillService::send_effect_player(
-                &player,
-                &player,
-                EffectAction::REMOVE,
-                EffectSkillService::SHIELD_EFFECT,
-            );
-        }
-    }
 
-    for pid in charge_stopped {
-        if let Some(player) = PLAYER_MANAGER.get(pid) {
-            EffectSkillService::send_effect_stop_charge(&player);
-        }
-    }
-
-    for pid in bienkhi_finished {
-        let update_opt = {
-            if let Some(mut player) = PLAYER_MANAGER.get_mut(pid) {
-                Some(EffectSkillService::set_is_monkey_state(&mut player))
-            } else {
-                None
+    for (pid, events) in events_buffer {
+        if let Some(player) = PLAYER_MANAGER.get_ref(pid) {
+            for event in events {
+                match event {
+                    PlayerEvent::RemoveShield => {
+                        EffectSkillService::send_effect_player(
+                            &player,
+                            &player,
+                            EffectAction::REMOVE,
+                            EffectSkillService::SHIELD_EFFECT,
+                        );
+                    }
+                    PlayerEvent::StopCharge => {
+                        EffectSkillService::send_effect_stop_charge(&player);
+                    }
+                    PlayerEvent::EffectBienKhiFinished => {
+                        let update_opt = {
+                            if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
+                                Some(EffectSkillService::set_is_monkey_state(&mut p_mut))
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(update) = update_opt {
+                            EffectSkillService::send_monkey_messages(&update);
+                        }
+                    }
+                    PlayerEvent::EffectMonkeyFinished => {
+                        let update_opt = {
+                            if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
+                                Some(EffectSkillService::monkey_down_state(&mut p_mut))
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(update) = update_opt {
+                            EffectSkillService::send_monkey_messages(&update);
+                        }
+                    }
+                    PlayerEvent::EffectHuytSaoExpired => {
+                        if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
+                            p_mut.n_point.huyt_sao_buff = 0;
+                            p_mut.n_point.set_base_point();
+                        }
+                        EffectSkillService::send_effect_player(
+                            &player,
+                            &player,
+                            EffectAction::REMOVE,
+                            EffectSkillService::HUYT_SAO_EFFECT,
+                        );
+                        let _ = crate::services::player_info_service::send_point_info_sync(&player);
+                    }
+                }
             }
-        };
-        if let Some(update) = update_opt {
-            EffectSkillService::send_monkey_messages(&update);
-        }
-    }
-
-    for pid in monkey_down {
-        let update_opt = {
-            if let Some(mut player) = PLAYER_MANAGER.get_mut(pid) {
-                Some(EffectSkillService::monkey_down_state(&mut player))
-            } else {
-                None
-            }
-        };
-        if let Some(update) = update_opt {
-            EffectSkillService::send_monkey_messages(&update);
-        }
-    }
-
-    for pid in huyt_sao_expired {
-        if let Some(player) = PLAYER_MANAGER.get(pid) {
-            EffectSkillService::send_effect_player(
-                &player,
-                &player,
-                EffectAction::REMOVE,
-                EffectSkillService::HUYT_SAO_EFFECT,
-            );
-            let _ = crate::services::player_info_service::send_point_info_sync(&player);
         }
     }
 }

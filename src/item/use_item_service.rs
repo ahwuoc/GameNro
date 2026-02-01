@@ -5,12 +5,16 @@ use crate::services::{player_info_service, ServiceHandles};
 
 pub struct UseItemService;
 
+#[derive(Debug)]
+pub enum UseItemResult {
+    None,
+    RecoveredHpMp { index: usize },
+    AddedGold { index: usize },
+    Error(String),
+}
+
 impl UseItemService {
-    pub fn handle_use_item(
-        session: &SessionArc,
-        pl: &mut Player,
-        index: usize,
-    ) -> anyhow::Result<()> {
+    pub fn handle_use_item(pl: &mut Player, index: usize) -> anyhow::Result<UseItemResult> {
         let (type_item, item_id) = {
             let item = pl
                 .inventory
@@ -28,7 +32,7 @@ impl UseItemService {
                     .iter()
                     .find(|it| it.is_not_null_item() && it.get_type() == 6)
                 else {
-                    return Ok(());
+                    return Ok(UseItemResult::None);
                 };
                 let Some(hp_ki_hoiphuc) = item
                     .item_options
@@ -40,16 +44,15 @@ impl UseItemService {
                         _ => unreachable!(),
                     })
                 else {
-                    return Ok(());
+                    return Ok(UseItemResult::None);
                 };
                 pl.n_point
                     .set_hp(pl.n_point.hp_current + hp_ki_hoiphuc as i32);
                 pl.n_point
                     .set_mp(pl.n_point.mp_current + hp_ki_hoiphuc as i32);
-                player_info_service::send_message_info_hpmp(pl)?;
-                ServiceHandles::send_message_eat_dauthan(pl);
+
                 InventoryService::sub_quantity_item_bag(pl, index, 1);
-                InventoryService::send_item_bag_to_client(pl)?;
+                return Ok(UseItemResult::RecoveredHpMp { index });
             }
             _ => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
@@ -57,16 +60,16 @@ impl UseItemService {
                     457 => {
                         pl.inventory.add_gold(500_000_000);
                         InventoryService::sub_quantity_item_bag(pl, index, 1);
-                        InventoryService::send_item_bag_to_client(pl)?;
-                        ServiceHandles::send_gold_gem_ruby_to_client(pl)?;
+                        return Ok(UseItemResult::AddedGold { index });
                     }
                     _ => {
-                        ServiceHandles::send_message_alert(pl, "Không thể sử dụng vật phẩm này")?;
-                        return Ok(());
+                        return Ok(UseItemResult::Error(
+                            "Không thể sử dụng vật phẩm này".to_string(),
+                        ));
                     }
                 }
             }
         }
-        Ok(())
+        Ok(UseItemResult::None)
     }
 }

@@ -164,22 +164,27 @@ impl Zone {
             return Ok(());
         }
 
-        let target_player = PLAYER_MANAGER.get(player_id);
-        let receivers: Vec<Player> = self
-            .player_ids
-            .iter()
-            .filter(|id_ref| **id_ref != player_id)
-            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
-            .collect();
+        // Use get_ref to avoid cloning the heavy Player struct
+        let target_player_guard = PLAYER_MANAGER.get_ref(player_id);
 
-        if let Some(info_player) = target_player {
-            for receiver in receivers {
-                let _ = crate::services::ServiceHandles::send_player_info(&receiver, &info_player);
+        if let Some(info_player) = target_player_guard {
+            // Iterate directly without collecting clones
+            for receiver_id in self.player_ids.iter() {
+                if *receiver_id != player_id {
+                    if let Some(receiver) = PLAYER_MANAGER.get_ref(*receiver_id) {
+                        let _ = crate::services::ServiceHandles::send_player_info(
+                            &receiver,
+                            &info_player,
+                        );
 
-                if info_player.is_die() {
-                    let death_msg =
-                        crate::services::ServiceHandles::build_player_death_message(&info_player);
-                    let _ = receiver.send_to_client(death_msg);
+                        if info_player.is_die() {
+                            let death_msg =
+                                crate::services::ServiceHandles::build_player_death_message(
+                                    &info_player,
+                                );
+                            let _ = receiver.send_to_client(death_msg);
+                        }
+                    }
                 }
             }
         }
@@ -187,23 +192,21 @@ impl Zone {
     }
 
     pub fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
-        let Some(receiver) = PLAYER_MANAGER.get(player_id) else {
+        let Some(receiver) = PLAYER_MANAGER.get_ref(player_id) else {
             return Ok(());
         };
 
-        let others: Vec<Player> = self
-            .player_ids
-            .iter()
-            .filter(|id_ref| **id_ref != player_id)
-            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
-            .collect();
+        for other_id in self.player_ids.iter() {
+            if *other_id != player_id {
+                if let Some(other) = PLAYER_MANAGER.get_ref(*other_id) {
+                    let _ = crate::services::ServiceHandles::send_player_info(&receiver, &other);
 
-        for other in others.into_iter() {
-            let _ = crate::services::ServiceHandles::send_player_info(&receiver, &other);
-
-            if other.is_die() {
-                let death_msg = crate::services::ServiceHandles::build_player_death_message(&other);
-                let _ = receiver.send_to_client(death_msg);
+                    if other.is_die() {
+                        let death_msg =
+                            crate::services::ServiceHandles::build_player_death_message(&other);
+                        let _ = receiver.send_to_client(death_msg);
+                    }
+                }
             }
         }
         Ok(())
@@ -224,7 +227,7 @@ impl Zone {
     }
 
     pub fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
-        let Some(player) = PLAYER_MANAGER.get(player_id) else {
+        let Some(player) = PLAYER_MANAGER.get_ref(player_id) else {
             return Ok(());
         };
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {

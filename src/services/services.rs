@@ -9,6 +9,7 @@ use crate::{
     player::Player,
 };
 use anyhow::Result;
+use tracing::debug;
 
 pub struct ServiceHandles {}
 impl ServiceHandles {
@@ -81,7 +82,9 @@ impl ServiceHandles {
         if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
             for pid in zone.player_ids.iter() {
                 if *pid != player_id {
-                    if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get(*pid) {
+                    if let Some(target) =
+                        crate::player::player_manager::PLAYER_MANAGER.get_ref(*pid)
+                    {
                         let _ = target.send_to_client(response.clone());
                     }
                 }
@@ -106,8 +109,13 @@ impl ServiceHandles {
     }
 
     pub fn send_to_all_in_zone(zone: &crate::map::models::zone::Zone, msg: Message) -> Result<()> {
+        debug!(
+            "Broadcasting to all in zone {} map {}",
+            zone.zone_id, zone.map_id
+        );
         for player_id in zone.player_ids.iter() {
-            if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get(*player_id) {
+            if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get_ref(*player_id)
+            {
                 let _ = player.send_to_client(msg.clone());
             }
         }
@@ -119,9 +127,14 @@ impl ServiceHandles {
         msg: Message,
         except_id: u64,
     ) -> Result<()> {
+        debug!(
+            "Broadcasting to others in zone {} map {} (Potentially unsafe if holding lock)",
+            zone.zone_id, zone.map_id
+        );
         for player_id in zone.player_ids.iter() {
             if *player_id != except_id {
-                if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get(*player_id)
+                if let Some(player) =
+                    crate::player::player_manager::PLAYER_MANAGER.get_ref(*player_id)
                 {
                     let _ = player.send_to_client(msg.clone());
                 }
@@ -248,7 +261,7 @@ impl ServiceHandles {
             .map(|s| s.skill_id)
             .unwrap_or(0);
 
-        println!(
+        debug!(
             "[DEBUG ATTACK] Player {} attack mob {} with skill {}",
             player.id, mob_id, skill_id
         );

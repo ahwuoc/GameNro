@@ -6,6 +6,7 @@ use crate::services::ServiceHandles;
 use crate::utils::skill_util;
 use crate::{mob::mob::RtMob, utils::time};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::debug;
 
 pub struct MonkeyStateUpdate {
     pub player_id: u64,
@@ -29,6 +30,7 @@ impl EffectSkillService {
     pub const BLIND_EFFECT: u8 = 40;
     pub const SLEEP_EFFECT: u8 = 41;
     pub const HUYT_SAO_EFFECT: u8 = 39;
+    pub const HOLD_EFFECT: u8 = 32;
 
     pub fn start_shield(player: &mut Player) {
         let now = time::current_time_millis();
@@ -69,6 +71,49 @@ impl EffectSkillService {
         mob.effect_skill.is_thoi_mien = true;
         mob.effect_skill.time_thoi_mien = time_sleep;
         mob.effect_skill.start_time_thoi_mien = current_time;
+    }
+
+    // ========== TROI (Hold/Bind) ==========
+
+    pub fn set_use_troi(player: &mut Player, time_hold: u64) {
+        let current_time = time::current_time_millis();
+        player.effect_skill.use_troi = true;
+        player.effect_skill.time_troi = time_hold;
+        player.effect_skill.start_time_troi = current_time;
+    }
+
+    pub fn set_an_troi(target: &mut Player, caster_id: u64, time_hold: u64) {
+        let current_time = time::current_time_millis();
+        target.effect_skill.an_troi = true;
+        target.effect_skill.time_an_troi = time_hold;
+        target.effect_skill.start_time_an_troi = current_time;
+        target.effect_skill.pl_troi_id = Some(caster_id);
+    }
+
+    pub fn remove_use_troi(player: &mut Player) {
+        player.effect_skill.use_troi = false;
+        player.effect_skill.time_troi = 0;
+        player.effect_skill.start_time_troi = 0;
+    }
+
+    pub fn remove_an_troi(target: &mut Player) {
+        target.effect_skill.an_troi = false;
+        target.effect_skill.time_an_troi = 0;
+        target.effect_skill.start_time_an_troi = 0;
+        target.effect_skill.pl_troi_id = None;
+    }
+
+    pub fn set_troi_mob(mob: &mut RtMob, time_hold: u64) {
+        let current_time = time::current_time_millis();
+        mob.effect_skill.an_troi = true;
+        mob.effect_skill.time_an_troi = time_hold;
+        mob.effect_skill.start_time_an_troi = current_time;
+    }
+
+    pub fn remove_troi_mob(mob: &mut RtMob) {
+        mob.effect_skill.an_troi = false;
+        mob.effect_skill.time_an_troi = 0;
+        mob.effect_skill.start_time_an_troi = 0;
     }
 
     pub fn send_effect_use_skill(player: &Player, skill_id: i16) {
@@ -125,6 +170,51 @@ impl EffectSkillService {
         mob.effect_skill.time_stun = time_stun;
         mob.effect_skill.last_time_stun = current_time;
     }
+    pub fn build_effect_player_message(
+        player_use_id: u64,
+        player_target_id: u64,
+        action: EffectAction,
+        effect: u8,
+    ) -> Message {
+        let mut msg = Message::new(-124);
+        let _ = msg.write_byte(action as i8); // 0: huy, 1: bat dau
+        let _ = msg.write_byte(0); // 0: player, 1: mob
+
+        match action {
+            EffectAction::UPDATE => {
+                let _ = msg.write_int(player_target_id as i32);
+            }
+            _ => {
+                let _ = msg.write_byte(effect as i8);
+                let _ = msg.write_int(player_target_id as i32);
+                let _ = msg.write_int(player_use_id as i32);
+            }
+        }
+        msg
+    }
+
+    pub fn build_effect_mob_message(
+        player_use_id: u64,
+        mob_target_id: u64,
+        action: EffectAction,
+        effect: u8,
+    ) -> Message {
+        let mut msg = Message::new(-124);
+        msg.write_byte(action as i8).ok();
+        msg.write_byte(1).ok(); // 1 = mob
+
+        match action {
+            EffectAction::UPDATE => {
+                msg.write_byte(mob_target_id as i8).ok();
+            }
+            _ => {
+                msg.write_byte(effect as i8).ok();
+                msg.write_byte(mob_target_id as i8).ok();
+                msg.write_int(player_use_id as i32).ok();
+            }
+        }
+        msg
+    }
 
     pub fn send_effect_player(
         player_use: &Player,
@@ -132,27 +222,15 @@ impl EffectSkillService {
         action: EffectAction,
         effect: u8,
     ) {
-        println!(
-            "[DEBUG EFFECT] send_effect_player START - action: {:?}, effect: {}",
+        debug!(
+            "send_effect_player START - action: {:?}, effect: {}",
             action, effect
         );
-        let mut msg = Message::new(-124);
-        let _ = msg.write_byte(action as i8); // 0: huy, 1: bat dau
-        let _ = msg.write_byte(0); // 0: player, 1: mob
-
-        match action {
-            EffectAction::UPDATE => {
-                let _ = msg.write_int(player_target.id as i32);
-            }
-            _ => {
-                let _ = msg.write_byte(effect as i8);
-                let _ = msg.write_int(player_target.id as i32);
-                let _ = msg.write_int(player_use.id as i32);
-            }
-        }
-        println!("[DEBUG EFFECT] send_effect_player BEFORE send_mess_all_player_in_map");
+        let msg =
+            Self::build_effect_player_message(player_use.id, player_target.id, action, effect);
+        debug!("send_effect_player BEFORE send_mess_all_player_in_map");
         ServiceHandles::send_mess_all_player_in_map(player_use, msg);
-        println!("[DEBUG EFFECT] send_effect_player END");
+        debug!("send_effect_player END");
     }
 
     pub fn send_effect_mob(
@@ -161,33 +239,11 @@ impl EffectSkillService {
         action: EffectAction,
         effect: u8,
     ) {
-        let mut msg = Message::new(-124);
-        msg.write_byte(action as i8).ok();
-        msg.write_byte(1).ok(); // 1 = mob
-
-        match action {
-            EffectAction::UPDATE => {
-                msg.write_byte(mob_target.id as i8).ok();
-            }
-            _ => {
-                msg.write_byte(effect as i8).ok();
-                msg.write_byte(mob_target.id as i8).ok();
-                msg.write_int(player_use.id as i32).ok();
-            }
-        }
-
+        let msg = Self::build_effect_mob_message(player_use.id, mob_target.id, action, effect);
         let _ = ServiceHandles::send_mess_all_player_in_map(player_use, msg);
     }
 
-    pub fn send_remove_effect_mob_in_zone(zone: &Zone, mob: &RtMob, effect: u8) {
-        let mut msg = Message::new(-124);
-        msg.write_byte(EffectAction::REMOVE as i8).ok();
-        msg.write_byte(1).ok(); // 1 = mob
-        msg.write_byte(effect as i8).ok();
-        msg.write_byte(mob.id as i8).ok();
-        msg.write_int(-1).ok(); // no player reference
-        let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
-    }
+   
 
     // ========== TAI TAO NANG LUONG (Charging) ==========
 
@@ -229,10 +285,7 @@ impl EffectSkillService {
     // ========== BIEN KHI (Monkey) ==========
 
     pub fn start_use_skill_monkey(player: &mut Player) {
-        println!(
-            "[DEBUG BIENKHI] start_use_skill_monkey called for player {}",
-            player.name
-        );
+        debug!("start_use_skill_monkey called for player {}", player.name);
         Self::send_effect_monkey(player);
         if player.is_boss {
             let _ = Self::set_is_monkey_state(player);
@@ -243,24 +296,18 @@ impl EffectSkillService {
         player.effect_skill.is_skill_bienkhi = true;
         player.effect_skill.time_duration_bienkhi = 1500;
         player.effect_skill.time_start_bienkhi = now;
-        println!(
-            "[DEBUG BIENKHI] Animation started at {}, will finish after 1500ms",
-            now
-        );
+        debug!("Animation started at {}, will finish after 1500ms", now);
     }
 
     pub fn finish_use_monkey_state(player: &mut Player) -> Option<MonkeyStateUpdate> {
-        println!(
-            "[DEBUG BIENKHI] finish_use_monkey_state for player {}",
-            player.name
-        );
+        debug!("finish_use_monkey_state for player {}", player.name);
         player.effect_skill.is_skill_bienkhi = false;
 
         if !player.is_die() {
             let result = Self::set_is_monkey_state(player);
             Some(result)
         } else {
-            println!("[DEBUG BIENKHI] Player is dead, skipping transformation");
+            debug!("Player is dead, skipping transformation");
             None
         }
     }
@@ -280,8 +327,8 @@ impl EffectSkillService {
         let time_monkey = skill_util::get_time_monkey(skill_point);
         let now = time::current_time_millis();
 
-        println!(
-            "[DEBUG BIENKHI] set_is_monkey: skill_point={}, time_monkey={}ms",
+        debug!(
+            "set_is_monkey: skill_point={}, time_monkey={}ms",
             skill_point, time_monkey
         );
 
@@ -296,10 +343,7 @@ impl EffectSkillService {
         if player.n_point.hp_current > player.n_point.hp_max * 2 {
             player.n_point.hp_current = player.n_point.hp_max * 2;
         }
-        println!(
-            "[DEBUG BIENKHI] HP doubled: {} -> {}",
-            old_hp, player.n_point.hp_current
-        );
+        debug!("HP doubled: {} -> {}", old_hp, player.n_point.hp_current);
 
         MonkeyStateUpdate {
             player_id: player.id,
@@ -319,10 +363,7 @@ impl EffectSkillService {
 
     /// Phase 1: Update monkey_down state only
     pub fn monkey_down_state(player: &mut Player) -> MonkeyStateUpdate {
-        println!(
-            "[DEBUG BIENKHI] monkey_down_state for player {}",
-            player.name
-        );
+        debug!("monkey_down_state for player {}", player.name);
         player.effect_skill.is_monkey = false;
         player.effect_skill.level_monkey = 0;
         if player.n_point.hp_current > player.n_point.hp_max {
@@ -381,7 +422,7 @@ impl EffectSkillService {
                 let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg4);
             }
         }
-        println!("[DEBUG BIENKHI] send_monkey_messages COMPLETE!");
+        debug!("send_monkey_messages COMPLETE!");
     }
 
     pub fn send_effect_monkey(player: &Player) {

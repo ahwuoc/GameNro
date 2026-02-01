@@ -118,7 +118,7 @@ impl MapInfo {
 
 pub struct Map {
     pub info: Arc<MapInfo>,
-    pub zones: Arc<RwLock<Vec<Zone>>>,
+    pub zones: Arc<RwLock<Vec<Arc<Zone>>>>,
     pub is_active: Arc<RwLock<bool>>,
     pub last_update: Arc<RwLock<DateTime<Utc>>>,
 }
@@ -203,29 +203,22 @@ impl Map {
         None
     }
 
-    pub fn get_zone(&self, zone_id: i32) -> Option<Zone> {
+    pub fn get_zone(&self, zone_id: i32) -> Option<Arc<Zone>> {
         let zones = self.zones.read().unwrap();
-        zones.get(zone_id as usize).cloned()
+        zones.get(zone_id as usize).map(|z| Arc::clone(z))
     }
 
-    pub fn get_best_zone(&self) -> Option<Zone> {
+    pub fn get_best_zone(&self) -> Option<Arc<Zone>> {
         let zones = self.zones.read().unwrap();
 
-        let mut best_zone: Option<&Zone> = None;
-        let mut min_players = i32::MAX;
-
-        for zone in zones.iter() {
-            let player_count = zone.get_num_players() as i32;
-            if player_count < min_players && player_count < zone.max_player {
-                min_players = player_count;
-                best_zone = Some(zone);
-            }
-        }
-
-        best_zone.cloned()
+        zones
+            .iter()
+            .filter(|zone| zone.get_num_players() < zone.max_player as usize)
+            .min_by_key(|zone| zone.get_num_players())
+            .map(|zone| Arc::clone(zone))
     }
 
-    pub fn get_all_zones(&self) -> Vec<Zone> {
+    pub fn get_all_zones(&self) -> Vec<Arc<Zone>> {
         let zones = self.zones.read().unwrap();
         zones.clone()
     }

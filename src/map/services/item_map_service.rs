@@ -19,7 +19,6 @@ impl ItemMapService {
         }
     }
 
-    /// Create and add item to map
     pub fn create_item_map(
         &mut self,
         template: Option<ItemTemplate>,
@@ -36,44 +35,30 @@ impl ItemMapService {
         self.item_maps
             .insert(self.next_item_map_id, item_map.clone());
         self.next_item_map_id += 1;
-
-        // Reset ID counter if it gets too large
         if self.next_item_map_id >= 2_000_000_000 {
             self.next_item_map_id = 1;
         }
 
         item_map
     }
-
-    /// Get item map by ID
     pub fn get_item_map(&self, item_map_id: i32) -> Option<&ItemMap> {
         self.item_maps.get(&item_map_id)
     }
-
-    /// Get mutable item map by ID
     pub fn get_item_map_mut(&mut self, item_map_id: i32) -> Option<&mut ItemMap> {
         self.item_maps.get_mut(&item_map_id)
     }
-
-    /// Remove item map by ID
     pub fn remove_item_map(&mut self, item_map_id: i32) -> Option<ItemMap> {
         self.item_maps.remove(&item_map_id)
     }
-
-    /// Get all item maps
     pub fn get_all_item_maps(&self) -> &HashMap<i32, ItemMap> {
         &self.item_maps
     }
-
-    /// Get item maps in a specific zone
     pub fn get_items_in_zone(&self, map_id: i32, zone_id: i32) -> Vec<&ItemMap> {
         self.item_maps
             .values()
             .filter(|item| item.map_id == map_id && item.zone_id == zone_id)
             .collect()
     }
-
-    /// Update all item maps and return IDs of items to remove
     pub fn update_all(&mut self) -> Vec<(i32, Vec<ItemMapEvent>)> {
         let mut results = Vec::new();
         let mut to_remove = Vec::new();
@@ -87,8 +72,6 @@ impl ItemMapService {
                 results.push((*id, update_result.events));
             }
         }
-
-        // Remove expired items
         for id in to_remove {
             self.item_maps.remove(&id);
         }

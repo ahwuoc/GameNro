@@ -27,6 +27,10 @@ impl PlayerManager {
         self.players.get(&id).map(|p| p.clone())
     }
 
+    pub fn get_ref(&self, id: u64) -> Option<dashmap::mapref::one::Ref<'_, u64, Player>> {
+        self.players.get(&id)
+    }
+
     pub fn get_mut(&self, id: u64) -> Option<dashmap::mapref::one::RefMut<'_, u64, Player>> {
         self.players.get_mut(&id)
     }

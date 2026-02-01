@@ -8,12 +8,11 @@ pub fn is_ma_black_ball_war(pl: &Player) -> bool {
         && pl.map_id <= const_map::BLACK_BALL_WAR_MAP_END
 }
 
-pub fn send_player_teleport(player: &Player) -> anyhow::Result<()> {
+pub fn build_player_teleport_message(player: &Player) -> Message {
     let mut msg = Message::new(123);
-    msg.write_int(player.id as i32)?;
-    msg.write_short(player.location.x)?;
-    msg.write_short(player.location.y)?;
-    msg.write_byte(1)?; // Java writes 1 here
-    ServiceHandles::send_mess_all_player_in_map(player, msg)?;
-    Ok(())
+    let _ = msg.write_int(player.id as i32);
+    let _ = msg.write_short(player.location.x);
+    let _ = msg.write_short(player.location.y);
+    let _ = msg.write_byte(1);
+    msg
 }

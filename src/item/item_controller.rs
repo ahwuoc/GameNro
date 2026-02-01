@@ -74,16 +74,37 @@ impl ItemController {
                     .await?;
             }
             TypeItemAction::DoUseItem => {
+                let mut use_result = crate::item::use_item_service::UseItemResult::None;
                 session
                     .modify_player(|pl| {
                         let item = &mut pl.inventory.items_bag[index as usize];
                         if item.is_null_item() {
                             return Ok(());
                         }
-                        UseItemService::handle_use_item(session, pl, index as usize)?;
+                        use_result = UseItemService::handle_use_item(pl, index as usize)?;
                         Ok(())
                     })
                     .await?;
+
+                if let Some(player) = session.get_player().await {
+                    match use_result {
+                        crate::item::use_item_service::UseItemResult::RecoveredHpMp {
+                            index: _,
+                        } => {
+                            player_info_service::send_message_info_hpmp(&player)?;
+                            ServiceHandles::send_message_eat_dauthan(&player)?;
+                            InventoryService::send_item_bag_to_client(&player)?;
+                        }
+                        crate::item::use_item_service::UseItemResult::AddedGold { index: _ } => {
+                            InventoryService::send_item_bag_to_client(&player)?;
+                            ServiceHandles::send_gold_gem_ruby_to_client(&player)?;
+                        }
+                        crate::item::use_item_service::UseItemResult::Error(msg) => {
+                            ServiceHandles::send_message_alert(&player, &msg)?;
+                        }
+                        crate::item::use_item_service::UseItemResult::None => {}
+                    }
+                }
             }
 
             _ => {

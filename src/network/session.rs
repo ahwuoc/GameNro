@@ -299,8 +299,13 @@ impl AsyncSession {
     where
         F: FnOnce(Option<&RtPlayer>) -> R,
     {
-        if let Some(player) = self.get_player().await {
-            f(Some(&player))
+        let state = self.state.read().await;
+        if let Some(id) = state.player_id {
+            if let Some(player_ref) = crate::player::player_manager::PLAYER_MANAGER.get_ref(id) {
+                f(Some(&*player_ref))
+            } else {
+                f(None)
+            }
         } else {
             f(None)
         }

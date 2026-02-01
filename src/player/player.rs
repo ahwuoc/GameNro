@@ -18,6 +18,15 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
 
+#[derive(Debug, Clone)]
+pub enum PlayerEvent {
+    RemoveShield,
+    StopCharge,
+    EffectBienKhiFinished,
+    EffectMonkeyFinished,
+    EffectHuytSaoExpired,
+}
+
 #[derive(Clone)]
 pub struct Player {
     pub id: u64,
@@ -396,32 +405,42 @@ impl Player {
         })
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> Vec<PlayerEvent> {
         let now = crate::utils::time::current_time_millis();
+        let mut events = Vec::new();
 
         if self.effect_skill.is_shield
             && now > self.effect_skill.shield_start_time + self.effect_skill.shield_duration_ms
         {
             self.effect_skill.is_shield = false;
-            EffectSkillService::send_effect_player(
-                self,
-                self,
-                EffectAction::REMOVE,
-                EffectSkillService::SHIELD_EFFECT,
-            );
+            events.push(PlayerEvent::RemoveShield);
         }
 
         if let Some(charge_result) = self.update_charging() {
             if charge_result.should_stop {
                 self.effect_skill.is_charging = false;
                 self.effect_skill.count_charging = 0;
-                EffectSkillService::send_effect_stop_charge(self);
+                events.push(PlayerEvent::StopCharge);
             }
         }
         self.n_point.set_base_point();
         if self.n_point.hp_current <= 0 && !self.dead_flag {
             self.dead_flag = true;
         }
+
+        let effect_result = self.effect_skill.update(now);
+
+        if effect_result.bienkhi_finished {
+            events.push(PlayerEvent::EffectBienKhiFinished);
+        }
+        if effect_result.monkey_down {
+            events.push(PlayerEvent::EffectMonkeyFinished);
+        }
+        if effect_result.huyt_sao_expired {
+            events.push(PlayerEvent::EffectHuytSaoExpired);
+        }
+
+        events
     }
 }
 

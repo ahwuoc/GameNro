@@ -69,7 +69,6 @@ impl AsyncController {
                             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id)
                             {
-                                // Two-Phase: Collect damage message inside lock, send after
                                 let damage_msg = {
                                     let mut mobs = zone.active_mobs.write().unwrap();
                                     if let Some(mob) =
@@ -84,13 +83,9 @@ impl AsyncController {
                                     } else {
                                         None
                                     }
-                                }; // Lock released here
-
-                                // Phase 2: Send message (no mob lock held)
+                                };
                                 if let Some(msg) = damage_msg {
-                                    let _ = crate::services::ServiceHandles::send_to_all_in_zone(
-                                        &zone, msg,
-                                    );
+                                    let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
                                 }
                             }
                         }

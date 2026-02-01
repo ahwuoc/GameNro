@@ -13,6 +13,7 @@ use crate::services::ServiceHandles;
 use crate::templates::item_template_manager;
 use crate::utils::random::{is_true, next_int};
 use crate::utils::{time, MapUtils};
+use tracing::debug;
 
 pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     // println!("[DEBUG MOB] attack_mob called. Player: {}, MobID: {}, Dmg: {}", player.name, mob_id, damage);
@@ -51,14 +52,14 @@ pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                     )
                 }
             } else {
-                println!("[DEBUG MOB] Mob {} NOT FOUND in active_mobs", mob_id);
+                debug!("Mob {} NOT FOUND in active_mobs", mob_id);
                 (None, None)
             }
         };
         if let Some(msg) = msg_opt {
             let res = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
             if let Err(e) = res {
-                println!("[DEBUG MOB] Failed to send msg: {:?}", e);
+                debug!("Failed to send msg: {:?}", e);
             } else {
                 // println!("[DEBUG MOB] Send damage msg OK");
             }
@@ -69,7 +70,7 @@ pub fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
             drop_item_on_mob_death(&zone, x as i32, y as i32, player, mob_temp_id as i16);
         }
     } else {
-        println!("[DEBUG MOB] Zone NOT FOUND");
+        debug!("Zone NOT FOUND");
     }
 }
 
@@ -163,6 +164,16 @@ fn handle_mob_death(mob: &mut RtMob) {
     mob.is_alive = false;
     mob.temporary_enemies.clear();
     mob.last_time_die = time::current_time_millis();
+
+    // Clear all effects when mob dies
+    mob.effect_skill.is_stun = false;
+    mob.effect_skill.is_blind_dctt = false;
+    mob.effect_skill.is_thoi_mien = false;
+    mob.effect_skill.an_troi = false;
+    mob.effect_skill.time_stun = 0;
+    mob.effect_skill.time_blind_dctt = 0;
+    mob.effect_skill.time_thoi_mien = 0;
+    mob.effect_skill.time_an_troi = 0;
 }
 
 fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
@@ -175,7 +186,7 @@ fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
             mob.template_id,
             mob.hp,
         ));
-        println!("[MOB_SERVICE] Mob {} respawned at HP {}", mob.id, mob.hp);
+        debug!("Mob {} respawned at HP {}", mob.id, mob.hp);
     }
 }
 
@@ -217,9 +228,9 @@ fn hanlde_mob_attack_player(
         if current_time >= mob.effect_skill.last_time_stun + mob.effect_skill.time_stun {
             mob.effect_skill.is_stun = false;
             mob.effect_skill.time_stun = 0;
-            println!("Mob {} het choang", mob.id);
+            debug!("Mob {} het choang", mob.id);
         } else {
-            println!("Mob {} dang bi choang", mob.id);
+            debug!("Mob {} dang bi choang", mob.id);
             return;
         }
     }
@@ -228,14 +239,13 @@ fn hanlde_mob_attack_player(
         if current_time >= mob.effect_skill.start_time_dctt + mob.effect_skill.time_blind_dctt {
             mob.effect_skill.is_blind_dctt = false;
             mob.effect_skill.time_blind_dctt = 0;
-            println!("Mob {} het choang DCTT", mob.id);
-            EffectSkillService::send_remove_effect_mob_in_zone(
-                zone,
-                mob,
+            debug!("Mob {} het choang DCTT", mob.id);
+            global_msgs.push(build_remove_effect_mob_message(
+                mob.id as i8,
                 EffectSkillService::BLIND_EFFECT,
-            );
+            ));
         } else {
-            println!("Mob {} dang bi choang DCTT -> Skip attack", mob.id);
+            debug!("Mob {} dang bi choang DCTT -> Skip attack", mob.id);
             return;
         }
     }
@@ -244,14 +254,30 @@ fn hanlde_mob_attack_player(
         if current_time >= mob.effect_skill.start_time_thoi_mien + mob.effect_skill.time_thoi_mien {
             mob.effect_skill.is_thoi_mien = false;
             mob.effect_skill.time_thoi_mien = 0;
-            println!("Mob {} het thoi mien", mob.id);
-            EffectSkillService::send_remove_effect_mob_in_zone(
-                zone,
-                mob,
+            debug!("Mob {} het thoi mien", mob.id);
+            global_msgs.push(build_remove_effect_mob_message(
+                mob.id as i8,
                 EffectSkillService::SLEEP_EFFECT,
-            );
+            ));
         } else {
-            println!("Mob {} dang bi thoi mien -> Skip attack", mob.id);
+            debug!("Mob {} dang bi thoi mien -> Skip attack", mob.id);
+            return;
+        }
+    }
+
+    if mob.effect_skill.an_troi {
+        if current_time >= mob.effect_skill.start_time_an_troi + mob.effect_skill.time_an_troi {
+            mob.effect_skill.an_troi = false;
+            mob.effect_skill.time_an_troi = 0;
+            mob.effect_skill.start_time_an_troi = 0;
+            debug!("Mob {} het bi troi", mob.id);
+            // Defer broadcast to avoid deadlock
+            global_msgs.push(build_remove_effect_mob_message(
+                mob.id as i8,
+                EffectSkillService::HOLD_EFFECT,
+            ));
+        } else {
+            debug!("Mob {} dang bi troi -> Skip attack", mob.id);
             return;
         }
     }
@@ -283,7 +309,7 @@ fn hanlde_mob_attack_player(
 
 fn find_target_in_range(mob: &RtMob, zone: &Zone) -> Option<u64> {
     for player_id in zone.player_ids.iter() {
-        if let Some(player) = PLAYER_MANAGER.get(*player_id) {
+        if let Some(player) = PLAYER_MANAGER.get_ref(*player_id) {
             if !player.is_die() {
                 let limit = if mob.temporary_enemies.contains(&player.id) {
                     300.0
@@ -304,7 +330,7 @@ fn broadcast_messages(zone: &Zone, global_msgs: Vec<Message>, player_msgs: Vec<(
         let _ = crate::services::ServiceHandles::send_to_all_in_zone(zone, msg);
     }
     for (player_id, msg) in player_msgs {
-        if let Some(player) = PLAYER_MANAGER.get(player_id) {
+        if let Some(player) = PLAYER_MANAGER.get_ref(player_id) {
             let _ = player.send_to_client(msg);
         }
     }
@@ -341,6 +367,16 @@ pub fn build_mob_die_message(mob_id: i8, damage: i32, is_crit: bool) -> Message 
     let _ = msg.write_int(damage);
     let _ = msg.write_bool(is_crit);
     let _ = msg.write_byte(0);
+    msg
+}
+
+pub fn build_remove_effect_mob_message(mob_id: i8, effect: u8) -> Message {
+    let mut msg = Message::new(-124);
+    let _ = msg.write_byte(0); // action = REMOVE
+    let _ = msg.write_byte(1); // 1 = mob
+    let _ = msg.write_byte(effect as i8);
+    let _ = msg.write_byte(mob_id);
+    let _ = msg.write_int(-1); // no player reference
     msg
 }
 

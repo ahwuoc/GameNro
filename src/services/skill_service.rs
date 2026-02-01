@@ -9,6 +9,7 @@ use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::services::{player_info_service, ServiceHandles};
 use crate::utils::{skill_util, time, MapUtils};
 use crate::{mob::mob::RtMob, templates::skill_template_manager};
+use tracing::{debug, info};
 
 pub fn handle_use_skill_packet(
     player: &mut Player,
@@ -35,10 +36,7 @@ pub fn execute_skill(
     mob_target: Option<&mut RtMob>,
 ) -> Option<Message> {
     if !player.is_skill_ready() || !player.has_enough_mana() {
-        println!(
-            "[DEBUG SKILL] Player {} cannot use skill (cooldown or mana)",
-            player.name
-        );
+        debug!("Player {} cannot use skill (cooldown or mana)", player.name);
         return None;
     }
 
@@ -51,8 +49,8 @@ pub fn execute_skill(
         return None;
     };
 
-    println!(
-        "[DEBUG SKILL] use_skill called. Player: {}, Skill ID: {}, Type: {}",
+    info!(
+        "use_skill called. Player: {}, Skill ID: {}, Type: {}",
         player.name, skill_id, temp.r#type
     );
 
@@ -86,13 +84,17 @@ pub fn execute_skill(
             execute_tu_sat(player);
             None
         }
+        (_, Skill::TROI) => {
+            execute_troi(player, pl_target, mob_target);
+            None
+        }
         (3, _) => {
             execute_skill_type3(player);
             None
         }
         (1, _) | (4, _) => execute_attack_skill(player, pl_target, mob_target),
         (t, id) => {
-            println!("Skill Type {} / ID {} chua dc trien khai", t, id);
+            debug!("Skill Type {} / ID {} chua dc trien khai", t, id);
             None
         }
     }
@@ -103,8 +105,8 @@ pub fn execute_dichchuyentucthoi(
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) {
-    println!(
-        "[DEBUG SKILL] execute_instant_transmission called for player {} with mob_target: {}",
+    debug!(
+        "execute_instant_transmission called for player {} with mob_target: {}",
         player.name,
         mob_target.is_some()
     );
@@ -114,42 +116,47 @@ pub fn execute_dichchuyentucthoi(
     let skill_point = skill_select.point;
     let time_stun = skill_util::get_time_dctt(skill_point);
 
+    let mut messages: Vec<Message> = Vec::new();
+
     if let Some(target) = pl_target {
-        // Teleport
         player.location.x = target.location.x;
         player.location.y = target.location.y;
-        map_service::send_player_teleport(player);
+        messages.push(map_service::build_player_teleport_message(player));
 
-        // Attack & Stun
         deal_damage_to_player(player, target, false);
         EffectSkillService::apply_blind_dctt(&mut target.effect_skill, time_stun);
-        EffectSkillService::send_effect_player(
-            player,
-            target,
+        messages.push(EffectSkillService::build_effect_player_message(
+            player.id,
+            target.id,
             EffectAction::START,
             EffectSkillService::BLIND_EFFECT,
-        );
+        ));
         let _ = ServiceHandles::send_item_time(target, 3779, (time_stun / 1000) as i16);
     }
 
     if let Some(mob) = mob_target {
-        println!(
-            "[DEBUG SKILL] DCTT: Teleporting to mob {} at ({}, {})",
+        debug!(
+            "DCTT: Teleporting to mob {} at ({}, {})",
             mob.id, mob.location.x, mob.location.y
         );
-        // Teleport
         player.location.x = mob.location.x;
         player.location.y = mob.location.y;
-        map_service::send_player_teleport(player);
+        messages.push(map_service::build_player_teleport_message(player));
+
         EffectSkillService::apply_blind_dctt(&mut mob.effect_skill, time_stun);
-        EffectSkillService::send_effect_mob(
-            player,
-            mob,
+        messages.push(EffectSkillService::build_effect_mob_message(
+            player.id,
+            mob.id,
             EffectAction::START,
             EffectSkillService::BLIND_EFFECT,
-        );
+        ));
     }
+
     apply_skill_cost(player);
+
+    for msg in messages {
+        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
+    }
 }
 
 pub fn execute_thoimien(
@@ -157,8 +164,8 @@ pub fn execute_thoimien(
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) {
-    println!(
-        "[DEBUG SKILL] execute_hypnosis called for player {} with mob_target: {}",
+    debug!(
+        "execute_hypnosis called for player {} with mob_target: {}",
         player.name,
         mob_target.is_some()
     );
@@ -185,7 +192,7 @@ pub fn execute_thoimien(
     }
 
     if let Some(mob) = mob_target {
-        println!("[DEBUG SKILL] Thoi Mien: Applying sleep to mob {}", mob.id);
+        debug!("Thoi Mien: Applying sleep to mob {}", mob.id);
         EffectSkillService::set_thoi_mien_mob(mob, time_sleep);
         EffectSkillService::send_effect_mob(
             player,
@@ -194,6 +201,59 @@ pub fn execute_thoimien(
             EffectSkillService::SLEEP_EFFECT,
         );
     }
+    apply_skill_cost(player);
+}
+
+pub fn execute_troi(
+    player: &mut Player,
+    pl_target: Option<&mut Player>,
+    mob_target: Option<&mut RtMob>,
+) {
+    info!(
+        "execute_troi called for player {} with pl_target: {}, mob_target: {}",
+        player.name,
+        pl_target.is_some(),
+        mob_target.is_some()
+    );
+
+    EffectSkillService::send_effect_use_skill(player, Skill::TROI as i16);
+
+    let Some(skill_select) = player.player_skill.skill_select.as_ref() else {
+        return;
+    };
+    let skill_point = skill_select.point;
+    let time_hold = skill_util::get_time_troi(skill_point);
+
+    EffectSkillService::set_use_troi(player, time_hold);
+
+    if let Some(target) = pl_target {
+        let is_preparing = target.player_skill.prepare_qckk
+            || target.player_skill.prepare_laze
+            || target.player_skill.prepare_tu_sat;
+
+        if !is_preparing {
+            EffectSkillService::set_an_troi(target, player.id, time_hold);
+            EffectSkillService::send_effect_player(
+                player,
+                target,
+                EffectAction::START,
+                EffectSkillService::HOLD_EFFECT,
+            );
+        }
+    }
+
+    // Apply to mob target
+    if let Some(mob) = mob_target {
+        debug!("Troi: Applying hold to mob {}", mob.id);
+        EffectSkillService::set_troi_mob(mob, time_hold);
+        EffectSkillService::send_effect_mob(
+            player,
+            mob,
+            EffectAction::START,
+            EffectSkillService::HOLD_EFFECT,
+        );
+    }
+
     apply_skill_cost(player);
 }
 
@@ -290,12 +350,12 @@ pub fn execute_skill_type3(player: &mut Player) {
             execute_thai_duong_ha_san(player);
         }
         Skill::TAI_TAO_NANG_LUONG => {
-            println!("[DEBUG SKILL] TAI TAO NANG LUONG");
+            debug!("TAI TAO NANG LUONG");
             EffectSkillService::start_charge(player);
             apply_skill_cost(player);
         }
         Skill::BIEN_KHI => {
-            println!("[DEBUG SKILL] BIEN KHI");
+            debug!("BIEN KHI");
             EffectSkillService::start_use_skill_monkey(player);
             apply_skill_cost(player);
         }
@@ -322,7 +382,7 @@ pub fn execute_skill_type3(player: &mut Player) {
             apply_skill_cost(player);
         }
         _ => {
-            println!("Skill Alone {} not implemented", skill_id);
+            debug!("Skill Alone {} not implemented", skill_id);
         }
     }
 }
@@ -362,7 +422,7 @@ pub async fn learn_full_skill(pl: &mut Player) -> anyhow::Result<()> {
     for temp in template_skill {
         let max_level = temp.skills.len() as i32;
         if let Some(skill) = skill_util::create_skill(temp.id as i32, max_level).await {
-            println!("Skill {} created with level {}", temp.id, max_level);
+            debug!("Skill {} created with level {}", temp.id, max_level);
             pl.player_skill.skills.push(skill);
         }
     }
@@ -449,10 +509,7 @@ pub fn apply_skill_cost(player: &mut Player) {
 
 /// Skill Huýt Sáo - Hồi HP cho đồng đội trong zone
 pub fn execute_huyt_sao(player: &mut Player) {
-    println!(
-        "[DEBUG SKILL] execute_huyt_sao called for player {}",
-        player.name
-    );
+    debug!("execute_huyt_sao called for player {}", player.name);
 
     let Some(skill) = player.player_skill.skill_select.as_ref() else {
         return;
@@ -485,7 +542,7 @@ pub fn execute_huyt_sao(player: &mut Player) {
                 crate::player::player_manager::PLAYER_MANAGER.get_mut(pid)
             {
                 let target = target_entry.value_mut();
-                let is_namec = target.gender == 1; // NAMEC = 1
+                let is_namec = target.gender == 1;
 
                 if !is_namec {
                     target.effect_skill.ti_le_hp_huyt_sao = percent_hp;
@@ -504,7 +561,6 @@ pub fn execute_huyt_sao(player: &mut Player) {
                         heal_amount,
                     });
                 } else {
-                    // Namec bị mất HP
                     let damage = target.n_point.hp_max * 10 / 100;
                     if target.n_point.hp_current > damage {
                         target.n_point.hp_current -= damage;
@@ -513,11 +569,10 @@ pub fn execute_huyt_sao(player: &mut Player) {
                 }
             }
         }
-    } // Lock released here
+    }
 
-    // Phase 2: Send messages (không giữ lock)
     for buffed in &buffed_targets {
-        if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get(buffed.id) {
+        if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get_ref(buffed.id) {
             EffectSkillService::send_effect_player(
                 player,
                 &target,
@@ -527,17 +582,17 @@ pub fn execute_huyt_sao(player: &mut Player) {
             let _ = ServiceHandles::send_item_time(&target, 3781, 30);
             let _ = player_info_service::send_point_info_sync(&target);
             let _ = player_info_service::send_info_hp_mp_money(&target);
-            println!(
-                "[DEBUG SKILL] HUYT_SAO buffed player {} HP max +{}%, healed {} HP",
+            debug!(
+                "HUYT_SAO buffed player {} HP max +{}%, healed {} HP",
                 target.name, 100, buffed.heal_amount
             );
         }
     }
 
     for pid in &damaged_targets {
-        if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get(*pid) {
+        if let Some(target) = crate::player::player_manager::PLAYER_MANAGER.get_ref(*pid) {
             let _ = player_info_service::send_info_hp_mp_money(&target);
-            println!("[DEBUG SKILL] HUYT_SAO damaged Namec {}", target.name);
+            debug!("HUYT_SAO damaged Namec {}", target.name);
         }
     }
 
@@ -559,8 +614,8 @@ pub fn execute_huyt_sao(player: &mut Player) {
         let _ = player_info_service::send_point_info_sync(player);
         player_info_service::send_info_hp_mp_money(player);
 
-        println!(
-            "[DEBUG SKILL] HUYT_SAO self-buff: healed {} HP ({}%), HP max now: {}",
+        debug!(
+            "HUYT_SAO self-buff: healed {} HP ({}%), HP max now: {}",
             heal_amount, percent_hp, player.n_point.hp_max
         );
     }
@@ -568,32 +623,26 @@ pub fn execute_huyt_sao(player: &mut Player) {
     apply_skill_cost(player);
 }
 
-/// Skill Tự Sát - Gồng lên rồi nổ, gây damage xung quanh
 pub fn execute_tu_sat(player: &mut Player) {
-    println!(
-        "[DEBUG SKILL] execute_tu_sat called for player {}",
-        player.name
-    );
+    debug!("execute_tu_sat called for player {}", player.name);
 
     if !player.player_skill.prepare_tu_sat {
         // Phase 1: Gồng tự sát
         player.player_skill.prepare_tu_sat = true;
         player.player_skill.last_time_prepare_tu_sat = time::current_time_millis();
         broadcast_skill_bomb(player, 2000);
-        println!("[DEBUG SKILL] TU_SAT Phase 1: Charging...");
+        debug!("TU_SAT Phase 1: Charging...");
     } else {
-        // Check thời gian gồng (1.5s)
         let elapsed = time::current_time_millis() - player.player_skill.last_time_prepare_tu_sat;
         if elapsed < 1500 {
             player.player_skill.prepare_tu_sat = false;
             if let Some(ref mut skill) = player.player_skill.skill_select {
                 skill.start_time_use = time::current_time_millis();
             }
-            println!("[DEBUG SKILL] TU_SAT cancelled - too early");
+            debug!("TU_SAT cancelled - too early");
             return;
         }
 
-        // Phase 2: Nổ
         player.player_skill.prepare_tu_sat = false;
 
         let Some(skill) = player.player_skill.skill_select.as_ref() else {
@@ -607,8 +656,8 @@ pub fn execute_tu_sat(player: &mut Player) {
         let player_map_id = player.map_id;
         let player_zone_id = player.zone_id;
 
-        println!(
-            "[DEBUG SKILL] TU_SAT Phase 2: Exploding! Range={}, Damage={}",
+        debug!(
+            "TU_SAT Phase 2: Exploding! Range={}, Damage={}",
             range_bom, dame
         );
 
@@ -631,10 +680,7 @@ pub fn execute_tu_sat(player: &mut Player) {
                             )
                         };
                         msgs.push(msg);
-                        println!(
-                            "[DEBUG SKILL] TU_SAT hit mob {} for {} damage",
-                            mob.id, dame
-                        );
+                        debug!("TU_SAT hit mob {} for {} damage", mob.id, dame);
                     }
                 }
                 msgs
@@ -659,10 +705,7 @@ pub fn execute_tu_sat(player: &mut Player) {
                     {
                         target.injured(dame as u64, false);
                         player_info_service::send_info_hp_mp_money(target);
-                        println!(
-                            "[DEBUG SKILL] TU_SAT hit player {} for {} damage",
-                            target.name, dame
-                        );
+                        debug!("TU_SAT hit player {} for {} damage", target.name, dame);
                     }
                 }
             }
@@ -674,10 +717,7 @@ pub fn execute_tu_sat(player: &mut Player) {
         player.n_point.hp_current = 0;
         let _ = player_info_service::send_info_hp_mp_money(player);
         send_char_die(player);
-        println!(
-            "[DEBUG SKILL] TU_SAT: Player {} died from self-destruct",
-            player.name
-        );
+        debug!("TU_SAT: Player {} died from self-destruct", player.name);
     }
 }
 
@@ -715,8 +755,8 @@ pub fn send_char_die(player: &Player) {
     let _ = msg_others.write_short(player.location.y);
     let _ = ServiceHandles::send_mess_all_player_in_map(player, msg_others);
 
-    println!(
-        "[DEBUG] send_char_die: Player {} died at ({}, {})",
+    debug!(
+        "send_char_die: Player {} died at ({}, {})",
         player.name, player.location.x, player.location.y
     );
 }
@@ -751,12 +791,9 @@ pub fn select_skill(player: &mut Player, skill_template_id: i32) -> anyhow::Resu
         .find(|s| s.template_id == skill_template_id as i32)
     {
         player.player_skill.skill_select = Some(skill.clone());
-        println!(
-            "[DEBUG SKILL] Selected skill template_id: {}",
-            skill_template_id
-        );
+        debug!("Selected skill template_id: {}", skill_template_id);
     } else {
-        println!(
+        debug!(
             "Skill not found with template_id: {}. Player has {} skills: {:?}",
             skill_template_id,
             player.player_skill.skills.len(),

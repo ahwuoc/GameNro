@@ -40,7 +40,6 @@ pub async fn init() -> Result<()> {
     Ok(())
 }
 
-/// Initialize all maps in the world
 #[instrument]
 pub async fn init_maps_world() -> Result<()> {
     let map_templates = map_template_manager::get_all();
