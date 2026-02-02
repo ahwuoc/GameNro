@@ -329,7 +329,7 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     println!("Sending all player info");
 
     let player = session
-        .get_player()
+        .get_player_snapshot()
         .await
         .ok_or_else(|| anyhow::anyhow!("Player not set"))?;
     DataGame::send_data_item_bg(session).await?;

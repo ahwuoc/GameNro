@@ -61,7 +61,7 @@ pub fn hoi_sinh(pl: &mut Player) -> Result<()> {
         return Ok(());
     }
 
-    let can_respawn = if map_service::is_ma_black_ball_war(pl) {
+    let can_respawn = if map_service::is_ma_black_ball_war(pl.map_id) {
         try_pay_gold(pl, 50_000)?
     } else {
         try_pay_gem(pl, 1)?
@@ -95,74 +95,46 @@ fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
 }
 
 use crate::map::zone::Zone;
-use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 
-pub fn update(zone: &Zone) {
-    let mut events_buffer: Vec<(u64, Vec<PlayerEvent>)> = Vec::new();
-
-    for player_id in zone.player_ids.iter() {
-        if let Some(mut player) = PLAYER_MANAGER.get_mut(*player_id) {
-            let events = player.update();
-            if !events.is_empty() {
-                events_buffer.push((player.id, events));
-            }
-        }
+pub fn update(zone: &mut Zone) {
+    for handle in zone.players.values() {
+        handle.send_forget(crate::player::player_actor::PlayerMessage::UpdateTick);
     }
+}
 
-    for (pid, events) in events_buffer {
-        if let Some(player) = PLAYER_MANAGER.get_ref(pid) {
-            for event in events {
-                match event {
-                    PlayerEvent::RemoveShield => {
-                        EffectSkillService::send_effect_player(
-                            &player,
-                            &player,
-                            EffectAction::REMOVE,
-                            EffectSkillService::SHIELD_EFFECT,
-                        );
-                    }
-                    PlayerEvent::StopCharge => {
-                        EffectSkillService::send_effect_stop_charge(&player);
-                    }
-                    PlayerEvent::EffectBienKhiFinished => {
-                        let update_opt = {
-                            if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
-                                Some(EffectSkillService::set_is_monkey_state(&mut p_mut))
-                            } else {
-                                None
-                            }
-                        };
-                        if let Some(update) = update_opt {
-                            EffectSkillService::send_monkey_messages(&update);
-                        }
-                    }
-                    PlayerEvent::EffectMonkeyFinished => {
-                        let update_opt = {
-                            if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
-                                Some(EffectSkillService::monkey_down_state(&mut p_mut))
-                            } else {
-                                None
-                            }
-                        };
-                        if let Some(update) = update_opt {
-                            EffectSkillService::send_monkey_messages(&update);
-                        }
-                    }
-                    PlayerEvent::EffectHuytSaoExpired => {
-                        if let Some(mut p_mut) = PLAYER_MANAGER.get_mut(pid) {
-                            p_mut.n_point.huyt_sao_buff = 0;
-                            p_mut.n_point.set_base_point();
-                        }
-                        EffectSkillService::send_effect_player(
-                            &player,
-                            &player,
-                            EffectAction::REMOVE,
-                            EffectSkillService::HUYT_SAO_EFFECT,
-                        );
-                        let _ = crate::services::player_info_service::send_point_info_sync(&player);
-                    }
-                }
+pub async fn handle_player_events(player: &mut Player, events: Vec<PlayerEvent>) {
+    for event in events {
+        match event {
+            PlayerEvent::RemoveShield => {
+                EffectSkillService::send_effect_player(
+                    player,
+                    player,
+                    EffectAction::REMOVE,
+                    EffectSkillService::SHIELD_EFFECT,
+                );
+            }
+            PlayerEvent::StopCharge => {
+                EffectSkillService::send_effect_stop_charge(player);
+            }
+            PlayerEvent::EffectBienKhiFinished => {
+                let update = EffectSkillService::set_is_monkey_state(player);
+                EffectSkillService::send_monkey_messages(&update);
+            }
+            PlayerEvent::EffectMonkeyFinished => {
+                let update = EffectSkillService::monkey_down_state(player);
+                EffectSkillService::send_monkey_messages(&update);
+            }
+            PlayerEvent::EffectHuytSaoExpired => {
+                player.n_point.huyt_sao_buff = 0;
+                player.n_point.set_base_point();
+                EffectSkillService::send_effect_player(
+                    player,
+                    player,
+                    EffectAction::REMOVE,
+                    EffectSkillService::HUYT_SAO_EFFECT,
+                );
+                let _ = crate::services::player_info_service::send_point_info_sync(player);
             }
         }
     }

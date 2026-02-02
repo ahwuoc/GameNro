@@ -1,0 +1,38 @@
+use crate::player::player::Player;
+use crate::player::player_actor::message::PlayerMessage;
+use anyhow::Result;
+use tokio::sync::mpsc;
+
+#[derive(Clone)]
+pub struct PlayerHandle {
+    pub id: u64,
+    pub tx: mpsc::Sender<PlayerMessage>,
+}
+
+impl PlayerHandle {
+    pub fn new(id: u64, tx: mpsc::Sender<PlayerMessage>) -> Self {
+        Self { id, tx }
+    }
+
+    pub async fn send(&self, msg: PlayerMessage) -> Result<()> {
+        self.tx
+            .send(msg)
+            .await
+            .map_err(|_| anyhow::anyhow!("Actor terminated"))
+    }
+
+    pub async fn get_snapshot(&self) -> Option<Player> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        if self.tx.send(PlayerMessage::GetSnapshot(tx)).await.is_err() {
+            return None;
+        }
+        rx.await.ok()
+    }
+
+    pub fn send_forget(&self, msg: PlayerMessage) {
+        let tx = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = tx.send(msg).await;
+        });
+    }
+}

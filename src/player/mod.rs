@@ -1,5 +1,6 @@
 pub mod components;
 pub mod player;
+pub mod player_actor;
 pub mod player_data;
 pub mod player_manager;
 pub mod player_mapper;

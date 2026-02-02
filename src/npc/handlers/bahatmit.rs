@@ -13,9 +13,10 @@ pub struct BahatmitHandler;
 #[async_trait]
 impl NpcHandler for BahatmitHandler {
     async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        let Some(map_id) = session.get_player().await.map(|p| p.map_id) else {
+        let Some(snapshot) = session.get_player_snapshot().await else {
             return Ok(());
         };
+        let map_id = snapshot.map_id;
 
         match map_id {
             5 => {
@@ -27,14 +28,11 @@ impl NpcHandler for BahatmitHandler {
                     "võ dài sinh tử",
                 ];
                 let npc_say = "Ngươi tìm ta có việc gì?";
-                npc_service::npc_service::create_menu(
-                    session,
-                    npc_id,
-                    npc_say,
-                    menu_items,
-                    MenuId::BaseMenu,
-                )
-                .await?;
+                let is_empty = if let Some(snapshot) = session.get_player_snapshot().await {
+                    snapshot.combine_new.items_combine.is_empty()
+                } else {
+                    true
+                };
             }
             _ => {}
         }
@@ -48,7 +46,7 @@ impl NpcHandler for BahatmitHandler {
         select: i8,
     ) -> anyhow::Result<()> {
         let map_id = session
-            .get_player()
+            .get_player_snapshot()
             .await
             .map(|p| p.map_id)
             .ok_or(anyhow::anyhow!("Player not found"))?;

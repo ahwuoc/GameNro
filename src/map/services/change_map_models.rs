@@ -22,7 +22,6 @@ impl SpaceShipType {
     }
 }
 
-/// Enum defining the mechanism for changing maps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i8)]
 pub enum ChangeMapType {

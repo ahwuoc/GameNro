@@ -130,9 +130,13 @@ pub mod shop_service {
 
         let shop_type = shop_data.shop.type_shop.unwrap_or(0);
 
-        if let Some(mut pl) = session.take_player().await {
-            pl.interaction_state.set_tag_shop(tag_name.to_string());
-            session.set_player(pl, session.clone()).await;
+        if let Some(handle) = session.get_player_handle().await {
+            let tag = tag_name.to_string();
+            handle.send_forget(crate::player::player_actor::PlayerMessage::Modify(Box::new(
+                move |pl| {
+                    pl.interaction_state.set_tag_shop(tag);
+                },
+            )));
         }
 
         let mut msg = Message::new(-44);
@@ -233,11 +237,11 @@ pub mod shop_service {
 
         temp_id: i16,
     ) -> anyhow::Result<()> {
-        let tag_shop = session
-            .get_player()
-            .await
-            .map(|p| p.interaction_state.get_tag_shop().to_string())
-            .ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let tag_shop = if let Some(snapshot) = session.get_player_snapshot().await {
+            snapshot.interaction_state.get_tag_shop().to_string()
+        } else {
+            return Err(anyhow::anyhow!("Player not found"));
+        };
 
         let shop_data = ShopData::get(&tag_shop).await?;
 
@@ -248,33 +252,35 @@ pub mod shop_service {
             .find(|it| it.item.temp_id == temp_id as i32)
             .ok_or_else(|| anyhow::anyhow!("Shop item not found"))?;
 
-        if let Some(mut player) = session.take_player().await {
-            if let Some(idx_bag) = player
-                .inventory
-                .items_bag
-                .iter()
-                .position(|it: &crate::item::item::Item| it.is_null_item())
-            {
-                if let Some(mut new_item) =
-                    ItemService::create_new_item(shop_item.item.temp_id as i16)
-                {
-                    for opt in &shop_item.options {
-                        new_item.add_option_param(opt.option_id as i8, opt.param as i16);
+        if let Some(handle) = session.get_player_handle().await {
+            let session_clone = session.clone();
+            let temp_id_val = shop_item.item.temp_id;
+            let options_clone = shop_item.options.clone();
+            handle.send_forget(crate::player::player_actor::PlayerMessage::Modify(Box::new(
+                move |player| {
+                    if let Some(idx_bag) = player
+                        .inventory
+                        .items_bag
+                        .iter()
+                        .position(|it: &crate::item::item::Item| it.is_null_item())
+                    {
+                        if let Some(mut new_item) = ItemService::create_new_item(temp_id_val as i16)
+                        {
+                            for opt in options_clone {
+                                new_item.add_option_param(opt.option_id as i8, opt.param as i16);
+                            }
+
+                            player.inventory.items_bag[idx_bag] = new_item;
+
+                            if let Ok(msg) = InventoryService::create_item_bag_to_client(player) {
+                                session_clone.transmit(msg);
+                            }
+
+                            println!("mua thanh cong {}", temp_id_val);
+                        }
                     }
-
-                    player.inventory.items_bag[idx_bag] = new_item;
-
-                    // Note: inventory bag message requires &Player, but we modified player in place
-                    // So we can send it directly using the modified player object if we refactor InventoryService to take &Player
-                    // or use the static method with the modified player
-                    if let Ok(msg) = InventoryService::create_item_bag_to_client(&player) {
-                        session.transmit(msg);
-                    }
-
-                    println!("mua thanh cong {}", temp_id);
-                }
-            }
-            session.set_player(player, session.clone()).await;
+                },
+            )));
         } else {
             return Err(anyhow::anyhow!("Player not found"));
         }

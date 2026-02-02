@@ -11,13 +11,11 @@ pub struct SaoPhaLe;
 #[async_trait::async_trait]
 impl CombineHandler for SaoPhaLe {
     async fn show_info_combine(&self, session: &SessionArc) -> anyhow::Result<()> {
-        let is_empty = session
-            .get_player_ref(|player| {
-                player
-                    .map(|p| p.combine_new.items_combine.is_empty())
-                    .unwrap_or(true)
-            })
-            .await;
+        let is_empty = if let Some(snapshot) = session.get_player_snapshot().await {
+            snapshot.combine_new.items_combine.is_empty()
+        } else {
+            true
+        };
 
         if is_empty {
             return Ok(());

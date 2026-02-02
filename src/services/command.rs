@@ -25,7 +25,7 @@ impl CommandService {
         if is_admin {
             if text == "menu" {
                 let online_players = SESSION_MANAGER.get_online_count();
-                let online_sessions = online_players; // Simplified for now
+                let online_sessions = online_players;
                 let threads = System::new_all().cpus().len();
 
                 let menu_text = format!(
@@ -81,7 +81,8 @@ impl CommandService {
                             -1,
                             SpaceShipType::TeleportYardrat,
                             session,
-                        )?;
+                        )
+                        .await?;
                     }
                 }
                 return Ok(true);

@@ -165,11 +165,14 @@ impl SessionWriter {
     }
 }
 
+use crate::player::player_actor::PlayerHandle;
+
 pub struct SessionState {
     pub keys: Arc<Vec<u8>>,
     pub sent_key: bool,
     pub zoom_level: u8,
     pub player_id: Option<u64>,
+    pub player_handle: Option<PlayerHandle>,
     pub user_id: Option<i32>,
     pub version: i32,
     pub vnd: i32,
@@ -182,6 +185,7 @@ impl SessionState {
             sent_key: false,
             zoom_level: 1,
             player_id: None,
+            player_handle: None,
             user_id: None,
             version: 0,
             vnd: 0,
@@ -280,60 +284,41 @@ impl AsyncSession {
     }
 
     pub async fn set_player(&self, mut player: RtPlayer, session_arc: SessionArc) {
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        let player_id = player.id;
+        let handle = PlayerHandle::new(player_id, tx.clone());
+
+        // Setup session backlink
+        player.session = Some(session_arc.clone());
+
+        // Spawn the actor task
+        let actor = crate::player::player_actor::PlayerActor::new(player, session_arc.clone(), rx);
+        tokio::spawn(actor.run());
+
+        // Update manager with handle
+        crate::player::player_manager::PLAYER_MANAGER.add(player_id, handle.clone());
+
+        // Update session state
         let mut state = self.state.write().await;
-        state.player_id = Some(player.id);
-        player.session = Some(session_arc);
-        crate::player::player_manager::PLAYER_MANAGER.add(player);
+        state.player_id = Some(player_id);
+        state.player_handle = Some(handle);
     }
 
-    pub async fn get_player(&self) -> Option<RtPlayer> {
+    pub async fn get_player_handle(&self) -> Option<PlayerHandle> {
         let state = self.state.read().await;
-        if let Some(id) = state.player_id {
-            crate::player::player_manager::PLAYER_MANAGER.get(id)
-        } else {
-            None
-        }
+        state.player_handle.clone()
     }
 
-    pub async fn get_player_ref<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Option<&RtPlayer>) -> R,
-    {
-        let state = self.state.read().await;
-        if let Some(id) = state.player_id {
-            if let Some(player_ref) = crate::player::player_manager::PLAYER_MANAGER.get_ref(id) {
-                f(Some(&*player_ref))
-            } else {
-                f(None)
-            }
-        } else {
-            f(None)
-        }
-    }
-
-    pub async fn take_player(&self) -> Option<RtPlayer> {
-        let state = self.state.read().await;
-        if let Some(id) = state.player_id {
-            crate::player::player_manager::PLAYER_MANAGER.get(id)
-        } else {
-            None
-        }
-    }
-
-    pub async fn modify_player<F>(&self, f: F) -> anyhow::Result<()>
-    where
-        F: FnOnce(&mut RtPlayer) -> anyhow::Result<()>,
-    {
-        let state = self.state.read().await;
-        let Some(player_id) = state.player_id else {
-            return Err(anyhow::anyhow!("Player not found or locked"));
-        };
-        if let Some(mut player_ref) =
-            crate::player::player_manager::PLAYER_MANAGER.get_mut(player_id)
+    pub async fn get_player_snapshot(&self) -> Option<RtPlayer> {
+        let handle = self.get_player_handle().await?;
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        if let Ok(_) = handle
+            .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
+            .await
         {
-            f(player_ref.value_mut())
+            rx.await.ok()
         } else {
-            Err(anyhow::anyhow!("Player not found in manager"))
+            None
         }
     }
 

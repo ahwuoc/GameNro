@@ -6,17 +6,13 @@ use crate::entities::player;
 use crate::network::message::Message;
 use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::player::player::Player;
-pub async fn open_tab_combine(
+pub async fn handle_open_tab_actor(
+    player: &mut Player,
     session: &SessionArc,
     type_combine: CombineType,
     npc_id: i16,
 ) -> anyhow::Result<()> {
-    let _ = session
-        .modify_player(|player| {
-            player.combine_new.set_type_combine(type_combine);
-            Ok(())
-        })
-        .await;
+    player.combine_new.set_type_combine(type_combine);
     let text_info = get_text_info_tab_combine(type_combine);
     let text_top = get_text_top_tab_combine(type_combine);
     let mut msg = Message::new(-81);
@@ -27,37 +23,55 @@ pub async fn open_tab_combine(
     let _ = session.transmit(msg);
     Ok(())
 }
-pub async fn show_info_combine(session: &SessionArc, index: Vec<i16>) -> anyhow::Result<()> {
-    let mut type_c = CombineType::default();
-    let _ = session
-        .modify_player(|player| {
-            player.combine_new.clear_param_combine();
-            if !index.is_empty() {
-                for &i in index.iter() {
-                    if let Some(it) = player.inventory.items_bag.get(i as usize) {
-                        player.combine_new.items_combine.push(it.clone());
-                    }
-                }
+
+pub async fn handle_show_info_actor(
+    player: &mut Player,
+    session: &SessionArc,
+    index: Vec<i16>,
+) -> anyhow::Result<()> {
+    player.combine_new.clear_param_combine();
+    if !index.is_empty() {
+        for &i in index.iter() {
+            if let Some(it) = player.inventory.items_bag.get(i as usize) {
+                player.combine_new.items_combine.push(it.clone());
             }
-            type_c = player.combine_new.type_combine;
-            Ok(())
-        })
-        .await;
-
-    let type_combine = type_c;
-
+        }
+    }
+    let type_combine = player.combine_new.type_combine;
     type_combine.show_info_combine(session).await
 }
 
-pub async fn confirm_combine(session: &SessionArc) -> anyhow::Result<()> {
-    let type_combine = session
-        .get_player_ref(|player| {
-            player
-                .map(|p| p.combine_new.type_combine)
-                .unwrap_or_default()
-        })
-        .await;
+pub async fn handle_confirm_actor(player: &mut Player, session: &SessionArc) -> anyhow::Result<()> {
+    let type_combine = player.combine_new.type_combine;
     type_combine.confirm_combine(session).await
+}
+
+pub async fn open_tab_combine(
+    session: &SessionArc,
+    type_combine: CombineType,
+    npc_id: i16,
+) -> anyhow::Result<()> {
+    if let Some(handle) = session.get_player_handle().await {
+        handle.send_forget(crate::player::player_actor::PlayerMessage::CombineOpenTab {
+            type_combine,
+            npc_id,
+        });
+    }
+    Ok(())
+}
+
+pub async fn show_info_combine(session: &SessionArc, index: Vec<i16>) -> anyhow::Result<()> {
+    if let Some(handle) = session.get_player_handle().await {
+        handle.send_forget(crate::player::player_actor::PlayerMessage::CombineShowInfo { index });
+    }
+    Ok(())
+}
+
+pub async fn confirm_combine(session: &SessionArc) -> anyhow::Result<()> {
+    if let Some(handle) = session.get_player_handle().await {
+        handle.send_forget(crate::player::player_actor::PlayerMessage::CombineConfirm);
+    }
+    Ok(())
 }
 
 pub fn get_text_info_tab_combine(type_combine: CombineType) -> String {

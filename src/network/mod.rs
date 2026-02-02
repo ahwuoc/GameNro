@@ -110,18 +110,15 @@ fn handle_socket_error(e: std::io::Error) {
 async fn cleanup_session(session: SessionArc, write_task: tokio::task::JoinHandle<()>) {
     write_task.abort();
 
-    if let Some(mut player) = session.get_player().await {
-        use crate::map::ChangeMapService;
-        if let Err(e) = ChangeMapService::exit_map(&mut player) {
-            error!("Error exiting map on disconnect: {:?}", e);
-        }
-
-        if let Err(e) = crate::services::player_service::save_player(&player).await {
-            error!("Error saving player {} on disconnect: {:?}", player.name, e);
-        }
-
-        (&*SESSION_MANAGER).remove_session(player.id as i64);
-        PLAYER_MANAGER.remove(player.id);
-        info!("Player {} disconnected and session removed", player.id);
+    if let Some(handle) = session.get_player_handle().await {
+        let _ = handle
+            .send(crate::player::player_actor::PlayerMessage::Logout)
+            .await;
+        // The actor will handle saving and map exit in dispose()
+        (&*SESSION_MANAGER).remove_session(handle.id as i64);
+        info!(
+            "Player {} session removed and logout signal sent",
+            handle.id
+        );
     }
 }

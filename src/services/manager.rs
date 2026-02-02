@@ -44,24 +44,17 @@ pub async fn init() -> Result<()> {
 pub async fn init_maps_world() -> Result<()> {
     let map_templates = map_template_manager::get_all();
     for template in &map_templates {
-        let _ = map_manager::MAP_MANAGER.init_and_register_map(template);
-        let _ = map_manager::MapManager::load_tiles(template.id, template.tile_id);
+        map_manager::MAP_MANAGER
+            .init_and_register_map(template)
+            .await?;
+        map_manager::MapManager::load_tiles(template.id, template.tile_id)?;
     }
     info!("Initialized {} maps into world", map_templates.len());
     Ok(())
 }
 
 pub fn start_map_update_task() {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_millis(1000));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        loop {
-            interval.tick().await;
-            if let Err(e) = map_manager::MAP_MANAGER.update_game_loop() {
-                error!("Failed to update map: {:?}", e);
-            }
-        }
-    });
+    // No longer needed: Zones update themselves via background actors
 }
 
 #[instrument]

@@ -2,6 +2,7 @@
 use crate::entities::mob_template::Model as MobTemplate;
 use crate::models::EffectSkill;
 use crate::utils::location::Location;
+use crate::utils::time;
 
 #[derive(Debug, Clone)]
 pub struct RtMob {
@@ -77,7 +78,7 @@ impl RtMob {
     }
 
     pub fn add_temporary_enemy(&mut self, player_id: u64) {
-        if !self.temporary_enemies.contains(&player_id) {
+        if self.is_alive && !self.temporary_enemies.contains(&player_id) {
             self.temporary_enemies.push(player_id);
         }
     }
@@ -117,7 +118,7 @@ impl RtMob {
 
         self.hp = (self.hp - damage).max(0);
         if self.hp <= 0 {
-            self.is_alive = false;
+            self.die();
         }
         damage
     }
@@ -137,6 +138,14 @@ impl RtMob {
         self.location.set_position(x, y);
         self.origin_x = x;
         self.origin_y = y;
+    }
+
+    pub fn die(&mut self) {
+        self.is_alive = false;
+        self.status = 0;
+        self.temporary_enemies.clear();
+        self.last_time_die = time::current_time_millis();
+        self.effect_skill.clear();
     }
 
     pub fn get_x(&self) -> i16 {

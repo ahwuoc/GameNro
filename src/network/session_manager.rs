@@ -45,7 +45,7 @@ impl SessionManager {
                 player_id
             );
 
-            if let Some(player) = session.get_player().await {
+            if let Some(player) = session.get_player_snapshot().await {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     let _ = zone.remove_player(player.id);

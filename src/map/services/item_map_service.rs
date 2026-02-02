@@ -175,7 +175,7 @@ impl ItemMapService {
         let _ = msg.write_short(item.get_item_id());
         let _ = msg.write_short(item.x as i16);
         let _ = msg.write_short(item.y as i16);
-        let _ = msg.write_int(3); // normal item type
+        let _ = msg.write_int(item.player_id as i32);
         msg
     }
 

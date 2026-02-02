@@ -98,4 +98,8 @@ impl EffectSkill {
 
         result
     }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
 }

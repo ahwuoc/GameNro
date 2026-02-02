@@ -4,232 +4,413 @@ use crate::map::map_manager;
 use crate::map::services::mob_service;
 use crate::mob::RtMob;
 use crate::network::message::Message;
-use crate::network::session::{AsyncSession, SessionArc};
+use crate::network::session::SessionArc;
 use crate::player::player::Player;
+use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
-use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::services::player_service;
-use crate::utils::time;
 use anyhow::Result;
-use dashmap::DashMap;
-use dashmap::DashSet;
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock;
+use tokio::sync::{mpsc, oneshot};
+
+pub enum ZoneMessage {
+    AddPlayer {
+        handle: PlayerHandle,
+    },
+    RemovePlayer {
+        id: u64,
+    },
+    AddMob {
+        mob: RtMob,
+    },
+    RemoveMob {
+        id: u64,
+    },
+    AddItem {
+        item: ItemMap,
+    },
+    RemoveItem {
+        id: i32,
+        tx: oneshot::Sender<Option<ItemMap>>,
+    },
+    GetPlayer {
+        id: u64,
+        tx: oneshot::Sender<Option<PlayerHandle>>,
+    },
+    GetAllPlayers {
+        tx: oneshot::Sender<Vec<PlayerHandle>>,
+    },
+    GetAllMobs {
+        tx: oneshot::Sender<Vec<RtMob>>,
+    },
+    GetAllItems {
+        tx: oneshot::Sender<Vec<ItemMap>>,
+    },
+    GetZoneInfo {
+        tx: oneshot::Sender<ZoneInfo>,
+    },
+    MapInfo {
+        session: SessionArc,
+        player_id: u64,
+    },
+    LoadAnotherToMe {
+        player_id: u64,
+    },
+    LoadMeToAnother {
+        player_id: u64,
+    },
+    UpdateTick,
+    StartStunMob {
+        mob_id: u64,
+        time_stun: u64,
+    },
+    AttackMob {
+        player_id: u64,
+        mob_id: u64,
+        damage: i32,
+    },
+    Broadcast {
+        msg: Message,
+        except_id: Option<u64>,
+    },
+    AreaDamage {
+        attacker_id: u64,
+        x: i16,
+        y: i16,
+        range: i16,
+        damage: i64,
+        is_player: bool,
+    },
+}
+
+#[derive(Clone)]
+pub struct ZoneHandle {
+    pub map_id: i32,
+    pub zone_id: i32,
+    pub tx: mpsc::Sender<ZoneMessage>,
+}
+
+impl ZoneHandle {
+    pub async fn add_player(
+        &self,
+        handle: crate::player::player_actor::PlayerHandle,
+    ) -> Result<()> {
+        self.tx.send(ZoneMessage::AddPlayer { handle }).await?;
+        Ok(())
+    }
+
+    pub async fn remove_player(&self, id: u64) -> Result<()> {
+        self.tx.send(ZoneMessage::RemovePlayer { id }).await?;
+        Ok(())
+    }
+
+    pub async fn add_mob(&self, mob: RtMob) -> Result<()> {
+        self.tx.send(ZoneMessage::AddMob { mob }).await?;
+        Ok(())
+    }
+
+    pub async fn remove_mob(&self, id: u64) -> Result<()> {
+        self.tx.send(ZoneMessage::RemoveMob { id }).await?;
+        Ok(())
+    }
+
+    pub async fn start_stun_mob(&self, mob_id: u64, time_stun: u64) -> Result<()> {
+        self.tx
+            .send(ZoneMessage::StartStunMob { mob_id, time_stun })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_all_mobs(&self) -> Result<Vec<RtMob>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetAllMobs { tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn add_item(&self, item: ItemMap) -> Result<()> {
+        self.tx.send(ZoneMessage::AddItem { item }).await?;
+        Ok(())
+    }
+
+    pub async fn remove_item(&self, id: i32) -> Result<Option<ItemMap>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::RemoveItem { id, tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn get_item(&self, id: i32) -> Result<Option<ItemMap>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetAllItems { tx }).await?;
+        let items = rx.await?;
+        Ok(items.into_iter().find(|i| i.item_map_id == id))
+    }
+
+    pub async fn get_all_items(&self) -> Result<Vec<ItemMap>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetAllItems { tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn get_player(&self, id: u64) -> Result<Option<PlayerHandle>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetPlayer { id, tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn get_all_players(&self) -> Result<Vec<PlayerHandle>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetAllPlayers { tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn get_zone_info(&self) -> Result<ZoneInfo> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ZoneMessage::GetZoneInfo { tx }).await?;
+        Ok(rx.await?)
+    }
+
+    pub async fn map_info(&self, session: SessionArc, player_id: u64) -> Result<()> {
+        self.tx
+            .send(ZoneMessage::MapInfo { session, player_id })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn load_another_to_me(&self, player_id: u64) -> Result<()> {
+        self.tx
+            .send(ZoneMessage::LoadAnotherToMe { player_id })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn load_me_to_another(&self, player_id: u64) -> Result<()> {
+        self.tx
+            .send(ZoneMessage::LoadMeToAnother { player_id })
+            .await?;
+        Ok(())
+    }
+
+    pub fn broadcast(&self, msg: Message) {
+        let _ = self.tx.try_send(ZoneMessage::Broadcast {
+            msg,
+            except_id: None,
+        });
+    }
+
+    pub fn broadcast_except(&self, msg: Message, except_id: u64) {
+        let _ = self.tx.try_send(ZoneMessage::Broadcast {
+            msg,
+            except_id: Some(except_id),
+        });
+    }
+}
 
 pub struct Zone {
     pub map_id: i32,
     pub zone_id: i32,
     pub max_player: i32,
-
-    pub player_ids: Arc<DashSet<u64>>,
-    pub active_mobs: Arc<RwLock<Vec<RtMob>>>,
-    pub active_items: Arc<RwLock<Vec<ItemMap>>>,
+    pub players: HashMap<u64, PlayerHandle>,
+    pub active_mobs: Vec<RtMob>,
+    pub active_items: Vec<ItemMap>,
+    pub rx: mpsc::Receiver<ZoneMessage>,
 }
 
 impl Zone {
-    pub fn new(map_id: i32, zone_id: i32, max_player: i32) -> Self {
+    pub fn new(
+        map_id: i32,
+        zone_id: i32,
+        max_player: i32,
+        rx: mpsc::Receiver<ZoneMessage>,
+    ) -> Self {
         Self {
             map_id,
             zone_id,
             max_player,
-            player_ids: Arc::new(DashSet::new()),
-            active_mobs: Arc::new(RwLock::new(Vec::new())),
-            active_items: Arc::new(RwLock::new(Vec::new())),
+            players: HashMap::new(),
+            active_mobs: Vec::new(),
+            active_items: Vec::new(),
+            rx,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.player_ids.is_empty()
-    }
+    pub async fn run(mut self) {
+        tracing::info!("Zone {}-{} Actor STARTED", self.map_id, self.zone_id);
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(1000));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-    pub fn is_full(&self) -> bool {
-        self.player_ids.len() >= self.max_player as usize
-    }
-
-    pub fn get_num_players(&self) -> usize {
-        self.player_ids.len()
-    }
-
-    pub fn add_player(&self, player: Player) -> anyhow::Result<()> {
-        if self.player_ids.len() >= self.max_player as usize {
-            return Err(anyhow::anyhow!("Zone is full"));
-        }
-        let player_id = player.id;
-        PLAYER_MANAGER.add(player);
-        self.player_ids.insert(player_id);
-        Ok(())
-    }
-
-    pub fn remove_player(&self, player_id: u64) -> anyhow::Result<()> {
-        self.player_ids.remove(&player_id);
-        Ok(())
-    }
-
-    pub fn get_player(&self, player_id: u64) -> Option<Player> {
-        if self.player_ids.contains(&player_id) {
-            PLAYER_MANAGER.get(player_id)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_all_players(&self) -> Vec<Player> {
-        self.player_ids
-            .iter()
-            .filter_map(|id_ref| PLAYER_MANAGER.get(*id_ref))
-            .collect()
-    }
-
-    pub fn add_mob(&self, mob: RtMob) -> anyhow::Result<()> {
-        let mut mobs = self.active_mobs.write().unwrap();
-        mobs.push(mob);
-        Ok(())
-    }
-
-    pub fn remove_mob(&self, mob_id: u64) -> anyhow::Result<()> {
-        let mut mobs = self.active_mobs.write().unwrap();
-        mobs.retain(|mob| mob.id != mob_id);
-        Ok(())
-    }
-
-    pub fn start_stun_mob(&self, mob_id: u64, time_stun: u64) -> anyhow::Result<()> {
-        let mut mobs = self.active_mobs.write().unwrap();
-        if let Some(mob) = mobs.iter_mut().find(|m| m.id == mob_id) {
-            crate::services::effect_skill_service::EffectSkillService::start_stun_mob(
-                mob, time_stun,
-            );
-        }
-        Ok(())
-    }
-
-    pub fn get_all_mobs(&self) -> Vec<RtMob> {
-        let mobs = self.active_mobs.read().unwrap();
-        mobs.clone()
-    }
-
-    pub fn add_item(&self, item: ItemMap) -> anyhow::Result<()> {
-        let mut items = self.active_items.write().unwrap();
-        items.push(item);
-        Ok(())
-    }
-
-    pub fn remove_item(&self, item_map_id: i32) -> Option<ItemMap> {
-        let mut items = self.active_items.write().unwrap();
-        if let Some(pos) = items.iter().position(|i| i.item_map_id == item_map_id) {
-            Some(items.remove(pos))
-        } else {
-            None
-        }
-    }
-
-    pub fn get_item(&self, item_map_id: i32) -> Option<ItemMap> {
-        let items = self.active_items.read().unwrap();
-        items.iter().find(|i| i.item_map_id == item_map_id).cloned()
-    }
-
-    pub fn get_all_items(&self) -> Vec<ItemMap> {
-        let items = self.active_items.read().unwrap();
-        items.clone()
-    }
-
-    pub fn update(&self) -> anyhow::Result<()> {
-        mob_service::update(self);
-        player_service::update(self);
-
-        let mut items = self.active_items.write().unwrap();
-        items.retain_mut(|item| {
-            let result = item.update();
-            !result.should_remove
-        });
-
-        Ok(())
-    }
-
-    pub fn get_zone_info(&self) -> ZoneInfo {
-        let mobs = self.active_mobs.read().unwrap();
-        let items = self.active_items.read().unwrap();
-
-        ZoneInfo {
-            map_id: self.map_id,
-            zone_id: self.zone_id,
-            max_player: self.max_player,
-            current_players: self.player_ids.len() as i32,
-            mob_count: mobs.len() as i32,
-            item_count: items.len() as i32,
-        }
-    }
-
-    pub fn load_me_to_another(&self, player_id: u64) -> anyhow::Result<()> {
-        if !self.player_ids.contains(&player_id) {
-            return Ok(());
-        }
-
-        // Use get_ref to avoid cloning the heavy Player struct
-        let target_player_guard = PLAYER_MANAGER.get_ref(player_id);
-
-        if let Some(info_player) = target_player_guard {
-            // Iterate directly without collecting clones
-            for receiver_id in self.player_ids.iter() {
-                if *receiver_id != player_id {
-                    if let Some(receiver) = PLAYER_MANAGER.get_ref(*receiver_id) {
-                        let _ = crate::services::ServiceHandles::send_player_info(
-                            &receiver,
-                            &info_player,
-                        );
-
-                        if info_player.is_die() {
-                            let death_msg =
-                                crate::services::ServiceHandles::build_player_death_message(
-                                    &info_player,
-                                );
-                            let _ = receiver.send_to_client(death_msg);
+        loop {
+            tokio::select! {
+                Some(msg) = self.rx.recv() => {
+                    if let Err(e) = self.handle_message(msg).await {
+                        tracing::error!("Error handling message in Zone {}-{}: {:?}", self.map_id, self.zone_id, e);
+                    }
+                }
+                _ = interval.tick() => {
+                    if !self.players.is_empty() {
+                        if let Err(e) = self.update().await {
+                            tracing::error!("Error updating Zone {}-{}: {:?}", self.map_id, self.zone_id, e);
                         }
                     }
                 }
             }
         }
-        Ok(())
     }
 
-    pub fn load_another_to_me(&self, player_id: u64) -> anyhow::Result<()> {
-        let Some(receiver) = PLAYER_MANAGER.get_ref(player_id) else {
-            return Ok(());
-        };
-
-        for other_id in self.player_ids.iter() {
-            if *other_id != player_id {
-                if let Some(other) = PLAYER_MANAGER.get_ref(*other_id) {
-                    let _ = crate::services::ServiceHandles::send_player_info(&receiver, &other);
-
-                    if other.is_die() {
-                        let death_msg =
-                            crate::services::ServiceHandles::build_player_death_message(&other);
-                        let _ = receiver.send_to_client(death_msg);
+    async fn handle_message(&mut self, msg: ZoneMessage) -> Result<()> {
+        match msg {
+            ZoneMessage::AddPlayer { handle } => {
+                if self.players.len() < self.max_player as usize {
+                    let id = handle.id;
+                    self.players.insert(id, handle);
+                }
+            }
+            ZoneMessage::RemovePlayer { id } => {
+                self.players.remove(&id);
+            }
+            ZoneMessage::AddMob { mob } => {
+                self.active_mobs.push(mob);
+            }
+            ZoneMessage::RemoveMob { id } => {
+                self.active_mobs.retain(|m| m.id != id);
+            }
+            ZoneMessage::AddItem { item } => {
+                self.active_items.push(item);
+            }
+            ZoneMessage::RemoveItem { id, tx } => {
+                let pos = self.active_items.iter().position(|i| i.item_map_id == id);
+                let item = pos.map(|p| self.active_items.remove(p));
+                let _ = tx.send(item);
+            }
+            ZoneMessage::GetPlayer { id, tx } => {
+                let _ = tx.send(self.players.get(&id).cloned());
+            }
+            ZoneMessage::GetAllPlayers { tx } => {
+                let _ = tx.send(self.players.values().cloned().collect());
+            }
+            ZoneMessage::GetAllMobs { tx } => {
+                let _ = tx.send(self.active_mobs.clone());
+            }
+            ZoneMessage::GetAllItems { tx } => {
+                let _ = tx.send(self.active_items.clone());
+            }
+            ZoneMessage::GetZoneInfo { tx } => {
+                let _ = tx.send(ZoneInfo {
+                    map_id: self.map_id,
+                    zone_id: self.zone_id,
+                    max_player: self.max_player,
+                    current_players: self.players.len() as i32,
+                    mob_count: self.active_mobs.len() as i32,
+                    item_count: self.active_items.len() as i32,
+                });
+            }
+            ZoneMessage::MapInfo { session, player_id } => {
+                self.send_map_info(&session, player_id).await?;
+            }
+            ZoneMessage::LoadAnotherToMe { player_id } => {
+                self.load_another_to_me(player_id).await?;
+            }
+            ZoneMessage::LoadMeToAnother { player_id } => {
+                self.load_me_to_another(player_id).await?;
+            }
+            ZoneMessage::UpdateTick => {
+                self.update().await?;
+            }
+            ZoneMessage::StartStunMob { mob_id, time_stun } => {
+                if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
+                    crate::services::effect_skill_service::EffectSkillService::start_stun_mob(
+                        mob, time_stun,
+                    );
+                }
+            }
+            ZoneMessage::AttackMob {
+                player_id,
+                mob_id,
+                damage,
+            } => {
+                mob_service::attack_mob_actor(self, player_id, mob_id, damage).await;
+            }
+            ZoneMessage::Broadcast { msg, except_id } => {
+                for handle in self.players.values() {
+                    if let Some(eid) = except_id {
+                        if handle.id == eid {
+                            continue;
+                        }
+                    }
+                    handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
+                        msg.clone(),
+                    ));
+                }
+            }
+            ZoneMessage::AreaDamage {
+                attacker_id,
+                x,
+                y,
+                range,
+                damage,
+                is_player,
+            } => {
+                let center = crate::utils::Location { x, y };
+                // Damage mobs
+                for mob in self.active_mobs.iter_mut() {
+                    if crate::utils::MapUtils::is_position_in_range(&center, &mob.location, range) {
+                        let real_damage = mob.take_damage(damage as i32);
+                        if is_player {
+                            mob.add_temporary_enemy(attacker_id);
+                        }
+                        let msg = if mob.is_dead() {
+                            mob_service::build_mob_die_message(mob.id as i8, real_damage, false)
+                        } else {
+                            mob_service::build_mob_alive_message(
+                                mob.id as i8,
+                                mob.hp,
+                                real_damage,
+                                false,
+                            )
+                        };
+                        for handle in self.players.values() {
+                            handle.send_forget(
+                                crate::player::player_actor::PlayerMessage::SendPacket(msg.clone()),
+                            );
+                        }
                     }
                 }
+                // Damage players (if PVP is on, or specific skills)
+                // For now, let's keep it simple or implement if needed
             }
         }
         Ok(())
     }
 
-    pub fn load_player_to_zone(
-        &self,
-        mut player: Player,
-        session: &crate::network::session::SessionArc,
-    ) -> anyhow::Result<()> {
-        player.zone_id = self.zone_id;
-        player.map_id = self.map_id;
-        self.add_player(player.clone())?;
-        self.load_another_to_me(player.id)?;
-        self.load_me_to_another(player.id)?;
-        self.map_info(session, player.id)?;
+    pub async fn update(&mut self) -> anyhow::Result<()> {
+        mob_service::update_actor(self).await;
+        for handle in self.players.values() {
+            handle.send_forget(crate::player::player_actor::PlayerMessage::UpdateTick);
+        }
+
+        let mut expired_ids = Vec::new();
+        self.active_items.retain_mut(|item| {
+            let result = item.update();
+            if result.should_remove {
+                expired_ids.push(item.item_map_id);
+                false
+            } else {
+                true
+            }
+        });
+
+        for id in expired_ids {
+            let msg = crate::map::services::item_map_service::ItemMapService::build_item_disappear_message(id);
+            for handle in self.players.values() {
+                handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
+                    msg.clone(),
+                ));
+            }
+        }
         Ok(())
     }
 
-    pub fn map_info(&self, session: &SessionArc, player_id: u64) -> anyhow::Result<()> {
-        let Some(player) = PLAYER_MANAGER.get_ref(player_id) else {
-            return Ok(());
-        };
+    async fn send_map_info(&self, session: &SessionArc, player_id: u64) -> Result<()> {
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (
@@ -245,6 +426,18 @@ impl Zone {
             }
         };
 
+        let snapshot = {
+            if let Some(handle) = self.players.get(&player_id) {
+                let (tx, rx) = oneshot::channel();
+                handle
+                    .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
+                    .await?;
+                rx.await?
+            } else {
+                return Err(anyhow::anyhow!("Player not in zone"));
+            }
+        };
+
         let mut msg = Message::new(-24);
         msg.write_byte((self.map_id as u8) as i8)?;
         msg.write_byte(planet_id)?;
@@ -253,118 +446,145 @@ impl Zone {
         msg.write_byte(map_type)?;
         msg.write_utf(&map_name)?;
         msg.write_byte(self.zone_id as i8)?;
-        msg.write_short(player.location.x)?;
-        msg.write_short(player.location.y)?;
+        msg.write_short(snapshot.location.x)?;
+        msg.write_short(snapshot.location.y)?;
 
         // Waypoints
-        let wp_count: i8 = {
-            if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
-                let wps = &map.info.waypoints;
-                let count = (wps.len().min(127)) as i8;
-                msg.write_byte(count)?;
-                for wp in wps.iter().take(count as usize) {
-                    msg.write_short(wp.min_x)?;
-                    msg.write_short(wp.min_y)?;
-                    msg.write_short(wp.max_x)?;
-                    msg.write_short(wp.max_y)?;
-                    msg.write_boolean(wp.is_enter)?;
-                    msg.write_boolean(wp.is_offline)?;
-                    msg.write_utf(&wp.name)?;
-                }
-                count
-            } else {
-                let _ = msg.write_byte(0)?;
-                0
+        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
+            let wps = &map.info.waypoints;
+            let count = (wps.len().min(127)) as i8;
+            msg.write_byte(count)?;
+            for wp in wps.iter().take(count as usize) {
+                msg.write_short(wp.min_x)?;
+                msg.write_short(wp.min_y)?;
+                msg.write_short(wp.max_x)?;
+                msg.write_short(wp.max_y)?;
+                msg.write_boolean(wp.is_enter)?;
+                msg.write_boolean(wp.is_offline)?;
+                msg.write_utf(&wp.name)?;
             }
-        };
-        let _ = wp_count;
-        {
-            let mobs_guard = self.active_mobs.read().unwrap();
-            let mob_count: i8 = (mobs_guard.len().min(127)) as i8;
-            msg.write_byte(mob_count)?;
-            for mob in mobs_guard.iter().take(mob_count as usize) {
-                msg.write_boolean(false)?; // is disable
-                msg.write_boolean(false)?; // is dont move
-                msg.write_boolean(false)?; // is fire
-                msg.write_boolean(false)?; // is ice
-                msg.write_boolean(false)?; // is wind
-
-                msg.write_byte(mob.template_id as i8)?;
-                msg.write_byte(0)?;
-                msg.write_int(mob.hp)?;
-                msg.write_byte(mob.level)?;
-                msg.write_int(mob.max_hp)?;
-                msg.write_short(mob.location.x)?;
-                msg.write_short(mob.location.y)?;
-                msg.write_byte(mob.status)?;
-                msg.write_byte(mob.lv_mob)?;
-                msg.write_boolean(false)?;
-            }
+        } else {
+            msg.write_byte(0)?;
         }
-        let _ = msg.write_byte(0)?;
-        {
-            let (npcs_for_map, avatar_lookup) = {
-                let npcs = if let Some(map) =
-                    crate::map::map_manager::MAP_MANAGER.find_by_id(self.map_id)
-                {
+
+        // Mobs
+        let mob_count: i8 = (self.active_mobs.len().min(127)) as i8;
+        msg.write_byte(mob_count)?;
+        for mob in self.active_mobs.iter().take(mob_count as usize) {
+            msg.write_boolean(false)?;
+            msg.write_boolean(false)?;
+            msg.write_boolean(false)?;
+            msg.write_boolean(false)?;
+            msg.write_boolean(false)?;
+            msg.write_byte(mob.template_id as i8)?;
+            msg.write_byte(0)?;
+            msg.write_int(mob.hp)?;
+            msg.write_byte(mob.level)?;
+            msg.write_int(mob.max_hp)?;
+            msg.write_short(mob.location.x)?;
+            msg.write_short(mob.location.y)?;
+            msg.write_byte(mob.status)?;
+            msg.write_byte(mob.lv_mob)?;
+            msg.write_boolean(false)?;
+        }
+
+        msg.write_byte(0)?;
+
+        // NPCs
+        let (npcs_for_map, avatar_lookup) = {
+            let npcs =
+                if let Some(map) = crate::map::map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                     map.info.npcs.clone()
                 } else {
                     Vec::new()
                 };
-                let avatars: std::collections::HashMap<i32, i32> =
-                    crate::templates::npc_template_manager::get_all()
-                        .iter()
-                        .map(|t| (t.id, t.avatar.unwrap_or(0)))
-                        .collect();
-                (npcs, avatars)
-            };
-            let count: i8 = (npcs_for_map.len().min(127)) as i8;
-            let _ = msg.write_byte(count)?;
-            for npc in npcs_for_map.into_iter().take(count as usize) {
-                let status: i8 = 1;
-                let avatar: i16 = avatar_lookup.get(&npc.temp_id).cloned().unwrap_or(0) as i16;
-                msg.write_byte(status)?;
-                msg.write_short(npc.x)?;
-                msg.write_short(npc.y)?;
-                msg.write_byte(npc.temp_id as i8)?;
-                msg.write_short(avatar)?;
-            }
-        }
-        let _ = msg.write_byte(0)?;
-        {
-            let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
-            match std::fs::read(&bg_item_path) {
-                Ok(data) => {
-                    let _ = msg.write(&data)?;
-                }
-                Err(_) => {
-                    msg.write_short(0)?;
-                }
-            }
+            let avatars: std::collections::HashMap<i32, i32> =
+                crate::templates::npc_template_manager::get_all()
+                    .iter()
+                    .map(|t| (t.id, t.avatar.unwrap_or(0)))
+                    .collect();
+            (npcs, avatars)
+        };
+        let count: i8 = (npcs_for_map.len().min(127)) as i8;
+        msg.write_byte(count)?;
+        for npc in npcs_for_map.into_iter().take(count as usize) {
+            let status: i8 = 1;
+            let avatar: i16 = avatar_lookup.get(&npc.temp_id).cloned().unwrap_or(0) as i16;
+            msg.write_byte(status)?;
+            msg.write_short(npc.x)?;
+            msg.write_short(npc.y)?;
+            msg.write_byte(npc.temp_id as i8)?;
+            msg.write_short(avatar)?;
         }
 
-        {
-            let eff_item_path = format!("data/arc/map/eff_map/{}", self.map_id);
-            match std::fs::read(&eff_item_path) {
-                Ok(data) => {
-                    let _ = msg.write(&data)?;
-                }
-                Err(_) => {
-                    msg.write_short(0)?;
-                }
-            }
+        msg.write_byte(0)?;
+
+        // Map Graphics/Effects
+        let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
+        if let Ok(data) = std::fs::read(&bg_item_path) {
+            msg.write(&data)?;
+        } else {
+            msg.write_short(0)?;
+        }
+
+        let eff_item_path = format!("data/arc/map/eff_map/{}", self.map_id);
+        if let Ok(data) = std::fs::read(&eff_item_path) {
+            msg.write(&data)?;
+        } else {
+            msg.write_short(0)?;
         }
 
         msg.write_byte(bg_type)?;
         msg.write_byte(0)?;
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
-        let _ = session.transmit(msg);
+        session.transmit(msg);
+        Ok(())
+    }
+
+    async fn load_another_to_me(&self, player_id: u64) -> Result<()> {
+        let Some(receiver_handle) = self.players.get(&player_id) else {
+            return Ok(());
+        };
+
+        for (other_id, other_handle) in &self.players {
+            if *other_id != player_id {
+                let (tx, rx) = oneshot::channel();
+                other_handle
+                    .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
+                    .await?;
+                let other_snapshot = rx.await?;
+                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
+                    receiver_handle,
+                    &other_snapshot,
+                );
+            }
+        }
+        Ok(())
+    }
+
+    async fn load_me_to_another(&self, player_id: u64) -> Result<()> {
+        let Some(player_handle) = self.players.get(&player_id) else {
+            return Ok(());
+        };
+        let (tx, rx) = oneshot::channel();
+        player_handle
+            .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
+            .await?;
+        let snapshot = rx.await?;
+
+        for (receiver_id, receiver_handle) in &self.players {
+            if *receiver_id != player_id {
+                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
+                    receiver_handle,
+                    &snapshot,
+                );
+            }
+        }
         Ok(())
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct ZoneInfo {
     pub map_id: i32,
     pub zone_id: i32,
@@ -372,17 +592,4 @@ pub struct ZoneInfo {
     pub current_players: i32,
     pub mob_count: i32,
     pub item_count: i32,
-}
-
-impl Clone for Zone {
-    fn clone(&self) -> Self {
-        Self {
-            map_id: self.map_id,
-            zone_id: self.zone_id,
-            max_player: self.max_player,
-            player_ids: Arc::clone(&self.player_ids),
-            active_mobs: Arc::clone(&self.active_mobs),
-            active_items: Arc::clone(&self.active_items),
-        }
-    }
 }

@@ -16,11 +16,11 @@ impl MapManager {
         }
     }
 
-    pub fn init_and_register_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
+    pub async fn init_and_register_map(&self, template: &MapTemplate) -> anyhow::Result<()> {
         let map = Map::from_template(template);
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         map.init_zones(&zone_manager)?;
-        map.init_mobs()?;
+        map.init_mobs().await?;
 
         self.instances.insert(map.info.id, map);
         Ok(())
@@ -32,14 +32,6 @@ impl MapManager {
 
     pub fn get_all(&self) -> Vec<Map> {
         self.instances.iter().map(|kv| kv.value().clone()).collect()
-    }
-
-    pub fn update_game_loop(&self) -> anyhow::Result<()> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-        for zone in zone_manager.get_all_zones() {
-            zone.update()?;
-        }
-        Ok(())
     }
 
     pub fn find_maps_by_planet(&self, planet_id: i32) -> Vec<Map> {

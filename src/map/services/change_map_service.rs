@@ -10,9 +10,10 @@ use crate::{
             TASK_2_0, TASK_3_0, TASK_4_0, TASK_7_0,
         },
     },
-    map::{map_manager, services::change_map_models::*, Zone},
+    map::{map_manager, models::zone::ZoneHandle, services::change_map_models::*},
     network::message::Message,
-    player::Player,
+    player::player::Player,
+    player::player_actor::PlayerHandle,
     services::ServiceHandles,
 };
 
@@ -21,14 +22,19 @@ use crate::map::WayPoint;
 pub struct ChangeMapService;
 
 impl ChangeMapService {
-    pub fn change_map_to_zone(
+    pub async fn change_map_to_zone(
         player: &mut Player,
-        zone: &Zone,
+        zone: &ZoneHandle,
         x: i16,
         y: i16,
         space_type: SpaceShipType,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<ChangeMapResult> {
+        tracing::info!(
+            "ENTERING: change_map_to_zone (player: {}, map: {})",
+            player.name,
+            zone.map_id
+        );
         let current_map_is_cold = Self::is_cold_planet_map(player.map_id);
         let next_map_is_cold = Self::is_cold_planet_map(zone.map_id);
         if space_type == SpaceShipType::Auto {
@@ -38,14 +44,15 @@ impl ChangeMapService {
                 SpaceShipType::Default
             };
             Self::spaceship_arrive(
-                player,
+                session,
                 SpaceshipSendType::AllPlayersInMap,
                 actual_space_type,
-            )?;
+            )
+            .await?;
         }
 
         // Move player
-        Self::exit_map(player)?;
+        Self::exit_map(player).await?;
         let final_x = if x != -1 {
             x
         } else {
@@ -53,8 +60,10 @@ impl ChangeMapService {
         };
         let final_y = y;
         player.location.set_position(final_x, final_y);
-        Self::go_to_map(player, zone)?;
-        zone.map_info(session, player.id)?;
+        Self::go_to_map(player, zone, session).await?;
+        zone.map_info(session.clone(), player.id).await?;
+        zone.load_another_to_me(player.id).await?;
+        zone.load_me_to_another(player.id).await?;
 
         // Calculate environmental effects
         let cold_planet_effect = if current_map_is_cold != next_map_is_cold && !player.is_boss {
@@ -67,6 +76,11 @@ impl ChangeMapService {
             None
         };
 
+        tracing::info!(
+            "EXITING: change_map_to_zone (player: {}, map: {})",
+            player.name,
+            zone.map_id
+        );
         Ok(ChangeMapResult::Success {
             map_id: zone.map_id,
             zone_id: zone.zone_id,
@@ -102,7 +116,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    pub fn change_map_capsule(
+    pub async fn change_map_capsule(
         player: &mut Player,
         destination_index: i32,
         session: &crate::network::session::SessionArc,
@@ -132,7 +146,8 @@ impl ChangeMapService {
                     100, // Standard y
                     SpaceShipType::None,
                     session,
-                )?;
+                )
+                .await?;
 
                 Ok(CapsuleChangeResult::Success {
                     map_id: zone.map_id,
@@ -159,7 +174,7 @@ impl ChangeMapService {
         destinations
     }
 
-    fn get_previous_capsule_zone(player: &Player) -> Option<Arc<Zone>> {
+    fn get_previous_capsule_zone(player: &Player) -> Option<ZoneHandle> {
         if let Some((map_id, zone_id)) = player.get_previous_capsule_location() {
             Self::get_specific_zone(map_id, zone_id)
         } else {
@@ -190,7 +205,7 @@ impl ChangeMapService {
     }
 
     /// Opens the Zone Selection UI for the player.
-    pub fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
+    pub async fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -212,7 +227,12 @@ impl ChangeMapService {
 
         for zone in zones {
             msg.write_byte(zone.zone_id as i8)?;
-            let player_count = zone.get_num_players() as i8;
+            let (player_count, max_player) = if let Ok(info) = zone.get_zone_info().await {
+                (info.current_players as i8, info.max_player as i8)
+            } else {
+                (0, 5)
+            };
+
             let status = if player_count < 5 {
                 0
             } else if player_count < 8 {
@@ -222,7 +242,7 @@ impl ChangeMapService {
             };
             msg.write_byte(status)?;
             msg.write_byte(player_count)?;
-            msg.write_byte(zone.max_player as i8)?;
+            msg.write_byte(max_player)?;
             msg.write_byte(0)?;
         }
 
@@ -231,7 +251,7 @@ impl ChangeMapService {
     }
 
     /// Handles the request to change to a specific zone ID within the current map.
-    pub fn change_zone(
+    pub async fn change_zone(
         player: &mut Player,
         zone_id: i32,
         session: &crate::network::session::SessionArc,
@@ -259,7 +279,8 @@ impl ChangeMapService {
         }
 
         if let Some(target_zone) = Self::get_specific_zone(current_zone.map_id, zone_id) {
-            if target_zone.is_full() && !player.is_admin && !player.is_boss {
+            let info = target_zone.get_zone_info().await?;
+            if info.current_players >= info.max_player && !player.is_admin && !player.is_boss {
                 let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
                 msg.write_utf("Khu vực này đã đầy")?;
                 player.send_to_client(msg)?;
@@ -273,7 +294,8 @@ impl ChangeMapService {
                 player.location.y,
                 SpaceShipType::None,
                 session,
-            )?;
+            )
+            .await?;
             player.update_zone_change_time();
         } else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -284,8 +306,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    /// Handles map changes triggered by stepping on a waypoint.
-    pub fn change_map_waypoint_handler(
+    pub async fn change_map_waypoint_handler(
         player: &mut Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
@@ -302,10 +323,10 @@ impl ChangeMapService {
                 );
                 if let Some(zone) = Self::get_specific_zone(destination_map_id, destination_zone_id)
                 {
-                    Self::exit_map(player)?;
+                    Self::exit_map(player).await?;
                     player.location.set_position(x, y);
-                    Self::go_to_map(player, &zone)?;
-                    zone.map_info(session, player.id)?;
+                    Self::go_to_map(player, &zone, session).await?;
+                    zone.map_info(session.clone(), player.id).await?;
                 } else {
                     Self::reset_player_position(player, 2000);
                     let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -341,7 +362,7 @@ impl ChangeMapService {
     }
 
     /// Handles the "Go Home" command (-15).
-    pub fn go_home_handler(
+    pub async fn go_home_handler(
         player: &mut Player,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
@@ -354,7 +375,8 @@ impl ChangeMapService {
                 space_type,
             } => {
                 if let Some(target_zone) = Self::get_specific_zone(home_map_id, zone_id) {
-                    Self::change_map_to_zone(player, &target_zone, x, y, space_type, session)?;
+                    Self::change_map_to_zone(player, &target_zone, -1, -1, space_type, session)
+                        .await?;
                 }
             }
             GoHomeResult::NoAvailableZone => {
@@ -372,7 +394,7 @@ impl ChangeMapService {
         Ok(())
     }
 
-    fn get_zones_for_map(map_id: i32) -> Vec<Arc<Zone>> {
+    fn get_zones_for_map(map_id: i32) -> Vec<ZoneHandle> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_all_zones();
         }
@@ -427,15 +449,13 @@ impl ChangeMapService {
         None
     }
 
-    /// Finds the best available zone in a map (e.g. least populated).
-    pub fn get_available_zone(map_id: i32) -> Option<Arc<Zone>> {
+    pub fn get_available_zone(map_id: i32) -> Option<ZoneHandle> {
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(map_id) {
             return map.get_best_zone();
         }
         None
     }
 
-    /// Verifies if the player meets the task requirements for a map.
     pub fn check_task_requirement(player: &Player, map_id: i32) -> bool {
         if player.is_admin {
             return true;
@@ -453,7 +473,6 @@ impl ChangeMapService {
         Self::get_required_task_id_for_map(map_id)
     }
 
-    /// Returns the required Task ID for a given Map ID.
     pub fn get_required_task_id_for_map(map_id: i32) -> i32 {
         match map_id {
             1 | 8 | 15 => TASK_1_0,
@@ -485,32 +504,67 @@ impl ChangeMapService {
         player.location.set_position(x, player.location.y);
     }
 
-    pub fn exit_map(player: &mut Player) -> anyhow::Result<()> {
+    pub async fn exit_map(player: &mut Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            tracing::info!(
+                "ENTERING: exit_map (player: {}, current_map: {})",
+                player.name,
+                player.map_id
+            );
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
             ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
-            zone.remove_player(player.id)?;
+            zone.remove_player(player.id).await?;
+            tracing::info!("EXITING: exit_map (player: {})", player.name);
         }
         player.zone_id = 0;
         Ok(())
     }
 
-    pub fn go_to_map(player: &mut Player, zone: &Zone) -> anyhow::Result<()> {
-        player.zone_id = zone.zone_id;
-        player.map_id = zone.map_id;
-
-        zone.add_player(player.clone())?;
-        Self::finish_load_map(player)?;
+    pub async fn exit_map_actor(player: &mut Player) -> anyhow::Result<()> {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            let mut msg = Message::new(cmd::PLAYER_LEAVE);
+            msg.write_int(player.id as i32)?;
+            let _ = ServiceHandles::send_mess_another_not_me_in_map(player, msg);
+            zone.remove_player(player.id).await?;
+        }
+        player.zone_id = 0;
         Ok(())
     }
 
-    pub fn finish_load_map(player: &Player) -> anyhow::Result<()> {
+    pub async fn go_to_map(
+        player: &mut Player,
+        zone: &ZoneHandle,
+        session: &crate::network::session::SessionArc,
+    ) -> anyhow::Result<()> {
+        tracing::info!(
+            "ENTERING: go_to_map (player: {}, target_map: {})",
+            player.name,
+            zone.map_id
+        );
+        player.zone_id = zone.zone_id;
+        player.map_id = zone.map_id;
+
+        if let Some(handle) = crate::player::player_manager::PLAYER_MANAGER.get(player.id) {
+            zone.add_player(handle).await?;
+        } else {
+            anyhow::bail!("PlayerHandle not found for player: {}", player.id);
+        }
+        Self::finish_load_map(player, session).await?;
+        tracing::info!("EXITING: go_to_map (player: {})", player.name);
+        Ok(())
+    }
+
+    pub async fn finish_load_map(
+        player: &Player,
+        session: &crate::network::session::SessionArc,
+    ) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-            zone.load_another_to_me(player.id)?;
-            zone.load_me_to_another(player.id)?;
+            zone.load_another_to_me(player.id).await?;
+            zone.load_me_to_another(player.id).await?;
         }
         Self::send_effect_map_to_me(player)?;
         Self::send_effect_me_to_map(player)?;
@@ -641,31 +695,55 @@ impl ChangeMapService {
     }
 
     /// Sends spaceship arrival effect to players.
-    pub fn spaceship_arrive(
-        player: &Player,
+    pub async fn spaceship_arrive(
+        session: &crate::network::session::SessionArc,
         send_type: SpaceshipSendType,
         space_type: SpaceShipType,
     ) -> anyhow::Result<()> {
+        let player_id = {
+            let state = session.state.read().await;
+            state
+                .player_id
+                .ok_or_else(|| anyhow::anyhow!("No player ID"))?
+        };
         let mut msg = Message::new(cmd::SPACESHIP_ARRIVE);
-        msg.write_int(player.id as i32)?;
+        msg.write_int(player_id as i32)?;
         msg.write_byte(space_type as i8)?;
 
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let response = msg.clone();
+
         match send_type {
             SpaceshipSendType::AllPlayersInMap => {
-                ServiceHandles::send_mess_all_player_in_map(player, msg)?;
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    let map_id = snapshot.map_id;
+                    let zone_id = snapshot.zone_id;
+
+                    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                    if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
+                        zone.broadcast(response);
+                    }
+                }
             }
             SpaceshipSendType::SelfOnly => {
-                player.send_to_client(msg)?;
+                session.transmit(msg);
             }
             SpaceshipSendType::OthersInMap => {
-                ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    let map_id = snapshot.map_id;
+                    let zone_id = snapshot.zone_id;
+                    let player_id = snapshot.id;
+
+                    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                    if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
+                        zone.broadcast_except(response, player_id);
+                    }
+                }
             }
         }
         Ok(())
     }
 
-    fn get_specific_zone(map_id: i32, zone_id: i32) -> Option<Arc<Zone>> {
+    fn get_specific_zone(map_id: i32, zone_id: i32) -> Option<ZoneHandle> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         zone_manager.get_zone(map_id, zone_id)
     }
@@ -680,8 +758,7 @@ impl ChangeMapService {
         (100 + (seed % usable)) as i16
     }
 
-    /// Validates if a player can join a specific zone (map lock, task requirements, gender).
-    pub fn check_map_can_join(player: &Player, zone: &Zone) -> MapAccessResult {
+    pub fn check_map_can_join(player: &Player, zone: &ZoneHandle) -> MapAccessResult {
         if zone.map_id == -1 {
             return MapAccessResult::InvalidZone;
         }

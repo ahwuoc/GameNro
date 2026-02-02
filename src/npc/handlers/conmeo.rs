@@ -29,7 +29,7 @@ impl NpcHandler for ConMeoHandler {
             },
             MenuId::Intrinsic => match select {
                 0 => {
-                    let player_opt = session.get_player().await;
+                    let player_opt = session.get_player_snapshot().await;
                     if let Some(player) = player_opt {
                         IntrinsicService::show_all_intrinsic(&player).await?;
                     }

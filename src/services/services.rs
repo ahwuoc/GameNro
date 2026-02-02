@@ -18,8 +18,16 @@ impl ServiceHandles {
         msg.write_long(player.inventory.get_gold())?;
         msg.write_int(player.inventory.get_gem())?;
         msg.write_int(player.inventory.get_ruby())?;
-        player.send_to_client(msg)?;
+        let _ = player.send_to_client(msg);
         Ok(())
+    }
+
+    pub fn send_gold_gem_ruby_to_client_actor(player: &Player) -> Result<Message> {
+        let mut msg = Message::new(6);
+        msg.write_long(player.inventory.get_gold())?;
+        msg.write_int(player.inventory.get_gem())?;
+        msg.write_int(player.inventory.get_ruby())?;
+        Ok(msg)
     }
 
     pub fn send_message_eat_dauthan(pl: &Player) -> Result<()> {
@@ -58,18 +66,13 @@ impl ServiceHandles {
         session.transmit(response);
         Ok(())
     }
-    pub async fn chat(session: &SessionArc, text: &str) -> Result<()> {
-        let (player_id, map_id, zone_id) = session
-            .get_player_ref(|player| {
-                if let Some(player) = player {
-                    Some((player.id, player.map_id, player.zone_id))
-                } else {
-                    None
-                }
-            })
-            .await
-            .unwrap_or_else(|| (0, 0, 0));
-
+    pub async fn chat(
+        session: &SessionArc,
+        player_id: u64,
+        map_id: i32,
+        zone_id: i32,
+        text: &str,
+    ) -> Result<()> {
         if player_id == 0 {
             return Ok(());
         }
@@ -80,15 +83,7 @@ impl ServiceHandles {
         session.transmit(response.clone());
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
-            for pid in zone.player_ids.iter() {
-                if *pid != player_id {
-                    if let Some(target) =
-                        crate::player::player_manager::PLAYER_MANAGER.get_ref(*pid)
-                    {
-                        let _ = target.send_to_client(response.clone());
-                    }
-                }
-            }
+            zone.broadcast_except(response, player_id);
         }
         Ok(())
     }
@@ -108,38 +103,20 @@ impl ServiceHandles {
         Ok(())
     }
 
-    pub fn send_to_all_in_zone(zone: &crate::map::models::zone::Zone, msg: Message) -> Result<()> {
-        debug!(
-            "Broadcasting to all in zone {} map {}",
-            zone.zone_id, zone.map_id
-        );
-        for player_id in zone.player_ids.iter() {
-            if let Some(player) = crate::player::player_manager::PLAYER_MANAGER.get_ref(*player_id)
-            {
-                let _ = player.send_to_client(msg.clone());
-            }
-        }
+    pub fn send_to_all_in_zone(
+        zone: &crate::map::models::zone::ZoneHandle,
+        msg: Message,
+    ) -> Result<()> {
+        zone.broadcast(msg);
         Ok(())
     }
 
     pub fn send_to_other_in_zone(
-        zone: &crate::map::models::zone::Zone,
+        zone: &crate::map::models::zone::ZoneHandle,
         msg: Message,
         except_id: u64,
     ) -> Result<()> {
-        debug!(
-            "Broadcasting to others in zone {} map {} (Potentially unsafe if holding lock)",
-            zone.zone_id, zone.map_id
-        );
-        for player_id in zone.player_ids.iter() {
-            if *player_id != except_id {
-                if let Some(player) =
-                    crate::player::player_manager::PLAYER_MANAGER.get_ref(*player_id)
-                {
-                    let _ = player.send_to_client(msg.clone());
-                }
-            }
-        }
+        zone.broadcast_except(msg, except_id);
         Ok(())
     }
     pub fn send_speed_to_client(pl: &Player, speed_modify: i8) -> Result<()> {
@@ -170,7 +147,86 @@ impl ServiceHandles {
         let mut msg = Message::new(-106);
         msg.write_short(item_id)?;
         msg.write_short(time)?;
-        player.send_to_client(msg)?;
+        let _ = player.send_to_client(msg);
+        Ok(())
+    }
+
+    pub fn send_player_info_to_handle(
+        handle: &crate::player::player_actor::PlayerHandle,
+        target_snapshot: &Player,
+    ) -> Result<()> {
+        let mut msg = Message::new(-5);
+        let id = target_snapshot.id as i32;
+        let clan_id = -1;
+        let level = 10;
+        let is_invis = false;
+        let type_pk = target_snapshot.type_pk;
+        let gender = target_snapshot.gender;
+        let class = target_snapshot.gender;
+        let head = target_snapshot.get_head();
+        let name = target_snapshot.get_name();
+        let hp = target_snapshot.n_point.hp_current;
+        let max_hp = target_snapshot.n_point.hp_max;
+        let body = target_snapshot.get_body();
+        let leg = target_snapshot.get_leg();
+        let bag = 0;
+        let unknown_byte = -1;
+        let x = target_snapshot.location.x;
+        let y = target_snapshot.location.y;
+        let eff_buff_1 = 0;
+        let eff_buff_2 = 0;
+        let eff_buff_3 = 0;
+        let spaceship_id = 0;
+        let is_monkey = 0;
+        let mount_id = 0;
+        let c_flag = 0;
+        let none = 0;
+
+        let _ = msg.write_int(id);
+        let _ = msg.write_int(clan_id);
+        let _ = msg.write_byte(level);
+        let _ = msg.write_bool(is_invis);
+        let _ = msg.write_byte(type_pk);
+        let _ = msg.write_byte(gender);
+        let _ = msg.write_byte(class);
+        let _ = msg.write_short(head);
+        let _ = msg.write_utf(name);
+        let _ = msg.write_int(hp);
+        let _ = msg.write_int(max_hp);
+        let _ = msg.write_short(body);
+        let _ = msg.write_short(leg);
+        let _ = msg.write_byte(bag);
+        let _ = msg.write_byte(unknown_byte);
+        let _ = msg.write_short(x);
+        let _ = msg.write_short(y);
+        let _ = msg.write_short(eff_buff_1);
+        let _ = msg.write_short(eff_buff_2);
+        let _ = msg.write_byte(eff_buff_3);
+        let _ = msg.write_byte(spaceship_id);
+        let _ = msg.write_byte(is_monkey);
+        let _ = msg.write_short(mount_id);
+        let _ = msg.write_byte(c_flag);
+        let _ = msg.write_byte(none);
+
+        if target_snapshot.is_pl() {
+            let id_aura = 0;
+            let aura = 0;
+            let eff_front = 0;
+
+            let _ = msg.write_short(id_aura);
+            let _ = msg.write_short(aura);
+            let _ = msg.write_byte(eff_front);
+        }
+
+        handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(msg));
+
+        if target_snapshot.is_die() {
+            let death_msg = Self::build_player_death_message(target_snapshot);
+            handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
+                death_msg,
+            ));
+        }
+
         Ok(())
     }
 
@@ -296,6 +352,14 @@ impl ServiceHandles {
         msg.write_bool(is_die)?; // is die
         msg.write_bool(is_crit)?; // is crit
         Self::send_mess_all_player_in_map(player, msg)?;
+        Ok(())
+    }
+
+    pub fn send_mess_another_not_me_in_map_handle(player: &Player, msg: Message) -> Result<()> {
+        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            zone.broadcast_except(msg, player.id);
+        }
         Ok(())
     }
 }

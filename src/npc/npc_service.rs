@@ -41,19 +41,16 @@ pub mod npc_service {
         Ok(())
     }
     pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
-        let (map_id, player_loc) = session
-            .get_player_ref(|player| {
-                if let Some(player) = player {
-                    Some((player.map_id, player.location.clone()))
-                } else {
-                    None
-                }
-            })
-            .await
-            .unwrap_or((0, crate::utils::Location::new()));
+        let (map_id, player_loc) = if let Some(snapshot) = session.get_player_snapshot().await {
+            (snapshot.map_id, snapshot.location.clone())
+        } else {
+            (0, crate::utils::Location::new())
+        };
 
         if map_id == 0 {
-            if session.get_player_ref(|p| p.is_none()).await {
+            // If snapshot is not available (map_id 0), check if player exists at all
+            let snapshot: Option<crate::player::Player> = session.get_player_snapshot().await;
+            if snapshot.is_none() {
                 return false;
             }
         }
@@ -87,7 +84,7 @@ pub mod npc_service {
     }
 
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        if session.get_player_ref(|p| p.is_none()).await {
+        if session.get_player_handle().await.is_none() {
             return Ok(());
         }
         if !can_open_npc(session, npc_id).await {
@@ -123,9 +120,11 @@ pub mod npc_service {
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
-        let state = session
-            .get_player_ref(|player| player.map(|p| p.interaction_state.get_index_menu()))
-            .await;
+        let state = if let Some(snapshot) = session.get_player_snapshot().await {
+            Some(snapshot.interaction_state.get_index_menu())
+        } else {
+            None
+        };
 
         let state = match state {
             Some(s) => s,
@@ -152,11 +151,15 @@ pub mod npc_service {
         menu_options: Vec<&str>,
         state: MenuId,
     ) -> anyhow::Result<()> {
-        let Some(mut player) = session.take_player().await else {
-            return Ok(());
-        };
-        create_menu_player(&mut player, npc_id, npc_say, menu_options, state)?;
-        session.set_player(player, session.clone()).await;
+        if let Some(handle) = session.get_player_handle().await {
+            let options: Vec<String> = menu_options.iter().map(|&s| s.to_string()).collect();
+            handle.send_forget(crate::player::player_actor::PlayerMessage::CreateMenu {
+                npc_id,
+                npc_say: npc_say.to_string(),
+                menu_options: options,
+                state,
+            });
+        }
         Ok(())
     }
 

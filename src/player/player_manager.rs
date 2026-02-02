@@ -1,11 +1,12 @@
 use crate::player::player::Player;
+use crate::player::player_actor::PlayerHandle;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
 pub static PLAYER_MANAGER: Lazy<PlayerManager> = Lazy::new(|| PlayerManager::new());
 
 pub struct PlayerManager {
-    players: DashMap<u64, Player>,
+    players: DashMap<u64, PlayerHandle>,
 }
 
 impl PlayerManager {
@@ -15,28 +16,24 @@ impl PlayerManager {
         }
     }
 
-    pub fn add(&self, player: Player) {
-        self.players.insert(player.id, player);
+    pub fn add(&self, id: u64, handle: PlayerHandle) {
+        self.players.insert(id, handle);
     }
 
     pub fn remove(&self, id: u64) {
         self.players.remove(&id);
     }
 
-    pub fn get(&self, id: u64) -> Option<Player> {
-        self.players.get(&id).map(|p| p.clone())
+    pub fn get(&self, id: u64) -> Option<PlayerHandle> {
+        self.players.get(&id).map(|p| p.value().clone())
     }
 
-    pub fn get_ref(&self, id: u64) -> Option<dashmap::mapref::one::Ref<'_, u64, Player>> {
+    pub fn get_ref(&self, id: u64) -> Option<dashmap::mapref::one::Ref<'_, u64, PlayerHandle>> {
         self.players.get(&id)
     }
 
-    pub fn get_mut(&self, id: u64) -> Option<dashmap::mapref::one::RefMut<'_, u64, Player>> {
-        self.players.get_mut(&id)
-    }
-
-    pub fn update(&self, player: Player) {
-        self.players.insert(player.id, player);
+    pub fn update(&self, id: u64, handle: PlayerHandle) {
+        self.players.insert(id, handle);
     }
 
     pub fn contains(&self, id: u64) -> bool {
@@ -47,7 +44,7 @@ impl PlayerManager {
         self.players.len()
     }
 
-    pub fn iter_mut(&self) -> dashmap::iter::IterMut<'_, u64, Player> {
-        self.players.iter_mut()
+    pub fn iter(&self) -> dashmap::iter::Iter<'_, u64, PlayerHandle> {
+        self.players.iter()
     }
 }
