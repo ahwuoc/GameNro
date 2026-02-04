@@ -21,13 +21,53 @@ pub async fn init() -> Result<()> {
     let pool = DbManager::get_pool();
 
     item_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} item templates",
+        item_template_manager::get_all().len()
+    );
+
     map_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} map templates",
+        map_template_manager::get_all().len()
+    );
+
     option_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} item option templates",
+        option_template_manager::get_all().len()
+    );
+
     head_avatar_manager::load(&pool).await?;
+    info!(
+        "Loaded {} head avatar templates",
+        head_avatar_manager::get_all().len()
+    );
+
     mob_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} mob templates",
+        mob_template_manager::get_all().len()
+    );
+
     skill_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} skill templates",
+        skill_template_manager::get_all().len()
+    );
+
     npc_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} npc templates",
+        npc_template_manager::get_all().len()
+    );
+
     intrinsic_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} intrinsic templates",
+        intrinsic_template_manager::get_all().len()
+    );
+
     task_template_manager::TASK_TEMPLATE_MANAGER
         .init(&pool)
         .await?;
@@ -51,10 +91,6 @@ pub async fn init_maps_world() -> Result<()> {
     }
     info!("Initialized {} maps into world", map_templates.len());
     Ok(())
-}
-
-pub fn start_map_update_task() {
-    // No longer needed: Zones update themselves via background actors
 }
 
 #[instrument]

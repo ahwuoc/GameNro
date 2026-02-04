@@ -195,6 +195,24 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     }
 
     p.n_point.cal_point();
+
+    // Parse pet data
+    match parse_pet_data(&model.pet) {
+        Ok(pet_data) => {
+            if let Some(ref data) = pet_data {
+                println!(
+                    "[PLAYER_DAO] Pet {} items_body: {:?}",
+                    data.name, data.items_body
+                );
+            }
+            p.pet_data = pet_data;
+            p.is_pet = true;
+        }
+        Err(e) => {
+            println!("[PLAYER_DAO] Failed to parse pet data: {}", e);
+        }
+    }
+
     Ok(p)
 }
 
@@ -258,6 +276,12 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
     let skills_shortcut_str = serde_json::to_string(&p.player_skill.skill_shortcut.to_vec())
         .unwrap_or_else(|_| "[]".to_string());
 
+    let pet_str = p
+        .pet_data
+        .as_ref()
+        .map(|d| serde_json::to_string(d).unwrap_or_else(|_| "{}".to_string()))
+        .unwrap_or_else(|| "{}".to_string());
+
     player::ActiveModel {
         id: Set(p.id as i32),
         name: Set(p.name.clone()),
@@ -271,6 +295,46 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         items_box: Set(items_box),
         skills: Set(skills_str),
         skills_shortcut: Set(skills_shortcut_str),
+        pet: Set(pet_str),
         ..Default::default()
+    }
+}
+
+pub fn player_to_pet_data(p: &Player) -> PetData {
+    PetData {
+        name: p.name.clone(),
+        gender: p.gender,
+        head: p.head,
+        status: 0,
+        type_pet: 0,
+        n_point: PointData {
+            limit_power: p.n_point.limit_power,
+            power: p.n_point.power,
+            tiem_nang: p.n_point.tiem_nang,
+            stamina: p.n_point.stamina,
+            max_stamina: p.n_point.max_stamina,
+            hp_goc: p.n_point.hp_base,
+            mp_goc: p.n_point.mp_base,
+            damege_goc: p.n_point.dame_base,
+            defen_goc: p.n_point.def_base,
+            crit_goc: p.n_point.crit_base,
+            crit_max: 0,
+            nang_dong: 0,
+            pl_hp: p.n_point.hp_current,
+            pl_mp: p.n_point.mp_current,
+        },
+        items_body: map_items_to_json(&p.inventory.items_body),
+        skills: p
+            .player_skill
+            .skills
+            .iter()
+            .map(|s| SkillData {
+                template_id: s.template_id,
+                skill_id: s.skill_id,
+                point: s.point as i32,
+                last_time_use: s.start_time_use,
+                curr_level: s.curr_level,
+            })
+            .collect(),
     }
 }

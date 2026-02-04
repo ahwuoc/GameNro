@@ -6,6 +6,8 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use tracing::{error, info, warn};
+
 pub struct SessionManager {
     sessions: DashMap<i64, SessionArc>,
 }
@@ -20,10 +22,7 @@ impl SessionManager {
     pub fn add_session(&self, player_id: i64, session: SessionArc) -> bool {
         let inserted = self.sessions.insert(player_id, session);
         if inserted.is_some() {
-            println!(
-                "[SESSION_MANAGER] Replaced session for player {}",
-                player_id
-            );
+            info!("Replaced session for player {}", player_id);
         }
         true
     }
@@ -31,7 +30,7 @@ impl SessionManager {
     pub fn remove_session(&self, player_id: i64) -> bool {
         let removed = self.sessions.remove(&player_id).is_some();
         if removed {
-            println!("[SESSION_MANAGER] Removed session for player {}", player_id);
+            info!("Removed session for player {}", player_id);
         }
         removed
     }
@@ -40,17 +39,14 @@ impl SessionManager {
         let session_arc = self.sessions.remove(&player_id).map(|(_, v)| v);
 
         if let Some(session) = session_arc {
-            println!(
-                "[SESSION_MANAGER] Kicking player {} and waiting...",
-                player_id
-            );
+            info!("Kicking player {} and waiting...", player_id);
 
             if let Some(player) = session.get_player_snapshot().await {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     let _ = zone.remove_player(player.id);
-                    println!(
-                        "[SESSION_MANAGER] Removed player {} from zone {} map {}",
+                    info!(
+                        "Removed player {} from zone {} map {}",
                         player.name, zone.zone_id, zone.map_id
                     );
                 }
@@ -58,7 +54,7 @@ impl SessionManager {
 
             let mut response = Message::new(cmd::cmd::SEND_ALTER_MESSAGE);
             if let Err(e) = response.write_utf(reason) {
-                println!("[SESSION_MANAGER] Failed to write kick message: {:?}", e);
+                error!("Failed to write kick message: {:?}", e);
                 return true;
             }
 
@@ -69,17 +65,11 @@ impl SessionManager {
             .await;
 
             match kick_result {
-                Ok(Ok(_)) => println!(
-                    "[SESSION_MANAGER] Kicked player {} (connection closed)",
-                    player_id
-                ),
+                Ok(Ok(_)) => info!("Kicked player {} (connection closed)", player_id),
                 Ok(Err(e)) => {
-                    println!("[SESSION_MANAGER] Failed to kick {}: {:?}", player_id, e)
+                    error!("Failed to kick {}: {:?}", player_id, e)
                 }
-                Err(_) => println!(
-                    "[SESSION_MANAGER] Kick timeout for player {} after 3s",
-                    player_id
-                ),
+                Err(_) => warn!("Kick timeout for player {} after 3s", player_id),
             }
 
             true

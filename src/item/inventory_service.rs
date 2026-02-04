@@ -240,6 +240,7 @@ impl InventoryService {
         }
 
         pl.inventory.items_body[index_body] = item;
+        pl.stats_need_update = true;
         Self::send_item_body_to_client(pl)?;
         Ok(())
     }

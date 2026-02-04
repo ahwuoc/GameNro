@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 // Skill Data
 // ============================================
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillData {
     pub template_id: i32,
@@ -22,7 +22,7 @@ pub struct SkillData {
 // Intrinsic Data
 // ============================================
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct IntrinsicData {
     #[serde(default)]
     pub intrinsic_id: i32,
@@ -38,7 +38,7 @@ pub struct IntrinsicData {
 // Point Data (Player Stats)
 // ============================================
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct PointData {
     #[serde(default, rename = "limitPower")]
     pub limit_power: i8,
@@ -74,7 +74,7 @@ pub struct PointData {
 // Inventory Data
 // ============================================
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct InventoryData {
     #[serde(default)]
     pub gold: i64,
@@ -88,13 +88,13 @@ pub struct InventoryData {
 // Item Data (for JSON serialization)
 // ============================================
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ItemOptionJson {
     pub id: i32,
     pub value: i32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ItemDataJson {
     pub id: i32,
     #[serde(default)]
@@ -114,4 +114,19 @@ pub struct ItemDataParsed {
     pub quantity: i32,
     pub options: Vec<(i8, i16)>,
     pub created: i64,
+}
+// ============================================
+// Pet Data
+// ============================================
+
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct PetData {
+    pub name: String,
+    pub gender: i8,
+    pub head: i16,
+    pub status: i8,
+    pub type_pet: i8,
+    pub n_point: PointData,
+    pub items_body: Vec<ItemDataJson>,
+    pub skills: Vec<SkillData>,
 }

@@ -39,10 +39,18 @@ impl TaskTemplateManager {
 
         {
             let mut main_lock = self.main_tasks.write().unwrap();
+            let main_count = main_map.len();
             *main_lock = main_map;
 
             let mut sub_lock = self.sub_tasks.write().unwrap();
+            let sub_count = sub_map.values().map(|v| v.len()).sum::<usize>();
             *sub_lock = sub_map;
+
+            tracing::info!(
+                "Loaded {} main tasks and {} sub tasks",
+                main_count,
+                sub_count
+            );
         }
 
         Ok(())

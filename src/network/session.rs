@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use super::message::Message;
+use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player as RtPlayer;
 use std::io;
 use std::sync::Arc;
@@ -7,6 +8,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpStream};
 use tokio::sync::{mpsc, Mutex, RwLock};
 
+#[derive(Debug)]
 pub struct SessionReader {
     read_half: OwnedReadHalf,
     keys: Arc<Vec<u8>>,
@@ -70,6 +72,7 @@ impl SessionReader {
     }
 }
 
+#[derive(Debug)]
 pub struct SessionWriter {
     write_half: OwnedWriteHalf,
     keys: Arc<Vec<u8>>,
@@ -165,8 +168,9 @@ impl SessionWriter {
     }
 }
 
-use crate::player::player_actor::PlayerHandle;
+use crate::player::player_actor::{PlayerActor, PlayerHandle};
 
+#[derive(Debug)]
 pub struct SessionState {
     pub keys: Arc<Vec<u8>>,
     pub sent_key: bool,
@@ -192,6 +196,7 @@ impl SessionState {
         }
     }
 }
+#[derive(Debug)]
 pub struct AsyncSession {
     pub reader: Arc<Mutex<SessionReader>>,
     pub writer: Arc<Mutex<SessionWriter>>,
@@ -286,19 +291,22 @@ impl AsyncSession {
     pub async fn set_player(&self, mut player: RtPlayer, session_arc: SessionArc) {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         let player_id = player.id;
-        let handle = PlayerHandle::new(player_id, tx.clone());
-
-        // Setup session backlink
+        let handle = PlayerHandle::new(player_id, false, tx.clone());
         player.session = Some(session_arc.clone());
 
-        // Spawn the actor task
-        let actor = crate::player::player_actor::PlayerActor::new(player, session_arc.clone(), rx);
+        let pet_handle = if let Some(pet_data) = player.pet_data.take() {
+            crate::player::player_actor::pet::PetService::load_pet(&mut player, pet_data)
+                .await
+                .ok()
+        } else {
+            None
+        };
+
+        let mut actor = PlayerActor::new(player, session_arc.clone(), rx);
+        actor.pet_handle = pet_handle;
+
         tokio::spawn(actor.run());
-
-        // Update manager with handle
-        crate::player::player_manager::PLAYER_MANAGER.add(player_id, handle.clone());
-
-        // Update session state
+        PLAYER_MANAGER.add(player_id, handle.clone());
         let mut state = self.state.write().await;
         state.player_id = Some(player_id);
         state.player_handle = Some(handle);

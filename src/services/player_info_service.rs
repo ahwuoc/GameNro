@@ -1,3 +1,5 @@
+use sqlx::any;
+
 use crate::data::DataGame;
 use crate::entities::prelude::ItemShop;
 use crate::item::Item;
@@ -5,6 +7,8 @@ use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::Zone;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
+use crate::player::player_actor::pet::Pet;
+use crate::player::player_actor::PlayerActor;
 use crate::player::Player as RtPlayer;
 use crate::services::{IntrinsicService, ServiceHandles};
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
@@ -201,7 +205,7 @@ pub fn send_current_stamina(player: &RtPlayer) -> anyhow::Result<()> {
 pub fn send_pet_info(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending pet info");
     let mut msg = Message::new(-107);
-    msg.write_byte(0)?;
+    msg.write_byte(player.is_pet as i8)?;
     player.send_to_client(msg)?;
     Ok(())
 }
@@ -385,4 +389,71 @@ pub fn send_info_hp_mp_money(player: &RtPlayer) -> anyhow::Result<()> {
     send_hp(player)?;
     send_mp(player)?;
     Ok(())
+}
+
+pub fn send_info_pet(master: &RtPlayer, pet: &Pet) -> anyhow::Result<()> {
+    let mut msg = Message::new(-107);
+    msg.write_byte(2)?;
+    msg.write_short(get_pet_avatar(pet))?;
+
+    write_inventory(&mut msg, &pet.player.inventory.items_body, 73)?;
+
+    // 3. Chỉ số chi tiết
+    msg.write_int(pet.player.n_point.hp_current)?;
+    msg.write_int(pet.player.n_point.hp_max)?;
+    msg.write_int(pet.player.n_point.mp_current)?;
+    msg.write_int(pet.player.n_point.mp_max)?;
+    msg.write_int(pet.player.n_point.dame)?;
+    msg.write_utf(&pet.player.name)?;
+    msg.write_utf("Đệ tử")?; // Có thể cải tiến lấy cấp bậc sau
+    msg.write_long(pet.player.n_point.power)?;
+    msg.write_long(pet.player.n_point.tiem_nang)?;
+    msg.write_byte(pet.status as i8)?;
+    msg.write_short(pet.player.n_point.stamina)?;
+    msg.write_short(pet.player.n_point.max_stamina)?;
+    msg.write_byte(pet.player.n_point.crit)?;
+    msg.write_short(pet.player.n_point.def as i16)?;
+
+    let skills = &pet.player.player_skill.skills;
+    msg.write_byte(4)?;
+    for i in 0..4 {
+        if let Some(skill) = skills.get(i) {
+            if skill.template_id != -1 {
+                msg.write_short(skill.template_id as i16)?;
+            } else {
+                write_skill_hint(&mut msg, i)?;
+            }
+        } else {
+            write_skill_hint(&mut msg, i)?;
+        }
+    }
+    master.send_to_client(msg)?;
+
+    Ok(())
+}
+
+fn write_skill_hint(msg: &mut Message, index: usize) -> anyhow::Result<()> {
+    msg.write_short(-1)?;
+    let hint = match index {
+        1 => "Cần đạt sức mạnh 150tr để mở",
+        2 => "Cần đạt sức mạnh 1tỷ5 để mở",
+        3 => "Cần đạt sức mạnh 20tỷ để mở",
+        _ => "Cần đạt sức mạnh 60tỷ để mở",
+    };
+    msg.write_utf(hint)?;
+    Ok(())
+}
+
+fn get_pet_avatar(pet: &Pet) -> i16 {
+    match pet.type_pet {
+        1 => 297,
+        2 => 508,
+        3 => 1627,
+        4 => 1624,
+        _ => match pet.player.gender {
+            0 => 304,
+            1 => 305,
+            _ => 303,
+        },
+    }
 }

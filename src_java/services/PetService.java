@@ -1,4 +1,5 @@
 package services;
+
 import consts.ConstPlayer;
 import player.NewPet;
 import player.Pet;
@@ -47,10 +48,10 @@ public class PetService {
         }).start();
     }
 
-   public void createBlack(Player player, int gender, byte... limitPower) {
+    public void createBlack(Player player, int gender, byte... limitPower) {
         new Thread(() -> {
             try {
-                createNewPet(player, false, false,true,false, (byte) gender);
+                createNewPet(player, false, false, true, false, (byte) gender);
                 if (limitPower != null && limitPower.length == 1) {
                     player.pet.nPoint.limitPower = limitPower[0];
                 }
@@ -60,6 +61,7 @@ public class PetService {
             }
         }).start();
     }
+
     public void createBlackGokuRose(Player player, int gender, byte... limitPower) {
         new Thread(() -> {
             try {
@@ -73,7 +75,6 @@ public class PetService {
             }
         }).start();
     }
-
 
     public void createMabuPet(Player player, int gender, byte... limitPower) {
         new Thread(() -> {
@@ -132,7 +133,8 @@ public class PetService {
         player.pet = null;
         createMabuPet(player, gender, limitPower);
     }
-        public void changeBlack(Player player, int gender) {
+
+    public void changeBlack(Player player, int gender) {
         byte limitPower = player.pet.nPoint.limitPower;
         if (player.fusion.typeFusion != ConstPlayer.NON_FUSION) {
             player.pet.unFusion();
@@ -142,6 +144,7 @@ public class PetService {
         player.pet = null;
         createBlack(player, gender, limitPower);
     }
+
     public void changeBlackGokuRose(Player player, int gender) {
         byte limitPower = player.pet.nPoint.limitPower;
         if (player.fusion.typeFusion != ConstPlayer.NON_FUSION) {
@@ -152,6 +155,7 @@ public class PetService {
         player.pet = null;
         createBlackGokuRose(player, gender, limitPower);
     }
+
     public void changeNamePet(Player player, String name) {
         try {
             if (!InventoryService.gI().isExistItemBag(player, 400)) {
@@ -181,38 +185,40 @@ public class PetService {
 
     private int[] getDataPetNormal() {
         int[] petData = new int[5];
-        petData[0] = Util.nextInt(40, 105) * 20; //hp
-        petData[1] = Util.nextInt(40, 105) * 20; //mp
-        petData[2] = Util.nextInt(20, 45); //dame
-        petData[3] = Util.nextInt(9, 50); //def
-        petData[4] = Util.nextInt(0, 2); //crit
+        petData[0] = Util.nextInt(40, 105) * 20; // hp
+        petData[1] = Util.nextInt(40, 105) * 20; // mp
+        petData[2] = Util.nextInt(20, 45); // dame
+        petData[3] = Util.nextInt(9, 50); // def
+        petData[4] = Util.nextInt(0, 2); // crit
         return petData;
     }
 
     private int[] getDataPetMabu() {
         int[] petData = new int[5];
-        petData[0] = Util.nextInt(40, 105) * 20; //hp
-        petData[1] = Util.nextInt(40, 105) * 20; //mp
-        petData[2] = Util.nextInt(50, 120); //dame
-        petData[3] = Util.nextInt(9, 50); //def
-        petData[4] = Util.nextInt(0, 2); //crit
+        petData[0] = Util.nextInt(40, 105) * 20; // hp
+        petData[1] = Util.nextInt(40, 105) * 20; // mp
+        petData[2] = Util.nextInt(50, 120); // dame
+        petData[3] = Util.nextInt(9, 50); // def
+        petData[4] = Util.nextInt(0, 2); // crit
         return petData;
     }
 
     private int[] getDataBlack() {
         int[] petData = new int[5];
-        petData[0] = Util.nextInt(40, 115) * 20; //hp
-        petData[1] = Util.nextInt(40, 115) * 20; //mp
-        petData[2] = Util.nextInt(70, 140); //dame
-        petData[3] = Util.nextInt(9, 50); //def
-        petData[4] = Util.nextInt(0, 2); //crit
+        petData[0] = Util.nextInt(40, 115) * 20; // hp
+        petData[1] = Util.nextInt(40, 115) * 20; // mp
+        petData[2] = Util.nextInt(70, 140); // dame
+        petData[3] = Util.nextInt(9, 50); // def
+        petData[4] = Util.nextInt(0, 2); // crit
         return petData;
     }
 
-    private void createNewPet(Player player, boolean isMabu, boolean isBeerus, boolean isBlack, boolean isBlackGokuRose, byte... gender) {
+    private void createNewPet(Player player, boolean isMabu, boolean isBeerus, boolean isBlack, boolean isBlackGokuRose,
+            byte... gender) {
         int[] data = isMabu ? isBlackGokuRose ? getDataPetMabu() : getDataBlack() : getDataPetNormal();
         Pet pet = new Pet(player);
-        pet.name = "$" + (isMabu ? "Mabư" : isBeerus ? "Beerus" : isBlack ? "Black Goku" : isBlackGokuRose ? "Black Goku Rose" : "Đệ tử");
+        pet.name = "$" + (isMabu ? "Mabư"
+                : isBeerus ? "Beerus" : isBlack ? "Black Goku" : isBlackGokuRose ? "Black Goku Rose" : "Đệ tử");
         pet.gender = (gender != null && gender.length != 0) ? gender[0] : (byte) Util.nextInt(0, 2);
         pet.id = player.isPl() ? -player.id : -Math.abs(player.id) - 100000;
         pet.nPoint.power = isMabu || isBeerus || isBlack || isBlackGokuRose ? 1500000 : 2000;

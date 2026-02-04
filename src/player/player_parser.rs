@@ -210,3 +210,15 @@ pub fn map_items_to_json(items: &[RtItem]) -> Vec<ItemDataJson> {
         })
         .collect()
 }
+// ============================================
+// Pet Parser
+// ============================================
+
+pub fn parse_pet_data(s: &str) -> Result<Option<PetData>> {
+    if s.is_empty() || s == "[]" || s == "{}" {
+        return Ok(None);
+    }
+    let data: PetData =
+        serde_json::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse pet data: {}", e))?;
+    Ok(Some(data))
+}

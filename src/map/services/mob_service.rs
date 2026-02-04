@@ -4,6 +4,7 @@ use crate::map::item_map::ItemMap;
 use crate::map::map_service::is_ma_black_ball_war;
 use crate::map::models::zone::{Zone, ZoneHandle};
 use crate::map::services::item_map_service::ItemMapService;
+use crate::map::zone::ZoneMessage;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::player::player::Player;
@@ -17,11 +18,9 @@ use tracing::{debug, info};
 pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-        // Now we send a message to the actor instead of locking
-        // We'll add this message to ZoneActor soon
         let _ = zone
             .tx
-            .send(crate::map::models::zone::ZoneMessage::AttackMob {
+            .send(ZoneMessage::AttackMob {
                 player_id: player.id,
                 mob_id: mob_id as u64,
                 damage,
@@ -33,31 +32,40 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
 pub async fn attack_mob_actor(zone: &mut Zone, player_id: u64, mob_id: u64, damage: i32) {
     let (msg_opt, drop_info) = {
         if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
-            let real_damage = mob.take_damage(damage);
-            mob.add_temporary_enemy(player_id);
-            let new_hp = mob.hp;
-            if !mob.is_dead() {
-                (
-                    Some(build_mob_alive_message(
-                        mob.id as i8,
-                        new_hp,
-                        real_damage,
-                        false,
-                    )),
-                    None,
-                )
+            if !mob.is_alive {
+                (None, None)
             } else {
-                let drop_x = mob.location.x;
-                let drop_y = mob.location.y;
-                let mob_temp_id = mob.template_id;
-                handle_mob_death(mob);
-                (
-                    Some(build_mob_die_message(mob.id as i8, real_damage, false)),
-                    Some((drop_x, drop_y, mob_temp_id)),
-                )
+                let real_damage = mob.take_damage(damage);
+                mob.add_temporary_enemy(player_id);
+                let new_hp = mob.hp;
+                info!(
+                    "Mob {} (temp {}) takes {} damage. HP: {}/{}",
+                    mob.id, mob.template_id, real_damage, new_hp, mob.max_hp
+                );
+                if !mob.is_dead() {
+                    (
+                        Some(build_mob_alive_message(
+                            mob.id as i8,
+                            new_hp,
+                            real_damage,
+                            false,
+                        )),
+                        None,
+                    )
+                } else {
+                    info!("Mob {} is dead!", mob.id);
+                    let drop_x = mob.location.x;
+                    let drop_y = mob.location.y;
+                    let mob_temp_id = mob.template_id;
+                    handle_mob_death(mob);
+                    (
+                        Some(build_mob_die_message(mob.id as i8, real_damage, false)),
+                        Some((drop_x, drop_y, mob_temp_id)),
+                    )
+                }
             }
         } else {
-            debug!("Mob {} NOT FOUND in active_mobs", mob_id);
+            info!("Mob {} NOT FOUND in active_mobs", mob_id);
             (None, None)
         }
     };
@@ -181,7 +189,7 @@ pub async fn update_actor(zone: &mut Zone) {
 
     let mut attacks = Vec::new();
     for (mob_id, location, enemies, template_id, last_attack_time) in attack_candidates {
-        if let Some((target_id, is_retaliation, player_loc, dist)) =
+        if let Some((target_id, is_retaliation, player_loc, dist, player_hp)) =
             find_target_accurate_actor(zone, &location, &enemies, template_id).await
         {
             let cooldown = if is_retaliation { 1000 } else { 2000 };
@@ -193,13 +201,14 @@ pub async fn update_actor(zone: &mut Zone) {
                     location,
                     player_loc,
                     dist,
+                    player_hp,
                 ));
             }
         }
     }
 
     if !attacks.is_empty() {
-        for (mob_id, target_id, is_retaliation, mob_loc, player_loc, dist) in attacks {
+        for (mob_id, target_id, is_retaliation, mob_loc, player_loc, dist, player_hp) in attacks {
             if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
                 if mob.is_alive && can_mob_attack(mob, current_time) {
                     let reason = if is_retaliation {
@@ -224,8 +233,12 @@ pub async fn update_actor(zone: &mut Zone) {
                             msg_me,
                         ));
 
-                        let msg_others =
-                            build_mob_attack_player_message(mob.id as i8, target_id as i32, 0);
+                        // Cập nhật máu hiển thị cho người khác thấy đúng (HP hiện tại của nạn nhân)
+                        let msg_others = build_mob_attack_player_message(
+                            mob.id as i8,
+                            target_id as i32,
+                            player_hp,
+                        );
                         for other_handle in zone.players.values() {
                             if other_handle.id != target_id {
                                 other_handle.send_forget(
@@ -354,7 +367,7 @@ async fn find_target_accurate_actor(
     mob_location: &crate::utils::location::Location,
     temporary_enemies: &[u64],
     template_id: i8,
-) -> Option<(u64, bool, crate::utils::location::Location, f64)> {
+) -> Option<(u64, bool, crate::utils::location::Location, f64, i32)> {
     for &player_id in temporary_enemies {
         if let Some(handle) = zone.players.get(&player_id) {
             let (tx, rx) = tokio::sync::oneshot::channel();
@@ -365,7 +378,13 @@ async fn find_target_accurate_actor(
                 if !snapshot.is_die() {
                     let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
                     if dist <= 250.0 {
-                        return Some((player_id, true, snapshot.location.clone(), dist));
+                        return Some((
+                            player_id,
+                            true,
+                            snapshot.location.clone(),
+                            dist,
+                            snapshot.n_point.hp_current,
+                        ));
                     }
                 }
             }
@@ -386,7 +405,13 @@ async fn find_target_accurate_actor(
                     let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
                     if dist <= min_dist {
                         min_dist = dist;
-                        closest_info = Some((handle.id, false, snapshot.location.clone(), dist));
+                        closest_info = Some((
+                            handle.id,
+                            false,
+                            snapshot.location.clone(),
+                            dist,
+                            snapshot.n_point.hp_current,
+                        ));
                     }
                 }
             }

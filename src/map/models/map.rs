@@ -184,13 +184,7 @@ impl Map {
     }
 
     pub fn get_waypoint_at_position(&self, x: i16, y: i16) -> Option<WayPoint> {
-        for waypoint in self.info.waypoints.iter() {
-            if waypoint.contains_position(x, y) {
-                return Some(waypoint.clone());
-            }
-        }
-
-        let tolerance = 60i16;
+        let tolerance = 60;
         for waypoint in self.info.waypoints.iter() {
             if x >= waypoint.min_x - tolerance
                 && x <= waypoint.max_x + tolerance

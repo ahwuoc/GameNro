@@ -94,6 +94,8 @@ impl EffectSkillService {
         player.effect_skill.use_troi = false;
         player.effect_skill.time_troi = 0;
         player.effect_skill.start_time_troi = 0;
+        player.effect_skill.mob_an_troi_id = None;
+        player.effect_skill.pl_an_troi_id = None;
     }
 
     pub fn remove_an_troi(target: &mut Player) {
@@ -103,17 +105,29 @@ impl EffectSkillService {
         target.effect_skill.pl_troi_id = None;
     }
 
-    pub fn set_troi_mob(mob: &mut RtMob, time_hold: u64) {
+    pub fn set_troi_mob(mob: &mut RtMob, player_id: u64, time_hold: u64) {
         let current_time = time::current_time_millis();
         mob.effect_skill.an_troi = true;
         mob.effect_skill.time_an_troi = time_hold;
         mob.effect_skill.start_time_an_troi = current_time;
+        mob.effect_skill.pl_troi_id = Some(player_id);
     }
 
     pub fn remove_troi_mob(mob: &mut RtMob) {
         mob.effect_skill.an_troi = false;
         mob.effect_skill.time_an_troi = 0;
         mob.effect_skill.start_time_an_troi = 0;
+        mob.effect_skill.pl_troi_id = None;
+    }
+
+    pub fn send_remove_troi_mob(player_use: &Player, mob_target: &RtMob) {
+        let msg = Self::build_effect_mob_message(
+            player_use.id,
+            mob_target.id,
+            EffectAction::REMOVE,
+            Self::HOLD_EFFECT,
+        );
+        let _ = ServiceHandles::send_mess_all_player_in_map(player_use, msg);
     }
 
     pub fn send_effect_use_skill(player: &Player, skill_id: i16) {
@@ -242,8 +256,6 @@ impl EffectSkillService {
         let msg = Self::build_effect_mob_message(player_use.id, mob_target.id, action, effect);
         let _ = ServiceHandles::send_mess_all_player_in_map(player_use, msg);
     }
-
-   
 
     // ========== TAI TAO NANG LUONG (Charging) ==========
 

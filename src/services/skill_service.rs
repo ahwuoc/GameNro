@@ -60,7 +60,7 @@ pub async fn execute_skill(
             let hp_use = player.n_point.hp_max / 10;
             if player.n_point.hp_current > hp_use {
                 player.n_point.hp_current -= hp_use;
-                execute_attack_skill(player, pl_target, mob_target)
+                execute_attack_skill(player, pl_target, mob_target).await
             } else {
                 None
             }
@@ -93,7 +93,7 @@ pub async fn execute_skill(
             execute_skill_type3(player).await;
             None
         }
-        (1, _) | (4, _) => execute_attack_skill(player, pl_target, mob_target),
+        (1, _) | (4, _) => execute_attack_skill(player, pl_target, mob_target).await,
         (t, id) => {
             debug!("Skill Type {} / ID {} chua dc trien khai", t, id);
             None
@@ -200,11 +200,17 @@ pub fn execute_troi(
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) {
-    EffectSkillService::send_effect_use_skill(player, Skill::TROI as i16);
-
+    info!(
+        "execute_troi called by {}. Target Player: {}, Target Mob: {}",
+        player.name,
+        pl_target.is_some(),
+        mob_target.is_some()
+    );
     let Some(skill_select) = player.player_skill.skill_select.as_ref() else {
         return;
     };
+    EffectSkillService::send_effect_use_skill(player, Skill::TROI as i16);
+
     let skill_point = skill_select.point;
     let time_hold = skill_util::get_time_troi(skill_point);
 
@@ -216,6 +222,7 @@ pub fn execute_troi(
             || target.player_skill.prepare_tu_sat;
 
         if !is_preparing {
+            player.effect_skill.pl_an_troi_id = Some(target.id);
             EffectSkillService::set_an_troi(target, player.id, time_hold);
             EffectSkillService::send_effect_player(
                 player,
@@ -227,7 +234,9 @@ pub fn execute_troi(
     }
 
     if let Some(mob) = mob_target {
-        EffectSkillService::set_troi_mob(mob, time_hold);
+        info!("Applying TROI effect to Mob ID: {}", mob.id);
+        player.effect_skill.mob_an_troi_id = Some(mob.id);
+        EffectSkillService::set_troi_mob(mob, player.id, time_hold);
         EffectSkillService::send_effect_mob(
             player,
             mob,
@@ -252,7 +261,7 @@ pub async fn execute_genkidama(
         player.player_skill.prepare_qckk = false;
 
         if let Some(target) = pl_target {
-            deal_damage_to_player(player, target, false);
+            deal_damage_to_player(player, target, false).await;
         }
 
         let Some(skill_select) = player.player_skill.skill_select.as_ref() else {
@@ -270,7 +279,7 @@ pub async fn execute_genkidama(
         }
 
         if let Some(mob) = mob_target {
-            if let Some(msg) = deal_damage_to_mob(player, mob, false) {
+            if let Some(msg) = deal_damage_to_mob(player, mob, false).await {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
@@ -401,17 +410,17 @@ pub async fn learn_full_skill(pl: &mut Player) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn execute_attack_skill(
+pub async fn execute_attack_skill(
     player: &mut Player,
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
 ) -> Option<Message> {
     if let Some(target) = pl_target {
-        deal_damage_to_player(player, target, false);
+        deal_damage_to_player(player, target, false).await;
     }
 
     if let Some(mob) = mob_target {
-        if let Some(msg) = deal_damage_to_mob(player, mob, false) {
+        if let Some(msg) = deal_damage_to_mob(player, mob, false).await {
             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                 let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
@@ -423,7 +432,7 @@ pub fn execute_attack_skill(
     None
 }
 
-pub fn deal_damage_to_player(player: &mut Player, target: &mut Player, miss: bool) {
+pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, miss: bool) {
     if miss {
         return;
     }
@@ -434,37 +443,42 @@ pub fn deal_damage_to_player(player: &mut Player, target: &mut Player, miss: boo
         1
     };
 
-    target.injured(dame_hit as u64, false);
-    let is_die = target.is_die();
-    let is_crit = player.n_point.crit == 100;
+    // Calculate critical
+    let is_crit = player.n_point.crit >= 100;
+    let dame_hit = if is_crit { dame_hit * 2 } else { dame_hit };
+
+    // Apply damage to target actor
+    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+        if let Ok(Some(target_handle)) = zone.get_player(target.id).await {
+            let _ =
+                target_handle.send_forget(crate::player::player_actor::PlayerMessage::Injured {
+                    damage: dame_hit as u64,
+                    piercing: false,
+                });
+        }
+    }
+
+    let is_die = target.n_point.hp_current - dame_hit <= 0;
     let _ = ServiceHandles::send_player_attack_player(player, target.id, dame_hit, is_die, is_crit);
 }
 
-pub fn deal_damage_to_mob(player: &mut Player, mob: &mut RtMob, miss: bool) -> Option<Message> {
+pub async fn deal_damage_to_mob(
+    player: &mut Player,
+    mob: &mut RtMob,
+    miss: bool,
+) -> Option<Message> {
     if miss {
         return None;
     }
     let dame_attack = player.n_point.get_dame_attack(false);
     let _ = ServiceHandles::send_player_attack_mob(player, mob.id as u8);
-    mob.add_temporary_enemy(player.id);
 
-    let real_damage = mob.take_damage(dame_attack);
-    let is_crit = player.n_point.crit >= 100;
+    // Apply damage to zone
+    let _ = crate::map::services::mob_service::attack_mob(player, mob.id as i32, dame_attack).await;
 
-    if mob.is_dead() {
-        Some(crate::map::services::mob_service::build_mob_die_message(
-            mob.id as i8,
-            real_damage,
-            is_crit,
-        ))
-    } else {
-        Some(crate::map::services::mob_service::build_mob_alive_message(
-            mob.id as i8,
-            mob.hp,
-            real_damage,
-            is_crit,
-        ))
-    }
+    // We return None because the zone will handle broadcasting the health change/death
+    None
 }
 
 pub fn apply_skill_cost(player: &mut Player) {
@@ -568,7 +582,6 @@ pub async fn execute_tu_sat(player: &mut Player) {
                 })
                 .await;
 
-            // Also damage players nearby (Self destruct affects everyone)
             if let Ok(handles) = zone.get_all_players().await {
                 for handle in handles {
                     if handle.id == player.id {

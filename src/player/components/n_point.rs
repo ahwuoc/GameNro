@@ -51,6 +51,12 @@ pub struct NPoint {
     pub power: i64,
     pub tiem_nang: i64,
     pub limit_power: i8,
+
+    pub hp_fusion: i32,
+    pub mp_fusion: i32,
+    pub dame_fusion: i32,
+    pub def_fusion: i32,
+    pub crit_fusion: i8,
 }
 
 impl NPoint {
@@ -90,6 +96,12 @@ impl NPoint {
             power: 1000,
             tiem_nang: 0,
             limit_power: 1,
+
+            hp_fusion: 0,
+            mp_fusion: 0,
+            dame_fusion: 0,
+            def_fusion: 0,
+            crit_fusion: 0,
         }
     }
 
@@ -120,7 +132,7 @@ impl NPoint {
     }
 
     fn set_hp_max(&mut self) {
-        let mut hp_max: i64 = (self.hp_base + self.hp_add) as i64;
+        let mut hp_max: i64 = (self.hp_base + self.hp_add + self.hp_fusion) as i64;
         for tl in &self.tl_hp {
             hp_max += hp_max * (*tl as i64) / 100;
         }
@@ -131,7 +143,7 @@ impl NPoint {
     }
 
     fn set_mp_max(&mut self) {
-        let mut mp_max: i64 = (self.mp_base + self.mp_add) as i64;
+        let mut mp_max: i64 = (self.mp_base + self.mp_add + self.mp_fusion) as i64;
 
         for tl in &self.tl_mp {
             mp_max += mp_max * (*tl as i64) / 100;
@@ -141,7 +153,7 @@ impl NPoint {
     }
 
     fn set_dame(&mut self) {
-        let mut dame: i64 = (self.dame_base + self.dame_add) as i64;
+        let mut dame: i64 = (self.dame_base + self.dame_add + self.dame_fusion) as i64;
 
         for tl in &self.tl_dame {
             dame += dame * (*tl as i64) / 100;
@@ -151,13 +163,16 @@ impl NPoint {
     }
 
     fn set_def(&mut self) {
-        let mut def: i64 = (self.def_base + self.def_add) as i64;
+        let mut def: i64 = (self.def_base + self.def_add + self.def_fusion) as i64;
         def += def * (self.tl_def as i64) / 100;
         self.def = def.min(i32::MAX as i64) as i32;
     }
 
     fn set_crit(&mut self) {
-        self.crit = self.crit_base.saturating_add(self.crit_add);
+        self.crit = self
+            .crit_base
+            .saturating_add(self.crit_add)
+            .saturating_add(self.crit_fusion);
     }
 
     fn clamp_current_values(&mut self) {

@@ -7,6 +7,7 @@ use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
+use crate::player::player_data::PetData;
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
@@ -18,16 +19,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
 
-#[derive(Debug, Clone)]
-pub enum PlayerEvent {
-    RemoveShield,
-    StopCharge,
-    EffectBienKhiFinished,
-    EffectMonkeyFinished,
-    EffectHuytSaoExpired,
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Player {
     pub id: u64,
     pub name: String,
@@ -43,7 +35,7 @@ pub struct Player {
     pub location: Location,
     pub combine_new: Combine,
     pub effect_skill: EffectSkill,
-
+    pub pet_id: Option<u64>,
     pub dead_flag: bool,
     pub is_new_member: bool,
     pub before_dispose: bool,
@@ -72,7 +64,11 @@ pub struct Player {
 
     pub task_id: i32,
     pub is_boss: bool,
+    pub is_pet: bool,
+    pub fusion: crate::player::components::fusion::Fusion,
     pub notify: Option<String>,
+    pub stats_need_update: bool,
+    pub pet_data: Option<PetData>,
 }
 
 impl Player {
@@ -97,6 +93,7 @@ impl Player {
             combine_new: Combine::new(),
             effect_skill: EffectSkill::new(),
             dead_flag: false,
+            pet_id: None,
             is_new_member: true,
             before_dispose: false,
             is_train: false,
@@ -118,7 +115,11 @@ impl Player {
             interaction_state: InteractionState::new(),
             task_id: 0,
             is_boss: false,
+            is_pet: false,
+            fusion: crate::player::components::fusion::Fusion::new(),
             notify: None,
+            stats_need_update: true,
+            pet_data: None,
         }
     }
 
@@ -138,7 +139,6 @@ impl Player {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::HEAD_MONKEY[idx];
         }
-        // Check outfit item
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -403,44 +403,6 @@ impl Player {
             mp_recovered,
             should_chat,
         })
-    }
-
-    pub fn update(&mut self) -> Vec<PlayerEvent> {
-        let now = crate::utils::time::current_time_millis();
-        let mut events = Vec::new();
-
-        if self.effect_skill.is_shield
-            && now > self.effect_skill.shield_start_time + self.effect_skill.shield_duration_ms
-        {
-            self.effect_skill.is_shield = false;
-            events.push(PlayerEvent::RemoveShield);
-        }
-
-        if let Some(charge_result) = self.update_charging() {
-            if charge_result.should_stop {
-                self.effect_skill.is_charging = false;
-                self.effect_skill.count_charging = 0;
-                events.push(PlayerEvent::StopCharge);
-            }
-        }
-        self.n_point.set_base_point();
-        if self.n_point.hp_current <= 0 && !self.dead_flag {
-            self.dead_flag = true;
-        }
-
-        let effect_result = self.effect_skill.update(now);
-
-        if effect_result.bienkhi_finished {
-            events.push(PlayerEvent::EffectBienKhiFinished);
-        }
-        if effect_result.monkey_down {
-            events.push(PlayerEvent::EffectMonkeyFinished);
-        }
-        if effect_result.huyt_sao_expired {
-            events.push(PlayerEvent::EffectHuytSaoExpired);
-        }
-
-        events
     }
 }
 

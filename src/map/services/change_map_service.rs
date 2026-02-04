@@ -28,7 +28,7 @@ impl ChangeMapService {
         x: i16,
         y: i16,
         space_type: SpaceShipType,
-        session: &crate::network::session::SessionArc,
+        session: Option<&crate::network::session::SessionArc>,
     ) -> anyhow::Result<ChangeMapResult> {
         tracing::info!(
             "ENTERING: change_map_to_zone (player: {}, map: {})",
@@ -43,15 +43,12 @@ impl ChangeMapService {
             } else {
                 SpaceShipType::Default
             };
-            Self::spaceship_arrive(
-                session,
-                SpaceshipSendType::AllPlayersInMap,
-                actual_space_type,
-            )
-            .await?;
+            if let Some(sess) = session {
+                Self::spaceship_arrive(sess, SpaceshipSendType::AllPlayersInMap, actual_space_type)
+                    .await?;
+            }
         }
 
-        // Move player
         Self::exit_map(player).await?;
         let final_x = if x != -1 {
             x
@@ -61,11 +58,11 @@ impl ChangeMapService {
         let final_y = y;
         player.location.set_position(final_x, final_y);
         Self::go_to_map(player, zone, session).await?;
-        zone.map_info(session.clone(), player.id).await?;
+        if let Some(sess) = session {
+            zone.map_info(sess.clone(), player.id).await?;
+        }
         zone.load_another_to_me(player.id).await?;
         zone.load_me_to_another(player.id).await?;
-
-        // Calculate environmental effects
         let cold_planet_effect = if current_map_is_cold != next_map_is_cold && !player.is_boss {
             if !current_map_is_cold && next_map_is_cold {
                 Some(ColdPlanetEffect::Entering)
@@ -145,7 +142,7 @@ impl ChangeMapService {
                     -1,  // Random x
                     100, // Standard y
                     SpaceShipType::None,
-                    session,
+                    Some(session),
                 )
                 .await?;
 
@@ -256,6 +253,7 @@ impl ChangeMapService {
         zone_id: i32,
         session: &crate::network::session::SessionArc,
     ) -> anyhow::Result<()> {
+        let session_opt = Some(session);
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(current_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
@@ -293,7 +291,7 @@ impl ChangeMapService {
                 player.location.x,
                 player.location.y,
                 SpaceShipType::None,
-                session,
+                session_opt,
             )
             .await?;
             player.update_zone_change_time();
@@ -317,51 +315,43 @@ impl ChangeMapService {
                 x,
                 y,
             } => {
-                println!(
-                    "Player {} changed map via waypoint to map {} zone {} at ({}, {})",
-                    player.name, destination_map_id, destination_zone_id, x, y
+                tracing::debug!(
+                    "DEBUG_WAYPOINT: Player {} found waypoint to map {} zone {} at ({}, {}) for player at ({}, {})",
+                    player.name, destination_map_id, destination_zone_id, x, y, player.location.x, player.location.y
                 );
                 if let Some(zone) = Self::get_specific_zone(destination_map_id, destination_zone_id)
                 {
                     Self::exit_map(player).await?;
                     player.location.set_position(x, y);
-                    Self::go_to_map(player, &zone, session).await?;
+                    Self::go_to_map(player, &zone, Some(session)).await?;
                     zone.map_info(session.clone(), player.id).await?;
                 } else {
-                    Self::reset_player_position(player, 2000);
-                    let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                    msg.write_utf("Lỗi khi chuyển map")?;
-                    player.send_to_client(msg)?;
+                    ServiceHandles::send_message_alert(player, "Lỗi khi chuyển map")?;
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
-                Self::reset_player_position(player, 2000);
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                player.send_to_client(msg)?;
+                tracing::debug!(
+                    "DEBUG_WAYPOINT: No waypoint found for player {} at ({}, {}) map {}",
+                    player.name,
+                    player.location.x,
+                    player.location.y,
+                    player.map_id
+                );
+                ServiceHandles::send_message_alert(player, "Waypoint not found")?;
             }
             WaypointChangeResult::TaskRequirementNotMet { .. } => {
-                Self::reset_player_position(player, 2000);
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Bạn chưa thể đến khu vực này")?;
-                player.send_to_client(msg)?;
+                ServiceHandles::send_message_alert(player, "Bạn chưa thể đến khu vực này")?;
             }
             WaypointChangeResult::InvalidPlayerZone => {
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Lỗi hệ thống")?;
-                player.send_to_client(msg)?;
+                ServiceHandles::send_message_alert(player, "Lỗi hệ thống")?;
             }
             WaypointChangeResult::DestinationUnavailable => {
-                Self::reset_player_position(player, 2000);
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Khu vực không khả dụng")?;
-                player.send_to_client(msg)?;
+                ServiceHandles::send_message_alert(player, "Khu vực không khả dụng")?;
             }
         }
         Ok(())
     }
 
-    /// Handles the "Go Home" command (-15).
     pub async fn go_home_handler(
         player: &mut Player,
         session: &crate::network::session::SessionArc,
@@ -375,8 +365,15 @@ impl ChangeMapService {
                 space_type,
             } => {
                 if let Some(target_zone) = Self::get_specific_zone(home_map_id, zone_id) {
-                    Self::change_map_to_zone(player, &target_zone, -1, -1, space_type, session)
-                        .await?;
+                    Self::change_map_to_zone(
+                        player,
+                        &target_zone,
+                        -1,
+                        -1,
+                        space_type,
+                        Some(session),
+                    )
+                    .await?;
                 }
             }
             GoHomeResult::NoAvailableZone => {
@@ -409,7 +406,6 @@ impl ChangeMapService {
         true
     }
 
-    /// Processes waypoint logic: checks requirements and finds a target zone.
     pub fn change_map_waypoint(player: &mut Player) -> WaypointChangeResult {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if zone_manager
@@ -419,12 +415,10 @@ impl ChangeMapService {
             return WaypointChangeResult::InvalidPlayerZone;
         }
 
-        // Find waypoint at player's location
         let Some(wp) = Self::get_waypoint_at_player_position(player) else {
             return WaypointChangeResult::NoWaypointFound;
         };
 
-        // Check availability
         if !Self::check_task_requirement(player, wp.go_map) {
             let required_task_id = Self::get_required_task_id(wp.go_map);
             return WaypointChangeResult::TaskRequirementNotMet { required_task_id };
@@ -493,7 +487,6 @@ impl ChangeMapService {
         }
     }
 
-    /// Resets player position to a safe location if they are out of bounds.
     pub fn reset_player_position(player: &mut Player, map_width: i32) {
         let mut x = player.location.x;
         if x >= (map_width - 60) as i16 {
@@ -537,7 +530,7 @@ impl ChangeMapService {
     pub async fn go_to_map(
         player: &mut Player,
         zone: &ZoneHandle,
-        session: &crate::network::session::SessionArc,
+        session: Option<&crate::network::session::SessionArc>,
     ) -> anyhow::Result<()> {
         tracing::info!(
             "ENTERING: go_to_map (player: {}, target_map: {})",
@@ -559,7 +552,7 @@ impl ChangeMapService {
 
     pub async fn finish_load_map(
         player: &Player,
-        session: &crate::network::session::SessionArc,
+        session: Option<&crate::network::session::SessionArc>,
     ) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
@@ -590,12 +583,9 @@ impl ChangeMapService {
             (gender as i32) + 21
         }
     }
-
     pub fn is_mabu_map(map_id: i32) -> bool {
         matches!(map_id, 114 | 115 | 117 | 118 | 119 | 120)
     }
-
-    /// Logic for the "Go Home" feature.
     pub fn go_home(player: &mut Player) -> GoHomeResult {
         let is_in_mabu = Self::is_mabu_map(player.map_id);
         let home_map_id = Self::calculate_home_map(player.gender, is_in_mabu);

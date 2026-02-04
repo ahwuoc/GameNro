@@ -70,6 +70,18 @@ pub enum ZoneMessage {
         mob_id: u64,
         damage: i32,
     },
+    SyncMobEffects {
+        mob_id: u64,
+        effect_skill: crate::models::EffectSkill,
+    },
+    RemoveMobHold {
+        mob_id: u64,
+        caster_id: u64,
+    },
+    RemovePlayerHold {
+        target_id: u64,
+        caster_id: u64,
+    },
     Broadcast {
         msg: Message,
         except_id: Option<u64>,
@@ -92,10 +104,7 @@ pub struct ZoneHandle {
 }
 
 impl ZoneHandle {
-    pub async fn add_player(
-        &self,
-        handle: crate::player::player_actor::PlayerHandle,
-    ) -> Result<()> {
+    pub async fn add_player(&self, handle: PlayerHandle) -> Result<()> {
         self.tx.send(ZoneMessage::AddPlayer { handle }).await?;
         Ok(())
     }
@@ -198,6 +207,26 @@ impl ZoneHandle {
         });
     }
 
+    pub fn sync_mob_effects(&self, mob_id: u64, effect_skill: crate::models::EffectSkill) {
+        let _ = self.tx.try_send(ZoneMessage::SyncMobEffects {
+            mob_id,
+            effect_skill,
+        });
+    }
+
+    pub fn remove_mob_hold(&self, mob_id: u64, caster_id: u64) {
+        let _ = self
+            .tx
+            .try_send(ZoneMessage::RemoveMobHold { mob_id, caster_id });
+    }
+
+    pub fn remove_player_hold(&self, target_id: u64, caster_id: u64) {
+        let _ = self.tx.try_send(ZoneMessage::RemovePlayerHold {
+            target_id,
+            caster_id,
+        });
+    }
+
     pub fn broadcast_except(&self, msg: Message, except_id: u64) {
         let _ = self.tx.try_send(ZoneMessage::Broadcast {
             msg,
@@ -235,7 +264,6 @@ impl Zone {
     }
 
     pub async fn run(mut self) {
-        tracing::info!("Zone {}-{} Actor STARTED", self.map_id, self.zone_id);
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(1000));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
@@ -260,7 +288,9 @@ impl Zone {
     async fn handle_message(&mut self, msg: ZoneMessage) -> Result<()> {
         match msg {
             ZoneMessage::AddPlayer { handle } => {
-                if self.players.len() < self.max_player as usize {
+                let is_pet = handle.is_pet;
+                let player_count = self.players.values().filter(|p| !p.is_pet).count();
+                if is_pet || player_count < self.max_player as usize {
                     let id = handle.id;
                     self.players.insert(id, handle);
                 }
@@ -295,23 +325,24 @@ impl Zone {
                 let _ = tx.send(self.active_items.clone());
             }
             ZoneMessage::GetZoneInfo { tx } => {
+                let current_players = self.players.values().filter(|p| !p.is_pet).count() as i32;
                 let _ = tx.send(ZoneInfo {
                     map_id: self.map_id,
                     zone_id: self.zone_id,
                     max_player: self.max_player,
-                    current_players: self.players.len() as i32,
+                    current_players,
                     mob_count: self.active_mobs.len() as i32,
                     item_count: self.active_items.len() as i32,
                 });
             }
             ZoneMessage::MapInfo { session, player_id } => {
-                self.send_map_info(&session, player_id).await?;
+                self.handle_map_info(&session, player_id).await?;
             }
             ZoneMessage::LoadAnotherToMe { player_id } => {
-                self.load_another_to_me(player_id).await?;
+                self.handle_load_another_to_me(player_id).await?;
             }
             ZoneMessage::LoadMeToAnother { player_id } => {
-                self.load_me_to_another(player_id).await?;
+                self.handle_load_me_to_another(player_id).await?;
             }
             ZoneMessage::UpdateTick => {
                 self.update().await?;
@@ -330,17 +361,25 @@ impl Zone {
             } => {
                 mob_service::attack_mob_actor(self, player_id, mob_id, damage).await;
             }
-            ZoneMessage::Broadcast { msg, except_id } => {
-                for handle in self.players.values() {
-                    if let Some(eid) = except_id {
-                        if handle.id == eid {
-                            continue;
-                        }
-                    }
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
-                        msg.clone(),
-                    ));
+            ZoneMessage::SyncMobEffects {
+                mob_id,
+                effect_skill,
+            } => {
+                if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
+                    mob.effect_skill = effect_skill;
                 }
+            }
+            ZoneMessage::RemoveMobHold { mob_id, caster_id } => {
+                self.handle_remove_mob_hold(mob_id, caster_id).await;
+            }
+            ZoneMessage::RemovePlayerHold {
+                target_id,
+                caster_id,
+            } => {
+                self.handle_remove_player_hold(target_id, caster_id).await;
+            }
+            ZoneMessage::Broadcast { msg, except_id } => {
+                self.broadcast(msg, except_id);
             }
             ZoneMessage::AreaDamage {
                 attacker_id,
@@ -350,33 +389,8 @@ impl Zone {
                 damage,
                 is_player,
             } => {
-                let center = crate::utils::Location { x, y };
-                // Damage mobs
-                for mob in self.active_mobs.iter_mut() {
-                    if crate::utils::MapUtils::is_position_in_range(&center, &mob.location, range) {
-                        let real_damage = mob.take_damage(damage as i32);
-                        if is_player {
-                            mob.add_temporary_enemy(attacker_id);
-                        }
-                        let msg = if mob.is_dead() {
-                            mob_service::build_mob_die_message(mob.id as i8, real_damage, false)
-                        } else {
-                            mob_service::build_mob_alive_message(
-                                mob.id as i8,
-                                mob.hp,
-                                real_damage,
-                                false,
-                            )
-                        };
-                        for handle in self.players.values() {
-                            handle.send_forget(
-                                crate::player::player_actor::PlayerMessage::SendPacket(msg.clone()),
-                            );
-                        }
-                    }
-                }
-                // Damage players (if PVP is on, or specific skills)
-                // For now, let's keep it simple or implement if needed
+                self.handle_area_damage(attacker_id, x, y, range, damage, is_player)
+                    .await;
             }
         }
         Ok(())
@@ -410,7 +424,7 @@ impl Zone {
         Ok(())
     }
 
-    async fn send_map_info(&self, session: &SessionArc, player_id: u64) -> Result<()> {
+    async fn handle_map_info(&self, session: &SessionArc, player_id: u64) -> Result<()> {
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (
@@ -542,7 +556,7 @@ impl Zone {
         Ok(())
     }
 
-    async fn load_another_to_me(&self, player_id: u64) -> Result<()> {
+    async fn handle_load_another_to_me(&self, player_id: u64) -> Result<()> {
         let Some(receiver_handle) = self.players.get(&player_id) else {
             return Ok(());
         };
@@ -563,7 +577,7 @@ impl Zone {
         Ok(())
     }
 
-    async fn load_me_to_another(&self, player_id: u64) -> Result<()> {
+    async fn handle_load_me_to_another(&self, player_id: u64) -> Result<()> {
         let Some(player_handle) = self.players.get(&player_id) else {
             return Ok(());
         };
@@ -582,6 +596,86 @@ impl Zone {
             }
         }
         Ok(())
+    }
+
+    async fn handle_area_damage(
+        &mut self,
+        attacker_id: u64,
+        x: i16,
+        y: i16,
+        range: i16,
+        damage: i64,
+        is_player: bool,
+    ) {
+        let center = crate::utils::Location { x, y };
+        let mut messages = Vec::new();
+        // Damage mobs
+        for mob in self.active_mobs.iter_mut() {
+            if crate::utils::MapUtils::is_position_in_range(&center, &mob.location, range) {
+                if !mob.is_alive {
+                    continue;
+                }
+                let real_damage = mob.take_damage(damage as i32);
+                if is_player {
+                    mob.add_temporary_enemy(attacker_id);
+                }
+                let msg = if mob.is_dead() {
+                    mob_service::build_mob_die_message(mob.id as i8, real_damage, false)
+                } else {
+                    mob_service::build_mob_alive_message(mob.id as i8, mob.hp, real_damage, false)
+                };
+                messages.push(msg);
+            }
+        }
+
+        for msg in messages {
+            self.broadcast(msg, None);
+        }
+    }
+
+    async fn handle_remove_mob_hold(&mut self, mob_id: u64, caster_id: u64) {
+        if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
+            // Verification that it's the same caster
+            if mob.effect_skill.an_troi && mob.effect_skill.pl_troi_id == Some(caster_id) {
+                crate::services::effect_skill_service::EffectSkillService::remove_troi_mob(mob);
+                let msg = crate::services::effect_skill_service::EffectSkillService::build_effect_mob_message(
+                    caster_id,
+                    mob_id,
+                    crate::services::effect_skill_service::EffectAction::REMOVE,
+                    crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
+                );
+                self.broadcast(msg, None);
+            }
+        }
+    }
+
+    async fn handle_remove_player_hold(&self, target_id: u64, caster_id: u64) {
+        if let Some(target_handle) = self.players.get(&target_id) {
+            target_handle.send_forget(crate::player::player_actor::PlayerMessage::HandleAnTroi(
+                false, 0, None,
+            ));
+
+            let msg = crate::services::effect_skill_service::EffectSkillService::build_effect_player_message(
+                caster_id,
+                target_id,
+                crate::services::effect_skill_service::EffectAction::REMOVE,
+                crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
+            );
+            self.broadcast(msg, None);
+        }
+    }
+
+    pub fn broadcast(&self, msg: Message, except_id: Option<u64>) {
+        for handle in self.players.values() {
+            if let Some(eid) = except_id {
+                if handle.id == eid {
+                    continue;
+                }
+            }
+            handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
+                msg.clone(),
+            ));
+        }
     }
 }
 

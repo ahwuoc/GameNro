@@ -4,8 +4,8 @@ use crate::constant::const_map;
 use crate::database::DbManager;
 use crate::map::map_service;
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::network::message::Message; // [NEW]
-use crate::player::player::{Player, PlayerEvent}; // [MODIFIED]
+use crate::network::message::Message;
+use crate::player::player::Player;
 use crate::player::player_mapper;
 use crate::services::ServiceHandles;
 use crate::utils::time::current_time_millis;
@@ -97,45 +97,72 @@ fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
 use crate::map::zone::Zone;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 
-pub fn update(zone: &mut Zone) {
-    for handle in zone.players.values() {
-        handle.send_forget(crate::player::player_actor::PlayerMessage::UpdateTick);
-    }
-}
+pub async fn update_player_tick(player: &mut Player) -> Result<()> {
+    let now = current_time_millis();
+    let effect_result = player.effect_skill.update(now);
 
-pub async fn handle_player_events(player: &mut Player, events: Vec<PlayerEvent>) {
-    for event in events {
-        match event {
-            PlayerEvent::RemoveShield => {
-                EffectSkillService::send_effect_player(
-                    player,
-                    player,
-                    EffectAction::REMOVE,
-                    EffectSkillService::SHIELD_EFFECT,
-                );
-            }
-            PlayerEvent::StopCharge => {
-                EffectSkillService::send_effect_stop_charge(player);
-            }
-            PlayerEvent::EffectBienKhiFinished => {
-                let update = EffectSkillService::set_is_monkey_state(player);
-                EffectSkillService::send_monkey_messages(&update);
-            }
-            PlayerEvent::EffectMonkeyFinished => {
-                let update = EffectSkillService::monkey_down_state(player);
-                EffectSkillService::send_monkey_messages(&update);
-            }
-            PlayerEvent::EffectHuytSaoExpired => {
-                player.n_point.huyt_sao_buff = 0;
-                player.n_point.set_base_point();
-                EffectSkillService::send_effect_player(
-                    player,
-                    player,
-                    EffectAction::REMOVE,
-                    EffectSkillService::HUYT_SAO_EFFECT,
-                );
-                let _ = crate::services::player_info_service::send_point_info_sync(player);
-            }
+    if effect_result.shield_removed {
+        EffectSkillService::send_effect_player(
+            player,
+            player,
+            EffectAction::REMOVE,
+            EffectSkillService::SHIELD_EFFECT,
+        );
+    }
+
+    if let Some(charge_result) = player.update_charging() {
+        if charge_result.should_stop {
+            player.effect_skill.is_charging = false;
+            player.effect_skill.count_charging = 0;
+            EffectSkillService::send_effect_stop_charge(player);
         }
     }
+
+    if effect_result.bienkhi_finished {
+        let update = EffectSkillService::set_is_monkey_state(player);
+        EffectSkillService::send_monkey_messages(&update);
+    }
+
+    if effect_result.monkey_down {
+        let update = EffectSkillService::monkey_down_state(player);
+        EffectSkillService::send_monkey_messages(&update);
+    }
+
+    if effect_result.huyt_sao_expired {
+        player.n_point.huyt_sao_buff = 0;
+        player.stats_need_update = true;
+        EffectSkillService::send_effect_player(
+            player,
+            player,
+            EffectAction::REMOVE,
+            EffectSkillService::HUYT_SAO_EFFECT,
+        );
+        let _ = crate::services::player_info_service::send_point_info_sync(player);
+    }
+
+    if effect_result.hold_expired {
+        if let Some(zone) = ZONE_MANAGER.get_zone(player.map_id, player.zone_id) {
+            if let Some(mob_id) = player.effect_skill.mob_an_troi_id {
+                zone.remove_mob_hold(mob_id, player.id);
+            }
+            if let Some(target_id) = player.effect_skill.pl_an_troi_id {
+                zone.remove_player_hold(target_id, player.id);
+            }
+            EffectSkillService::remove_use_troi(player);
+        }
+    }
+
+    if effect_result.an_troi_expired {
+        EffectSkillService::send_effect_player(
+            player,
+            player,
+            EffectAction::REMOVE,
+            EffectSkillService::HOLD_EFFECT,
+        );
+    }
+    if player.n_point.hp_current <= 0 && !player.dead_flag {
+        player.dead_flag = true;
+    }
+
+    Ok(())
 }

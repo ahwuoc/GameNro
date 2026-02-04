@@ -27,7 +27,7 @@ impl DbManager {
         opt.max_connections(config.max_connections)
             .min_connections(config.min_connections)
             .connect_timeout(Duration::from_secs(5))
-            .sqlx_logging(true);
+            .sqlx_logging(false);
         let pool = Database::connect(opt).await?;
         let _ = DB_POOL.set(pool);
         Ok(())

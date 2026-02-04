@@ -25,10 +25,7 @@ use database::DbManager;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into()),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
     tracing::info!("Starting game server...");
@@ -36,11 +33,7 @@ async fn main() -> anyhow::Result<()> {
     DbManager::init(&config.database).await?;
 
     services::manager::init().await?;
-
     services::manager::init_maps_world().await?;
-
-    services::manager::start_map_update_task();
-
     network::start_server(&config.server).await?;
 
     Ok(())

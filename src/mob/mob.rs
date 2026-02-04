@@ -112,6 +112,10 @@ impl RtMob {
     }
 
     pub fn take_damage(&mut self, mut damage: i32) -> i32 {
+        if !self.is_alive || self.hp <= 0 {
+            return 0;
+        }
+
         if self.hp == self.max_hp && damage >= self.hp {
             damage = self.hp - 1;
         }
@@ -141,6 +145,9 @@ impl RtMob {
     }
 
     pub fn die(&mut self) {
+        if !self.is_alive {
+            return;
+        }
         self.is_alive = false;
         self.status = 0;
         self.temporary_enemies.clear();

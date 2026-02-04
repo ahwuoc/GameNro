@@ -101,7 +101,6 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
         *lock = nclasses_vec;
     }
 
-    println!("Loaded skill templates and nclasses into cache");
     Ok(())
 }
 

@@ -73,10 +73,6 @@ impl ServiceHandles {
         zone_id: i32,
         text: &str,
     ) -> Result<()> {
-        if player_id == 0 {
-            return Ok(());
-        }
-
         let mut response = Message::new(cmd::CHAT);
         response.write_int(player_id as i32)?;
         response.write_utf(text)?;

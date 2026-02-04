@@ -29,6 +29,7 @@ impl InventoryTransferService {
                     let item: Item = std::mem::take(&mut pl.inventory.items_body[index]);
                     if !item.is_null_item() {
                         pl.inventory.items_bag[bag_idx] = item;
+                        pl.stats_need_update = true;
                         InventoryService::send_item_bag_to_client(pl)?;
                         InventoryService::send_item_body_to_client(pl)?;
                     }
@@ -48,6 +49,7 @@ impl InventoryTransferService {
 
                 InventoryService::send_item_bag_to_client(pl)?;
                 InventoryService::send_item_body_to_client(pl)?;
+                pl.stats_need_update = true;
             }
             TypeItemInventory::BagToBox => {
                 if let Some(box_idx) = pl
@@ -77,6 +79,7 @@ impl InventoryTransferService {
                     let it_body: Item = std::mem::take(&mut pl.inventory.items_body[index]);
                     if it_body.is_not_null_item() {
                         pl.inventory.items_box[box_idx] = it_body;
+                        pl.stats_need_update = true;
                         InventoryService::send_item_box_to_client(pl)?;
                         InventoryService::send_item_body_to_client(pl)?;
                         InventoryService::send_open_box(pl)?;

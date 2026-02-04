@@ -1,3 +1,4 @@
+pub mod fusion;
 pub mod interaction_state;
 pub mod n_point;
 pub mod player_friend;

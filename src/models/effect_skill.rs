@@ -38,9 +38,12 @@ pub struct EffectSkill {
     pub last_time_huyt_sao: u64,
 
     // troi (hold/bind skill)
-    pub use_troi: bool,          // caster is holding target
-    pub time_troi: u64,          // duration
-    pub start_time_troi: u64,    // start time
+    pub use_troi: bool,              // caster is holding target
+    pub time_troi: u64,              // duration
+    pub start_time_troi: u64,        // start time
+    pub mob_an_troi_id: Option<u64>, // ID of mob being held by this player
+    pub pl_an_troi_id: Option<u64>,  // ID of player being held by this player
+
     pub an_troi: bool,           // target is being held
     pub time_an_troi: u64,       // duration being held
     pub start_time_an_troi: u64, // start time being held
@@ -54,6 +57,8 @@ pub struct EffectUpdateResult {
     pub bienkhi_finished: bool,
     pub monkey_down: bool,
     pub huyt_sao_expired: bool,
+    pub hold_expired: bool,
+    pub an_troi_expired: bool,
 }
 
 impl EffectSkill {
@@ -64,36 +69,40 @@ impl EffectSkill {
     pub fn update(&mut self, now: u64) -> EffectUpdateResult {
         let mut result = EffectUpdateResult::default();
 
-        // Shield expire
         if self.is_shield && now > self.shield_start_time + self.shield_duration_ms {
             self.is_shield = false;
             result.shield_removed = true;
         }
-
-        // Charging max reached
         if self.is_charging && self.count_charging >= 10 {
             self.is_charging = false;
             self.count_charging = 0;
             result.charge_stopped = true;
         }
 
-        // Bien Khi animation finish (transform into monkey)
         if self.is_skill_bienkhi && now > self.time_start_bienkhi + self.time_duration_bienkhi {
             self.is_skill_bienkhi = false;
             result.bienkhi_finished = true;
         }
 
-        // Monkey duration expire
         if self.is_monkey && now > self.last_time_up_monkey + self.time_monkey {
             self.is_monkey = false;
             self.level_monkey = 0;
             result.monkey_down = true;
         }
 
-        // Huyt Sao buff expire (30s)
         if self.ti_le_hp_huyt_sao > 0 && now > self.last_time_huyt_sao + 30000 {
             self.ti_le_hp_huyt_sao = 0;
             result.huyt_sao_expired = true;
+        }
+
+        if self.use_troi && now > self.start_time_troi + self.time_troi {
+            self.use_troi = false;
+            result.hold_expired = true;
+        }
+
+        if self.an_troi && now > self.start_time_an_troi + self.time_an_troi {
+            self.an_troi = false;
+            result.an_troi_expired = true;
         }
 
         result

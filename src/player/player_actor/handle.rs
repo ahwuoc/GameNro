@@ -3,15 +3,16 @@ use crate::player::player_actor::message::PlayerMessage;
 use anyhow::Result;
 use tokio::sync::mpsc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PlayerHandle {
     pub id: u64,
+    pub is_pet: bool,
     pub tx: mpsc::Sender<PlayerMessage>,
 }
 
 impl PlayerHandle {
-    pub fn new(id: u64, tx: mpsc::Sender<PlayerMessage>) -> Self {
-        Self { id, tx }
+    pub fn new(id: u64, is_pet: bool, tx: mpsc::Sender<PlayerMessage>) -> Self {
+        Self { id, is_pet, tx }
     }
 
     pub async fn send(&self, msg: PlayerMessage) -> Result<()> {

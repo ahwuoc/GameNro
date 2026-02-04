@@ -1,5 +1,10 @@
+use crate::combine::combine_type::CombineType;
+use crate::item::type_item_inventory::{TypeItemAction, TypeItemInventory};
+use crate::map::SpaceShipType;
 use crate::network::message::Message;
 use crate::player::player::Player;
+use crate::player::player_actor::pet::message::PetMessage;
+use crate::player::player_actor::pet::PetHandle;
 
 pub enum PlayerMessage {
     NetworkMessage(Message),
@@ -29,7 +34,7 @@ pub enum PlayerMessage {
         percent_hp: i32,
     },
     CombineOpenTab {
-        type_combine: crate::combine::combine_type::CombineType,
+        type_combine: CombineType,
         npc_id: i16,
     },
     CombineShowInfo {
@@ -37,12 +42,12 @@ pub enum PlayerMessage {
     },
     CombineConfirm,
     ItemAction {
-        type_action: crate::item::type_item_inventory::TypeItemAction,
+        type_action: TypeItemAction,
         where_item: i8,
         index: i8,
     },
     GetItem {
-        type_item_inventory: crate::item::type_item_inventory::TypeItemInventory,
+        type_item_inventory: TypeItemInventory,
         index: i8,
     },
     HoiSinh,
@@ -64,7 +69,7 @@ pub enum PlayerMessage {
         zone_id: i32,
         x: i16,
         y: i16,
-        space_type: crate::map::services::change_map_models::SpaceShipType,
+        space_type: SpaceShipType,
     },
     CreateMenu {
         npc_id: i16,
@@ -75,6 +80,12 @@ pub enum PlayerMessage {
     FinishLoadMap,
     Modify(Box<dyn FnOnce(&mut Player) + Send>),
 
-    /// Logout and save data
     Logout,
+    HandleAnTroi(bool, u64, Option<u64>),
+    SetPetHandle(PetHandle),
+    Fusion(i8),
+    Unfusion,
+    Pet(PetMessage),
+
+    ShowInfoPet,
 }
