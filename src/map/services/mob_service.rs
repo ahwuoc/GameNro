@@ -216,10 +216,10 @@ pub async fn update_actor(zone: &mut Zone) {
                     } else {
                         "aggressive"
                     };
-                    info!(
-                        "Mob {} (temp {}) Name {} ATK Player {} [Reason: {}] Mob:({},{}) -> Pl:({},{}) Dist:{:.1}",
-                        mob.id, mob.template_id, mob.name, target_id, reason, mob_loc.x, mob_loc.y, player_loc.x, player_loc.y, dist
-                    );
+                    // info!(
+                    //     "Mob {} (temp {}) Name {} ATK Player {} [Reason: {}] Mob:({},{}) -> Pl:({},{}) Dist:{:.1}",
+                    //     mob.id, mob.template_id, mob.name, target_id, reason, mob_loc.x, mob_loc.y, player_loc.x, player_loc.y, dist
+                    // );
                     mob.start_time_attack_player = current_time;
                     if let Some(handle) = zone.players.get(&target_id) {
                         let damage = mob.get_dame_attack();
@@ -233,7 +233,6 @@ pub async fn update_actor(zone: &mut Zone) {
                             msg_me,
                         ));
 
-                        // Cập nhật máu hiển thị cho người khác thấy đúng (HP hiện tại của nạn nhân)
                         let msg_others = build_mob_attack_player_message(
                             mob.id as i8,
                             target_id as i32,
@@ -368,14 +367,19 @@ async fn find_target_accurate_actor(
     temporary_enemies: &[u64],
     template_id: i8,
 ) -> Option<(u64, bool, crate::utils::location::Location, f64, i32)> {
+    // Check retaliation targets first (temporary enemies)
     for &player_id in temporary_enemies {
         if let Some(handle) = zone.players.get(&player_id) {
+            // Skip bosses and pets
+            if handle.is_pet || handle.boss_info.is_some() {
+                continue;
+            }
             let (tx, rx) = tokio::sync::oneshot::channel();
             let _ = handle
                 .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
                 .await;
             if let Ok(snapshot) = rx.await {
-                if !snapshot.is_die() {
+                if !snapshot.is_die() && !snapshot.is_boss {
                     let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
                     if dist <= 250.0 {
                         return Some((
@@ -396,12 +400,16 @@ async fn find_target_accurate_actor(
         let mut min_dist = if is_boss { f64::MAX } else { 100.0 };
 
         for handle in zone.players.values() {
+            // Skip bosses and pets - mobs should not attack them
+            if handle.is_pet || handle.boss_info.is_some() {
+                continue;
+            }
             let (tx, rx) = tokio::sync::oneshot::channel();
             let _ = handle
                 .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
                 .await;
             if let Ok(snapshot) = rx.await {
-                if !snapshot.is_die() {
+                if !snapshot.is_die() && !snapshot.is_boss {
                     let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
                     if dist <= min_dist {
                         min_dist = dist;
@@ -432,10 +440,6 @@ pub fn build_mob_attack_me_message(mob_id: i8, damage: i32) -> Message {
     let mut msg = Message::new(-11);
     let _ = msg.write_byte(mob_id);
     let _ = msg.write_int(damage);
-    info!(
-        "build_mob_attack_me_message: mob_id: {}, damage: {}",
-        mob_id, damage
-    );
     msg
 }
 
@@ -444,10 +448,10 @@ pub fn build_mob_attack_player_message(mob_id: i8, player_id: i32, hp: i32) -> M
     let _ = msg.write_byte(mob_id);
     let _ = msg.write_int(player_id);
     let _ = msg.write_int(hp);
-    info!(
-        "build_mob_attack_player_message: mob_id: {}, player_id: {}, hp: {}",
-        mob_id, player_id, hp
-    );
+    // info!(
+    //     "build_mob_attack_player_message: mob_id: {}, player_id: {}, hp: {}",
+    //     mob_id, player_id, hp
+    // );
     msg
 }
 

@@ -29,10 +29,10 @@ impl AsyncController {
     pub async fn process(session: SessionArc, mut msg: Message) -> Result<()> {
         let data_len = msg.payload.len();
         let sub_cmd = msg.payload.get(0).copied().map(|b| b as i8);
-        debug!(
-            "CMD: {} (0x{:02X}), len={}, sub_cmd={:?}",
-            msg.command, msg.command as u8, data_len, sub_cmd
-        );
+        // debug!(
+        //     "CMD: {} (0x{:02X}), len={}, sub_cmd={:?}",
+        //     msg.command, msg.command as u8, data_len, sub_cmd
+        // );
         match msg.command {
             cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {

@@ -139,16 +139,10 @@ impl PetActor {
                 self.update().await;
             }
             PetMessage::MasterLocation(x, y) => {
-                tracing::debug!(
-                    "Pet {} received master location: ({}, {})",
-                    self.pet.player.id,
-                    x,
-                    y
-                );
                 self.pet.master_location = Some((x, y));
             }
             PetMessage::MasterAttackTarget(_target_id, _target_type) => {
-                // Sẽ xử lý logic tấn công mục tiêu cùng chủ nhân
+                // TODO: Sẽ xử lý logic tấn công mục tiêu cùng chủ nhân
             }
             PetMessage::Fusion(is_porata) => {
                 self.pet.status = PetStatus::Fusion;
@@ -169,10 +163,10 @@ impl PetActor {
     }
 
     async fn update(&mut self) {
-        info!(
-            "Pet {} update tick. HP: {}, Dead: {}",
-            self.pet.player.id, self.pet.player.n_point.hp_current, self.pet.player.dead_flag
-        );
+        // info!(
+        //     "Pet {} update tick. HP: {}, Dead: {}",
+        //     self.pet.player.id, self.pet.player.n_point.hp_current, self.pet.player.dead_flag
+        // );
 
         if self.pet.player.n_point.hp_current <= 0 && !self.pet.player.dead_flag {
             info!(

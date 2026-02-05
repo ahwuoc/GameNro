@@ -1,13 +1,12 @@
 use std::{
-    os::raw::c_int,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
-use chrono::Local;
 use rand::seq::IndexedRandom;
 
 use crate::{
-    entities::player,
+    boss::scripts::{register, traits::BossScript},
     map::{zone::ZoneHandle, ChangeMapService},
     models::{boss::BossStage, skill_model::Skill},
     network::message::Message,
@@ -16,12 +15,11 @@ use crate::{
         Player,
     },
     services::ServiceHandles,
-    templates::{self, boss_template_manager},
+    templates::boss_template_manager,
     utils::{skill_util, time, Location},
 };
 use tokio::sync::mpsc;
 
-#[derive(Debug)]
 pub struct BossActor {
     pub player: Player,
     pub template_id: String,
@@ -34,6 +32,7 @@ pub struct BossActor {
     pub chat_queue: Vec<String>,
     pub chat_index: usize,
     pub next_chat_time: Instant,
+    pub script: Arc<dyn BossScript>,
 }
 
 #[derive(Debug)]
@@ -54,6 +53,8 @@ impl BossActor {
         zone_handle: ZoneHandle,
         receiver: mpsc::Receiver<PlayerMessage>,
     ) -> Self {
+        let script = register::get_script(&template_id);
+
         Self {
             player,
             template_id,
@@ -66,11 +67,15 @@ impl BossActor {
             chat_queue: Vec::new(),
             chat_index: 0,
             next_chat_time: Instant::now(),
+            script,
         }
     }
 
     pub async fn run(mut self) {
         tracing::info!("BossActor::run started for {}", self.player.id);
+
+        self.notify_join_map();
+
         let mut interval = tokio::time::interval(std::time::Duration::from_millis(200));
         loop {
             tokio::select! {
@@ -126,11 +131,11 @@ impl BossActor {
             return;
         }
         self.last_update = Instant::now();
-        tracing::debug!(
-            "BossActor::update ticking for {} (State: {:?})",
-            self.player.id,
-            self.state
-        );
+        // tracing::debug!(
+        //     "BossActor::update ticking for {} (State: {:?})",
+        //     self.player.id,
+        //     self.state
+        // );
 
         let template = boss_template_manager::get(&self.template_id);
         let boss_type = template
@@ -160,7 +165,6 @@ impl BossActor {
             if template.r#type != "solo" && self.current_stage + 1 < template.stages.0.len() {
                 self.transform_to_next_stage().await;
             } else {
-                // Hết stage, kiểm tra xem có sequence tiếp theo không
                 if template.r#type == "sequence" {
                     if let Some(comp) = &mut self.player.boss_component {
                         if !comp.sequence.is_empty() {
@@ -605,6 +609,163 @@ impl BossActor {
                         Vec::new(),
                     );
                 }
+            }
+        }
+    }
+
+    // ============ DEFAULT METHODS (cho script gọi) ============
+
+    /// Default update logic - script có thể gọi hoặc override hoàn toàn
+    pub async fn default_update(&mut self) {
+        if self.last_update.elapsed().as_millis() < 1000 {
+            return;
+        }
+        self.last_update = Instant::now();
+
+        let template = boss_template_manager::get(&self.template_id);
+        let boss_type = template
+            .as_ref()
+            .map(|t| t.r#type.as_str())
+            .unwrap_or("solo");
+
+        match self.state {
+            BossState::Resting => self.handle_rest().await,
+            BossState::Appearing => self.handle_appear().await,
+            BossState::Chatting => self.handle_chatting().await,
+            BossState::Fighting => self.handle_fighting().await,
+            BossState::Waiting => self.handle_waiting().await,
+            BossState::Changing => self.handle_changing().await,
+            _ => {}
+        }
+    }
+
+    /// Default injured handling
+    pub async fn default_injured(&mut self, damage: u64, piercing: bool) -> u64 {
+        let real_damage = self.player.injured(damage, piercing);
+
+        let _ = ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 0);
+        let _ = ServiceHandles::send_hp_sync(&self.player);
+
+        if self.player.n_point.hp_current <= 0 {
+            self.chat_end();
+            self.state = BossState::Changing;
+        }
+        real_damage
+    }
+
+    /// Default death handling
+    pub async fn default_death(&mut self) {
+        self.chat_end();
+        self.state = BossState::Changing;
+    }
+
+    /// Default stage change
+    pub async fn default_stage_change(&mut self, new_stage: usize) {
+        self.current_stage = new_stage;
+        self.transform_to_next_stage().await;
+    }
+
+    /// Default find target - tìm player gần nhất
+    pub async fn default_find_target(&self) -> Option<u64> {
+        self.find_target_enemy().await
+    }
+
+    /// Default choose skill - random skill available
+    pub fn default_choose_skill(&self) -> Option<Skill> {
+        if self.player.player_skill.skills.is_empty() {
+            return None;
+        }
+        let now = time::current_time_millis();
+        let mut available_skills: Vec<_> = self
+            .player
+            .player_skill
+            .skills
+            .iter()
+            .filter(|s| now > s.start_time_use + s.cool_down as u64)
+            .cloned()
+            .collect();
+
+        if available_skills.is_empty() {
+            return None;
+        }
+        let mut rng = rand::rng();
+        available_skills.choose(&mut rng).cloned()
+    }
+
+    /// Default attack
+    pub async fn default_attack(&mut self, target_id: u64) {
+        if let Some(skill) = self.default_choose_skill() {
+            self.use_skill(skill, target_id).await;
+        }
+    }
+
+    /// Default move
+    pub async fn default_move(&mut self, target_x: i16, target_y: i16) {
+        self.move_to(target_x, target_y).await;
+    }
+
+    /// Default chat on appear
+    pub fn default_chat_appear(&self) -> Vec<String> {
+        if let Some(template) = boss_template_manager::get(&self.template_id) {
+            template
+                .stages
+                .0
+                .get(self.current_stage)
+                .map(|s| s.chat.s.clone())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Default chat on fighting
+    pub fn default_chat_fighting(&self) -> Option<String> {
+        if let Some(template) = boss_template_manager::get(&self.template_id) {
+            template
+                .stages
+                .0
+                .get(self.current_stage)
+                .and_then(|s| s.chat.m.choose(&mut rand::rng()).cloned())
+        } else {
+            None
+        }
+    }
+
+    pub fn default_chat_death(&self) -> Vec<String> {
+        if let Some(template) = boss_template_manager::get(&self.template_id) {
+            template
+                .stages
+                .0
+                .get(self.current_stage)
+                .map(|s| s.chat.e.clone())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn notify_join_map(&self) {
+        let map_name = crate::map::map_manager::MAP_MANAGER
+            .find_by_id(self.player.map_id)
+            .map(|m| m.info.name.clone())
+            .unwrap_or_else(|| format!("Map {}", self.player.map_id));
+
+        let notify_text = format!("BOSS {} vừa xuất hiện tại {}", self.player.name, map_name);
+
+        Self::broadcast_server(&notify_text);
+        tracing::info!("{}", notify_text);
+    }
+
+    pub fn broadcast_server(text: &str) {
+        use crate::player::player_manager::PLAYER_MANAGER;
+
+        let mut msg = Message::new(-25);
+        let _ = msg.write_utf(text);
+
+        for entry in PLAYER_MANAGER.iter() {
+            let handle = entry.value();
+            if !handle.is_pet && handle.boss_info.is_none() {
+                handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
             }
         }
     }

@@ -289,8 +289,13 @@ impl Zone {
         match msg {
             ZoneMessage::AddPlayer { handle } => {
                 let is_pet = handle.is_pet;
-                let player_count = self.players.values().filter(|p| !p.is_pet).count();
-                if is_pet || player_count < self.max_player as usize {
+                let is_boss = handle.boss_info.is_some();
+                let player_count = self
+                    .players
+                    .values()
+                    .filter(|p| !p.is_pet && p.boss_info.is_none())
+                    .count();
+                if is_pet || is_boss || player_count < self.max_player as usize {
                     let id = handle.id;
                     self.players.insert(id, handle);
                 }

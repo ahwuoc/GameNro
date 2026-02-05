@@ -11,6 +11,75 @@ use tracing::{error, info};
 pub struct BossManager;
 
 impl BossManager {
+    pub async fn init_boss() {
+        use rand::seq::IndexedRandom;
+        use std::collections::HashSet;
+
+        let templates = boss_template_manager::get_all();
+        info!("Initializing {} boss templates...", templates.len());
+
+        let child_boss_ids: HashSet<String> = templates
+            .iter()
+            .flat_map(|t| t.stages.0.iter())
+            .flat_map(|s| s.together.iter())
+            .cloned()
+            .collect();
+
+        if !child_boss_ids.is_empty() {
+            info!(
+                "Found {} child boss IDs to skip: {:?}",
+                child_boss_ids.len(),
+                child_boss_ids
+            );
+        }
+
+        for template in templates {
+            if child_boss_ids.contains(&template.id) {
+                tracing::debug!("Boss {} is a child boss, skipping init", template.id);
+                continue;
+            }
+
+            let map_join = &template.map_join.0;
+            if map_join.is_empty() {
+                tracing::debug!("Boss {} has no map_join, skipping", template.id);
+                continue;
+            }
+
+            let Some(&map_id) = map_join.choose(&mut rand::rng()) else {
+                continue;
+            };
+
+            let zones = ZONE_MANAGER.get_zones_for_map(map_id);
+            if zones.is_empty() {
+                tracing::warn!(
+                    "Boss {} - No zone found for map {}, skipping",
+                    template.id,
+                    map_id
+                );
+                continue;
+            }
+            let zone = zones.choose(&mut rand::rng()).unwrap();
+
+            let x = rand::random_range(100..400);
+            let y = rand::random_range(300..400);
+
+            info!(
+                "Spawning boss {} on map {} zone {} at ({}, {})",
+                template.id, map_id, zone.zone_id, x, y
+            );
+
+            Self::spawn_boss_async(
+                template.id.clone(),
+                map_id,
+                zone.zone_id,
+                x,
+                y,
+                None,
+                -1,
+                Vec::new(),
+            );
+        }
+    }
     pub async fn spawn_boss(
         template_id: &str,
         map_id: i32,

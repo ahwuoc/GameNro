@@ -35,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
 
     services::manager::init().await?;
     services::manager::init_maps_world().await?;
+    boss::manager::BossManager::init_boss().await;
     network::start_server(&config.server).await?;
 
     Ok(())
