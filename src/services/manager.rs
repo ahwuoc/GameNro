@@ -2,9 +2,9 @@
 use crate::database::DbManager;
 use crate::map::map_manager;
 use crate::templates::{
-    head_avatar_manager, intrinsic_template_manager, item_template_manager, map_template_manager,
-    mob_template_manager, npc_template_manager, option_template_manager, skill_template_manager,
-    task_template_manager,
+    boss_template_manager, head_avatar_manager, intrinsic_template_manager, item_template_manager,
+    map_template_manager, mob_template_manager, npc_template_manager, option_template_manager,
+    pet_template_manager, skill_template_manager, task_template_manager,
 };
 use sea_orm::{ConnectionTrait, DatabaseBackend, QueryResult, Statement};
 use serde_json::Value as JsonValue;
@@ -15,7 +15,6 @@ use tracing::{error, info, instrument};
 
 use anyhow::Result;
 
-/// Initialize all template managers by loading data from database
 #[instrument]
 pub async fn init() -> Result<()> {
     let pool = DbManager::get_pool();
@@ -71,6 +70,14 @@ pub async fn init() -> Result<()> {
     task_template_manager::TASK_TEMPLATE_MANAGER
         .init(&pool)
         .await?;
+
+    pet_template_manager::load(&pool).await?;
+    info!(
+        "Loaded {} pet templates",
+        pet_template_manager::get_all().len()
+    );
+
+    boss_template_manager::load(&pool).await?;
 
     if let Err(e) = load_part_update_data().await {
         error!("Failed to load part update data: {:?}", e);

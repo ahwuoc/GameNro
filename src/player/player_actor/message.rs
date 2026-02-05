@@ -88,4 +88,7 @@ pub enum PlayerMessage {
     Pet(PetMessage),
 
     ShowInfoPet,
+    AttackPlayer {
+        player_id: i32,
+    },
 }

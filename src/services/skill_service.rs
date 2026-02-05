@@ -1,5 +1,6 @@
 use crate::entities::player;
 use crate::map::services::mob_service;
+use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::{map_service, zone_manager};
 use crate::models::skill_model::Skill;
 use crate::network::message::Message;
@@ -37,7 +38,11 @@ pub async fn execute_skill(
     mob_target: Option<&mut RtMob>,
 ) -> Option<Message> {
     if !player.is_skill_ready() || !player.has_enough_mana() {
-        debug!("Player {} cannot use skill (cooldown or mana)", player.name);
+        if player.is_boss {
+            tracing::info!("Boss {} cannot use skill: cooldown or mana", player.id);
+        } else {
+            debug!("Player {} cannot use skill (cooldown or mana)", player.name);
+        }
         return None;
     }
 
@@ -70,7 +75,7 @@ pub async fn execute_skill(
             None
         }
         (_, Skill::DICH_CHUYEN_TUC_THOI) => {
-            execute_dichchuyentucthoi(player, pl_target, mob_target);
+            execute_dichchuyentucthoi(player, pl_target, mob_target).await;
             None
         }
         (_, Skill::THOI_MIEN) => {
@@ -101,7 +106,7 @@ pub async fn execute_skill(
     }
 }
 
-pub fn execute_dichchuyentucthoi(
+pub async fn execute_dichchuyentucthoi(
     player: &mut Player,
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
@@ -124,7 +129,7 @@ pub fn execute_dichchuyentucthoi(
         player.location.y = target.location.y;
         messages.push(map_service::build_player_teleport_message(player));
 
-        deal_damage_to_player(player, target, false);
+        deal_damage_to_player(player, target, false).await;
         EffectSkillService::apply_blind_dctt(&mut target.effect_skill, time_stun);
         messages.push(EffectSkillService::build_effect_player_message(
             player.id,
@@ -443,12 +448,10 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
         1
     };
 
-    // Calculate critical
     let is_crit = player.n_point.crit >= 100;
     let dame_hit = if is_crit { dame_hit * 2 } else { dame_hit };
 
-    // Apply damage to target actor
-    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    let zone_manager = &ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         if let Ok(Some(target_handle)) = zone.get_player(target.id).await {
             let _ =
@@ -459,7 +462,11 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
         }
     }
 
-    let is_die = target.n_point.hp_current - dame_hit <= 0;
+    let is_die = if target.is_boss {
+        false
+    } else {
+        target.n_point.hp_current - dame_hit <= 0
+    };
     let _ = ServiceHandles::send_player_attack_player(player, target.id, dame_hit, is_die, is_crit);
 }
 
@@ -473,18 +480,14 @@ pub async fn deal_damage_to_mob(
     }
     let dame_attack = player.n_point.get_dame_attack(false);
     let _ = ServiceHandles::send_player_attack_mob(player, mob.id as u8);
-
-    // Apply damage to zone
-    let _ = crate::map::services::mob_service::attack_mob(player, mob.id as i32, dame_attack).await;
-
-    // We return None because the zone will handle broadcasting the health change/death
+    let _ = mob_service::attack_mob(player, mob.id as i32, dame_attack).await;
     None
 }
 
 pub fn apply_skill_cost(player: &mut Player) {
     if let Some(ref mut skill) = player.player_skill.skill_select {
         skill.start_time_use = time::current_time_millis();
-        if player.n_point.mp_current >= skill.mana_use as i32 {
+        if !player.is_boss && player.n_point.mp_current >= skill.mana_use as i32 {
             player.n_point.mp_current -= skill.mana_use as i32;
         }
     }

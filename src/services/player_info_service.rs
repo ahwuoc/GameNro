@@ -184,10 +184,8 @@ pub fn send_clan_info(player: &RtPlayer) -> anyhow::Result<()> {
 
 pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     println!("Sending max stamina");
-
     let mut msg = Message::new(-69);
-    msg.write_int(100)?; // max stamina
-
+    msg.write_int(100)?;
     player.send_to_client(msg)?;
     Ok(())
 }
@@ -281,7 +279,7 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
     msg.write_utf(&player.name)?; // cName
     msg.write_byte(0)?; // cPk
 
-    msg.write_byte(player.type_pk)?; // cTypePk
+    msg.write_byte(player.type_pk as i8)?; // cTypePk
 
     msg.write_long(player.n_point.power)?; // cPower
     msg.write_short(0)?; // eff5BuffHp

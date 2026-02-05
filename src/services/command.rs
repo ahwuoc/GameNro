@@ -1,3 +1,4 @@
+use crate::boss::manager::BossManager;
 use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
 use crate::item::InventoryService;
@@ -40,8 +41,50 @@ impl CommandService {
                     ServiceHandles::send_message_alert(player, "Bạn đã có đệ tử rồi!")?;
                 }
                 return Ok(true);
-            }
-            if text == "menu" {
+            } else if text == "boss" || text.starts_with("sb ") {
+                let boss_id = if text == "boss" {
+                    "boss_kuku"
+                } else {
+                    text.strip_prefix("sb ").unwrap_or("").trim()
+                };
+
+                tracing::info!(
+                    "COMMAND: Spawning boss '{}' at map {}, zone {}, x {}, y {}",
+                    boss_id,
+                    player.map_id,
+                    player.zone_id,
+                    player.location.x,
+                    player.location.y
+                );
+                match BossManager::spawn_boss(
+                    boss_id,
+                    player.map_id,
+                    player.zone_id,
+                    player.location.x,
+                    player.location.y,
+                    None,
+                    -1,
+                    Vec::new(),
+                )
+                .await
+                {
+                    Ok(_) => {
+                        tracing::info!("COMMAND: BossManager::spawn_boss successful");
+                        ServiceHandles::send_message_alert(
+                            player,
+                            &format!("Đã gọi boss {} thành công!", boss_id),
+                        )?;
+                    }
+                    Err(e) => {
+                        tracing::error!("COMMAND: BossManager::spawn_boss failed: {:?}", e);
+                        ServiceHandles::send_message_alert(
+                            player,
+                            &format!("Lỗi gọi boss {}: {:?}", boss_id, e),
+                        )?;
+                    }
+                }
+                return Ok(true);
+            } else if text == "menu" {
                 let online_players = SESSION_MANAGER.get_online_count();
                 let online_sessions = online_players;
                 let threads = System::new_all().cpus().len();
@@ -87,6 +130,22 @@ impl CommandService {
                     };
                     InventoryService::add_item_bag(player, item)?;
                 }
+                return Ok(true);
+            } else if text == "lb" {
+                let templates = crate::templates::boss_template_manager::get_all();
+                let list = templates
+                    .iter()
+                    .map(|t| format!("{} ({})", t.id, t.r#type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                tracing::info!("COMMAND: Loaded Boss Templates: {}", list);
+                ServiceHandles::send_message_alert(
+                    player,
+                    &format!(
+                        "Xem danh sách boss tại console! Số lượng: {}",
+                        templates.len()
+                    ),
+                )?;
                 return Ok(true);
             } else if text.starts_with("m ") {
                 let map_id_str = text.strip_prefix("m ").unwrap_or("");

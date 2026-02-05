@@ -248,6 +248,15 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            cmd::PLAYER_ATTACK_PLAYER => {
+                let player_id = msg.read_int()?;
+                if let Some(handle) = session.get_player_handle().await {
+                    handle.send_forget(crate::player::player_actor::PlayerMessage::AttackPlayer {
+                        player_id,
+                    });
+                }
+                Ok(())
+            }
             -33 | -23 => {
                 if let Some(handle) = session.get_player_handle().await {
                     let _ = handle

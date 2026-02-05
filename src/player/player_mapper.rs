@@ -200,10 +200,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     match parse_pet_data(&model.pet) {
         Ok(pet_data) => {
             if let Some(ref data) = pet_data {
-                println!(
-                    "[PLAYER_DAO] Pet {} items_body: {:?}",
-                    data.name, data.items_body
-                );
+                p.type_pet = data.type_pet;
             }
             p.pet_data = pet_data;
             p.is_pet = true;

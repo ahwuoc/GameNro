@@ -41,9 +41,34 @@ impl ServiceHandles {
         Ok(())
     }
     pub fn sub_command_30(byte: i8) -> Result<Message> {
-        let mut msg = Message::new(30);
+        let mut msg = Message::new(-30);
         msg.write_byte(byte)?;
         Ok(msg)
+    }
+
+    pub fn send_hp_sync(pl: &Player) -> Result<()> {
+        let mut msg = Self::sub_command_30(9)?;
+        msg.write_int(pl.id as i32)?;
+        msg.write_int(pl.n_point.hp_current)?;
+        msg.write_int(pl.n_point.hp_max)?;
+        Self::send_mess_another_not_me_in_map(pl, msg)?;
+        Ok(())
+    }
+
+    pub fn send_player_injured(
+        pl: &Player,
+        damage: i32,
+        is_crit: bool,
+        effect_id: u8,
+    ) -> Result<()> {
+        let mut msg = Message::new(56);
+        msg.write_int(pl.id as i32)?;
+        msg.write_int(pl.n_point.hp_current)?;
+        msg.write_int(damage)?;
+        msg.write_bool(is_crit)?;
+        msg.write_byte(effect_id as i8)?;
+        Self::send_mess_all_player_in_map(pl, msg)?;
+        Ok(())
     }
 
     pub fn send_player_die(player: &Player) -> Result<()> {
@@ -182,7 +207,7 @@ impl ServiceHandles {
         let _ = msg.write_int(clan_id);
         let _ = msg.write_byte(level);
         let _ = msg.write_bool(is_invis);
-        let _ = msg.write_byte(type_pk);
+        let _ = msg.write_byte(type_pk as i8);
         let _ = msg.write_byte(gender);
         let _ = msg.write_byte(class);
         let _ = msg.write_short(head);
@@ -204,15 +229,13 @@ impl ServiceHandles {
         let _ = msg.write_byte(c_flag);
         let _ = msg.write_byte(none);
 
-        if target_snapshot.is_pl() {
-            let id_aura = 0;
-            let aura = 0;
-            let eff_front = 0;
+        let id_aura = target_snapshot.get_aura();
+        let eff_front = target_snapshot.get_eff_front();
+        let id_hat = target_snapshot.get_hat();
 
-            let _ = msg.write_short(id_aura);
-            let _ = msg.write_short(aura);
-            let _ = msg.write_byte(eff_front);
-        }
+        let _ = msg.write_short(id_aura);
+        let _ = msg.write_byte(eff_front as i8);
+        let _ = msg.write_short(id_hat);
 
         handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(msg));
 
@@ -259,7 +282,7 @@ impl ServiceHandles {
         let _ = msg.write_int(clan_id);
         let _ = msg.write_byte(level);
         let _ = msg.write_bool(is_invis);
-        let _ = msg.write_byte(type_pk);
+        let _ = msg.write_byte(type_pk as i8);
         let _ = msg.write_byte(gender);
         let _ = msg.write_byte(class);
         let _ = msg.write_short(head);
@@ -281,15 +304,14 @@ impl ServiceHandles {
         let _ = msg.write_byte(c_flag);
         let _ = msg.write_byte(none);
 
-        if pl_target.is_pl() {
-            let id_aura = 0;
-            let aura = 0;
-            let eff_front = 0;
+        let id_aura = pl_target.get_aura();
+        let eff_front = pl_target.get_eff_front();
+        let id_hat = pl_target.get_hat();
 
-            let _ = msg.write_short(id_aura);
-            let _ = msg.write_short(aura);
-            let _ = msg.write_byte(eff_front);
-        }
+        let _ = msg.write_short(id_aura);
+        let _ = msg.write_byte(eff_front as i8);
+        let _ = msg.write_short(id_hat);
+
         pl_receiver.send_to_client(msg)?;
         Ok(())
     }
@@ -356,6 +378,26 @@ impl ServiceHandles {
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             zone.broadcast_except(msg, player.id);
         }
+        Ok(())
+    }
+
+    pub fn send_type_pk(player: &Player) -> Result<()> {
+        let mut msg = Message::new(crate::constant::cmd::cmd::CHANGE_TYPE_PK);
+        msg.write_byte(35)?;
+        msg.write_int(player.id as i64 as i32)?;
+        msg.write_byte(player.type_pk as i8)?;
+        Self::send_mess_all_player_in_map(player, msg)?;
+        Ok(())
+    }
+
+    pub fn send_revive_player(player: &Player) -> Result<()> {
+        let mut msg = Self::sub_command_30(15)?;
+        msg.write_int(player.id as i32)?;
+        msg.write_int(player.n_point.hp_current)?;
+        msg.write_int(player.n_point.mp_current)?;
+        msg.write_short(player.location.x)?;
+        msg.write_short(player.location.y)?;
+        Self::send_mess_all_player_in_map(player, msg)?;
         Ok(())
     }
 }

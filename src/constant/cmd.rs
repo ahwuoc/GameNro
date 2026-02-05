@@ -8,9 +8,11 @@ pub mod cmd {
 
     // Combat CMD constants
     pub const ATTACK_MOB: i8 = 54;
+    pub const PLAYER_ATTACK_PLAYER: i8 = -60;
     pub const USE_SKILL: i8 = -45;
     pub const SELECT_SKILL: i8 = 34;
     pub const GET_EFFECT_TEMPLATE: i8 = -66;
+    pub const CHANGE_TYPE_PK: i8 = -30;
 
     // Item CMD constants
     pub const PICK_ITEM: i8 = -20;

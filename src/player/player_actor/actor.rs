@@ -102,6 +102,9 @@ impl PlayerActor {
             PlayerMessage::AttackMob { mob_id } => {
                 self.handle_attack_mob(mob_id).await;
             }
+            PlayerMessage::AttackPlayer { player_id } => {
+                self.handle_attack_player(player_id).await;
+            }
             PlayerMessage::SelectSkill { skill_template_id } => {
                 let _ = crate::services::skill_service::select_skill(
                     &mut self.player,
@@ -427,15 +430,13 @@ impl PlayerActor {
         let real_damage = self.player.injured(damage, piercing);
         let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
 
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.player.map_id, self.player.zone_id);
-        if let Some(zone) = zone_opt {
-            let mut msg = Message::new(-11);
-            let _ = msg.write_int(self.player.id as i32);
-            let _ = msg.write_int(self.player.n_point.hp_current as i32);
-            let _ = msg.write_int(real_damage as i32);
-            let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
-        }
+        let _ = crate::services::ServiceHandles::send_player_injured(
+            &self.player,
+            real_damage as i32,
+            false,
+            0,
+        );
+        let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
     }
 
     async fn handle_attack_mob(&mut self, mob_id: i32) {
@@ -518,9 +519,38 @@ impl PlayerActor {
             if let Some(zone) = zone_opt.clone() {
                 zone.sync_mob_effects(mob.id, mob.effect_skill.clone());
             }
+        } else if let Some(mut pl_target) = pl_target_snapshot {
+            let _ = crate::services::skill_service::execute_skill(
+                &mut self.player,
+                Some(&mut pl_target),
+                None,
+            )
+            .await;
         } else {
             let _ =
                 crate::services::skill_service::execute_skill(&mut self.player, None, None).await;
+        }
+    }
+
+    async fn handle_attack_player(&mut self, player_id: i32) {
+        if self.player.effect_skill.use_troi {
+            self.release_hold();
+        }
+
+        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
+            .get_zone(self.player.map_id, self.player.zone_id);
+
+        if let Some(zone) = zone_opt {
+            if let Ok(Some(target_handle)) = zone.get_player(player_id as u64).await {
+                if let Some(mut target_snapshot) = target_handle.get_snapshot().await {
+                    let _ = crate::services::skill_service::execute_skill(
+                        &mut self.player,
+                        Some(&mut target_snapshot),
+                        None,
+                    )
+                    .await;
+                }
+            }
         }
     }
 

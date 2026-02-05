@@ -20,6 +20,7 @@ mod templates;
 mod utils;
 use anyhow::Result;
 use config::Config;
+mod boss;
 use database::DbManager;
 #[allow(dead_code)]
 #[tokio::main]

@@ -7,12 +7,14 @@ use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
+use crate::player::player_actor::Type_PK;
 use crate::player::player_data::PetData;
 use crate::player::InteractionState;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
-use crate::utils::Location;
+use crate::templates::pet_template_manager;
+use crate::utils::{time, Location};
 use serde_json::Value;
 
 use std::sync::Arc;
@@ -25,6 +27,8 @@ pub struct Player {
     pub name: String,
     pub gender: i8,
     pub head: i16,
+    pub body: i16,
+    pub leg: i16,
     pub session_id: Option<String>,
     pub session: Option<SessionArc>,
 
@@ -44,7 +48,7 @@ pub struct Player {
     pub type_train: u8,
     pub time_off: u64,
 
-    pub type_pk: i8,
+    pub type_pk: Type_PK,
 
     pub zone_id: i32,
     pub map_id: i32,
@@ -65,10 +69,13 @@ pub struct Player {
     pub task_id: i32,
     pub is_boss: bool,
     pub is_pet: bool,
+    pub type_pet: i8,
+    pub is_transform: bool,
     pub fusion: crate::player::components::fusion::Fusion,
     pub notify: Option<String>,
     pub stats_need_update: bool,
     pub pet_data: Option<PetData>,
+    pub boss_component: Option<crate::player::components::boss::BossComponent>,
 }
 
 impl Player {
@@ -83,6 +90,8 @@ impl Player {
             name,
             gender: 0,
             head: 0,
+            body: -1,
+            leg: -1,
             session_id: None,
             session: None,
             n_point: NPoint::new(),
@@ -99,7 +108,7 @@ impl Player {
             is_train: false,
             type_train: 0,
             time_off: 0,
-            type_pk: 0,
+            type_pk: Type_PK::PK_NON,
             zone_id: 0,
             map_id: 0,
             last_time_use_option: current_time,
@@ -116,10 +125,13 @@ impl Player {
             task_id: 0,
             is_boss: false,
             is_pet: false,
+            type_pet: 0,
+            is_transform: false,
             fusion: crate::player::components::fusion::Fusion::new(),
             notify: None,
             stats_need_update: true,
             pet_data: None,
+            boss_component: None,
         }
     }
 
@@ -139,6 +151,22 @@ impl Player {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::HEAD_MONKEY[idx];
         }
+
+        // ========Handle Pet=========
+        if self.is_pet {
+            if let Some(template) = pet_template_manager::get(self.type_pet as i32) {
+                if self.is_transform {
+                    if template.head_transform != -1 {
+                        return template.head_transform;
+                    }
+                } else {
+                    if template.head != -1 {
+                        return template.head;
+                    }
+                }
+            }
+        }
+
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -149,6 +177,23 @@ impl Player {
                 }
             }
         }
+
+        if self.is_pet {
+            if self.n_point.power < 1500000 {
+                return match self.gender {
+                    0 => 285,
+                    1 => 288,
+                    _ => 282,
+                };
+            } else {
+                return match self.gender {
+                    0 => 304,
+                    1 => 305,
+                    _ => 303,
+                };
+            }
+        }
+
         self.head
     }
     pub fn get_body(&self) -> i16 {
@@ -156,6 +201,22 @@ impl Player {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::BODY_MONKEY[idx];
         }
+
+        // ========Handle Pet=========
+        if self.is_pet {
+            if let Some(template) = pet_template_manager::get(self.type_pet as i32) {
+                if self.is_transform {
+                    if template.body_transform != -1 {
+                        return template.body_transform;
+                    }
+                } else {
+                    if template.body != -1 {
+                        return template.body;
+                    }
+                }
+            }
+        }
+
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -166,17 +227,59 @@ impl Player {
                 }
             }
         }
+
+        if self.is_pet {
+            if let Some(item) = self.inventory.items_body.get(0) {
+                if item.is_not_null_item() {
+                    if let Some(tpl) = &item.template {
+                        return tpl.part as i16;
+                    }
+                }
+            }
+
+            if self.n_point.power < 1500000 {
+                return match self.gender {
+                    0 => 286,
+                    1 => 289,
+                    _ => 283,
+                };
+            } else {
+                return if self.gender == 1 { 59 } else { 57 };
+            }
+        }
+
+        if self.body != -1 {
+            return self.body;
+        }
+
         if self.gender == 1 {
             59
         } else {
             57
         }
     }
+
     pub fn get_leg(&self) -> i16 {
         if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::LEG_MONKEY[idx];
         }
+
+        // ========Handle Pet=========
+        if self.is_pet {
+            if let Some(template) = pet_template_manager::get(self.type_pet as i32) {
+                if self.is_transform {
+                    if template.leg_transform != -1 {
+                        return template.leg_transform;
+                    }
+                } else {
+                    if template.leg != -1 {
+                        return template.leg;
+                    }
+                }
+            }
+        }
+
         if let Some(item) = self.inventory.items_body.get(5) {
             if item.is_not_null_item() {
                 if let Some(tpl) = &item.template {
@@ -187,11 +290,48 @@ impl Player {
                 }
             }
         }
+
+        if self.is_pet {
+            // Check đồ đang mặc (quần)
+            if let Some(item) = self.inventory.items_body.get(1) {
+                if item.is_not_null_item() {
+                    if let Some(tpl) = &item.template {
+                        return tpl.part as i16;
+                    }
+                }
+            }
+            if self.n_point.power < 1500000 {
+                return match self.gender {
+                    0 => 287,
+                    1 => 290,
+                    _ => 284,
+                };
+            } else {
+                return if self.gender == 1 { 60 } else { 58 };
+            }
+        }
+
+        if self.leg != -1 {
+            return self.leg;
+        }
+
         if self.gender == 1 {
             60
         } else {
             58
         }
+    }
+
+    pub fn get_aura(&self) -> i16 {
+        0
+    }
+
+    pub fn get_eff_front(&self) -> u8 {
+        0
+    }
+
+    pub fn get_hat(&self) -> i16 {
+        -1
     }
     pub fn send_to_client(&self, msg: Message) -> anyhow::Result<()> {
         if let Some(ref session) = self.session {
@@ -239,10 +379,7 @@ impl Player {
             self.n_point.hp_current = 1;
         }
         self.just_revived = true;
-        self.last_time_revived = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+        self.last_time_revived = time::current_time_millis();
     }
     pub fn chat(&self, text: &str) {
         println!("[{}]: {}", self.name, text);
@@ -329,6 +466,9 @@ impl Player {
     }
 
     pub fn has_enough_mana(&self) -> bool {
+        if self.is_boss {
+            return true;
+        }
         if let Some(skill) = &self.player_skill.skill_select {
             return self.n_point.mp_current >= skill.mana_use as i32;
         }

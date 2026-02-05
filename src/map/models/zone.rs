@@ -96,7 +96,7 @@ pub enum ZoneMessage {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ZoneHandle {
     pub map_id: i32,
     pub zone_id: i32,
