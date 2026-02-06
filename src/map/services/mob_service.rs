@@ -1,7 +1,7 @@
 use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
 use crate::map::item_map::ItemMap;
-use crate::map::map_service::is_ma_black_ball_war;
+use crate::map::map_service::is_map_black_ball_war;
 use crate::map::models::zone::{Zone, ZoneHandle};
 use crate::map::services::item_map_service::ItemMapService;
 use crate::map::zone::ZoneMessage;
@@ -140,7 +140,7 @@ async fn drop_item_on_mob_death_actor(
 fn get_mob_rewards(map_id: i32, mob_template_id: i16) -> Vec<Item> {
     let mut drops: Vec<Item> = Vec::new();
 
-    if crate::map::services::map_service::is_ma_black_ball_war(map_id) {
+    if crate::map::services::map_service::is_map_black_ball_war(map_id) {
         let vang_quantity = next_int(500, 3000);
         let gold_id = if vang_quantity < 1000 {
             76

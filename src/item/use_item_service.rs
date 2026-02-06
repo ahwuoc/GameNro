@@ -26,33 +26,10 @@ impl UseItemService {
 
         match type_item {
             6 => {
-                let Some(item) = pl
-                    .inventory
-                    .items_bag
-                    .iter()
-                    .find(|it| it.is_not_null_item() && it.get_type() == 6)
-                else {
-                    return Ok(UseItemResult::None);
-                };
-                let Some(hp_ki_hoiphuc) = item
-                    .item_options
-                    .iter()
-                    .find(|op| matches!(op.get_option_id(), 2 | 48))
-                    .map(|op| match op.get_option_id() {
-                        2 => op.get_param() * 1000,
-                        48 => op.get_param(),
-                        _ => unreachable!(),
-                    })
-                else {
-                    return Ok(UseItemResult::None);
-                };
-                pl.n_point
-                    .set_hp(pl.n_point.hp_current + hp_ki_hoiphuc as i32);
-                pl.n_point
-                    .set_mp(pl.n_point.mp_current + hp_ki_hoiphuc as i32);
-
-                InventoryService::sub_quantity_item_bag(pl, index, 1);
-                return Ok(UseItemResult::RecoveredHpMp { index });
+                if Self::eat_pea(pl, index) {
+                    return Ok(UseItemResult::RecoveredHpMp { index });
+                }
+                return Ok(UseItemResult::None);
             }
             _ => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
@@ -70,6 +47,37 @@ impl UseItemService {
                 }
             }
         }
-        Ok(UseItemResult::None)
+    }
+
+    pub fn eat_pea(pl: &mut Player, index: usize) -> bool {
+        let hp_ki_hoiphuc = {
+            let item = pl.inventory.items_bag.get(index);
+            if let Some(it) = item {
+                if it.is_not_null_item() && it.get_type() == 6 {
+                    it.item_options
+                        .iter()
+                        .find(|op| matches!(op.get_option_id(), 2 | 48))
+                        .map(|op| match op.get_option_id() {
+                            2 => op.get_param() as i32 * 1000,
+                            48 => op.get_param() as i32,
+                            _ => unreachable!(),
+                        })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(recovered) = hp_ki_hoiphuc {
+            pl.n_point.set_hp(pl.n_point.hp_current + recovered);
+            pl.n_point.set_mp(pl.n_point.mp_current + recovered);
+            pl.n_point.stamina = pl.n_point.max_stamina; // Full stamina
+
+            InventoryService::sub_quantity_item_bag(pl, index, 1);
+            return true;
+        }
+        false
     }
 }

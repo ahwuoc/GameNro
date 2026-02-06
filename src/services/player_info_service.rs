@@ -183,18 +183,15 @@ pub fn send_clan_info(player: &RtPlayer) -> anyhow::Result<()> {
 }
 
 pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending max stamina");
     let mut msg = Message::new(-69);
-    msg.write_int(100)?;
+    msg.write_short(player.n_point.max_stamina as i16)?;
     player.send_to_client(msg)?;
     Ok(())
 }
 
 pub fn send_current_stamina(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending current stamina");
-
     let mut msg = Message::new(-68);
-    msg.write_int(100)?; // current stamina
+    msg.write_short(player.n_point.stamina as i16)?; // current stamina
 
     player.send_to_client(msg)?;
     Ok(())

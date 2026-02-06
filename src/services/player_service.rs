@@ -61,7 +61,7 @@ pub fn hoi_sinh(pl: &mut Player) -> Result<()> {
         return Ok(());
     }
 
-    let can_respawn = if map_service::is_ma_black_ball_war(pl.map_id) {
+    let can_respawn = if map_service::is_map_black_ball_war(pl.map_id) {
         try_pay_gold(pl, 50_000)?
     } else {
         try_pay_gem(pl, 1)?

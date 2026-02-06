@@ -28,6 +28,10 @@ impl CommandService {
     ) -> anyhow::Result<bool> {
         let is_admin = player.is_admin;
         if is_admin {
+            if text == "b" {
+                let _ = BossManager::show_list_boss(player.id, session.get_version().await).await;
+                return Ok(true);
+            }
             if text == "pet" {
                 if player.pet_id.is_none() {
                     let handle = PetService::spawn_pet(player).await?;

@@ -7,4 +7,5 @@ pub enum PetMessage {
     MasterAttackTarget(Option<u64>, Option<u32>),
     Fusion(bool),
     GetSnapshot(tokio::sync::oneshot::Sender<crate::player::player_actor::pet::Pet>),
+    HealPet { hp: i32, mp: i32, stamina: i16 },
 }

@@ -91,4 +91,8 @@ pub enum PlayerMessage {
     AttackPlayer {
         player_id: i32,
     },
+    PetAskPea {
+        pet_id: u64,
+    },
+    ClearPetHandle,
 }

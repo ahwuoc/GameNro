@@ -331,6 +331,43 @@ impl PlayerActor {
             PlayerMessage::Pet(_) => {
                 // Ignore pet messages in master actor
             }
+            PlayerMessage::PetAskPea { pet_id } => {
+                self.handle_pet_ask_pea(pet_id).await;
+            }
+            PlayerMessage::ClearPetHandle => {
+                self.pet_handle = None;
+                self.player.pet_id = None;
+                info!("Cleared pet handle for player {}", self.player.id);
+            }
+        }
+    }
+
+    async fn handle_pet_ask_pea(&mut self, pet_id: u64) {
+        // Find pea in inventory
+        if let Some(index) = self
+            .player
+            .inventory
+            .items_bag
+            .iter()
+            .position(|it| it.is_not_null_item() && it.get_type() == 6)
+        {
+            if crate::item::use_item_service::UseItemService::eat_pea(&mut self.player, index) {
+                // Sync master HP/MP to client
+                let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+                let _ = crate::services::player_info_service::send_current_stamina(&self.player);
+                let _ = crate::item::InventoryService::send_item_bag(&self.player);
+
+                // Heal pet
+                if let Some(ref pet_handle) = self.pet_handle {
+                    let _ = pet_handle
+                        .send(PetMessage::HealPet {
+                            hp: 1000000,
+                            mp: 1000000,
+                            stamina: 100,
+                        })
+                        .await;
+                }
+            }
         }
     }
 

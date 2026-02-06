@@ -1,7 +1,12 @@
+use crate::entities::player;
+use crate::map::map_manager::MAP_MANAGER;
+use crate::map::map_service;
 use crate::map::zone_manager::ZONE_MANAGER;
+use crate::network::message::Message;
 use crate::player::components::boss::BossComponent;
 use crate::player::player::Player;
 use crate::player::player_actor::handle::PlayerHandle;
+use crate::player::player_actor::PlayerMessage;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::templates::boss_template_manager;
 use crate::{boss::actor::BossActor, player::player_actor::Type_PK};
@@ -11,6 +16,53 @@ use tracing::{error, info};
 pub struct BossManager;
 
 impl BossManager {
+    pub async fn show_list_boss(player_id: u64, version: i32) -> anyhow::Result<()> {
+        let Some(player_handle) = PLAYER_MANAGER.get(player_id) else {
+            return Err(anyhow::anyhow!("Player {} not found", player_id));
+        };
+        let boss_handle: Vec<PlayerHandle> = PLAYER_MANAGER
+            .iter()
+            .filter(|b| b.value().boss_info.is_some())
+            .map(|e| e.value().clone())
+            .collect();
+        let mut active_boss = Vec::new();
+        for handle in boss_handle {
+            if let Some(boss) = handle.get_snapshot().await {
+                if !map_service::is_map_black_ball_war(boss.map_id)
+                    && !map_service::is_map_boss_final(boss.map_id)
+                    && !map_service::is_map_huy_diet(boss.map_id)
+                    && !map_service::is_map_yardart(boss.map_id)
+                    && !map_service::is_map_ma_bu(boss.map_id)
+                {
+                    active_boss.push(boss);
+                }
+            }
+        }
+        let mut msg = Message::new(-96);
+        msg.write_byte(0)?;
+        msg.write_utf("Danh Sách Boss")?;
+        msg.write_byte(active_boss.len() as i8)?;
+        for (i, b) in active_boss.iter().enumerate() {
+            msg.write_int(i as i32)?;
+            msg.write_int(i as i32)?;
+            msg.write_short(b.get_head())?;
+            if version >= 214 {
+                msg.write_short(-1)?;
+            }
+            msg.write_short(b.get_body())?;
+            msg.write_short(b.get_leg())?;
+            msg.write_utf(&b.name)?;
+            msg.write_utf("Đang sống")?;
+
+            let map_name = MAP_MANAGER
+                .find_by_id(b.map_id)
+                .map(|m| m.info.name.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
+            msg.write_utf(&format!("{}({}) khu {}", map_name, b.map_id, b.zone_id))?;
+        }
+        player_handle.send(PlayerMessage::SendPacket(msg)).await?;
+        Ok(())
+    }
     pub async fn init_boss() {
         use rand::seq::IndexedRandom;
         use std::collections::HashSet;
