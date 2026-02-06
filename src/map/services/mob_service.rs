@@ -175,7 +175,12 @@ pub async fn update_actor(zone: &mut Zone) {
             handle_mob_effects(mob, current_time, &mut global_msgs);
             handle_self_recovery(mob, current_time, &mut global_msgs);
 
-            if current_time > mob.start_time_attack_player + 1000 {
+            let is_passive = mob
+                .template
+                .as_ref()
+                .map(|t| t.r#type == 0)
+                .unwrap_or(false);
+            if !is_passive && current_time > mob.start_time_attack_player + 1000 {
                 attack_candidates.push((
                     mob.id,
                     mob.location.clone(),
@@ -223,12 +228,19 @@ pub async fn update_actor(zone: &mut Zone) {
                     mob.start_time_attack_player = current_time;
                     if let Some(handle) = zone.players.get(&target_id) {
                         let damage = mob.get_dame_attack();
+                        tracing::info!(
+                            "[MOB_ATK] Mob {} (temp {}) ATK Pl {}. Dmg: {}. Retaliatory: {}. Last Atk: {}, Wait: {}",
+                            mob.id, mob.template_id, target_id, damage, is_retaliation, mob.start_time_attack_player, current_time - mob.start_time_attack_player
+                        );
+
                         handle.send_forget(crate::player::player_actor::PlayerMessage::Injured {
                             damage: damage as u64,
                             piercing: false,
+                            from_mob: true,
                         });
 
                         let msg_me = build_mob_attack_me_message(mob.id as i8, damage);
+                        tracing::info!("[MOB_ATK] SENDING Command -11 to Victim {}", target_id);
                         handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
                             msg_me,
                         ));
@@ -236,10 +248,14 @@ pub async fn update_actor(zone: &mut Zone) {
                         let msg_others = build_mob_attack_player_message(
                             mob.id as i8,
                             target_id as i32,
-                            player_hp,
+                            player_hp.saturating_sub(damage as i32),
                         );
-                        for other_handle in zone.players.values() {
-                            if other_handle.id != target_id {
+                        for (other_id, other_handle) in zone.players.iter() {
+                            if *other_id != target_id {
+                                tracing::info!(
+                                    "[MOB_ATK] BROADCAST Command -10 to Observer {}",
+                                    other_id
+                                );
                                 other_handle.send_forget(
                                     crate::player::player_actor::PlayerMessage::SendPacket(
                                         msg_others.clone(),
@@ -247,6 +263,12 @@ pub async fn update_actor(zone: &mut Zone) {
                                 );
                             }
                         }
+                        tracing::info!("[MOB_ATK] DONE Mob {} atk on Pl {}", mob.id, target_id);
+                        tracing::debug!(
+                            "[DEBUG_MOB_ATK] FINISH Mob {} attack on Pl {}",
+                            mob.id,
+                            target_id
+                        );
                     }
                 }
             }
@@ -304,6 +326,11 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
 }
 
 fn can_mob_attack(mob: &RtMob, current_time: u64) -> bool {
+    if let Some(template) = &mob.template {
+        if template.r#type == 0 {
+            return false;
+        }
+    }
     if mob.effect_skill.is_stun
         || mob.effect_skill.is_blind_dctt
         || mob.effect_skill.is_thoi_mien

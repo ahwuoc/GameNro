@@ -10,6 +10,10 @@ pub struct Model {
     pub npc_id: i32,
     pub tag_name: Option<String>,
     pub type_shop: Option<i32>,
+    pub status: bool,
+    pub display_name: Option<String>,
+    pub sort_order: Option<i32>,
+    pub is_gender: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

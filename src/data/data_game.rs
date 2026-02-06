@@ -430,7 +430,7 @@ impl DataGame {
             msg.write(&eff_data)?;
 
             if version > 216 {
-                msg.write_byte(if id_t == 60 { 2 } else { 0 })?;
+                msg.write_byte(if id_t == 60 { 2 } else { 1 })?;
             }
 
             msg.write_int(eff_img.len() as i32)?;

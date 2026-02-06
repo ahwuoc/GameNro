@@ -11,6 +11,7 @@ pub mod box_item_drop_options;
 pub mod box_item_drops;
 pub mod caption;
 pub mod categories_news;
+pub mod clan;
 pub mod clan_sv1;
 pub mod clan_sv2;
 pub mod comment;

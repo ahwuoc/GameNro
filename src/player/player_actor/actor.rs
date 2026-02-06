@@ -96,8 +96,12 @@ impl PlayerActor {
             PlayerMessage::SendPacket(m) => {
                 self.session.transmit(m);
             }
-            PlayerMessage::Injured { damage, piercing } => {
-                self.handle_injured(damage, piercing).await;
+            PlayerMessage::Injured {
+                damage,
+                piercing,
+                from_mob,
+            } => {
+                self.handle_injured(damage, piercing, from_mob).await;
             }
             PlayerMessage::AttackMob { mob_id } => {
                 self.handle_attack_mob(mob_id).await;
@@ -339,6 +343,64 @@ impl PlayerActor {
                 self.player.pet_id = None;
                 info!("Cleared pet handle for player {}", self.player.id);
             }
+            PlayerMessage::MagicTreeAction(action) => {
+                info!(
+                    "PlayerActor: MagicTreeAction({}) for player {}",
+                    action, self.player.id
+                );
+                match action {
+                    1 => {
+                        // Open menu
+                        let menu_id = self.player.magic_tree.get_menu_id();
+                        self.player.interaction_state.set_index_menu(menu_id);
+                        if let Ok(msg) = self.player.magic_tree.create_menu_message(&self.player) {
+                            self.session.transmit(msg);
+                        }
+                    }
+                    2 => {
+                        // Load data
+                        if let Ok(msg) = self.player.magic_tree.create_load_message(&self.player) {
+                            self.session.transmit(msg);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            PlayerMessage::MagicTreeHarvest => {
+                info!(
+                    "PlayerActor: MagicTreeHarvest for player {}",
+                    self.player.id
+                );
+                crate::services::magic_tree_service::harvest_pea(&mut self.player);
+            }
+            PlayerMessage::MagicTreeFastRespawn => {
+                info!(
+                    "PlayerActor: MagicTreeFastRespawn for player {}",
+                    self.player.id
+                );
+                crate::services::magic_tree_service::fast_respawn_pea(&mut self.player);
+            }
+            PlayerMessage::MagicTreeUpgrade => {
+                info!(
+                    "PlayerActor: MagicTreeUpgrade for player {}",
+                    self.player.id
+                );
+                crate::services::magic_tree_service::upgrade_magic_tree(&mut self.player);
+            }
+            PlayerMessage::MagicTreeFastUpgrade => {
+                info!(
+                    "PlayerActor: MagicTreeFastUpgrade for player {}",
+                    self.player.id
+                );
+                crate::services::magic_tree_service::fast_upgrade_magic_tree(&mut self.player);
+            }
+            PlayerMessage::MagicTreeUnupgrade => {
+                info!(
+                    "PlayerActor: MagicTreeUnupgrade for player {}",
+                    self.player.id
+                );
+                crate::services::magic_tree_service::unupgrade_magic_tree(&mut self.player);
+            }
         }
     }
 
@@ -418,6 +480,7 @@ impl PlayerActor {
     }
 
     async fn update(&mut self) {
+        self.player.magic_tree.update();
         if self.player.before_dispose {
             return;
         }
@@ -463,24 +526,47 @@ impl PlayerActor {
         Ok(())
     }
 
-    async fn handle_injured(&mut self, damage: u64, piercing: bool) {
-        let real_damage = self.player.injured(damage, piercing);
-        let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
-
-        let _ = crate::services::ServiceHandles::send_player_injured(
-            &self.player,
-            real_damage as i32,
-            false,
-            0,
+    async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
+        tracing::info!(
+            "[INJURED] Pl {} takes {} damage. from_mob: {}, piercing: {}. HP BEFORE: {}",
+            self.player.id,
+            damage,
+            from_mob,
+            piercing,
+            self.player.n_point.hp_current
         );
-        let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
+        let real_damage = self.player.injured(damage, piercing);
+        tracing::info!(
+            "[INJURED] Pl {} HP AFTER: {}",
+            self.player.id,
+            self.player.n_point.hp_current
+        );
+
+        if !from_mob {
+            tracing::info!(
+                "[INJURED] BROADCASTING Command 56 and HP Sync for Pl {}",
+                self.player.id
+            );
+            let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+            let _ = crate::services::ServiceHandles::send_player_injured(
+                &self.player,
+                real_damage as i32,
+                false,
+                0,
+            );
+            let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
+        } else {
+            tracing::info!(
+                "[INJURED] SKIPPING Broadcast for Pl {} (from_mob=true)",
+                self.player.id
+            );
+        }
     }
 
     async fn handle_attack_mob(&mut self, mob_id: i32) {
         if self.player.effect_skill.use_troi {
             self.release_hold();
         }
-
         let zone_opt = crate::map::zone_manager::ZONE_MANAGER
             .get_zone(self.player.map_id, self.player.zone_id);
 
@@ -494,7 +580,6 @@ impl PlayerActor {
                         Some(&mut mob_clone),
                     )
                     .await;
-                    // Sync effect state back to zone
                     zone.sync_mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
                 }
             }
@@ -687,6 +772,13 @@ impl PlayerActor {
         if let Some(ref pet_handle) = self.pet_handle {
             let _ = pet_handle.tx.send(PlayerMessage::Logout).await;
         }
+
+        // Remove from clan online
+        crate::clan::clan_service::ClanService::remove_player_from_clan_online(
+            self.player.id,
+            self.player.clan_id,
+        )
+        .await;
 
         let _ = ChangeMapService::exit_map_actor(&mut self.player).await;
         PLAYER_MANAGER.remove(self.player.id);

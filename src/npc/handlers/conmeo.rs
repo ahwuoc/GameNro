@@ -1,24 +1,18 @@
-use sqlx::any;
-
 use crate::constant::menu_enum::MenuId;
-use crate::entities::player;
-use crate::network::session::{self, AsyncSession, SessionArc};
-use crate::npc::handlers::NpcHandler;
-use crate::services::{IntrinsicService, ServiceHandles};
-use sysinfo::System;
+use crate::npc::handlers::{NpcContext, NpcHandler};
+use crate::services::IntrinsicService;
 
 pub struct ConMeoHandler;
 
 #[async_trait::async_trait]
 impl NpcHandler for ConMeoHandler {
-    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
+    async fn open_menu(&self, _ctx: &NpcContext<'_>) -> anyhow::Result<()> {
         Ok(())
     }
 
     async fn handle_menu(
         &self,
-        session: &SessionArc,
-        npc_id: i16,
+        ctx: &NpcContext<'_>,
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
@@ -29,8 +23,7 @@ impl NpcHandler for ConMeoHandler {
             },
             MenuId::Intrinsic => match select {
                 0 => {
-                    let player_opt = session.get_player_snapshot().await;
-                    if let Some(player) = player_opt {
+                    if let Some(player) = ctx.get_player_snapshot().await {
                         IntrinsicService::show_all_intrinsic(&player).await?;
                     }
                 }

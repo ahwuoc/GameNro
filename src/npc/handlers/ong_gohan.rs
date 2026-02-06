@@ -1,20 +1,15 @@
 use crate::constant::menu_enum::MenuId;
-use crate::network::session::{AsyncSession, SessionArc};
-use crate::npc::handlers::NpcHandler;
-use crate::npc::npc_service;
-use crate::services::ServiceHandles;
+use crate::npc::handlers::{NpcContext, NpcHandler};
 use crate::shop::shop_services::shop_service;
 
 pub struct NpcHomeHandler;
 
 #[async_trait::async_trait]
 impl NpcHandler for NpcHomeHandler {
-    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        npc_service::npc_service::create_menu(
-            session,
-            npc_id,
-            "Chao con ong gohan",
-            vec!["Giftcode", "Đổi Mật Khẩu", "Đổi Skill", "Đổi Skill"],
+    async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
+        ctx.create_menu(
+            "Chào con, ông Gohan đây!",
+            vec!["Giftcode", "Đổi Mật Khẩu", "Đổi Skill", "Shop Skill"],
             MenuId::OngGohanMenu,
         )
         .await?;
@@ -23,28 +18,23 @@ impl NpcHandler for NpcHomeHandler {
 
     async fn handle_menu(
         &self,
-        session: &SessionArc,
-        npc_id: i16,
+        ctx: &NpcContext<'_>,
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
         match menu_id {
             MenuId::OngGohanMenu => match select {
                 0 => {
-                    // ServiceHandles::send_message_alert(
-                    //     session,
-                    //     "Chức năng Giftcode đang được phát triển",
-                    // )?;
+                    ctx.npc_chat("Chức năng Giftcode đang được phát triển")?;
                 }
                 1 => {
-                    // ServiceHandles::send_message_alert(
-                    //     session,
-                    //     "Chức năng Đổi Mật Khẩu đang được phát triển",
-                    // )?;
+                    ctx.npc_chat("Chức năng Đổi Mật Khẩu đang được phát triển")?;
                 }
-                2 => {}
+                2 => {
+                    ctx.npc_chat("Chức năng Đổi Skill đang được phát triển")?;
+                }
                 3 => {
-                    shop_service::open_shop("DOI_SKILL_DE", session).await?;
+                    shop_service::open_shop("DOI_SKILL_DE", ctx.session).await?;
                 }
                 _ => {}
             },

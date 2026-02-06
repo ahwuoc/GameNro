@@ -172,15 +172,7 @@ pub fn clear_map(player: &RtPlayer) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn send_clan_info(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending clan info");
-
-    let mut msg = Message::new(-53);
-    msg.write_int(-1)?;
-
-    player.send_to_client(msg)?;
-    Ok(())
-}
+// Removed old send_clan_info
 
 pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-69);
@@ -352,7 +344,7 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     send_player_blob_internal(&player).await?;
 
     // -53 my clan
-    send_clan_info(&player)?;
+    crate::clan::clan_service::ClanService::send_my_clan(&player).await?;
 
     // -69 max stamina
     send_max_stamina(&player)?;

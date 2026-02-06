@@ -7,9 +7,10 @@ use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
-use crate::player::player_actor::Type_PK;
+use crate::player::player_actor::TypePk;
 use crate::player::player_data::PetData;
 use crate::player::InteractionState;
+use crate::player::MagicTree;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
@@ -24,6 +25,7 @@ use tokio::sync::RwLock;
 #[derive(Clone, Debug)]
 pub struct Player {
     pub id: u64,
+    pub clan_id: i32,
     pub name: String,
     pub gender: i8,
     pub head: i16,
@@ -48,7 +50,7 @@ pub struct Player {
     pub type_train: u8,
     pub time_off: u64,
 
-    pub type_pk: Type_PK,
+    pub type_pk: TypePk,
 
     pub zone_id: i32,
     pub map_id: i32,
@@ -76,17 +78,15 @@ pub struct Player {
     pub stats_need_update: bool,
     pub pet_data: Option<PetData>,
     pub boss_component: Option<crate::player::components::boss::BossComponent>,
+    pub magic_tree: MagicTree,
 }
 
 impl Player {
     pub fn new(id: u64, name: String, gender: u8) -> Self {
-        let current_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-
+        let current_time = time::current_time_millis();
         Player {
             id,
+            clan_id: -1,
             name,
             gender: 0,
             head: 0,
@@ -108,7 +108,7 @@ impl Player {
             is_train: false,
             type_train: 0,
             time_off: 0,
-            type_pk: Type_PK::PK_NON,
+            type_pk: TypePk::PkNon,
             zone_id: 0,
             map_id: 0,
             last_time_use_option: current_time,
@@ -132,6 +132,7 @@ impl Player {
             stats_need_update: true,
             pet_data: None,
             boss_component: None,
+            magic_tree: MagicTree::new(),
         }
     }
 

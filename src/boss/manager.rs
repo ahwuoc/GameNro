@@ -9,7 +9,7 @@ use crate::player::player_actor::handle::PlayerHandle;
 use crate::player::player_actor::PlayerMessage;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::templates::boss_template_manager;
-use crate::{boss::actor::BossActor, player::player_actor::Type_PK};
+use crate::{boss::actor::BossActor, player::player_actor::TypePk};
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
@@ -159,7 +159,7 @@ impl BossManager {
         player.zone_id = zone_id;
         player.location.x = x;
         player.location.y = y;
-        player.type_pk = Type_PK::PK_NON;
+        player.type_pk = TypePk::PkNon;
 
         let mut boss_component = BossComponent::new();
         boss_component.group_id = group_id;

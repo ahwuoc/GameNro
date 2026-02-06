@@ -13,6 +13,7 @@ use sea_orm::Set;
 
 pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Player, String> {
     let mut p = Player::new(model.id as u64, model.name.clone(), model.gender as u8);
+    p.clan_id = model.clan_id;
 
     match parse_inventory_array(&model.data_inventory) {
         Ok(data_inventory) => {
@@ -210,6 +211,12 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
         }
     }
 
+    if !model.data_magic_tree.is_empty() && model.data_magic_tree != "{}" {
+        if let Ok(magic_tree) = serde_json::from_str(&model.data_magic_tree) {
+            p.magic_tree = magic_tree;
+        }
+    }
+
     Ok(p)
 }
 
@@ -279,6 +286,8 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         .map(|d| serde_json::to_string(d).unwrap_or_else(|_| "{}".to_string()))
         .unwrap_or_else(|| "{}".to_string());
 
+    let magic_tree_str = serde_json::to_string(&p.magic_tree).unwrap_or_else(|_| "{}".to_string());
+
     player::ActiveModel {
         id: Set(p.id as i32),
         name: Set(p.name.clone()),
@@ -287,12 +296,14 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         data_inventory: Set(data_inventory),
         data_location: Set(data_location),
         data_point: Set(data_point),
+        data_magic_tree: Set(magic_tree_str),
         items_body: Set(items_body),
         items_bag: Set(items_bag),
         items_box: Set(items_box),
         skills: Set(skills_str),
         skills_shortcut: Set(skills_shortcut_str),
         pet: Set(pet_str),
+        clan_id: Set(p.clan_id),
         ..Default::default()
     }
 }

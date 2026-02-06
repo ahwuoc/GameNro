@@ -640,7 +640,6 @@ impl Zone {
 
     async fn handle_remove_mob_hold(&mut self, mob_id: u64, caster_id: u64) {
         if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
-            // Verification that it's the same caster
             if mob.effect_skill.an_troi && mob.effect_skill.pl_troi_id == Some(caster_id) {
                 crate::services::effect_skill_service::EffectSkillService::remove_troi_mob(mob);
                 let msg = crate::services::effect_skill_service::EffectSkillService::build_effect_mob_message(

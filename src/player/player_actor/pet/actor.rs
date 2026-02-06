@@ -38,10 +38,19 @@ impl PetActor {
                         PlayerMessage::Logout => break,
                         PlayerMessage::Pet(pet_msg) => self.handle_pet_message(pet_msg).await,
                         PlayerMessage::UpdateTick => self.update().await,
-                        PlayerMessage::Injured { damage, piercing } => {
+                        PlayerMessage::Injured {
+                            damage,
+                            piercing,
+                            from_mob: _,
+                        } => {
                             let actual_damage = self.pet.player.injured(damage, piercing);
-                            info!("Pet {} took {} damage (after armor: {}). HP left: {}",
-                                self.pet.player.id, damage, actual_damage, self.pet.player.n_point.hp_current);
+                            info!(
+                                "Pet {} took {} damage (after armor: {}). HP left: {}",
+                                self.pet.player.id,
+                                damage,
+                                actual_damage,
+                                self.pet.player.n_point.hp_current
+                            );
                         }
                         PlayerMessage::GetSnapshot(tx) => {
                             let _ = tx.send(self.pet.player.clone());

@@ -11,6 +11,7 @@ pub use super::box_item_drop_options::Entity as BoxItemDropOptions;
 pub use super::box_item_drops::Entity as BoxItemDrops;
 pub use super::caption::Entity as Caption;
 pub use super::categories_news::Entity as CategoriesNews;
+pub use super::clan::Entity as Clan;
 pub use super::clan_sv1::Entity as ClanSv1;
 pub use super::clan_sv2::Entity as ClanSv2;
 pub use super::comment::Entity as Comment;

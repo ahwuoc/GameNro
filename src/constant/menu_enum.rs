@@ -10,6 +10,16 @@ pub enum MenuId {
     ConfirmOpenIntrinsicVip,
     Admin,
     OngGohanMenu,
+    // Dynamic shop NPCs
+    BunmaMenu,
+    DendeMenu,
+    AppuleMenu,
+    // Magic Tree (Dau Than)
+    MagicTreeNonUpgradeLeftPea,
+    MagicTreeNonUpgradeFullPea,
+    MagicTreeConfirmUpgrade,
+    MagicTreeUpgrade,
+    MagicTreeConfirmUnupgrade,
 }
 
 impl Default for MenuId {

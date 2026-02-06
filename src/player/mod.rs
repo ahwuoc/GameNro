@@ -1,4 +1,5 @@
 pub mod components;
+pub mod magic_tree;
 pub mod player;
 pub mod player_actor;
 pub mod player_data;
@@ -16,3 +17,4 @@ pub use components::player_friend::Friend as PlayerFriend;
 pub use components::player_intrinsic::PlayerIntrinsic;
 pub use components::player_item_time::PlayerItemTime;
 pub use components::player_skill::PlayerSkill;
+pub use magic_tree::MagicTree;

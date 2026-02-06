@@ -17,6 +17,7 @@ pub enum PlayerMessage {
     Injured {
         damage: u64,
         piercing: bool,
+        from_mob: bool,
     },
     AttackMob {
         mob_id: i32,
@@ -95,4 +96,10 @@ pub enum PlayerMessage {
         pet_id: u64,
     },
     ClearPetHandle,
+    MagicTreeAction(u8),
+    MagicTreeHarvest,
+    MagicTreeFastRespawn,
+    MagicTreeUpgrade,
+    MagicTreeFastUpgrade,
+    MagicTreeUnupgrade,
 }

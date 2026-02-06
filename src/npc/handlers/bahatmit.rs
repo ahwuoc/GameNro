@@ -1,51 +1,46 @@
-use super::NpcHandler;
+use crate::combine::combine_service;
 use crate::combine::combine_type::CombineType;
-use crate::combine::{combine_constants, combine_service, CombineHandler};
-use crate::constant::const_npc;
 use crate::constant::menu_enum::MenuId;
-use crate::entities::player;
-use crate::network::session::{self, AsyncSession, SessionArc};
-use crate::npc::npc_service;
+use crate::npc::handlers::{NpcContext, NpcHandler};
 use async_trait::async_trait;
 
 pub struct BahatmitHandler;
 
 #[async_trait]
 impl NpcHandler for BahatmitHandler {
-    async fn open_menu(&self, session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        let Some(snapshot) = session.get_player_snapshot().await else {
+    async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
+        let Some(snapshot) = ctx.get_player_snapshot().await else {
             return Ok(());
         };
         let map_id = snapshot.map_id;
 
         match map_id {
             5 => {
-                let menu_items = vec![
-                    "Chức năng\npha lê",
-                    "Chức năng\nđệ tử",
-                    "Chức năng\nSét Kích Hoạt",
-                    "Chức năng\nItem cấp 2",
-                    "võ dài sinh tử",
-                ];
-                let npc_say = "Ngươi tìm ta có việc gì?";
-                let is_empty = if let Some(snapshot) = session.get_player_snapshot().await {
-                    snapshot.combine_new.items_combine.is_empty()
-                } else {
-                    true
-                };
+                ctx.create_menu(
+                    "Ngươi tìm ta có việc gì?",
+                    vec![
+                        "Chức năng\npha lê",
+                        "Chức năng\nđệ tử",
+                        "Chức năng\nSét Kích Hoạt",
+                        "Chức năng\nItem cấp 2",
+                        "Võ đài sinh tử",
+                    ],
+                    MenuId::BaseMenu,
+                )
+                .await?;
             }
             _ => {}
         }
         Ok(())
     }
+
     async fn handle_menu(
         &self,
-        session: &SessionArc,
-        npc_id: i16,
+        ctx: &NpcContext<'_>,
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
-        let map_id = session
+        let map_id = ctx
             .get_player_snapshot()
             .await
             .map(|p| p.map_id)
@@ -56,11 +51,11 @@ impl NpcHandler for BahatmitHandler {
                 5 => match select {
                     0 => {
                         combine_service::open_tab_combine(
-                            session,
+                            ctx.session,
                             CombineType::PhaLeHoaTrangBi(
                                 crate::combine::handlers::saophale::SaoPhaLe,
                             ),
-                            npc_id,
+                            ctx.npc_id,
                         )
                         .await?;
                     }
@@ -76,14 +71,9 @@ impl NpcHandler for BahatmitHandler {
                 },
                 _ => match select {
                     0 => {
-                        let menu_items = vec!["Sub Menu"];
-                        let npc_say =
-                            "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?";
-                        npc_service::npc_service::create_menu(
-                            session,
-                            npc_id,
-                            npc_say,
-                            menu_items,
+                        ctx.create_menu(
+                            "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?",
+                            vec!["Sub Menu"],
                             MenuId::SubMenuSanta,
                         )
                         .await?;
@@ -92,14 +82,12 @@ impl NpcHandler for BahatmitHandler {
                 },
             },
             MenuId::SubMenuSanta => match select {
-                0 => {
-                    println!("sub menu")
-                }
+                0 => println!("sub menu"),
                 _ => {}
             },
             MenuId::MenuCombine => match select {
                 0 => {
-                    combine_service::confirm_combine(session).await?;
+                    combine_service::confirm_combine(ctx.session).await?;
                 }
                 _ => {}
             },

@@ -458,6 +458,7 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
                 target_handle.send_forget(crate::player::player_actor::PlayerMessage::Injured {
                     damage: dame_hit as u64,
                     piercing: false,
+                    from_mob: false,
                 });
         }
     }
@@ -522,6 +523,7 @@ pub async fn execute_huyt_sao(player: &mut Player) {
                         handle.send_forget(PlayerMessage::Injured {
                             damage,
                             piercing: false,
+                            from_mob: false,
                         });
                     }
                 }
@@ -601,6 +603,7 @@ pub async fn execute_tu_sat(player: &mut Player) {
                                 handle.send_forget(PlayerMessage::Injured {
                                     damage: dame as u64,
                                     piercing: false,
+                                    from_mob: false,
                                 });
                             }
                         }

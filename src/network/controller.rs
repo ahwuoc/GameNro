@@ -10,6 +10,7 @@ use crate::map::change_map_service::ChangeMapService;
 use crate::map::services::mob_service;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
+use crate::player::player_actor::PlayerMessage;
 use crate::services::auth_service;
 use crate::services::{self, player_info_service, player_service, ServiceHandles};
 use crate::shop::shop_services::shop_service;
@@ -138,9 +139,28 @@ impl AsyncController {
                 DataGame::send_image_by_name(&session, &img_name).await?;
                 Ok(())
             }
+            22 => {
+                let _ = msg.read_byte()?;
+                let select = msg.read_byte()?;
+                npc_service::npc_service::handle_menu_confirm(&session, 4, select).await?;
+                Ok(())
+            }
             -32 => {
                 let bg_id = msg.read_short()?;
                 DataGame::send_item_bg_template(&session, bg_id).await?;
+                Ok(())
+            }
+            -34 => {
+                let action = msg.read_byte()?;
+                debug!("MagicTree action: {}", action);
+                match action {
+                    1 | 2 => {
+                        if let Some(handle) = session.get_player_handle().await {
+                            handle.send_forget(PlayerMessage::MagicTreeAction(action as u8));
+                        }
+                    }
+                    _ => {}
+                }
                 Ok(())
             }
 
@@ -331,6 +351,64 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            cmd::GET_MY_CLAN => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::send_my_clan(&snapshot).await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_MESSAGE => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::clan_message(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
+            cmd::GET_CLAN_LIST => {
+                let name = msg.read_utf()?;
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::send_clan_list(&snapshot, &name)
+                        .await?;
+                }
+                Ok(())
+            }
+            cmd::GET_MEMBER_LIST => {
+                let clan_id = msg.read_int()?;
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::send_member_list(&snapshot, clan_id)
+                        .await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_REMOTE => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::clan_remote(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_INVITE => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::clan_invite(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_JOIN => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::join_clan(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_INFO => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::get_clan(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
+            cmd::CLAN_DONATE => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    crate::clan::clan_service::ClanService::clan_donate(&snapshot, msg).await?;
+                }
+                Ok(())
+            }
             _ => {
                 warn!("Unknown command: {}", msg.command);
                 Ok(())
@@ -459,6 +537,14 @@ impl AsyncController {
         session
             .set_player(player_with_zone.clone(), session.clone())
             .await;
+
+        if let Some(handle) = session.get_player_handle().await {
+            crate::clan::clan_service::ClanService::add_player_to_clan_online(
+                &player_with_zone,
+                handle,
+            )
+            .await;
+        }
 
         {
             (&*SESSION_MANAGER).add_session(player_id as i64, session.clone());

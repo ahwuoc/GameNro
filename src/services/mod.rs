@@ -2,6 +2,7 @@ pub mod auth_service;
 pub mod command;
 pub mod effect_skill_service;
 pub mod intrinsic_service;
+pub mod magic_tree_service;
 pub mod manager;
 pub mod player_info_service;
 pub mod player_service;

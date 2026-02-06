@@ -178,7 +178,7 @@ impl ServiceHandles {
     ) -> Result<()> {
         let mut msg = Message::new(-5);
         let id = target_snapshot.id as i32;
-        let clan_id = -1;
+        let clan_id = target_snapshot.clan_id;
         let level = 10;
         let is_invis = false;
         let type_pk = target_snapshot.type_pk;
@@ -253,7 +253,7 @@ impl ServiceHandles {
         let mut msg = Message::new(-5);
 
         let id = pl_target.id as i32;
-        let clan_id = -1;
+        let clan_id = pl_target.clan_id;
         let level = 10;
         let is_invis = false;
         let type_pk = pl_target.type_pk;
@@ -328,19 +328,14 @@ impl ServiceHandles {
     pub fn send_player_attack_mob(player: &Player, mob_id: u8) -> Result<()> {
         let mut msg = Message::new(54);
         msg.write_int(player.id as i32)?;
-        let skill_id = player
-            .player_skill
-            .skill_select
-            .as_ref()
-            .map(|s| s.skill_id)
-            .unwrap_or(0);
-
+        let Some(skill) = player.player_skill.skill_select.as_ref() else {
+            return Ok(());
+        };
         debug!(
             "[DEBUG ATTACK] Player {} attack mob {} with skill {}",
-            player.id, mob_id, skill_id
+            player.id, mob_id, skill.skill_id
         );
-
-        msg.write_byte(skill_id as i8)?;
+        msg.write_byte(skill.skill_id as i8)?;
         msg.write_byte(mob_id as i8)?;
         Self::send_mess_all_player_in_map(player, msg)?;
         Ok(())

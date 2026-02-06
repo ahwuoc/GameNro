@@ -1,4 +1,5 @@
 pub mod boss;
+pub mod clan;
 pub mod effect_skill;
 pub mod intrinsic;
 pub mod skill_model;

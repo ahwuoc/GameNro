@@ -11,7 +11,7 @@ use crate::{
     models::{boss::BossStage, skill_model::Skill},
     network::message::Message,
     player::{
-        player_actor::{handle::PlayerHandle, message::PlayerMessage, Type_PK},
+        player_actor::{handle::PlayerHandle, message::PlayerMessage, TypePk},
         Player,
     },
     services::ServiceHandles,
@@ -108,18 +108,24 @@ impl BossActor {
             PlayerMessage::GetSnapshot(tx) => {
                 let _ = tx.send(self.player.clone());
             }
-            PlayerMessage::Injured { damage, piercing } => {
-                self.handle_injured(damage, piercing).await;
+            PlayerMessage::Injured {
+                damage,
+                piercing,
+                from_mob,
+            } => {
+                self.handle_injured(damage, piercing, from_mob).await;
             }
             _ => {}
         }
     }
 
-    async fn handle_injured(&mut self, damage: u64, piercing: bool) {
+    async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
         let real_damage = self.player.injured(damage, piercing);
 
-        let _ = ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 0);
-        let _ = ServiceHandles::send_hp_sync(&self.player);
+        if !from_mob {
+            let _ = ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 0);
+            let _ = ServiceHandles::send_hp_sync(&self.player);
+        }
 
         if self.player.n_point.hp_current <= 0 {
             self.chat_end();
@@ -195,11 +201,11 @@ impl BossActor {
             self.state = BossState::Chatting;
         } else {
             if self.is_turn_to_attack().await {
-                self.player.type_pk = Type_PK::PK_ALL;
+                self.player.type_pk = TypePk::PkAll;
                 let _ = ServiceHandles::send_type_pk(&self.player);
                 self.state = BossState::Fighting;
             } else {
-                self.player.type_pk = Type_PK::PK_NON;
+                self.player.type_pk = TypePk::PkNon;
                 let _ = ServiceHandles::send_type_pk(&self.player);
                 self.state = BossState::Waiting;
             }
@@ -219,16 +225,16 @@ impl BossActor {
         } else {
             // Đã chat xong
             if self.is_turn_to_attack().await {
-                self.player.type_pk = Type_PK::PK_ALL;
+                self.player.type_pk = TypePk::PkAll;
                 let _ = ServiceHandles::send_type_pk(&self.player);
-                let _ = ServiceHandles::send_revive_player(&self.player); // Refresh info
+                let _ = ServiceHandles::send_revive_player(&self.player);
                 self.state = BossState::Fighting;
                 tracing::info!(
                     "Boss {} finished chatting and starting fight",
                     self.player.id
                 );
             } else {
-                self.player.type_pk = Type_PK::PK_NON;
+                self.player.type_pk = TypePk::PkNon;
                 let _ = ServiceHandles::send_type_pk(&self.player);
                 self.state = BossState::Waiting;
                 tracing::info!(
@@ -241,11 +247,11 @@ impl BossActor {
 
     async fn handle_waiting(&mut self) {
         if self.is_turn_to_attack().await {
-            self.player.type_pk = Type_PK::PK_ALL;
+            self.player.type_pk = TypePk::PkAll;
             let _ = ServiceHandles::send_type_pk(&self.player);
-            let _ = ServiceHandles::send_revive_player(&self.player); // Refresh info
+            let _ = ServiceHandles::send_revive_player(&self.player);
             self.state = BossState::Fighting;
-            tracing::info!("Boss {} turn start! entering PK_ALL", self.player.id);
+            tracing::info!("Boss {} turn start! entering PkAll", self.player.id);
         }
     }
 
@@ -522,7 +528,7 @@ impl BossActor {
     pub async fn transform_to_next_stage(&mut self) {
         self.current_stage += 1;
         self.player.revive();
-        self.player.type_pk = crate::player::player_actor::Type_PK::PK_NON;
+        self.player.type_pk = TypePk::PkNon;
 
         if let Some(template) = boss_template_manager::get(&self.template_id) {
             let stage = &template.stages.0[self.current_stage];
@@ -570,11 +576,11 @@ impl BossActor {
                 self.state = BossState::Chatting;
             } else {
                 if self.is_turn_to_attack().await {
-                    self.player.type_pk = crate::player::player_actor::Type_PK::PK_ALL;
+                    self.player.type_pk = TypePk::PkAll;
                     let _ = ServiceHandles::send_type_pk(&self.player);
                     self.state = BossState::Fighting;
                 } else {
-                    self.player.type_pk = crate::player::player_actor::Type_PK::PK_NON;
+                    self.player.type_pk = TypePk::PkNon;
                     let _ = ServiceHandles::send_type_pk(&self.player);
                     self.state = BossState::Waiting;
                 }

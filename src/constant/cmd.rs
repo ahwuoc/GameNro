@@ -29,4 +29,16 @@ pub mod cmd {
     pub const MAP_INFO: i8 = -24;
     pub const PLAYER_LEAVE: i8 = -6;
     pub const SPACESHIP_ARRIVE: i8 = -65;
+
+    // Clan CMD constants
+    pub const CLAN_MESSAGE: i8 = -51;
+    pub const GET_MY_CLAN: i8 = -53;
+    pub const GET_CLAN_LIST: i8 = -47;
+    pub const GET_MEMBER_LIST: i8 = -50;
+    pub const CLAN_INFO: i8 = -46;
+    pub const CLAN_MEMBER_INFO: i8 = -49;
+    pub const CLAN_DONATE: i8 = -54;
+    pub const CLAN_REMOTE: i8 = -55;
+    pub const CLAN_INVITE: i8 = -57;
+    pub const CLAN_JOIN: i8 = -48;
 }

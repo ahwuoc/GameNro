@@ -1,28 +1,22 @@
-use crate::constant::const_menu;
-use crate::constant::const_menu::*;
-use crate::constant::const_npc;
-use crate::constant::const_npc::*;
+use crate::constant::const_npc::NpcId;
 use crate::constant::menu_enum::MenuId;
-use crate::entities::npc_template;
-use crate::entities::npc_template::Model as NpcTemplate;
-use crate::entities::player;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
-use crate::npc;
 use crate::npc::handlers::bahatmit::BahatmitHandler;
 use crate::npc::handlers::conmeo::ConMeoHandler;
+use crate::npc::handlers::dau_than::DauThanHandler;
+use crate::npc::handlers::dynamic_shop_handler::DynamicShopHandler;
 use crate::npc::handlers::ong_gohan::NpcHomeHandler;
 use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::santa::SantaHandler;
-use crate::npc::handlers::NpcHandler;
-use crate::npc::npc_manager;
+use crate::npc::handlers::{NpcContext, NpcHandler};
 use crate::npc::{BaseMenu, RtNpc};
 use crate::player::Player;
 use crate::templates::npc_template_manager;
-use std::collections::HashMap;
 
 pub mod npc_service {
-    use crate::{map::map_manager, utils::MapUtils};
+    use crate::map::map_manager;
+    use crate::utils::MapUtils;
 
     use super::*;
 
@@ -36,39 +30,33 @@ pub mod npc_service {
 
     pub fn hide_wait_dialog(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-99);
-        msg.write_byte(-1);
+        msg.write_byte(-1)?;
         session.transmit(msg);
         Ok(())
     }
+
     pub async fn can_open_npc(session: &SessionArc, npc_id: i16) -> bool {
         let (map_id, player_loc) = if let Some(snapshot) = session.get_player_snapshot().await {
             (snapshot.map_id, snapshot.location.clone())
         } else {
-            (0, crate::utils::Location::new())
+            return false;
         };
 
-        if map_id == 0 {
-            // If snapshot is not available (map_id 0), check if player exists at all
-            let snapshot: Option<crate::player::Player> = session.get_player_snapshot().await;
-            if snapshot.is_none() {
-                return false;
-            }
-        }
+        let npc = NpcId::from_i16(npc_id);
 
-        if npc_id == DAU_THAN as i16 {
+        if npc == Some(NpcId::DauThan) {
             if map_id == 21 || map_id == 22 || map_id == 23 {
                 return true;
             } else {
-                if let Err(e) = hide_wait_dialog(session) {
-                    println!("Error sending hide_wait_dialog: {:?}", e);
-                }
+                let _ = hide_wait_dialog(session);
                 return false;
             }
         }
 
-        if npc_id == const_npc::LY_TIEU_NUONG {
+        if npc == Some(NpcId::LyTieuNuong) {
             return true;
         }
+
         let map_manage = &map_manager::MAP_MANAGER;
         if let Some(map) = map_manage.find_by_id(map_id) {
             if let Some(npc_spawnd) = map.info.npcs.iter().find(|n| n.temp_id == npc_id as i32) {
@@ -83,43 +71,69 @@ pub mod npc_service {
         false
     }
 
+    /// Mở menu NPC - entry point
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
         if session.get_player_handle().await.is_none() {
             return Ok(());
         }
+
         if !can_open_npc(session, npc_id).await {
-            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
             hide_wait_dialog(session)?;
+            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
             return Ok(());
         }
 
+        let ctx = NpcContext::new(session, npc_id).await;
+
         if let Some(handler) = get_handler(npc_id) {
-            handler.open_menu(session, npc_id as i16).await?;
+            handler.open_menu(&ctx).await?;
         } else {
-            println!("Unhandled NPC ID: {}", npc_id);
-            npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
-            hide_wait_dialog(session)?;
+            tracing::warn!("Unhandled NPC ID: {}", npc_id);
+            ctx.npc_chat("Xin lỗi, tôi không thể mở menu này.")?;
+            ctx.hide_wait_dialog()?;
         }
 
         Ok(())
     }
 
+    /// Lấy handler cho NPC - dùng NpcId enum
     fn get_handler(npc_id: i16) -> Option<Box<dyn NpcHandler + Send + Sync>> {
-        match npc_id {
-            BA_HAT_MIT => Some(Box::new(BahatmitHandler)),
-            RUONG_DO => Some(Box::new(RuongDoHandler)),
-            CON_MEO => Some(Box::new(ConMeoHandler)),
-            SANTA => Some(Box::new(SantaHandler)),
-            ONG_GOHAN | ONG_MOORI | ONG_PARAGUS => Some(Box::new(NpcHomeHandler)),
+        let npc = NpcId::from_i16(npc_id)?;
+
+        match npc {
+            // NPC có logic đặc biệt
+            NpcId::BaHatMit => Some(Box::new(BahatmitHandler)),
+            NpcId::RuongDo => Some(Box::new(RuongDoHandler)),
+            NpcId::ConMeo => Some(Box::new(ConMeoHandler)),
+            NpcId::Santa => Some(Box::new(SantaHandler)),
+            NpcId::DauThan => Some(Box::new(DauThanHandler)),
+            NpcId::OngGohan | NpcId::OngMoori | NpcId::OngParagus => Some(Box::new(NpcHomeHandler)),
+
+            // NPC shop động - load từ database
+            NpcId::Bunma => Some(Box::new(DynamicShopHandler::new(
+                MenuId::BunmaMenu,
+                "Chào bạn! Tôi là Bunma, bạn cần gì?",
+            ))),
+            NpcId::Dende => Some(Box::new(DynamicShopHandler::new(
+                MenuId::DendeMenu,
+                "Chào bạn! Tôi là Dende, hôm nay bạn muốn mua gì?",
+            ))),
+            NpcId::Appule => Some(Box::new(DynamicShopHandler::new(
+                MenuId::AppuleMenu,
+                "Chào bạn! Tôi là Appule, hành tinh Xayda có nhiều đồ hay lắm!",
+            ))),
+
             _ => None,
         }
     }
 
+    /// Xử lý khi player chọn menu option
     pub async fn handle_menu_confirm(
         session: &SessionArc,
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
+        // Lấy menu state từ player
         let state = if let Some(snapshot) = session.get_player_snapshot().await {
             Some(snapshot.interaction_state.get_index_menu())
         } else {
@@ -135,10 +149,13 @@ pub mod npc_service {
             return Ok(());
         }
 
+        // Tạo NpcContext và gọi handler
+        let ctx = NpcContext::new(session, npc_id).await;
+
         if let Some(handler) = get_handler(npc_id) {
-            handler.handle_menu(session, npc_id, state, select).await?;
+            handler.handle_menu(&ctx, state, select).await?;
         } else {
-            println!("Unhandled NPC ID: {}", npc_id);
+            tracing::warn!("Unhandled NPC ID: {}", npc_id);
         }
 
         Ok(())
@@ -163,6 +180,7 @@ pub mod npc_service {
         Ok(())
     }
 
+    /// Tạo menu trực tiếp với Player reference
     pub fn create_menu_player(
         player: &mut Player,
         npc_id: i16,
@@ -183,18 +201,23 @@ pub mod npc_service {
         player.send_to_client(msg)?;
         Ok(())
     }
+
+    /// Tạo NPC từ template
     pub fn create_npc(template_id: i32, map_id: i32, x: i32, y: i32) -> Option<RtNpc> {
         if let Some(template) = npc_template_manager::get(template_id as i16) {
             Some(RtNpc::from_template(&template, map_id, x, y))
         } else {
-            println!("Warning: NPC template not found for ID: {}", template_id);
+            tracing::warn!("NPC template not found for ID: {}", template_id);
             None
         }
     }
 
+    /// Tạo base menu
     pub fn create_base_menu(npc_id: i32, npc_say: &str, menu_options: Vec<String>) -> BaseMenu {
         BaseMenu::new(npc_id, npc_say.to_string(), menu_options)
     }
+
+    /// Lấy NPCs trong tầm
     pub fn get_npcs_in_range<'a>(
         npcs: &'a [RtNpc],
         player_x: i32,

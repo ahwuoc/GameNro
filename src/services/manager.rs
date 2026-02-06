@@ -79,6 +79,8 @@ pub async fn init() -> Result<()> {
 
     boss_template_manager::load(&pool).await?;
 
+    crate::clan::clan_manager::CLAN_MANAGER.load_all().await?;
+
     if let Err(e) = load_part_update_data().await {
         error!("Failed to load part update data: {:?}", e);
     }
