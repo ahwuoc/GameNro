@@ -85,22 +85,23 @@ pub fn parse_raw_skills(s: &str) -> Result<Vec<SkillData>> {
 // Task Parser
 // ============================================
 
-pub fn parse_task_data(s: &str) -> Result<(i32, i32)> {
+pub fn parse_task_data(s: &str) -> Result<(i32, i32, i32)> {
     if s.is_empty() || s == "[]" {
-        return Ok((0, 0));
+        return Ok((1, 0, 0));
     }
 
     let array: Vec<serde_json::Value> =
         serde_json::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse task data: {}", e))?;
 
     if array.len() < 2 {
-        return Ok((0, 0));
+        return Ok((1, 0, 0));
     }
 
-    let task_main_id = array[0].as_i64().unwrap_or(0) as i32;
+    let task_main_id = array[0].as_i64().unwrap_or(1) as i32;
     let task_index = array[1].as_i64().unwrap_or(0) as i32;
+    let task_count = array.get(2).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
 
-    Ok((task_main_id, task_index))
+    Ok((task_main_id, task_index, task_count))
 }
 
 // ============================================

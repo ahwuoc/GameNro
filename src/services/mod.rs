@@ -8,6 +8,7 @@ pub mod player_info_service;
 pub mod player_service;
 pub mod services;
 pub mod skill_service;
+pub mod task_service;
 
 pub use intrinsic_service::IntrinsicService;
 pub use services::ServiceHandles;

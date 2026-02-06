@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use crate::{
+    constant::task_type::TaskType,
     constant::{
         cmd::cmd,
         const_map::{
@@ -13,6 +14,7 @@ use crate::{
     map::{map_manager, models::zone::ZoneHandle, services::change_map_models::*},
     network::message::Message,
     player::player::Player,
+    player::player_actor::message::PlayerMessage,
     player::player_actor::PlayerHandle,
     services::ServiceHandles,
 };
@@ -61,8 +63,6 @@ impl ChangeMapService {
         if let Some(sess) = session {
             zone.map_info(sess.clone(), player.id).await?;
         }
-        zone.load_another_to_me(player.id).await?;
-        zone.load_me_to_another(player.id).await?;
         let cold_planet_effect = if current_map_is_cold != next_map_is_cold && !player.is_boss {
             if !current_map_is_cold && next_map_is_cold {
                 Some(ColdPlanetEffect::Entering)
@@ -321,10 +321,15 @@ impl ChangeMapService {
                 );
                 if let Some(zone) = Self::get_specific_zone(destination_map_id, destination_zone_id)
                 {
-                    Self::exit_map(player).await?;
-                    player.location.set_position(x, y);
-                    Self::go_to_map(player, &zone, Some(session)).await?;
-                    zone.map_info(session.clone(), player.id).await?;
+                    Self::change_map_to_zone(
+                        player,
+                        &zone,
+                        x,
+                        y,
+                        SpaceShipType::None,
+                        Some(session),
+                    )
+                    .await?;
                 } else {
                     ServiceHandles::send_message_alert(player, "Lỗi khi chuyển map")?;
                 }
@@ -541,11 +546,14 @@ impl ChangeMapService {
         player.map_id = zone.map_id;
 
         if let Some(handle) = crate::player::player_manager::PLAYER_MANAGER.get(player.id) {
+            handle.send_forget(PlayerMessage::TaskAction(
+                TaskType::GoToMap,
+                zone.map_id.to_string(),
+            ));
             zone.add_player(handle).await?;
         } else {
             anyhow::bail!("PlayerHandle not found for player: {}", player.id);
         }
-        Self::finish_load_map(player, session).await?;
         tracing::info!("EXITING: go_to_map (player: {})", player.name);
         Ok(())
     }

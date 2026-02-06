@@ -1,4 +1,5 @@
 use crate::combine::combine_type::CombineType;
+use crate::constant::task_type::TaskType;
 use crate::item::type_item_inventory::{TypeItemAction, TypeItemInventory};
 use crate::map::SpaceShipType;
 use crate::network::message::Message;
@@ -8,6 +9,7 @@ use crate::player::player_actor::pet::PetHandle;
 
 pub enum PlayerMessage {
     NetworkMessage(Message),
+    TaskAction(TaskType, String),
     Chat {
         text: String,
     },
@@ -18,6 +20,7 @@ pub enum PlayerMessage {
         damage: u64,
         piercing: bool,
         from_mob: bool,
+        attacker_id: Option<u64>,
     },
     AttackMob {
         mob_id: i32,

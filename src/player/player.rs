@@ -3,6 +3,7 @@ use crate::combine::model::Combine;
 use crate::entities;
 use crate::item::inventory::{self, Inventory};
 
+use crate::features::task_player::TaskPlayer;
 use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
@@ -68,7 +69,7 @@ pub struct Player {
 
     pub interaction_state: InteractionState,
 
-    pub task_id: i32,
+    pub task_player: TaskPlayer,
     pub is_boss: bool,
     pub is_pet: bool,
     pub type_pet: i8,
@@ -122,7 +123,7 @@ impl Player {
             is_admin: false,
             admin_key: false,
             interaction_state: InteractionState::new(),
-            task_id: 0,
+            task_player: TaskPlayer::new(),
             is_boss: false,
             is_pet: false,
             type_pet: 0,
@@ -439,11 +440,12 @@ impl Player {
     }
 
     pub fn get_task_id(&self) -> i32 {
-        self.task_id
+        (self.task_player.task_main.id << 10) + (self.task_player.task_main.index << 1)
     }
 
     pub fn set_task_id(&mut self, task_id: i32) {
-        self.task_id = task_id;
+        self.task_player.task_main.id = task_id >> 10;
+        self.task_player.task_main.index = (task_id & 1023) >> 1;
     }
 
     pub fn is_boss(&self) -> bool {

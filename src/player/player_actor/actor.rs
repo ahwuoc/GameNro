@@ -16,6 +16,7 @@ pub struct PlayerActor {
     pub receiver: mpsc::Receiver<PlayerMessage>,
     pub session: SessionArc,
     pub pet_handle: Option<PetHandle>,
+    pub last_finish_load_time: Option<std::time::Instant>,
 }
 
 impl PlayerActor {
@@ -29,6 +30,7 @@ impl PlayerActor {
             receiver,
             session,
             pet_handle: None,
+            last_finish_load_time: None,
         }
     }
 
@@ -60,6 +62,13 @@ impl PlayerActor {
 
     async fn handle_message(&mut self, msg: PlayerMessage) {
         match msg {
+            PlayerMessage::TaskAction(task_type, target_id) => {
+                let _ = crate::services::task_service::TaskService::check_done_task(
+                    &mut self.player,
+                    task_type,
+                    &target_id,
+                );
+            }
             PlayerMessage::NetworkMessage(m) => {
                 let command = m.command;
                 if let Err(e) = self.handle_network_command(m).await {
@@ -100,6 +109,7 @@ impl PlayerActor {
                 damage,
                 piercing,
                 from_mob,
+                attacker_id: _,
             } => {
                 self.handle_injured(damage, piercing, from_mob).await;
             }
@@ -193,6 +203,15 @@ impl PlayerActor {
             } => {
                 self.player.n_point.increase_point(type_increment, point);
                 let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
+
+                let _ = crate::services::task_service::TaskService::check_done_task_scripts(
+                    &mut self.player,
+                    "2", // UseTiemNang
+                );
+                let _ = crate::services::task_service::TaskService::check_done_task_scripts(
+                    &mut self.player,
+                    "1", // PowerReach
+                );
             }
             PlayerMessage::CreateMenu {
                 npc_id,
@@ -210,6 +229,15 @@ impl PlayerActor {
                 );
             }
             PlayerMessage::FinishLoadMap => {
+                let now = std::time::Instant::now();
+                if let Some(last_time) = self.last_finish_load_time {
+                    if now.duration_since(last_time).as_millis() < 200 {
+                        // Bỏ qua nếu gọi lặp quá nhanh (dưới 200ms)
+                        return;
+                    }
+                }
+                self.last_finish_load_time = Some(now);
+
                 tracing::info!(
                     "ENTERING: PlayerMessage::FinishLoadMap (player: {})",
                     self.player.id
@@ -220,6 +248,18 @@ impl PlayerActor {
                         Some(&self.session),
                     )
                     .await;
+
+                let _ = crate::services::task_service::TaskService::send_info_current_task(
+                    &self.player,
+                );
+                let _ = crate::services::task_service::TaskService::send_tutorial_task_0(
+                    &self.player,
+                    "GameNro Server",
+                );
+                let _ = crate::services::task_service::TaskService::check_auto_skip_task_home(
+                    &mut self.player,
+                );
+
                 tracing::info!(
                     "EXITING: PlayerMessage::FinishLoadMap (player: {})",
                     self.player.id
@@ -252,6 +292,14 @@ impl PlayerActor {
 
                 self.player.location.x = x;
                 self.player.location.y = y;
+
+                let map_id = self.player.map_id;
+                let _ =
+                    crate::services::task_service::TaskService::check_done_task_go_to_map_position(
+                        &mut self.player,
+                        map_id,
+                        x,
+                    );
 
                 if let Some(ref pet_handle) = self.pet_handle {
                     let _ = pet_handle.send(PetMessage::MasterLocation(x, y)).await;
@@ -686,6 +734,8 @@ impl PlayerActor {
                         let mut item =
                             crate::item::item::Item::with_template(template, item_map.quantity);
                         item.item_options = item_map.options.clone();
+                        let item_template_id =
+                            item.template.as_ref().map(|t| t.id as i32).unwrap_or(0);
 
                         if crate::item::inventory_service::InventoryService::add_item_bag(
                             &mut self.player,
@@ -702,10 +752,15 @@ impl PlayerActor {
                                 msg,
                             );
 
-                            let disappear_msg = crate::map::services::item_map_service::ItemMapService::build_item_disappear_message(item_map_id);
+                            let disappearing_msg = crate::map::services::item_map_service::ItemMapService::build_item_disappear_message(item_map_id);
                             let _ = crate::services::ServiceHandles::send_to_all_in_zone(
                                 &zone_handle,
-                                disappear_msg,
+                                disappearing_msg,
+                            );
+
+                            let _ = crate::services::task_service::TaskService::check_done_task_pick_item(
+                                &mut self.player,
+                                &item_template_id.to_string(),
                             );
                         }
                     }

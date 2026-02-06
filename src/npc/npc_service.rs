@@ -1,5 +1,6 @@
 use crate::constant::const_npc::NpcId;
 use crate::constant::menu_enum::MenuId;
+use crate::constant::task_type::TaskType;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::npc::handlers::bahatmit::BahatmitHandler;
@@ -11,6 +12,7 @@ use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::santa::SantaHandler;
 use crate::npc::handlers::{NpcContext, NpcHandler};
 use crate::npc::{BaseMenu, RtNpc};
+use crate::player::player_actor::message::PlayerMessage;
 use crate::player::Player;
 use crate::templates::npc_template_manager;
 
@@ -73,8 +75,63 @@ pub mod npc_service {
 
     /// Mở menu NPC - entry point
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
+        let player_name = session
+            .get_player_snapshot()
+            .await
+            .map(|p| p.name)
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        tracing::debug!(
+            "NPC: open_menu_controller: player={}, npc_id={}",
+            player_name,
+            npc_id
+        );
+
         if session.get_player_handle().await.is_none() {
             return Ok(());
+        }
+
+        let mut is_talk_task = false;
+        if let Some(snapshot) = session.get_player_snapshot().await {
+            if let Some(sub_task) =
+                crate::services::task_service::TaskService::get_current_sub_task(&snapshot)
+            {
+                let home_npc_id = match snapshot.gender {
+                    0 => 0, // Trái đất -> Gohan
+                    1 => 2, // Namec -> Moori
+                    2 => 1, // Xayda -> Paragus
+                    _ => -1,
+                };
+
+                let is_match_npc = sub_task.target_id == "-1"
+                    || sub_task.npc_id == npc_id as i32
+                    || sub_task.target_id == npc_id.to_string()
+                    || (sub_task.npc_id == -2 && npc_id == home_npc_id as i16);
+
+                if sub_task.task_type == crate::constant::task_type::TaskType::TalkNpc
+                    && is_match_npc
+                {
+                    is_talk_task = true;
+                    tracing::debug!(
+                        "NPC: Block menu (Talk task match): player={}, npc_id={}, task={}",
+                        snapshot.name,
+                        npc_id,
+                        sub_task.name
+                    );
+                }
+            }
+        }
+
+        if let Some(handle) = session.get_player_handle().await {
+            handle.send_forget(PlayerMessage::TaskAction(
+                TaskType::TalkNpc,
+                npc_id.to_string(),
+            ));
+
+            if is_talk_task {
+                hide_wait_dialog(session)?;
+                return Ok(()); // NGĂN CHẶN MỞ MENU Ở ĐÂY
+            }
         }
 
         if !can_open_npc(session, npc_id).await {
@@ -144,6 +201,13 @@ pub mod npc_service {
             Some(s) => s,
             None => return Ok(()),
         };
+
+        if let Some(handle) = session.get_player_handle().await {
+            handle.send_forget(PlayerMessage::TaskAction(
+                TaskType::ConfirmMenu,
+                npc_id.to_string(),
+            ));
+        }
 
         if !can_open_npc(session, npc_id).await {
             return Ok(());

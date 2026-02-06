@@ -110,6 +110,12 @@ impl InventoryTransferService {
                             InventoryService::send_item_box_to_client(pl)?;
                         }
                         InventoryService::send_open_box(pl)?;
+
+                        let _ = crate::services::task_service::TaskService::check_done_task(
+                            pl,
+                            crate::constant::task_type::TaskType::TaskScripts,
+                            "3",
+                        );
                     }
                 }
             }

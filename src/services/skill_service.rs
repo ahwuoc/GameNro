@@ -459,6 +459,7 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
                     damage: dame_hit as u64,
                     piercing: false,
                     from_mob: false,
+                    attacker_id: Some(player.id),
                 });
         }
     }
@@ -524,6 +525,7 @@ pub async fn execute_huyt_sao(player: &mut Player) {
                             damage,
                             piercing: false,
                             from_mob: false,
+                            attacker_id: Some(player.id),
                         });
                     }
                 }
@@ -593,6 +595,7 @@ pub async fn execute_tu_sat(player: &mut Player) {
                         continue;
                     }
                     let p_loc_clone = p_loc.clone();
+                    let attacker_id = player.id;
                     tokio::spawn(async move {
                         if let Some(target) = handle.get_snapshot().await {
                             if MapUtils::is_position_in_range(
@@ -604,6 +607,7 @@ pub async fn execute_tu_sat(player: &mut Player) {
                                     damage: dame as u64,
                                     piercing: false,
                                     from_mob: false,
+                                    attacker_id: Some(attacker_id),
                                 });
                             }
                         }

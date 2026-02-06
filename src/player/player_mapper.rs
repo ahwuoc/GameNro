@@ -137,20 +137,23 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     }
     // Parse task
     match parse_task_data(&model.data_task) {
-        Ok((task_main_id, task_index)) => {
-            let calculated_task_id = (task_main_id << 10) + (task_index << 1);
-            p.task_id = calculated_task_id;
+        Ok((task_main_id, task_index, task_count)) => {
+            p.task_player.task_main.id = task_main_id;
+            p.task_player.task_main.index = task_index;
+            p.task_player.task_main.count = task_count;
             println!(
-                "[PLAYER_DAO] Parsed task data - task_main_id={}, task_index={}, calculated_task_id={}",
-                task_main_id, task_index, calculated_task_id
+                "[PLAYER_DAO] Parsed task data - task_main_id={}, task_index={}, task_count={}",
+                task_main_id, task_index, task_count
             );
         }
         Err(e) => {
             println!(
-                "[PLAYER_DAO] Failed to parse task data: {}, using task_id=0",
+                "[PLAYER_DAO] Failed to parse task data: {}, using default Task 1",
                 e
             );
-            p.task_id = 0;
+            p.task_player.task_main.id = 1;
+            p.task_player.task_main.index = 0;
+            p.task_player.task_main.count = 0;
         }
     }
 
@@ -280,6 +283,13 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
     let skills_shortcut_str = serde_json::to_string(&p.player_skill.skill_shortcut.to_vec())
         .unwrap_or_else(|_| "[]".to_string());
 
+    let data_task = serde_json::to_string(&vec![
+        p.task_player.task_main.id,
+        p.task_player.task_main.index,
+        p.task_player.task_main.count,
+    ])
+    .unwrap_or_else(|_| "[1,0,0]".to_string());
+
     let pet_str = p
         .pet_data
         .as_ref()
@@ -304,6 +314,7 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         skills_shortcut: Set(skills_shortcut_str),
         pet: Set(pet_str),
         clan_id: Set(p.clan_id),
+        data_task: Set(data_task),
         ..Default::default()
     }
 }

@@ -1,3 +1,4 @@
+use crate::constant::task_type::TaskType;
 use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
 use crate::map::item_map::ItemMap;
@@ -8,6 +9,7 @@ use crate::map::zone::ZoneMessage;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::player::player::Player;
+use crate::player::player_actor::message::PlayerMessage;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::ServiceHandles;
 use crate::templates::item_template_manager;
@@ -57,6 +59,14 @@ pub async fn attack_mob_actor(zone: &mut Zone, player_id: u64, mob_id: u64, dama
                     let drop_x = mob.location.x;
                     let drop_y = mob.location.y;
                     let mob_temp_id = mob.template_id;
+
+                    if let Some(handle) = zone.players.get(&player_id) {
+                        handle.send_forget(PlayerMessage::TaskAction(
+                            TaskType::KillMob,
+                            mob_temp_id.to_string(),
+                        ));
+                    }
+
                     handle_mob_death(mob);
                     (
                         Some(build_mob_die_message(mob.id as i8, real_damage, false)),
@@ -237,6 +247,7 @@ pub async fn update_actor(zone: &mut Zone) {
                             damage: damage as u64,
                             piercing: false,
                             from_mob: true,
+                            attacker_id: None,
                         });
 
                         let msg_me = build_mob_attack_me_message(mob.id as i8, damage);

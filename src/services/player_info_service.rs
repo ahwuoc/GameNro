@@ -10,6 +10,7 @@ use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player_actor::pet::Pet;
 use crate::player::player_actor::PlayerActor;
 use crate::player::Player as RtPlayer;
+use crate::services::task_service::TaskService;
 use crate::services::{IntrinsicService, ServiceHandles};
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
 use std::fs::OpenOptions;
@@ -71,100 +72,10 @@ pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
 }
 
 pub async fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
-    let task_main_id = player.task_id >> 10;
-    let task_index = (player.task_id >> 1) & 0x1FF;
-
-    let mut msg = Message::new(40);
-    msg.write_short(task_main_id as i16)?;
-    msg.write_byte(task_index as i8)?;
-
-    let task_name = get_task_name(task_main_id);
-    msg.write_utf(&format!("{}[{}]", task_name, task_main_id))?;
-
-    msg.write_utf(&get_task_detail(task_main_id))?;
-
-    let sub_tasks = get_sub_tasks(task_main_id, player.gender);
-    let sub_task_count = sub_tasks.len() as i8;
-    msg.write_byte(sub_task_count)?;
-
-    for sub_task in &sub_tasks {
-        msg.write_utf(&sub_task.name)?;
-        msg.write_byte(sub_task.npc_id)?;
-        msg.write_short(sub_task.map_id)?;
-        msg.write_utf(&sub_task.notify)?;
-    }
-
-    let current_count = if task_index < sub_tasks.len() as i32 {
-        sub_tasks[task_index as usize].count
-    } else {
-        0
-    };
-    msg.write_short(current_count)?;
-
-    for sub_task in &sub_tasks {
-        msg.write_short(sub_task.max_count)?;
-    }
-
-    player.send_to_client(msg)?;
-    Ok(())
+    TaskService::send_task_main(player)
 }
 
-fn get_task_name(task_main_id: i32) -> String {
-    TASK_TEMPLATE_MANAGER
-        .get_main_task(task_main_id)
-        .map(|t| t.name)
-        .unwrap_or_else(|| format!("Nhiệm vụ #{}", task_main_id))
-}
-
-fn get_task_detail(task_main_id: i32) -> String {
-    TASK_TEMPLATE_MANAGER
-        .get_main_task(task_main_id)
-        .map(|t| t.detail)
-        .unwrap_or_else(|| "Hoàn thành nhiệm vụ được giao".to_string())
-}
-
-fn get_sub_tasks(task_main_id: i32, gender: i8) -> Vec<SubTaskInfo> {
-    let subs = TASK_TEMPLATE_MANAGER.get_sub_tasks(task_main_id);
-    if subs.is_empty() {
-        return vec![SubTaskInfo {
-            name: format!("Nhiệm vụ phụ #{}", task_main_id),
-            npc_id: 1,
-            map_id: 0,
-            notify: "Hoàn thành nhiệm vụ".to_string(),
-            count: 0,
-            max_count: 10,
-        }];
-    }
-
-    subs.into_iter()
-        .map(|s| {
-            let mut name = s.name;
-            let mut notify = s.notify;
-            let mut npc_id = s.npc_id;
-            let mut map_id = s.map;
-
-            if task_main_id == 0 {
-                npc_id = if gender == 0 {
-                    1
-                } else if gender == 1 {
-                    2
-                } else {
-                    3
-                };
-                map_id = (gender as i32) + 21;
-            }
-
-            SubTaskInfo {
-                name,
-                npc_id: npc_id as i8,
-                map_id: map_id as i16,
-                notify,
-                count: 0,
-                max_count: s.max_count as i16,
-            }
-        })
-        .collect()
-}
+// Helper functions for tasks removed as they are now in TaskService
 
 pub fn clear_map(player: &RtPlayer) -> anyhow::Result<()> {
     let msg = Message::new(-22);

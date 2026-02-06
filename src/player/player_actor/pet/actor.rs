@@ -42,6 +42,7 @@ impl PetActor {
                             damage,
                             piercing,
                             from_mob: _,
+                            attacker_id: _,
                         } => {
                             let actual_damage = self.pet.player.injured(damage, piercing);
                             info!(

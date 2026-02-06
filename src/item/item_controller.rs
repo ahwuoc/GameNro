@@ -59,10 +59,14 @@ impl ItemController {
                 InventoryService::send_item_body_to_client(pl)?;
             }
             TypeItemAction::DoUseItem => {
-                let item = &mut pl.inventory.items_bag[index as usize];
-                if item.is_null_item() {
-                    return Ok(());
-                }
+                let item_id = {
+                    let item = &pl.inventory.items_bag[index as usize];
+                    if item.is_null_item() {
+                        return Ok(());
+                    }
+                    item.get_template_id()
+                };
+
                 let use_result = UseItemService::handle_use_item(pl, index as usize)?;
 
                 match use_result {
@@ -80,10 +84,16 @@ impl ItemController {
                     }
                     crate::item::use_item_service::UseItemResult::None => {}
                 }
+
+                // Kích hoạch nhiệm vụ sử dụng vật phẩm
+                if let Some(id) = item_id {
+                    let _ = crate::services::task_service::TaskService::check_done_task_use_item(
+                        pl,
+                        &id.to_string(),
+                    );
+                }
             }
-            _ => {
-                println!("type_action: ");
-            }
+            _ => {}
         }
         Ok(())
     }

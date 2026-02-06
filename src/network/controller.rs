@@ -558,8 +558,6 @@ impl AsyncController {
                         "Player {} added to zone {} map {}",
                         player_with_zone.name, zone.zone_id, zone.map_id
                     );
-                    zone.load_another_to_me(player_id).await?;
-                    zone.load_me_to_another(player_id).await?;
                     zone.map_info(session.clone(), player_id).await?;
                 }
             } else {

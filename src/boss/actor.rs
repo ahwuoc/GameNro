@@ -33,6 +33,7 @@ pub struct BossActor {
     pub chat_index: usize,
     pub next_chat_time: Instant,
     pub script: Arc<dyn BossScript>,
+    pub last_attacker_id: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -68,6 +69,7 @@ impl BossActor {
             chat_index: 0,
             next_chat_time: Instant::now(),
             script,
+            last_attacker_id: None,
         }
     }
 
@@ -112,15 +114,26 @@ impl BossActor {
                 damage,
                 piercing,
                 from_mob,
+                attacker_id,
             } => {
-                self.handle_injured(damage, piercing, from_mob).await;
+                self.handle_injured(damage, piercing, from_mob, attacker_id)
+                    .await;
             }
             _ => {}
         }
     }
 
-    async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
+    async fn handle_injured(
+        &mut self,
+        damage: u64,
+        piercing: bool,
+        from_mob: bool,
+        attacker_id: Option<u64>,
+    ) {
         let real_damage = self.player.injured(damage, piercing);
+        if attacker_id.is_some() {
+            self.last_attacker_id = attacker_id;
+        }
 
         if !from_mob {
             let _ = ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 0);
@@ -191,6 +204,19 @@ impl BossActor {
                 }
 
                 tracing::info!("Boss {} defeated, removing...", self.player.id);
+
+                // Gửi TaskAction KillBoss cho người giết boss
+                if let Some(killer_id) = self.last_attacker_id {
+                    if let Some(handle) =
+                        self.zone_handle.get_player(killer_id).await.unwrap_or(None)
+                    {
+                        handle.send_forget(PlayerMessage::TaskAction(
+                            crate::constant::task_type::TaskType::KillBoss,
+                            self.template_id.clone(),
+                        ));
+                    }
+                }
+
                 let _ = self.receiver.close();
                 self.state = BossState::Escaping;
             }
