@@ -58,6 +58,7 @@ pub struct Player {
     pub map_id: i32,
     pub last_time_use_option: u64,
     pub last_time_revived: u64,
+    pub last_time_eat_pea: u64,
 
     pub just_revived: bool,
     pub is_fight: bool,
@@ -115,6 +116,7 @@ impl Player {
             map_id: 0,
             last_time_use_option: current_time,
             last_time_revived: 0,
+            last_time_eat_pea: 0,
             just_revived: false,
             is_fight: false,
             is_fight1: false,

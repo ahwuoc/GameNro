@@ -166,14 +166,33 @@ impl PlayerActor {
                 where_item,
                 index,
             } => {
-                let _ = crate::item::item_controller::ItemController::handle_item_action_actor(
-                    &self.session,
-                    &mut self.player,
-                    type_action,
-                    where_item,
-                    index,
-                )
-                .await;
+                if let Ok(Some(use_result)) =
+                    crate::item::item_controller::ItemController::handle_item_action_actor(
+                        &self.session,
+                        &mut self.player,
+                        type_action,
+                        where_item,
+                        index,
+                    )
+                    .await
+                {
+                    if let crate::item::use_item_service::UseItemResult::RecoveredHpMp {
+                        hp_ki,
+                        stamina,
+                        ..
+                    } = use_result
+                    {
+                        if let Some(ref pet_handle) = self.pet_handle {
+                            let _ = pet_handle
+                                .send(PetMessage::HealPet {
+                                    hp: hp_ki,
+                                    mp: hp_ki,
+                                    stamina,
+                                })
+                                .await;
+                        }
+                    }
+                }
             }
             PlayerMessage::GetItem {
                 type_item_inventory,
@@ -455,7 +474,6 @@ impl PlayerActor {
     }
 
     async fn handle_pet_ask_pea(&mut self, pet_id: u64) {
-        // Find pea in inventory
         if let Some(index) = self
             .player
             .inventory
@@ -463,16 +481,18 @@ impl PlayerActor {
             .iter()
             .position(|it| it.is_not_null_item() && it.get_type() == 6)
         {
-            if crate::item::use_item_service::UseItemService::eat_pea(&mut self.player, index) {
-                let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+            if let Some(recovery) =
+                crate::item::use_item_service::UseItemService::eat_pea(&mut self.player, index)
+            {
+                let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
                 let _ = crate::services::player_info_service::send_current_stamina(&self.player);
                 let _ = crate::item::InventoryService::send_item_bag(&self.player);
                 if let Some(ref pet_handle) = self.pet_handle {
                     let _ = pet_handle
                         .send(PetMessage::HealPet {
-                            hp: 1000000,
-                            mp: 1000000,
-                            stamina: 100,
+                            hp: recovery.hp_ki,
+                            mp: recovery.hp_ki,
+                            stamina: recovery.stamina,
                         })
                         .await;
                 }

@@ -20,9 +20,9 @@ impl ItemController {
         type_action: TypeItemAction,
         where_item: i8,
         index: i8,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<crate::item::use_item_service::UseItemResult>> {
         if index < 0 {
-            return Ok(());
+            return Ok(None);
         }
         match type_action {
             TypeItemAction::DoThrowItem => {
@@ -32,7 +32,7 @@ impl ItemController {
                     &mut pl.inventory.items_bag[index as usize]
                 };
                 if item.is_null_item() {
-                    return Ok(());
+                    return Ok(None);
                 }
 
                 let text = format!(
@@ -40,6 +40,7 @@ impl ItemController {
                     item.get_name()
                 );
                 Self::confirm_popup_to_client(session, type_action as i8, where_item, index, &text);
+                return Ok(None);
             }
             TypeItemAction::AcceptThrowItem => {
                 let item = if where_item == 0 {
@@ -48,54 +49,77 @@ impl ItemController {
                     &mut pl.inventory.items_bag[index as usize]
                 };
                 if item.is_null_item() {
-                    return Ok(());
+                    return Ok(None);
                 }
                 if item.get_template_id() == Some(457) {
                     ServiceHandles::send_message_alert(pl, "Bạn không thể bỏ vật phẩm này");
-                    return Ok(());
+                    return Ok(None);
                 }
                 std::mem::take(item);
                 InventoryService::send_item_bag_to_client(pl)?;
                 InventoryService::send_item_body_to_client(pl)?;
+                return Ok(None);
             }
-            TypeItemAction::DoUseItem => {
-                let item_id = {
-                    let item = &pl.inventory.items_bag[index as usize];
-                    if item.is_null_item() {
-                        return Ok(());
-                    }
-                    item.get_template_id()
-                };
-
-                let use_result = UseItemService::handle_use_item(pl, index as usize)?;
-
-                match use_result {
-                    crate::item::use_item_service::UseItemResult::RecoveredHpMp { index: _ } => {
-                        player_info_service::send_message_info_hpmp(pl)?;
-                        ServiceHandles::send_message_eat_dauthan(pl)?;
-                        InventoryService::send_item_bag_to_client(pl)?;
-                    }
-                    crate::item::use_item_service::UseItemResult::AddedGold { index: _ } => {
-                        InventoryService::send_item_bag_to_client(pl)?;
-                        ServiceHandles::send_gold_gem_ruby_to_client(pl)?;
-                    }
-                    crate::item::use_item_service::UseItemResult::Error(msg) => {
-                        ServiceHandles::send_message_alert(pl, &msg)?;
-                    }
-                    crate::item::use_item_service::UseItemResult::None => {}
-                }
-
-                // Kích hoạch nhiệm vụ sử dụng vật phẩm
+            TypeItemAction::DoUseItem | TypeItemAction::AcceptUseItem => {
+                let (item_id, result) = Self::perform_use_item(pl, index as usize)?;
                 if let Some(id) = item_id {
                     let _ = crate::services::task_service::TaskService::check_done_task_use_item(
                         pl,
                         &id.to_string(),
                     );
                 }
+                return Ok(result);
             }
-            _ => {}
+            _ => Ok(None),
         }
-        Ok(())
+    }
+
+    fn perform_use_item(
+        pl: &mut Player,
+        index: usize,
+    ) -> anyhow::Result<(
+        Option<i16>,
+        Option<crate::item::use_item_service::UseItemResult>,
+    )> {
+        let item_id = {
+            let item = &pl.inventory.items_bag[index];
+            if item.is_null_item() {
+                return Ok((None, None));
+            }
+            item.get_template_id()
+        };
+
+        let use_result = UseItemService::handle_use_item(pl, index)?;
+        let result_clone = match &use_result {
+            crate::item::use_item_service::UseItemResult::RecoveredHpMp {
+                index,
+                hp_ki,
+                stamina,
+            } => crate::item::use_item_service::UseItemResult::RecoveredHpMp {
+                index: *index,
+                hp_ki: *hp_ki,
+                stamina: *stamina,
+            },
+            _ => crate::item::use_item_service::UseItemResult::None,
+        };
+
+        match use_result {
+            crate::item::use_item_service::UseItemResult::RecoveredHpMp { .. } => {
+                player_info_service::send_point_info_sync(pl)?;
+                ServiceHandles::send_message_eat_dauthan(pl)?;
+                InventoryService::send_item_bag_to_client(pl)?;
+            }
+            crate::item::use_item_service::UseItemResult::AddedGold { .. } => {
+                InventoryService::send_item_bag_to_client(pl)?;
+                ServiceHandles::send_gold_gem_ruby_to_client(pl)?;
+            }
+            crate::item::use_item_service::UseItemResult::Error(msg) => {
+                ServiceHandles::send_message_alert(pl, &msg)?;
+            }
+            crate::item::use_item_service::UseItemResult::None => {}
+        }
+
+        Ok((item_id, Some(result_clone)))
     }
 
     pub async fn handle_get_item_actor(

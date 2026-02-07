@@ -203,7 +203,6 @@ impl PetActor {
                     .saturating_add(stamina)
                     .min(self.pet.player.n_point.max_stamina);
 
-                // Sync to master
                 if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
                     let pet_snapshot = self.pet.clone();
                     let _ =
@@ -212,7 +211,17 @@ impl PetActor {
                                 master,
                                 &pet_snapshot,
                             );
+                            let _ = ServiceHandles::send_message_chat_just_for_me(
+                                master,
+                                &pet_snapshot.player,
+                                "Cám ơn sư phụ",
+                            );
                         })));
+                }
+                if let Some(zone) =
+                    ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                {
+                    let _ = ServiceHandles::send_message_eat_dauthan(&self.pet.player);
                 }
             }
         }

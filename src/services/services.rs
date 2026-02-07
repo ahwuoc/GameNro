@@ -37,7 +37,7 @@ impl ServiceHandles {
         msg.write_int(pl.n_point.hp_current)?;
         msg.write_byte(1)?;
         msg.write_int(pl.n_point.hp_max)?;
-        Self::send_mess_another_not_me_in_map(pl, msg)?;
+        Self::send_mess_all_player_in_map(pl, msg)?;
         Ok(())
     }
     pub fn sub_command_30(byte: i8) -> Result<Message> {
@@ -106,6 +106,17 @@ impl ServiceHandles {
         if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
             zone.broadcast_except(response, player_id);
         }
+        Ok(())
+    }
+    pub fn send_message_chat_just_for_me(
+        target: &Player,
+        chat_player: &Player,
+        text: &str,
+    ) -> Result<()> {
+        let mut msg = Message::new(cmd::CHAT);
+        msg.write_int(chat_player.id as i32)?;
+        msg.write_utf(text)?;
+        target.send_to_client(msg)?;
         Ok(())
     }
     pub fn send_mess_all_player_in_map(player: &Player, msg: Message) -> Result<()> {

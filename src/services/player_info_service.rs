@@ -74,17 +74,11 @@ pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
 pub async fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
     TaskService::send_task_main(player)
 }
-
-// Helper functions for tasks removed as they are now in TaskService
-
 pub fn clear_map(player: &RtPlayer) -> anyhow::Result<()> {
     let msg = Message::new(-22);
     player.send_to_client(msg)?;
     Ok(())
 }
-
-// Removed old send_clan_info
-
 pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-69);
     msg.write_short(player.n_point.max_stamina as i16)?;

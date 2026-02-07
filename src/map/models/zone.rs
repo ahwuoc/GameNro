@@ -605,6 +605,7 @@ impl Zone {
         Ok(())
     }
 
+    // dame AOE
     async fn handle_area_damage(
         &mut self,
         attacker_id: u64,

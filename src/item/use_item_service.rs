@@ -8,9 +8,21 @@ pub struct UseItemService;
 #[derive(Debug)]
 pub enum UseItemResult {
     None,
-    RecoveredHpMp { index: usize },
-    AddedGold { index: usize },
+    RecoveredHpMp {
+        index: usize,
+        hp_ki: i32,
+        stamina: i16,
+    },
+    AddedGold {
+        index: usize,
+    },
     Error(String),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PeaRecoveryData {
+    pub hp_ki: i32,
+    pub stamina: i16,
 }
 
 impl UseItemService {
@@ -26,8 +38,12 @@ impl UseItemService {
 
         match type_item {
             6 => {
-                if Self::eat_pea(pl, index) {
-                    return Ok(UseItemResult::RecoveredHpMp { index });
+                if let Some(recovery) = Self::eat_pea(pl, index) {
+                    return Ok(UseItemResult::RecoveredHpMp {
+                        index,
+                        hp_ki: recovery.hp_ki,
+                        stamina: recovery.stamina,
+                    });
                 }
                 return Ok(UseItemResult::None);
             }
@@ -49,12 +65,26 @@ impl UseItemService {
         }
     }
 
-    pub fn eat_pea(pl: &mut Player, index: usize) -> bool {
-        let hp_ki_hoiphuc = {
+    pub fn eat_pea(pl: &mut Player, index: usize) -> Option<PeaRecoveryData> {
+        let now = crate::utils::time::current_time_millis();
+        if now - pl.last_time_eat_pea < 1000 {
+            return None;
+        }
+
+        let (hp_ki_hoiphuc, stamina_pet) = {
             let item = pl.inventory.items_bag.get(index);
             if let Some(it) = item {
                 if it.is_not_null_item() && it.get_type() == 6 {
-                    it.item_options
+                    let level = it
+                        .get_name()
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse::<i16>()
+                        .unwrap_or(1);
+
+                    let recover = it
+                        .item_options
                         .iter()
                         .find(|op| matches!(op.get_option_id(), 2 | 48))
                         .map(|op| match op.get_option_id() {
@@ -62,22 +92,27 @@ impl UseItemService {
                             48 => op.get_param() as i32,
                             _ => unreachable!(),
                         })
+                        .unwrap_or(0);
+                    (recover, level * 100)
                 } else {
-                    None
+                    (0, 0)
                 }
             } else {
-                None
+                (0, 0)
             }
         };
 
-        if let Some(recovered) = hp_ki_hoiphuc {
-            pl.n_point.set_hp(pl.n_point.hp_current + recovered);
-            pl.n_point.set_mp(pl.n_point.mp_current + recovered);
-            pl.n_point.stamina = pl.n_point.max_stamina; // Full stamina
+        if hp_ki_hoiphuc > 0 {
+            pl.n_point.set_hp(pl.n_point.hp_current + hp_ki_hoiphuc);
+            pl.n_point.set_mp(pl.n_point.mp_current + hp_ki_hoiphuc);
+            pl.last_time_eat_pea = now;
 
             InventoryService::sub_quantity_item_bag(pl, index, 1);
-            return true;
+            return Some(PeaRecoveryData {
+                hp_ki: hp_ki_hoiphuc,
+                stamina: stamina_pet,
+            });
         }
-        false
+        None
     }
 }
