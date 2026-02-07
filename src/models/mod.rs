@@ -1,7 +1,9 @@
 pub mod boss;
 pub mod clan;
 pub mod effect_skill;
+pub mod fusion;
 pub mod intrinsic;
+pub mod radar;
 pub mod skill_model;
 pub use effect_skill::EffectSkill;
 pub use intrinsic::{Intrinsic, IntrinsicPlayer};

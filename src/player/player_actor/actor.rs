@@ -393,13 +393,28 @@ impl PlayerActor {
             PlayerMessage::SetPetHandle(handle) => {
                 self.pet_handle = Some(handle);
             }
-            PlayerMessage::Fusion(type_fusion) => {
-                self.handle_fusion(type_fusion).await;
+            PlayerMessage::Fusion {
+                type_fusion,
+                template_id,
+            } => {
+                self.handle_fusion(type_fusion, template_id).await;
             }
             PlayerMessage::Unfusion => {
                 self.handle_unfusion().await;
             }
             PlayerMessage::Pet(pet_msg) => {
+                if self.player.fusion.type_fusion != 0 {
+                    if matches!(
+                        pet_msg,
+                        crate::player::player_actor::pet::message::PetMessage::ChangeStatus(_)
+                    ) {
+                        tracing::info!(
+                            "[PET] Blocked status change while player {} is fused",
+                            self.player.id
+                        );
+                        return;
+                    }
+                }
                 if let Some(handle) = &self.pet_handle {
                     handle.send_forget(pet_msg);
                 }
@@ -448,6 +463,9 @@ impl PlayerActor {
                     self.player.id
                 );
                 crate::services::magic_tree_service::fast_respawn_pea(&mut self.player);
+            }
+            PlayerMessage::RadarAction(action, mut msg) => {
+                let _ = self.handle_radar_action(action, &mut msg).await;
             }
             PlayerMessage::MagicTreeUpgrade => {
                 info!(
@@ -500,26 +518,58 @@ impl PlayerActor {
         }
     }
 
-    async fn handle_fusion(&mut self, type_fusion: i8) {
+    async fn handle_fusion(&mut self, type_fusion: i8, template_id: i32) {
+        if self.player.fusion.type_fusion != 0 {
+            return;
+        }
+
         if let Some(ref pet_handle) = self.pet_handle {
             let (tx, rx) = tokio::sync::oneshot::channel();
             let _ = pet_handle.send(PetMessage::GetSnapshot(tx)).await;
             if let Ok(pet_snapshot) = rx.await {
-                self.player.fusion.type_fusion = type_fusion;
-                self.player.n_point.hp_fusion = pet_snapshot.player.n_point.hp_max / 2;
-                self.player.n_point.mp_fusion = pet_snapshot.player.n_point.mp_max / 2;
-                self.player.n_point.dame_fusion = pet_snapshot.player.n_point.dame / 2;
-                self.player.n_point.def_fusion = pet_snapshot.player.n_point.def / 2;
-                self.player.n_point.crit_fusion = pet_snapshot.player.n_point.crit / 2;
+                if let Some(template) = crate::templates::fusion_template_manager::get(template_id)
+                {
+                    self.player.fusion.type_fusion = type_fusion;
+                    self.player.fusion.template_id = template_id;
 
-                self.player.n_point.cal_point();
-                self.player.n_point.set_hp(self.player.n_point.hp_max);
-                self.player.n_point.set_mp(self.player.n_point.mp_max);
+                    self.player.n_point.hp_fusion = pet_snapshot.player.n_point.hp_max / 2;
+                    self.player.n_point.mp_fusion = pet_snapshot.player.n_point.mp_max / 2;
+                    self.player.n_point.dame_fusion = pet_snapshot.player.n_point.dame / 2;
+                    self.player.n_point.def_fusion = pet_snapshot.player.n_point.def / 2;
+                    self.player.n_point.crit_fusion =
+                        (pet_snapshot.player.n_point.crit / 2) + template.crit_bonus;
 
-                let _ = pet_handle.send(PetMessage::Fusion(true)).await;
+                    self.player.n_point.hp_fusion_tl = template.hp_percent as i32;
+                    self.player.n_point.mp_fusion_tl = template.mp_percent as i32;
+                    self.player.n_point.dame_fusion_tl = template.dame_percent as i32;
 
-                let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
-                let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+                    self.player.n_point.cal_point();
+                    self.player.n_point.set_hp(self.player.n_point.hp_max);
+                    self.player.n_point.set_mp(self.player.n_point.mp_max);
+
+                    let _ = pet_handle.send(PetMessage::Fusion(true)).await;
+
+                    let _ =
+                        crate::services::player_info_service::send_point_info_sync(&self.player);
+                    let _ =
+                        crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+                    let _ = crate::services::ServiceHandles::send_cai_trang(&self.player);
+                    let _ = crate::services::ServiceHandles::send_fusion_effect(
+                        &self.player,
+                        type_fusion,
+                    );
+                    if type_fusion == crate::player::components::fusion::Fusion::LUONG_LONG_NHAT_THE
+                    {
+                        self.player.fusion.last_time_fusion =
+                            crate::utils::time::current_time_millis();
+                        let icon_id: i16 = if self.player.gender == 2 { 3901 } else { 3790 };
+                        let _ = crate::services::ServiceHandles::send_item_time(
+                            &self.player,
+                            icon_id,
+                            600,
+                        );
+                    }
+                }
             }
         }
     }
@@ -531,6 +581,10 @@ impl PlayerActor {
         self.player.n_point.dame_fusion = 0;
         self.player.n_point.def_fusion = 0;
         self.player.n_point.crit_fusion = 0;
+
+        self.player.n_point.hp_fusion_tl = 0;
+        self.player.n_point.mp_fusion_tl = 0;
+        self.player.n_point.dame_fusion_tl = 0;
 
         self.player.n_point.cal_point();
 
@@ -544,12 +598,25 @@ impl PlayerActor {
 
         let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
         let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+        let _ = crate::services::ServiceHandles::send_cai_trang(&self.player);
+        let _ = crate::services::ServiceHandles::send_fusion_effect(&self.player, 0);
     }
 
     async fn update(&mut self) {
         self.player.magic_tree.update();
         if self.player.before_dispose {
             return;
+        }
+
+        if self.player.fusion.is_timed_fusion() {
+            let now = crate::utils::time::current_time_millis();
+            if self.player.fusion.is_fusion_expired(now) {
+                tracing::info!(
+                    "[FUSION] Player {} fusion timer expired, auto-unfusion",
+                    self.player.id
+                );
+                self.handle_unfusion().await;
+            }
         }
 
         let _ = player_service::update_player_tick(&mut self.player).await;
@@ -589,6 +656,60 @@ impl PlayerActor {
             _ => {
                 tracing::warn!("Actor doesn't handle command {} yet", command);
             }
+        }
+        Ok(())
+    }
+
+    async fn handle_radar_action(&mut self, action: i8, msg: &mut Message) -> anyhow::Result<()> {
+        match action {
+            0 => {
+                crate::services::radar_service::RadarService::send_radar(
+                    &self.player,
+                    &self.player.radar_cards,
+                )?;
+            }
+            1 => {
+                let card_id = msg.read_short()?;
+                let any_other_used = self
+                    .player
+                    .radar_cards
+                    .iter()
+                    .any(|c| c.id != card_id && c.used == 1);
+                let mut new_used = 0;
+                let mut updated = false;
+
+                if let Some(card) = self.player.radar_cards.iter_mut().find(|c| c.id == card_id) {
+                    if card.level == 0 {
+                        return Ok(());
+                    }
+
+                    if card.used == 0 {
+                        if any_other_used {
+                            crate::services::ServiceHandles::send_message_alert(
+                                &self.player,
+                                "Số thẻ sử dụng đã đạt tối đa",
+                            )?;
+                            return Ok(());
+                        }
+                        card.used = 1;
+                    } else {
+                        card.used = 0;
+                    }
+                    new_used = card.used;
+                    updated = true;
+                }
+
+                if updated {
+                    crate::services::radar_service::RadarService::send_radar_1(
+                        &self.player,
+                        card_id,
+                        new_used,
+                    )?;
+                    self.player.n_point.cal_point();
+                    crate::services::player_info_service::send_point_info_sync(&self.player)?;
+                }
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -823,8 +944,6 @@ impl PlayerActor {
         if let Some(ref pet_handle) = self.pet_handle {
             let _ = pet_handle.tx.send(PlayerMessage::Logout).await;
         }
-
-        // Remove from clan online
         crate::clan::clan_service::ClanService::remove_player_from_clan_online(
             self.player.id,
             self.player.clan_id,

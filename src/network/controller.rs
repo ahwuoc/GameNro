@@ -1,5 +1,7 @@
 use crate::account::account_dao::AccountDao;
 use crate::account::account_services::AccountServices;
+use crate::clan::clan_service::ClanService;
+use crate::combine::combine_service;
 use crate::constant::cmd::cmd;
 use crate::data::data_game::DataGame;
 use crate::data::ItemData;
@@ -7,13 +9,19 @@ use crate::database::DbManager;
 use crate::entities::{account, player};
 use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
-use crate::map::services::mob_service;
+use crate::map::zone_manager::ZONE_MANAGER;
+use crate::map::Zone;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
-use crate::player::player_actor::PlayerMessage;
+use crate::player::player_actor::{
+    pet::{message::PetMessage, PetStatus},
+    PlayerMessage,
+};
+use crate::player::{player_mapper, Player};
 use crate::services::auth_service;
 use crate::services::{self, player_info_service, player_service, ServiceHandles};
 use crate::shop::shop_services::shop_service;
+use crate::templates::power_manager;
 use anyhow::{anyhow, Result};
 use chrono::{self, Utc};
 use sea_orm::*;
@@ -56,9 +64,7 @@ impl AsyncController {
 
                 if let Some(handle) = session.get_player_handle().await {
                     let mut handled = false;
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::AttackMob {
-                        mob_id,
-                    });
+                    handle.send_forget(PlayerMessage::AttackMob { mob_id });
                     handled = true;
                 }
                 Ok(())
@@ -80,7 +86,7 @@ impl AsyncController {
             cmd::GET_CAPTIONS => {
                 match msg.read_byte() {
                     Ok(gender) => {
-                        let captions = crate::templates::power_manager::get_all_captions();
+                        let captions = power_manager::get_all_captions();
                         let mut response = Message::new(-41);
                         response.write_byte(captions.len() as i8)?;
 
@@ -170,7 +176,13 @@ impl AsyncController {
                 }
                 Ok(())
             }
-
+            cmd::RADAR => {
+                let action = msg.read_byte()?;
+                if let Some(handle) = session.get_player_handle().await {
+                    handle.send_forget(PlayerMessage::RadarAction(action, msg));
+                }
+                Ok(())
+            }
             cmd::CHECK_MOVE => {
                 let _ = msg.read_int();
                 Ok(())
@@ -178,9 +190,7 @@ impl AsyncController {
             cmd::GET_PLAYER_MENU => {
                 let target_id = msg.read_int()?;
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    if let Some(zone) = crate::map::zone_manager::ZONE_MANAGER
-                        .get_zone(snapshot.map_id, snapshot.zone_id)
-                    {
+                    if let Some(zone) = ZONE_MANAGER.get_zone(snapshot.map_id, snapshot.zone_id) {
                         if let Some(target_handle) = zone.get_player(target_id as u64).await? {
                             if let Some(target_snapshot) = target_handle.get_snapshot().await {
                                 ServiceHandles::send_player_menu(&snapshot, &target_snapshot)?;
@@ -212,21 +222,23 @@ impl AsyncController {
             }
             cmd::SHOW_INFO_PET => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::ShowInfoPet);
+                    handle.send_forget(PlayerMessage::ShowInfoPet);
                 }
                 Ok(())
             }
             cmd::PET_CHANGE_STATUS => {
                 let status_byte = msg.read_byte()?;
-                if let Ok(status) =
-                    crate::player::player_actor::pet::PetStatus::try_from(status_byte)
-                {
+                if let Ok(status) = PetStatus::try_from(status_byte) {
                     if let Some(handle) = session.get_player_handle().await {
-                        handle.send_forget(crate::player::player_actor::PlayerMessage::Pet(
-                            crate::player::player_actor::pet::message::PetMessage::ChangeStatus(
-                                status,
-                            ),
-                        ));
+                        if status == PetStatus::Fusion {
+                            handle.send_forget(PlayerMessage::Fusion {
+                                type_fusion: 4,
+                                template_id: 1,
+                            });
+                        } else {
+                            handle
+                                .send_forget(PlayerMessage::Pet(PetMessage::ChangeStatus(status)));
+                        }
                     }
                 }
                 Ok(())
@@ -234,7 +246,7 @@ impl AsyncController {
             cmd::SELECT_SKILL => {
                 if let Some(handle) = session.get_player_handle().await {
                     let skill_template_id = msg.read_short().unwrap_or(0);
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::SelectSkill {
+                    handle.send_forget(PlayerMessage::SelectSkill {
                         skill_template_id: skill_template_id as i32,
                     });
                 }
@@ -243,16 +255,13 @@ impl AsyncController {
             cmd::CHAT => {
                 let text = msg.read_utf()?;
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::message::PlayerMessage::Chat {
-                        text,
-                    });
+                    handle.send_forget(PlayerMessage::Chat { text });
                 }
                 Ok(())
             }
             cmd::USE_SKILL => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle
-                        .send_forget(crate::player::player_actor::PlayerMessage::UseSkill { msg });
+                    handle.send_forget(PlayerMessage::UseSkill { msg });
                 }
                 Ok(())
             }
@@ -269,12 +278,10 @@ impl AsyncController {
                         let type_increment = msg.read_byte()?;
                         let point = msg.read_short()?;
                         if let Some(handle) = session.get_player_handle().await {
-                            handle.send_forget(
-                                crate::player::player_actor::PlayerMessage::IncreasePoint {
-                                    type_increment: type_increment as u8,
-                                    point,
-                                },
-                            );
+                            handle.send_forget(PlayerMessage::IncreasePoint {
+                                type_increment: type_increment as u8,
+                                point,
+                            });
                         }
                     }
                     64 => {}
@@ -287,7 +294,7 @@ impl AsyncController {
             cmd::FINISH_UPDATE => Ok(()),
             cmd::FINISH_LOAD_MAP => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::FinishLoadMap);
+                    handle.send_forget(PlayerMessage::FinishLoadMap);
                 }
                 Ok(())
             }
@@ -299,42 +306,32 @@ impl AsyncController {
             }
             cmd::CHANGE_ZONE => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::NetworkMessage(
-                        msg,
-                    ));
+                    handle.send_forget(PlayerMessage::NetworkMessage(msg));
                 }
                 Ok(())
             }
             cmd::PLAYER_ATTACK_PLAYER => {
                 let player_id = msg.read_int()?;
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::AttackPlayer {
-                        player_id,
-                    });
+                    handle.send_forget(PlayerMessage::AttackPlayer { player_id });
                 }
                 Ok(())
             }
             cmd::CHANGE_MAP_WAYPOINT | cmd::CHANGE_MAP_WAYPOINT_ALT => {
                 if let Some(handle) = session.get_player_handle().await {
-                    let _ = handle
-                        .send(crate::player::player_actor::PlayerMessage::NetworkMessage(
-                            msg,
-                        ))
-                        .await;
+                    let _ = handle.send(PlayerMessage::NetworkMessage(msg)).await;
                 }
                 Ok(())
             }
             cmd::HOI_SINH => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::HoiSinh);
+                    handle.send_forget(PlayerMessage::HoiSinh);
                 }
                 Ok(())
             }
             cmd::GO_HOME => {
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::NetworkMessage(
-                        msg,
-                    ));
+                    handle.send_forget(PlayerMessage::NetworkMessage(msg));
                 }
                 Ok(())
             }
@@ -361,11 +358,7 @@ impl AsyncController {
                     shortcuts.push(msg.read_byte()?);
                 }
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(
-                        crate::player::player_actor::PlayerMessage::UpdateSkillShortcuts {
-                            shortcuts,
-                        },
-                    );
+                    handle.send_forget(PlayerMessage::UpdateSkillShortcuts { shortcuts });
                 }
                 Ok(())
             }
@@ -376,73 +369,69 @@ impl AsyncController {
                 for _ in 0..len {
                     index_item.push(msg.read_byte()? as i16);
                 }
-                crate::combine::combine_service::show_info_combine(&session, index_item).await?;
+                combine_service::show_info_combine(&session, index_item).await?;
                 Ok(())
             }
             cmd::PICK_ITEM => {
                 let item_map_id = msg.read_short()? as i32;
                 if let Some(handle) = session.get_player_handle().await {
-                    handle.send_forget(crate::player::player_actor::PlayerMessage::PickItem {
-                        item_map_id,
-                    });
+                    handle.send_forget(PlayerMessage::PickItem { item_map_id });
                 }
                 Ok(())
             }
             cmd::GET_MY_CLAN => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::send_my_clan(&snapshot).await?;
+                    ClanService::send_my_clan(&snapshot).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_MESSAGE => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::clan_message(&snapshot, msg).await?;
+                    ClanService::clan_message(&snapshot, msg).await?;
                 }
                 Ok(())
             }
             cmd::GET_CLAN_LIST => {
                 let name = msg.read_utf()?;
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::send_clan_list(&snapshot, &name)
-                        .await?;
+                    ClanService::send_clan_list(&snapshot, &name).await?;
                 }
                 Ok(())
             }
             cmd::GET_MEMBER_LIST => {
                 let clan_id = msg.read_int()?;
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::send_member_list(&snapshot, clan_id)
-                        .await?;
+                    ClanService::send_member_list(&snapshot, clan_id).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_REMOTE => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::clan_remote(&snapshot, msg).await?;
+                    ClanService::clan_remote(&snapshot, msg).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_INVITE => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::clan_invite(&snapshot, msg).await?;
+                    ClanService::clan_invite(&snapshot, msg).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_JOIN => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::join_clan(&snapshot, msg).await?;
+                    ClanService::join_clan(&snapshot, msg).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_INFO => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::get_clan(&snapshot, msg).await?;
+                    ClanService::get_clan(&snapshot, msg).await?;
                 }
                 Ok(())
             }
             cmd::CLAN_DONATE => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    crate::clan::clan_service::ClanService::clan_donate(&snapshot, msg).await?;
+                    ClanService::clan_donate(&snapshot, msg).await?;
                 }
                 Ok(())
             }
@@ -529,7 +518,7 @@ impl AsyncController {
     async fn initialize_logged_in_session(
         session: &SessionArc,
         account: account::Model,
-        mut player_with_zone: crate::player::Player,
+        mut player_with_zone: Player,
     ) -> Result<()> {
         let player_id = player_with_zone.id;
         player_with_zone.is_admin = account.is_admin;
@@ -557,7 +546,7 @@ impl AsyncController {
         }
 
         let zone_handle = {
-            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+            let zone_manager = &ZONE_MANAGER;
             if let Some(zone) = zone_manager.get_best_zone(player_with_zone.map_id as i32) {
                 player_with_zone.zone_id = zone.zone_id;
                 Some(zone)
@@ -576,11 +565,7 @@ impl AsyncController {
             .await;
 
         if let Some(handle) = session.get_player_handle().await {
-            crate::clan::clan_service::ClanService::add_player_to_clan_online(
-                &player_with_zone,
-                handle,
-            )
-            .await;
+            ClanService::add_player_to_clan_online(&player_with_zone, handle).await;
         }
 
         {
@@ -664,7 +649,7 @@ impl AsyncController {
                 match player_result {
                     Ok(Some(db_player)) => {
                         session.set_user_id(account_id).await;
-                        let rt_player = crate::player::player_mapper::from_entity(&db_player)
+                        let rt_player = player_mapper::from_entity(&db_player)
                             .await
                             .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
 
@@ -741,7 +726,7 @@ impl AsyncController {
         match player_result {
             Ok(db_player) => {
                 info!("Character created successfully: {}", name);
-                let rt_player = crate::player::player_mapper::from_entity(&db_player)
+                let rt_player = player_mapper::from_entity(&db_player)
                     .await
                     .map_err(|e| anyhow!("Failed to build runtime player: {}", e))?;
 
@@ -826,18 +811,13 @@ impl AsyncController {
                     }
                 }
             };
-            handle
-                .send(crate::player::player_actor::PlayerMessage::Move { x: to_x, y })
-                .await?;
+            handle.send(PlayerMessage::Move { x: to_x, y }).await?;
         }
 
         Ok(())
     }
 
-    async fn send_player_move_to_zone(
-        player: &crate::player::Player,
-        zone: &crate::map::Zone,
-    ) -> Result<()> {
+    async fn send_player_move_to_zone(player: &Player, zone: &Zone) -> Result<()> {
         let mut msg = Message::new(-7);
         msg.write_int(player.id as i32)?;
         msg.write_short(player.location.x)?;

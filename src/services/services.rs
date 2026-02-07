@@ -13,6 +13,22 @@ use tracing::debug;
 
 pub struct ServiceHandles {}
 impl ServiceHandles {
+    pub fn send_fusion_effect(pl: &Player, type_fusion: i8) -> Result<()> {
+        let mut msg = Message::new(125);
+        msg.write_byte(type_fusion)?;
+        msg.write_int(pl.id as i32)?;
+        Self::send_mess_all_player_in_map(pl, msg)?;
+        Ok(())
+    }
+
+    pub fn send_item_time(pl: &Player, item_id: i16, time_seconds: i16) -> Result<()> {
+        let mut msg = Message::new(-106);
+        msg.write_short(item_id)?;
+        msg.write_short(time_seconds)?;
+        pl.send_to_client(msg)?;
+        Ok(())
+    }
+
     pub fn send_gold_gem_ruby_to_client(player: &Player) -> Result<()> {
         let mut msg = Message::new(6);
         msg.write_long(player.inventory.get_gold())?;
@@ -172,14 +188,6 @@ impl ServiceHandles {
         message.write_short(player.get_leg())?;
         message.write_byte(if player.effect_skill.is_monkey { 1 } else { 0 })?;
         Self::send_mess_all_player_in_map(player, message)?;
-        Ok(())
-    }
-
-    pub fn send_item_time(player: &Player, item_id: i16, time: i16) -> Result<()> {
-        let mut msg = Message::new(-106);
-        msg.write_short(item_id)?;
-        msg.write_short(time)?;
-        let _ = player.send_to_client(msg);
         Ok(())
     }
 

@@ -3,7 +3,8 @@
 
 use crate::entities::player;
 use crate::item::item_service::ItemService;
-use crate::models::Intrinsic;
+use crate::models::intrinsic::{Intrinsic, IntrinsicPlayer};
+use crate::models::radar;
 use crate::player::player::Player;
 use crate::player::player_data::*;
 use crate::player::player_parser::*;
@@ -220,6 +221,30 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
         }
     }
 
+    if !model.data_card.is_empty() && model.data_card != "[]" {
+        if let Ok(cards_json) = serde_json::from_str::<Vec<CardDataJson>>(&model.data_card) {
+            p.radar_cards = cards_json
+                .into_iter()
+                .map(|c| radar::Card {
+                    id: c.id,
+                    amount: c.amount,
+                    max_amount: c.max,
+                    level: c.level,
+                    used: c.used,
+                    options: c
+                        .options
+                        .into_iter()
+                        .map(|o| radar::OptionCard {
+                            id: o.id,
+                            param: o.param,
+                            active_card: o.active_card,
+                        })
+                        .collect(),
+                })
+                .collect();
+        }
+    }
+
     Ok(p)
 }
 
@@ -298,6 +323,28 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
 
     let magic_tree_str = serde_json::to_string(&p.magic_tree).unwrap_or_else(|_| "{}".to_string());
 
+    let radar_cards_json: Vec<CardDataJson> = p
+        .radar_cards
+        .iter()
+        .map(|c| CardDataJson {
+            id: c.id,
+            amount: c.amount,
+            max: c.max_amount,
+            options: c
+                .options
+                .iter()
+                .map(|o| OptionCardJson {
+                    id: o.id,
+                    param: o.param,
+                    active_card: o.active_card,
+                })
+                .collect(),
+            level: c.level,
+            used: c.used,
+        })
+        .collect();
+    let radar_str = serde_json::to_string(&radar_cards_json).unwrap_or_else(|_| "[]".to_string());
+
     player::ActiveModel {
         id: Set(p.id as i32),
         name: Set(p.name.clone()),
@@ -315,6 +362,7 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         pet: Set(pet_str),
         clan_id: Set(p.clan_id),
         data_task: Set(data_task),
+        data_card: Set(radar_str),
         ..Default::default()
     }
 }

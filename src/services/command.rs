@@ -170,33 +170,15 @@ impl CommandService {
             }
         }
 
-        // Pet commands for everyone
         match text {
             "follow" | "di-theo" => {
-                if let Some(pet_id) = player.pet_id {
-                    if let Some(handle) = PLAYER_MANAGER.get(pet_id) {
+                if player.pet_id.is_some() {
+                    if let Some(handle) = PLAYER_MANAGER.get(player.id) {
                         let _ = handle
                             .send(PlayerMessage::Pet(PetMessage::ChangeStatus(
                                 PetStatus::Follow,
                             )))
                             .await;
-                        if let Some(pet_snapshot) = handle.get_snapshot().await {
-                            if pet_snapshot.map_id != player.map_id
-                                || pet_snapshot.zone_id != player.zone_id
-                            {
-                                let _ = handle
-                                    .tx
-                                    .send(PlayerMessage::ChangeMap {
-                                        map_id: player.map_id,
-                                        zone_id: player.zone_id,
-                                        x: player.location.x,
-                                        y: player.location.y,
-                                        space_type: SpaceShipType::None,
-                                    })
-                                    .await;
-                            }
-                        }
-
                         ServiceHandles::send_message_alert(
                             player,
                             "Đệ tử: Sư phụ đi đâu con theo đó!",
@@ -206,8 +188,8 @@ impl CommandService {
                 }
             }
             "attack" | "tan-cong" => {
-                if let Some(pet_id) = player.pet_id {
-                    if let Some(handle) = PLAYER_MANAGER.get(pet_id) {
+                if player.pet_id.is_some() {
+                    if let Some(handle) = PLAYER_MANAGER.get(player.id) {
                         let _ = handle
                             .send(PlayerMessage::Pet(PetMessage::ChangeStatus(
                                 PetStatus::Attack,
@@ -222,8 +204,8 @@ impl CommandService {
                 }
             }
             "protect" | "bao-ve" => {
-                if let Some(pet_id) = player.pet_id {
-                    if let Some(handle) = PLAYER_MANAGER.get(pet_id) {
+                if player.pet_id.is_some() {
+                    if let Some(handle) = PLAYER_MANAGER.get(player.id) {
                         let _ = handle
                             .send(PlayerMessage::Pet(PetMessage::ChangeStatus(
                                 PetStatus::Protect,
@@ -238,8 +220,8 @@ impl CommandService {
                 }
             }
             "ve-nha" | "gohome" => {
-                if let Some(pet_id) = player.pet_id {
-                    if let Some(handle) = PLAYER_MANAGER.get(pet_id) {
+                if player.pet_id.is_some() {
+                    if let Some(handle) = PLAYER_MANAGER.get(player.id) {
                         let _ = handle
                             .send(PlayerMessage::Pet(PetMessage::ChangeStatus(
                                 PetStatus::GoHome,
@@ -256,10 +238,13 @@ impl CommandService {
             "hop-the" | "fusion" => {
                 if player.pet_id.is_some() {
                     if let Some(handle) = PLAYER_MANAGER.get(player.id) {
-                        if player.fusion.type_fusion == 0 {
-                            let _ = handle.send(PlayerMessage::Fusion(4)).await;
-                        } else {
-                            let _ = handle.send(PlayerMessage::Unfusion).await;
+                        if !player.fusion.is_timed_fusion() {
+                            let _ = handle
+                                .send(PlayerMessage::Fusion {
+                                    type_fusion: 4,
+                                    template_id: 1,
+                                })
+                                .await;
                         }
                         return Ok(true);
                     }

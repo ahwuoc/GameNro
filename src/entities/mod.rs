@@ -19,6 +19,7 @@ pub mod comments;
 pub mod cpanel;
 pub mod dhvt_template;
 pub mod flag_bag;
+pub mod fusion_template;
 pub mod giftcode;
 pub mod giftcode_item_options;
 pub mod giftcode_items;

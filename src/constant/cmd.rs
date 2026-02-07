@@ -85,4 +85,5 @@ pub mod cmd {
     pub const CLAN_REMOTE: i8 = -55;
     pub const CLAN_INVITE: i8 = -57;
     pub const CLAN_JOIN: i8 = -48;
+    pub const RADAR: i8 = 127;
 }

@@ -1,5 +1,7 @@
 use crate::item::InventoryService;
 use crate::network::session::SessionArc;
+use crate::player::player_actor::message::PlayerMessage;
+use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player;
 use crate::services::{player_info_service, ServiceHandles};
 
@@ -26,7 +28,7 @@ pub struct PeaRecoveryData {
 }
 
 impl UseItemService {
-    pub fn handle_use_item(pl: &mut Player, index: usize) -> anyhow::Result<UseItemResult> {
+    pub async fn handle_use_item(pl: &mut Player, index: usize) -> anyhow::Result<UseItemResult> {
         let (type_item, item_id) = {
             let item = pl
                 .inventory
@@ -37,6 +39,38 @@ impl UseItemService {
         };
 
         match type_item {
+            76 => {
+                let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
+                // Check fusion
+                if pl.fusion.type_fusion != 0 {
+                    // Unfusion
+                    if let Some(ref session) = pl.session {
+                        if let Some(handle) = session.get_player_handle().await {
+                            handle.send_forget(PlayerMessage::Unfusion);
+                        }
+                    }
+                    return Ok(UseItemResult::None);
+                }
+
+                // Start fusion
+                if let Some(template) =
+                    crate::templates::fusion_template_manager::get(item_id as i32)
+                {
+                    if let Some(ref session) = pl.session {
+                        if let Some(handle) = session.get_player_handle().await {
+                            handle.send_forget(PlayerMessage::Fusion {
+                                type_fusion: template.fusion_type,
+                                template_id: template.id,
+                            });
+                        }
+                    }
+                    return Ok(UseItemResult::None);
+                } else {
+                    return Ok(UseItemResult::Error(
+                        "Không tìm thấy dữ liệu hợp thể cho vật phẩm này".to_string(),
+                    ));
+                }
+            }
             6 => {
                 if let Some(recovery) = Self::eat_pea(pl, index) {
                     return Ok(UseItemResult::RecoveredHpMp {

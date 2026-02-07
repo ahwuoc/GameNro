@@ -4,6 +4,7 @@ use crate::entities;
 use crate::item::inventory::{self, Inventory};
 
 use crate::features::task_player::TaskPlayer;
+use crate::models::radar;
 use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
@@ -82,6 +83,7 @@ pub struct Player {
     pub pet_data: Option<PetData>,
     pub boss_component: Option<crate::player::components::boss::BossComponent>,
     pub magic_tree: MagicTree,
+    pub radar_cards: Vec<radar::Card>,
 }
 
 impl Player {
@@ -137,6 +139,7 @@ impl Player {
             pet_data: None,
             boss_component: None,
             magic_tree: MagicTree::new(),
+            radar_cards: Vec::new(),
         }
     }
 
@@ -166,6 +169,24 @@ impl Player {
         if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::HEAD_MONKEY[idx];
+        }
+
+        // ========Handle Fusion=========
+        if self.fusion.type_fusion != 0 {
+            if let Some(template) =
+                crate::templates::fusion_template_manager::get(self.fusion.template_id)
+            {
+                let data = match self.gender {
+                    1 => template.data_1.as_ref(), // Namek
+                    2 => template.data_2.as_ref(), // Xayda
+                    _ => template.data_0.as_ref(), // Trai Dat
+                };
+                if let Some(d) = data {
+                    if d.head != -1 {
+                        return d.head;
+                    }
+                }
+            }
         }
 
         // ========Handle Pet=========
@@ -216,6 +237,24 @@ impl Player {
         if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::BODY_MONKEY[idx];
+        }
+
+        // ========Handle Fusion=========
+        if self.fusion.type_fusion != 0 {
+            if let Some(template) =
+                crate::templates::fusion_template_manager::get(self.fusion.template_id)
+            {
+                let data = match self.gender {
+                    1 => template.data_1.as_ref(), // Namek
+                    2 => template.data_2.as_ref(), // Xayda
+                    _ => template.data_0.as_ref(), // Trai Dat
+                };
+                if let Some(d) = data {
+                    if d.body != -1 {
+                        return d.body;
+                    }
+                }
+            }
         }
 
         // ========Handle Pet=========
@@ -279,6 +318,24 @@ impl Player {
         if self.effect_skill.is_monkey && self.effect_skill.level_monkey > 0 {
             let idx = (self.effect_skill.level_monkey - 1).clamp(0, 6) as usize;
             return Self::LEG_MONKEY[idx];
+        }
+
+        // ========Handle Fusion=========
+        if self.fusion.type_fusion != 0 {
+            if let Some(template) =
+                crate::templates::fusion_template_manager::get(self.fusion.template_id)
+            {
+                let data = match self.gender {
+                    1 => template.data_1.as_ref(), // Namek
+                    2 => template.data_2.as_ref(), // Xayda
+                    _ => template.data_0.as_ref(), // Trai Dat
+                };
+                if let Some(d) = data {
+                    if d.leg != -1 {
+                        return d.leg;
+                    }
+                }
+            }
         }
 
         // ========Handle Pet=========

@@ -87,7 +87,10 @@ pub enum PlayerMessage {
     Logout,
     HandleAnTroi(bool, u64, Option<u64>),
     SetPetHandle(PetHandle),
-    Fusion(i8),
+    Fusion {
+        type_fusion: i8,
+        template_id: i32,
+    },
     Unfusion,
     Pet(PetMessage),
 
@@ -105,4 +108,5 @@ pub enum PlayerMessage {
     MagicTreeUpgrade,
     MagicTreeFastUpgrade,
     MagicTreeUnupgrade,
+    RadarAction(i8, Message),
 }

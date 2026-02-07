@@ -61,7 +61,7 @@ impl ItemController {
                 return Ok(None);
             }
             TypeItemAction::DoUseItem | TypeItemAction::AcceptUseItem => {
-                let (item_id, result) = Self::perform_use_item(pl, index as usize)?;
+                let (item_id, result) = Self::perform_use_item(pl, index as usize).await?;
                 if let Some(id) = item_id {
                     let _ = crate::services::task_service::TaskService::check_done_task_use_item(
                         pl,
@@ -74,7 +74,7 @@ impl ItemController {
         }
     }
 
-    fn perform_use_item(
+    async fn perform_use_item(
         pl: &mut Player,
         index: usize,
     ) -> anyhow::Result<(
@@ -89,7 +89,7 @@ impl ItemController {
             item.get_template_id()
         };
 
-        let use_result = UseItemService::handle_use_item(pl, index)?;
+        let use_result = UseItemService::handle_use_item(pl, index).await?;
         let result_clone = match &use_result {
             crate::item::use_item_service::UseItemResult::RecoveredHpMp {
                 index,

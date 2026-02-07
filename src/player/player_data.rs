@@ -130,3 +130,26 @@ pub struct PetData {
     pub items_body: Vec<ItemDataJson>,
     pub skills: Vec<SkillData>,
 }
+
+// ============================================
+// Radar Card Data
+// ============================================
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct OptionCardJson {
+    pub id: i32,
+    pub param: i32,
+    #[serde(rename = "activeCard")]
+    pub active_card: i8,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CardDataJson {
+    pub id: i16,
+    pub amount: i8,
+    pub max: i8,
+    #[serde(rename = "option")]
+    pub options: Vec<OptionCardJson>,
+    pub level: i8,
+    pub used: i8,
+}

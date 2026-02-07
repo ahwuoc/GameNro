@@ -16,16 +16,10 @@ pub async fn create_new_player(
     hair: i32,
 ) -> Result<player::Model, DbErr> {
     let db = DbManager::get_pool();
-    let home_map = 39 + gender; // Java: 39 + gender (39=TraiDat, 40=Namec, 41=Xayda)
+    let home_map = 39 + gender;
     let now = Utc::now().timestamp_millis();
-
-    // data_inventory: [vàng, ngọc xanh, hồng ngọc, point, event]
     let inventory = format!("[2000, 1000, 0, 0, 0]");
-
-    // data_location: [map, x, y]
     let location = format!("[{}, 100, 384]", home_map);
-
-    // data_point: JSON object format matching PointData struct
     let hpg = if gender == 0 { 200 } else { 100 };
     let mpg = if gender == 1 { 200 } else { 100 };
     let dameg = if gender == 2 { 15 } else { 10 };
@@ -33,57 +27,26 @@ pub async fn create_new_player(
         r#"{{"limitPower":0,"power":2000,"tiemNang":2000,"stamina":1000,"maxStamina":1000,"hpg":{},"mpg":{},"dameg":{},"defg":0,"critg":0,"crit_max":0,"nangDong":0,"plHp":{},"plMp":{}}}"#,
         hpg, mpg, dameg, hpg, mpg
     );
-
-    // data_magic_tree: [level, current_pea, is_upgrade, last_time_harvest, last_time_upgrade]
     let magic_tree = format!("[1, 5, 0, {}, {}]", now, now);
-
-    // Starter items body (11 slots): áo, quần, null x9
-    let id_ao = gender; // 0, 1, 2
-    let id_quan = 6 + gender; // 6, 7, 8
+    let id_ao = gender;
+    let id_quan = 6 + gender;
     let def = if gender == 2 { 3 } else { 2 };
     let hp_opt = if gender == 0 { 30 } else { 20 };
     let items_body = generate_items_body(id_ao, id_quan, def, hp_opt, now);
-
-    // items_bag (30 slots): thỏi vàng x10 at slot 0, null items for rest
     let items_bag = generate_items_bag(now);
-
-    // items_box (30 slots): rada at slot 0, null items for rest
     let items_box = generate_items_box(now);
-
-    // items_box_lucky_round (110 slots): all null
     let items_box_lucky_round = generate_null_items(110, now);
-
-    // items_daban (110 slots): all null
     let items_daban = generate_null_items(110, now);
-
-    // data_intrinsic: [id, param1, param2, count_open, is_intrinsic, skill_id, cooldown, last_time]
     let intrinsic = "[0, 0, 0, 0, 0, 0, 0, 0]".to_string();
-
-    // data_item_time (21 zeros)
     let item_time = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]".to_string();
-
-    // data_task: [task_id, index, count]
     let task = "[0, 0, 0]".to_string();
-
-    // data_charm (10 timestamps)
     let charm = format!("[{0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}]", now);
-
-    // skills based on gender
     let skills = generate_skills(gender, now);
-
-    // skills_shortcut (10 slots)
-    let first_skill = gender * 2; // 0, 2, 4
+    let first_skill = gender * 2;
     let skills_shortcut = format!("[{}, -1, -1, -1, -1, -1, -1, -1, -1, -1]", first_skill);
-
-    // data_black_ball (7 entries)
     let black_ball = r#"["[0, 0, 0]", "[0, 0, 0]", "[0, 0, 0]", "[0, 0, 0]", "[0, 0, 0]", "[0, 0, 0]", "[0, 0, 0]"]"#.to_string();
-
-    // data_side_task: [id, time, count, max_count, left_task, level]
     let side_task = "[-1, 0, 0, 0, 20, 0]".to_string();
-
-    // bought_skill
     let bought_skill = format!("[{}]", first_skill);
-
     let player_data = player::ActiveModel {
         account_id: Set(Some(account_id)),
         name: Set(name.to_string()),
@@ -148,14 +111,12 @@ pub async fn create_new_player(
     AccountDao::create_player(db, player_data).await
 }
 
-/// Generate items_body with starter clothes (11 slots)
 fn generate_items_body(id_ao: i32, id_quan: i32, def: i32, hp_opt: i32, now: i64) -> String {
     use crate::player::player_data::{ItemDataJson, ItemOptionJson};
     let mut items = Vec::new();
     for i in 0..11 {
         match i {
             0 => {
-                // Áo với option giáp
                 items.push(ItemDataJson {
                     id: id_ao,
                     quantity: 1,
@@ -164,7 +125,6 @@ fn generate_items_body(id_ao: i32, id_quan: i32, def: i32, hp_opt: i32, now: i64
                 });
             }
             1 => {
-                // Quần với option HP
                 items.push(ItemDataJson {
                     id: id_quan,
                     quantity: 1,
@@ -176,7 +136,6 @@ fn generate_items_body(id_ao: i32, id_quan: i32, def: i32, hp_opt: i32, now: i64
                 });
             }
             _ => {
-                // Null item
                 items.push(ItemDataJson {
                     id: -1,
                     quantity: 0,
@@ -189,7 +148,6 @@ fn generate_items_body(id_ao: i32, id_quan: i32, def: i32, hp_opt: i32, now: i64
     serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Generate items_bag with thoi vang at slot 0 (30 slots)
 fn generate_items_bag(now: i64) -> String {
     use crate::player::player_data::{ItemDataJson, ItemOptionJson};
     let mut items = Vec::new();

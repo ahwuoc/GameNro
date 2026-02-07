@@ -61,6 +61,10 @@ pub struct NPoint {
     pub def_fusion: i32,
     pub crit_fusion: i8,
 
+    pub hp_fusion_tl: i32,
+    pub mp_fusion_tl: i32,
+    pub dame_fusion_tl: i32,
+
     pub is_monkey_active: bool,
 }
 
@@ -108,6 +112,10 @@ impl NPoint {
             def_fusion: 0,
             crit_fusion: 0,
 
+            hp_fusion_tl: 0,
+            mp_fusion_tl: 0,
+            dame_fusion_tl: 0,
+
             is_monkey_active: false,
         }
     }
@@ -143,6 +151,9 @@ impl NPoint {
         for tl in &self.tl_hp {
             hp_max += hp_max * (*tl as i64) / 100;
         }
+        if self.hp_fusion_tl > 0 {
+            hp_max += hp_max * (self.hp_fusion_tl as i64) / 100;
+        }
         if self.huyt_sao_buff > 0 {
             hp_max += hp_max * (self.huyt_sao_buff as i64) / 100;
         }
@@ -156,6 +167,10 @@ impl NPoint {
             mp_max += mp_max * (*tl as i64) / 100;
         }
 
+        if self.mp_fusion_tl > 0 {
+            mp_max += mp_max * (self.mp_fusion_tl as i64) / 100;
+        }
+
         self.mp_max = mp_max.min(i32::MAX as i64) as i32;
     }
 
@@ -164,6 +179,10 @@ impl NPoint {
 
         for tl in &self.tl_dame {
             dame += dame * (*tl as i64) / 100;
+        }
+
+        if self.dame_fusion_tl > 0 {
+            dame += dame * (self.dame_fusion_tl as i64) / 100;
         }
 
         self.dame = dame.min(i32::MAX as i64) as i32;
