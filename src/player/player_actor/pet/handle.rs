@@ -27,4 +27,15 @@ impl PetHandle {
             .await
             .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
+
+    pub fn send_forget(&self, msg: crate::player::player_actor::pet::message::PetMessage) {
+        let tx = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = tx
+                .send(crate::player::player_actor::message::PlayerMessage::Pet(
+                    msg,
+                ))
+                .await;
+        });
+    }
 }

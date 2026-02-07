@@ -38,16 +38,16 @@ pub struct EffectSkill {
     pub last_time_huyt_sao: u64,
 
     // troi (hold/bind skill)
-    pub use_troi: bool,              // caster is holding target
-    pub time_troi: u64,              // duration
-    pub start_time_troi: u64,        // start time
-    pub mob_an_troi_id: Option<u64>, // ID of mob being held by this player
-    pub pl_an_troi_id: Option<u64>,  // ID of player being held by this player
+    pub use_troi: bool,
+    pub time_troi: u64,
+    pub start_time_troi: u64,
+    pub mob_an_troi_id: Option<u64>,
+    pub pl_an_troi_id: Option<u64>,
 
-    pub an_troi: bool,           // target is being held
-    pub time_an_troi: u64,       // duration being held
-    pub start_time_an_troi: u64, // start time being held
-    pub pl_troi_id: Option<u64>, // ID of player who troi this target
+    pub an_troi: bool,
+    pub time_an_troi: u64,
+    pub start_time_an_troi: u64,
+    pub pl_troi_id: Option<u64>,
 }
 
 #[derive(Debug, Default)]

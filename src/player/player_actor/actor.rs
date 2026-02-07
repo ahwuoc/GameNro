@@ -380,8 +380,10 @@ impl PlayerActor {
             PlayerMessage::Unfusion => {
                 self.handle_unfusion().await;
             }
-            PlayerMessage::Pet(_) => {
-                // Ignore pet messages in master actor
+            PlayerMessage::Pet(pet_msg) => {
+                if let Some(handle) = &self.pet_handle {
+                    handle.send_forget(pet_msg);
+                }
             }
             PlayerMessage::PetAskPea { pet_id } => {
                 self.handle_pet_ask_pea(pet_id).await;

@@ -131,9 +131,10 @@ pub async fn execute_dichchuyentucthoi(
 
         deal_damage_to_player(player, target, false).await;
         EffectSkillService::apply_blind_dctt(&mut target.effect_skill, time_stun);
-        messages.push(EffectSkillService::build_effect_player_message(
+        messages.push(EffectSkillService::build_effect_message(
             player.id,
             target.id,
+            false,
             EffectAction::START,
             EffectSkillService::BLIND_EFFECT,
         ));
@@ -146,9 +147,10 @@ pub async fn execute_dichchuyentucthoi(
         messages.push(map_service::build_player_teleport_message(player));
 
         EffectSkillService::apply_blind_dctt(&mut mob.effect_skill, time_stun);
-        messages.push(EffectSkillService::build_effect_mob_message(
+        messages.push(EffectSkillService::build_effect_message(
             player.id,
             mob.id,
+            true,
             EffectAction::START,
             EffectSkillService::BLIND_EFFECT,
         ));

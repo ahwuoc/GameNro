@@ -122,30 +122,45 @@ impl PetActor {
         match msg {
             PetMessage::ChangeStatus(status) => {
                 self.pet.status = status;
-                if status == PetStatus::GoHome {
-                    self.pet_chat(Some("OK con về, bibi sư phụ")).await;
-
-                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-                    let old_zone_opt = zone_manager::ZONE_MANAGER
-                        .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
-                    if let Some(old_zone) = old_zone_opt {
-                        let mut msg = Message::new(-6);
-                        let _ = msg.write_int(self.pet.player.id as i32);
-                        let _ = ServiceHandles::send_to_all_in_zone(&old_zone, msg);
-                        let _ = old_zone.remove_player(self.pet.player.id).await;
+                match status {
+                    PetStatus::Follow => {
+                        self.pet_chat(Some("Ok con theo sư phụ")).await;
                     }
-                    let home_map_id = 21 + self.pet.player.gender as i32;
-                    self.pet.player.map_id = home_map_id;
-                    self.pet.player.zone_id = 0;
-                    self.pet.player.location.x = 200;
-                    self.pet.player.location.y = 336;
+                    PetStatus::Protect => {
+                        self.pet_chat(Some("Ok con sẽ bảo vệ sư phụ")).await;
+                    }
+                    PetStatus::Attack => {
+                        self.pet_chat(Some("Ok sư phụ để con lo cho")).await;
+                    }
+                    PetStatus::GoHome => {
+                        self.pet_chat(Some("OK con về, bibi sư phụ")).await;
 
-                    self.pet.is_gohome = true;
-                    info!(
-                        "Pet {} went home to map {} (master: {})",
-                        self.pet.player.id, home_map_id, self.pet.master_id
-                    );
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+                        let old_zone_opt = zone_manager::ZONE_MANAGER
+                            .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
+                        if let Some(old_zone) = old_zone_opt {
+                            let mut msg = Message::new(-6);
+                            let _ = msg.write_int(self.pet.player.id as i32);
+                            let _ = ServiceHandles::send_to_all_in_zone(&old_zone, msg);
+                            let _ = old_zone.remove_player(self.pet.player.id).await;
+                        }
+                        let home_map_id = 21 + self.pet.player.gender as i32;
+                        self.pet.player.map_id = home_map_id;
+                        self.pet.player.zone_id = 0;
+                        self.pet.player.location.x = 200;
+                        self.pet.player.location.y = 336;
+
+                        self.pet.is_gohome = true;
+                        info!(
+                            "Pet {} went home to map {} (master: {})",
+                            self.pet.player.id, home_map_id, self.pet.master_id
+                        );
+                    }
+                    PetStatus::Fusion => {
+                        self.pet_chat(Some("Hợp thể lẹ đi sư phụ")).await;
+                    }
+                    _ => {}
                 }
             }
             PetMessage::UpdateTick => {

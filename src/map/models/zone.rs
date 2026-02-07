@@ -644,12 +644,14 @@ impl Zone {
         if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
             if mob.effect_skill.an_troi && mob.effect_skill.pl_troi_id == Some(caster_id) {
                 crate::services::effect_skill_service::EffectSkillService::remove_troi_mob(mob);
-                let msg = crate::services::effect_skill_service::EffectSkillService::build_effect_mob_message(
-                    caster_id,
-                    mob_id,
-                    crate::services::effect_skill_service::EffectAction::REMOVE,
-                    crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
-                );
+                let msg =
+                    crate::services::effect_skill_service::EffectSkillService::build_effect_message(
+                        caster_id,
+                        mob_id,
+                        true,
+                        crate::services::effect_skill_service::EffectAction::REMOVE,
+                        crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
+                    );
                 self.broadcast(msg, None);
             }
         }
@@ -661,12 +663,14 @@ impl Zone {
                 false, 0, None,
             ));
 
-            let msg = crate::services::effect_skill_service::EffectSkillService::build_effect_player_message(
-                caster_id,
-                target_id,
-                crate::services::effect_skill_service::EffectAction::REMOVE,
-                crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
-            );
+            let msg =
+                crate::services::effect_skill_service::EffectSkillService::build_effect_message(
+                    caster_id,
+                    target_id,
+                    false,
+                    crate::services::effect_skill_service::EffectAction::REMOVE,
+                    crate::services::effect_skill_service::EffectSkillService::HOLD_EFFECT,
+                );
             self.broadcast(msg, None);
         }
     }

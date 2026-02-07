@@ -127,7 +127,7 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
 
     if effect_result.monkey_down {
         let update = EffectSkillService::monkey_down_state(player);
-        player.n_point.cal_point(); // Recalc stats (crit về normal)
+        player.n_point.cal_point();
         EffectSkillService::send_monkey_messages(&update);
         let _ = crate::services::player_info_service::send_point_info_sync(player);
     }
@@ -166,6 +166,14 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
     }
     if player.n_point.hp_current <= 0 && !player.dead_flag {
         player.dead_flag = true;
+        if player.effect_skill.is_monkey || player.effect_skill.is_skill_bienkhi {
+            player.is_transform = false;
+            let update = EffectSkillService::monkey_down_state(player);
+            player.n_point.cal_point();
+            EffectSkillService::send_monkey_messages(&update);
+            let _ = crate::services::player_info_service::send_point_info_sync(player);
+            tracing::info!("Player {} transformation reset on death", player.id);
+        }
     }
 
     Ok(())

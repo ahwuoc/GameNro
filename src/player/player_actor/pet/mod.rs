@@ -19,6 +19,22 @@ pub enum PetStatus {
     HTVV = 5,
 }
 
+impl TryFrom<i8> for PetStatus {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(PetStatus::Follow),
+            1 => Ok(PetStatus::Protect),
+            2 => Ok(PetStatus::Attack),
+            3 => Ok(PetStatus::GoHome),
+            4 => Ok(PetStatus::Fusion),
+            5 => Ok(PetStatus::HTVV),
+            _ => Err(anyhow::anyhow!("Invalid PetStatus value: {}", value)),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Pet {
     pub player: Player,

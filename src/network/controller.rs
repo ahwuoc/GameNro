@@ -216,6 +216,21 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            cmd::PET_CHANGE_STATUS => {
+                let status_byte = msg.read_byte()?;
+                if let Ok(status) =
+                    crate::player::player_actor::pet::PetStatus::try_from(status_byte)
+                {
+                    if let Some(handle) = session.get_player_handle().await {
+                        handle.send_forget(crate::player::player_actor::PlayerMessage::Pet(
+                            crate::player::player_actor::pet::message::PetMessage::ChangeStatus(
+                                status,
+                            ),
+                        ));
+                    }
+                }
+                Ok(())
+            }
             cmd::SELECT_SKILL => {
                 if let Some(handle) = session.get_player_handle().await {
                     let skill_template_id = msg.read_short().unwrap_or(0);

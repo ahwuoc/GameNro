@@ -1,11 +1,10 @@
 use crate::map::Zone;
-use crate::models::{effect_skill, EffectSkill};
+use crate::models::EffectSkill;
 use crate::network::message::Message;
 use crate::player::player::Player;
 use crate::services::ServiceHandles;
 use crate::utils::skill_util;
 use crate::{mob::mob::RtMob, utils::time};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::debug;
 
 pub struct MonkeyStateUpdate {
@@ -32,6 +31,7 @@ impl EffectSkillService {
     pub const HUYT_SAO_EFFECT: u8 = 39;
     pub const HOLD_EFFECT: u8 = 32;
 
+    // ========== SHIELD (Khiêng năng lượng) ==========
     pub fn start_shield(player: &mut Player) {
         let now = time::current_time_millis();
         let Some(skill) = player.player_skill.skill_select.as_ref() else {
@@ -52,6 +52,7 @@ impl EffectSkillService {
         ServiceHandles::send_item_time(player, 3784, 0);
     }
 
+    // ========== BLIND (Thái dương hạ san / DCTT) ==========
     pub fn apply_blind_dctt(effect: &mut EffectSkill, duration_ms: u64) {
         let now = time::current_time_millis();
         effect.is_blind_dctt = true;
@@ -59,6 +60,7 @@ impl EffectSkillService {
         effect.start_time_dctt = now;
     }
 
+    // ========== SLEEP (Thôi miên) ==========
     pub fn set_thoi_mien(player: &mut Player, time_sleep: u64) {
         let current_time = time::current_time_millis();
         player.effect_skill.is_thoi_mien = true;
@@ -120,9 +122,10 @@ impl EffectSkillService {
     }
 
     pub fn send_remove_troi_mob(player_use: &Player, mob_target: &RtMob) {
-        let msg = Self::build_effect_mob_message(
+        let msg = Self::build_effect_message(
             player_use.id,
             mob_target.id,
+            true,
             EffectAction::REMOVE,
             Self::HOLD_EFFECT,
         );
@@ -183,47 +186,35 @@ impl EffectSkillService {
         mob.effect_skill.time_stun = time_stun;
         mob.effect_skill.last_time_stun = current_time;
     }
-    pub fn build_effect_player_message(
+
+    // ========== MESSAGE BUILDING & SENDING (Gửi nhận tin nhắn) ==========
+    pub fn build_effect_message(
         player_use_id: u64,
-        player_target_id: u64,
+        target_id: u64,
+        is_mob: bool,
         action: EffectAction,
         effect: u8,
     ) -> Message {
         let mut msg = Message::new(-124);
-        let _ = msg.write_byte(action as i8); // 0: huy, 1: bat dau
-        let _ = msg.write_byte(0); // 0: player, 1: mob
+        let _ = msg.write_byte(action as i8);
+        let _ = msg.write_byte(if is_mob { 1 } else { 0 });
 
         match action {
             EffectAction::UPDATE => {
-                let _ = msg.write_int(player_target_id as i32);
+                if is_mob {
+                    let _ = msg.write_byte(target_id as i8);
+                } else {
+                    let _ = msg.write_int(target_id as i32);
+                }
             }
             _ => {
                 let _ = msg.write_byte(effect as i8);
-                let _ = msg.write_int(player_target_id as i32);
+                if is_mob {
+                    let _ = msg.write_byte(target_id as i8);
+                } else {
+                    let _ = msg.write_int(target_id as i32);
+                }
                 let _ = msg.write_int(player_use_id as i32);
-            }
-        }
-        msg
-    }
-
-    pub fn build_effect_mob_message(
-        player_use_id: u64,
-        mob_target_id: u64,
-        action: EffectAction,
-        effect: u8,
-    ) -> Message {
-        let mut msg = Message::new(-124);
-        msg.write_byte(action as i8).ok();
-        msg.write_byte(1).ok(); // 1 = mob
-
-        match action {
-            EffectAction::UPDATE => {
-                msg.write_byte(mob_target_id as i8).ok();
-            }
-            _ => {
-                msg.write_byte(effect as i8).ok();
-                msg.write_byte(mob_target_id as i8).ok();
-                msg.write_int(player_use_id as i32).ok();
             }
         }
         msg
@@ -235,15 +226,9 @@ impl EffectSkillService {
         action: EffectAction,
         effect: u8,
     ) {
-        debug!(
-            "send_effect_player START - action: {:?}, effect: {}",
-            action, effect
-        );
         let msg =
-            Self::build_effect_player_message(player_use.id, player_target.id, action, effect);
-        debug!("send_effect_player BEFORE send_mess_all_player_in_map");
+            Self::build_effect_message(player_use.id, player_target.id, false, action, effect);
         ServiceHandles::send_mess_all_player_in_map(player_use, msg);
-        debug!("send_effect_player END");
     }
 
     pub fn send_effect_mob(
@@ -252,12 +237,11 @@ impl EffectSkillService {
         action: EffectAction,
         effect: u8,
     ) {
-        let msg = Self::build_effect_mob_message(player_use.id, mob_target.id, action, effect);
-        let _ = ServiceHandles::send_mess_all_player_in_map(player_use, msg);
+        let msg = Self::build_effect_message(player_use.id, mob_target.id, true, action, effect);
+        ServiceHandles::send_mess_all_player_in_map(player_use, msg);
     }
 
-    // ========== TAI TAO NANG LUONG (Charging) ==========
-
+    // ========== CHARGING (Tái tạo năng lượng) ==========
     pub fn start_charge(player: &mut Player) {
         if !player.effect_skill.is_charging {
             player.effect_skill.is_charging = true;
@@ -287,7 +271,7 @@ impl EffectSkillService {
 
     pub fn send_effect_stop_charge(player: &Player) {
         let mut msg = Message::new(-45);
-        let _ = msg.write_byte(3); // effect type: stop charge
+        let _ = msg.write_byte(3);
         let _ = msg.write_int(player.id as i32);
         let _ = msg.write_short(-1);
         let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
@@ -297,7 +281,15 @@ impl EffectSkillService {
 
     pub fn start_use_skill_monkey(player: &mut Player) {
         debug!("start_use_skill_monkey called for player {}", player.name);
-        Self::send_effect_monkey(player);
+
+        let skill_id = player
+            .player_skill
+            .skill_select
+            .as_ref()
+            .map(|s| s.skill_id)
+            .unwrap_or(0);
+        Self::send_effect_monkey_by_id(player, skill_id);
+
         if player.is_boss {
             let _ = Self::set_is_monkey_state(player);
             return;
@@ -308,6 +300,14 @@ impl EffectSkillService {
         player.effect_skill.time_duration_bienkhi = 1500;
         player.effect_skill.time_start_bienkhi = now;
         debug!("Animation started at {}, will finish after 1500ms", now);
+    }
+
+    pub fn send_effect_monkey_by_id(player: &Player, skill_id: i16) {
+        let mut msg = Message::new(-45);
+        let _ = msg.write_byte(6);
+        let _ = msg.write_int(player.id as i32);
+        let _ = msg.write_short(skill_id);
+        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
     }
 
     pub fn finish_use_monkey_state(player: &mut Player) -> Option<MonkeyStateUpdate> {
@@ -377,6 +377,7 @@ impl EffectSkillService {
         debug!("monkey_down_state for player {}", player.name);
         player.effect_skill.is_monkey = false;
         player.effect_skill.level_monkey = 0;
+        player.effect_skill.is_skill_bienkhi = false;
         player.n_point.is_monkey_active = false;
         if player.n_point.hp_current > player.n_point.hp_max {
             player.n_point.hp_current = player.n_point.hp_max;
@@ -406,12 +407,14 @@ impl EffectSkillService {
     pub fn send_monkey_messages(update: &MonkeyStateUpdate) {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(update.map_id, update.zone_id) {
+            // Hiệu ứng biến khỉ (-45, 6)
             let mut msg = Message::new(-45);
             let _ = msg.write_byte(6);
             let _ = msg.write_int(update.player_id as i32);
             let _ = msg.write_short(update.skill_id);
             let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
 
+            // Thay đổi ngoại hình (-90)
             let mut msg2 = Message::new(-90);
             let _ = msg2.write_byte(1);
             let _ = msg2.write_int(update.player_id as i32);
@@ -421,11 +424,13 @@ impl EffectSkillService {
             let _ = msg2.write_byte(if update.is_monkey { 1 } else { 0 });
             let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg2);
 
+            // Cập nhật tốc độ (-30, 8)
             let mut msg3 = crate::services::player_info_service::sub_command_i30(8).unwrap();
             let _ = msg3.write_int(update.player_id as i32);
             let _ = msg3.write_byte(update.speed);
             let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg3);
 
+            // Cập nhật HP (-30, 14)
             if let Ok(mut msg4) = crate::services::player_info_service::sub_command_i30(14) {
                 let _ = msg4.write_int(update.player_id as i32);
                 let _ = msg4.write_int(update.hp_current);
@@ -434,21 +439,6 @@ impl EffectSkillService {
                 let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg4);
             }
         }
-        debug!("send_monkey_messages COMPLETE!");
-    }
-
-    pub fn send_effect_monkey(player: &Player) {
-        let skill_id = player
-            .player_skill
-            .skill_select
-            .as_ref()
-            .map(|s| s.skill_id)
-            .unwrap_or(0);
-        let mut msg = Message::new(-45);
-        let _ = msg.write_byte(6);
-        let _ = msg.write_int(player.id as i32);
-        let _ = msg.write_short(skill_id);
-        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
     }
 
     pub fn send_effect_end_charge(player: &Player) {
