@@ -629,7 +629,12 @@ impl Zone {
                 let msg = if mob.is_dead() {
                     mob_service::build_mob_die_message(mob.id as i8, real_damage, false)
                 } else {
-                    mob_service::build_mob_alive_message(mob.id as i8, mob.hp, real_damage, false)
+                    mob_service::build_mob_take_dame_client(
+                        mob.id as i8,
+                        mob.hp,
+                        real_damage,
+                        false,
+                    )
                 };
                 messages.push(msg);
             }

@@ -574,39 +574,16 @@ impl PlayerActor {
     }
 
     async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
-        tracing::info!(
-            "[INJURED] Pl {} takes {} damage. from_mob: {}, piercing: {}. HP BEFORE: {}",
-            self.player.id,
-            damage,
-            from_mob,
-            piercing,
-            self.player.n_point.hp_current
-        );
         let real_damage = self.player.injured(damage, piercing);
-        tracing::info!(
-            "[INJURED] Pl {} HP AFTER: {}",
-            self.player.id,
-            self.player.n_point.hp_current
-        );
-
         if !from_mob {
-            tracing::info!(
-                "[INJURED] BROADCASTING Command 56 and HP Sync for Pl {}",
-                self.player.id
-            );
             let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
             let _ = crate::services::ServiceHandles::send_player_injured(
                 &self.player,
                 real_damage as i32,
                 false,
-                0,
+                255,
             );
             let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
-        } else {
-            tracing::info!(
-                "[INJURED] SKIPPING Broadcast for Pl {} (from_mob=true)",
-                self.player.id
-            );
         }
     }
 

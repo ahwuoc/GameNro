@@ -116,6 +116,13 @@ impl RtMob {
             return 0;
         }
 
+        if (self.template_id == crate::constant::const_mob::MOC_NHAN
+            || self.template_id == crate::constant::const_mob::BU_NHIN_MA_QUAI)
+            && damage > self.max_hp / 10
+        {
+            damage = self.max_hp / 10;
+        }
+
         if self.hp == self.max_hp && damage >= self.hp {
             damage = self.hp - 1;
         }

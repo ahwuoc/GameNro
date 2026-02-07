@@ -18,18 +18,12 @@ pub trait BossScript: Send + Sync {
         actor.default_update().await;
     }
 
-    /// Gọi khi boss bị tấn công
-    /// Return: damage thực sự sau khi xử lý
     async fn on_injured(&self, actor: &mut BossActor, damage: u64, piercing: bool) -> u64 {
         actor.default_injured(damage, piercing).await
     }
-
-    /// Gọi khi boss chết (HP <= 0)
     async fn on_death(&self, actor: &mut BossActor) {
         actor.default_death().await;
     }
-
-    /// Gọi khi boss chuyển stage
     async fn on_stage_change(&self, actor: &mut BossActor, new_stage: usize) {
         actor.default_stage_change(new_stage).await;
     }

@@ -669,7 +669,6 @@ impl BossActor {
         }
     }
 
-    /// Default injured handling
     pub async fn default_injured(&mut self, damage: u64, piercing: bool) -> u64 {
         let real_damage = self.player.injured(damage, piercing);
 

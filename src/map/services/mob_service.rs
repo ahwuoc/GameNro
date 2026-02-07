@@ -53,7 +53,7 @@ pub async fn attack_mob_actor(
                 );
                 if !mob.is_dead() {
                     (
-                        Some(build_mob_alive_message(
+                        Some(build_mob_take_dame_client(
                             mob.id as i8,
                             new_hp,
                             real_damage,
@@ -327,7 +327,7 @@ fn handle_self_recovery(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Messa
             let recover_amount = mob.max_hp / 10;
             mob.hp = (mob.hp + recover_amount).min(mob.max_hp);
 
-            msgs.push(build_mob_alive_message(
+            msgs.push(build_mob_take_dame_client(
                 mob.id as i8,
                 mob.hp,
                 recover_amount,
@@ -493,14 +493,10 @@ pub fn build_mob_attack_player_message(mob_id: i8, player_id: i32, hp: i32) -> M
     let _ = msg.write_byte(mob_id);
     let _ = msg.write_int(player_id);
     let _ = msg.write_int(hp);
-    // info!(
-    //     "build_mob_attack_player_message: mob_id: {}, player_id: {}, hp: {}",
-    //     mob_id, player_id, hp
-    // );
     msg
 }
 
-pub fn build_mob_alive_message(mob_id: i8, hp: i32, damage: i32, is_crit: bool) -> Message {
+pub fn build_mob_take_dame_client(mob_id: i8, hp: i32, damage: i32, is_crit: bool) -> Message {
     let mut msg = Message::new(-9);
     let _ = msg.write_byte(mob_id);
     let _ = msg.write_int(hp);
