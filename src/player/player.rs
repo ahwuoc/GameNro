@@ -16,6 +16,7 @@ use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::templates::pet_template_manager;
+use crate::templates::power_manager;
 use crate::utils::{time, Location};
 use serde_json::Value;
 
@@ -143,6 +144,17 @@ impl Player {
 
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+
+    pub fn get_caption(&self) -> String {
+        let caption = power_manager::get_caption(self.n_point.power);
+        let planet_name = match self.gender {
+            0 => "Trái Đất",
+            1 => "Namếc",
+            2 => "Xayda",
+            _ => "",
+        };
+        caption.replace("{planet}", planet_name)
     }
     const HEAD_MONKEY: [i16; 7] = [192, 195, 196, 199, 197, 200, 198];
     const BODY_MONKEY: [i16; 7] = [193, 193, 193, 193, 193, 193, 193];

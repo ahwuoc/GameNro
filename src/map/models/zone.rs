@@ -69,6 +69,7 @@ pub enum ZoneMessage {
         player_id: u64,
         mob_id: u64,
         damage: i32,
+        is_crit: bool,
     },
     SyncMobEffects {
         mob_id: u64,
@@ -363,8 +364,9 @@ impl Zone {
                 player_id,
                 mob_id,
                 damage,
+                is_crit,
             } => {
-                mob_service::attack_mob_actor(self, player_id, mob_id, damage).await;
+                mob_service::attack_mob_actor(self, player_id, mob_id, damage, is_crit).await;
             }
             ZoneMessage::SyncMobEffects {
                 mob_id,

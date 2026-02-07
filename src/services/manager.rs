@@ -2,9 +2,10 @@
 use crate::database::DbManager;
 use crate::map::map_manager;
 use crate::templates::{
-    boss_template_manager, head_avatar_manager, intrinsic_template_manager, item_template_manager,
-    map_template_manager, mob_template_manager, npc_template_manager, option_template_manager,
-    pet_template_manager, skill_template_manager, task_template_manager,
+    boss_template_manager, head_avatar_manager, image_by_name_template, intrinsic_template_manager,
+    item_template_manager, map_template_manager, mob_template_manager, npc_template_manager,
+    option_template_manager, pet_template_manager, power_manager, skill_template_manager,
+    task_template_manager,
 };
 use sea_orm::{ConnectionTrait, DatabaseBackend, QueryResult, Statement};
 use serde_json::Value as JsonValue;
@@ -78,6 +79,8 @@ pub async fn init() -> Result<()> {
     );
 
     boss_template_manager::load(&pool).await?;
+    image_by_name_template::load(&pool).await?;
+    power_manager::load(&pool).await?;
 
     crate::clan::clan_manager::CLAN_MANAGER.load_all().await?;
 

@@ -45,6 +45,8 @@ pub mod pet_template;
 pub mod player;
 pub mod post_question;
 pub mod posts;
+pub mod power_caption;
+pub mod power_limit;
 pub mod prelude;
 pub mod radar;
 pub mod received_items;

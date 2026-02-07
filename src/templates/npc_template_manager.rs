@@ -9,19 +9,26 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut templates = npc_template::Entity::find().all(db).await?;
     templates.sort_by_key(|t| t.id);
 
-    let mut lock = NPC_TEMPLATE.write().unwrap();
-    *lock = templates;
+    match NPC_TEMPLATE.write() {
+        Ok(mut lock) => *lock = templates,
+        Err(poisoned) => *poisoned.into_inner() = templates,
+    }
     Ok(())
 }
 
 pub fn get(id: i16) -> Option<NpcTemplate> {
-    let lock = NPC_TEMPLATE.read().unwrap();
+    let lock = match NPC_TEMPLATE.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
     lock.binary_search_by_key(&(id as i32), |t| t.id)
         .ok()
         .map(|idx| lock[idx].clone())
 }
 
 pub fn get_all() -> Vec<NpcTemplate> {
-    let lock = NPC_TEMPLATE.read().unwrap();
-    lock.clone()
+    match NPC_TEMPLATE.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
 }

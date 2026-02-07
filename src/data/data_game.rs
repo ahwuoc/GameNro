@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
-use crate::templates::map_template_manager;
 use crate::templates::mob_template_manager;
 use crate::templates::npc_template_manager;
 use crate::templates::{head_avatar_manager, skill_template_manager};
+use crate::templates::{image_by_name_template, map_template_manager};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use fast_image_resize as fir;
@@ -607,12 +607,11 @@ impl DataGame {
     pub async fn send_image_by_name(session: &SessionArc, img_name: &str) -> anyhow::Result<()> {
         let zoom = session.get_zoom_level().await;
         let base_zoom = 4;
-        let n_frame = 1;
+        let n_frame = image_by_name_template::get_n_frame(img_name);
         let file_path = format!("data/arc/img_by_name/x{}/{}.png", base_zoom, img_name);
         let img_bytes = match tokio::fs::read(&file_path).await {
             Ok(v) => v,
             Err(e) => {
-                // println!("[IMG] File not found: {} - {}", file_path, e);
                 return Ok(());
             }
         };

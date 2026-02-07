@@ -50,7 +50,6 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut skill_templates_vec = Vec::new();
 
     for template in templates {
-        // Parse skills JSON once here
         let skills = parse_skills(&template.skills);
 
         let skill_template = SkillTemplate {
@@ -65,20 +64,16 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
             skills,
         };
 
-        // Store in local vec
         skill_templates_vec.push(skill_template.clone());
 
-        // Group by nclass
         nclass_map
             .entry(template.nclass_id)
             .or_default()
             .push(skill_template);
     }
 
-    // Sort global skills
     skill_templates_vec.sort_by_key(|t| t.id);
 
-    // Build NClass cache
     let mut nclasses_vec = Vec::new();
     for (nclass_id, mut templates) in nclass_map {
         templates.sort_by_key(|t| t.id);
@@ -92,13 +87,13 @@ pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     }
     nclasses_vec.sort_by_key(|n| n.class_id);
 
-    {
-        let mut lock = SKILL_TEMPLATES.write().unwrap();
-        *lock = skill_templates_vec;
+    match SKILL_TEMPLATES.write() {
+        Ok(mut lock) => *lock = skill_templates_vec,
+        Err(poisoned) => *poisoned.into_inner() = skill_templates_vec,
     }
-    {
-        let mut lock = NCLASSES.write().unwrap();
-        *lock = nclasses_vec;
+    match NCLASSES.write() {
+        Ok(mut lock) => *lock = nclasses_vec,
+        Err(poisoned) => *poisoned.into_inner() = nclasses_vec,
     }
 
     Ok(())
@@ -134,7 +129,10 @@ fn get_nclass_name(nclass_id: i32) -> String {
 
 /// Get a parsed skill template by its id
 pub fn get(id: i32) -> Option<SkillTemplate> {
-    let lock = SKILL_TEMPLATES.read().unwrap();
+    let lock = match SKILL_TEMPLATES.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
     lock.binary_search_by_key(&(id as i8), |t| t.id)
         .ok()
         .map(|idx| lock[idx].clone())
@@ -142,12 +140,18 @@ pub fn get(id: i32) -> Option<SkillTemplate> {
 
 /// Get all parsed skill templates
 pub fn get_all() -> Vec<SkillTemplate> {
-    SKILL_TEMPLATES.read().unwrap().clone()
+    match SKILL_TEMPLATES.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
 }
 
 /// Get all skill templates grouped by nclass_id
 pub fn get_by_nclass(nclass_id: i32) -> Vec<SkillTemplate> {
-    let lock = NCLASSES.read().unwrap();
+    let lock = match NCLASSES.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
     if let Ok(idx) = lock.binary_search_by_key(&nclass_id, |n| n.class_id) {
         lock[idx].skill_templates.clone()
     } else {
@@ -157,7 +161,10 @@ pub fn get_by_nclass(nclass_id: i32) -> Vec<SkillTemplate> {
 
 /// Get all NClasses with their skill templates
 pub fn get_all_nclasses() -> Vec<NClass> {
-    NCLASSES.read().unwrap().clone()
+    match NCLASSES.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
 }
 
 pub fn get_raw_skills(_id: i32) -> Option<String> {

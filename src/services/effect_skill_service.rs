@@ -74,7 +74,6 @@ impl EffectSkillService {
     }
 
     // ========== TROI (Hold/Bind) ==========
-
     pub fn set_use_troi(player: &mut Player, time_hold: u64) {
         let current_time = time::current_time_millis();
         player.effect_skill.use_troi = true;
@@ -348,6 +347,7 @@ impl EffectSkillService {
         player.effect_skill.time_monkey = time_monkey;
         player.effect_skill.last_time_up_monkey = now;
         player.effect_skill.level_monkey = skill_point;
+        player.n_point.is_monkey_active = true;
 
         // HP x2
         let old_hp = player.n_point.hp_current;
@@ -373,11 +373,11 @@ impl EffectSkillService {
         }
     }
 
-    /// Phase 1: Update monkey_down state only
     pub fn monkey_down_state(player: &mut Player) -> MonkeyStateUpdate {
         debug!("monkey_down_state for player {}", player.name);
         player.effect_skill.is_monkey = false;
         player.effect_skill.level_monkey = 0;
+        player.n_point.is_monkey_active = false;
         if player.n_point.hp_current > player.n_point.hp_max {
             player.n_point.hp_current = player.n_point.hp_max;
         }

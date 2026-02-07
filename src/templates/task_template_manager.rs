@@ -37,35 +37,41 @@ impl TaskTemplateManager {
                 .push(sub);
         }
 
-        {
-            let mut main_lock = self.main_tasks.write().unwrap();
-            let main_count = main_map.len();
-            *main_lock = main_map;
+        let main_count = main_map.len();
+        let sub_count = sub_map.values().map(|v| v.len()).sum::<usize>();
 
-            let mut sub_lock = self.sub_tasks.write().unwrap();
-            let sub_count = sub_map.values().map(|v| v.len()).sum::<usize>();
-            *sub_lock = sub_map;
-
-            tracing::info!(
-                "Loaded {} main tasks and {} sub tasks",
-                main_count,
-                sub_count
-            );
+        match self.main_tasks.write() {
+            Ok(mut lock) => *lock = main_map,
+            Err(poisoned) => *poisoned.into_inner() = main_map,
         }
+
+        match self.sub_tasks.write() {
+            Ok(mut lock) => *lock = sub_map,
+            Err(poisoned) => *poisoned.into_inner() = sub_map,
+        }
+
+        tracing::info!(
+            "Loaded {} main tasks and {} sub tasks",
+            main_count,
+            sub_count
+        );
 
         Ok(())
     }
 
     pub fn get_main_task(&self, id: i32) -> Option<task_main_template::Model> {
-        self.main_tasks.read().unwrap().get(&id).cloned()
+        let lock = match self.main_tasks.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        lock.get(&id).cloned()
     }
 
     pub fn get_sub_tasks(&self, main_id: i32) -> Vec<task_sub_template::Model> {
-        self.sub_tasks
-            .read()
-            .unwrap()
-            .get(&main_id)
-            .cloned()
-            .unwrap_or_default()
+        let lock = match self.sub_tasks.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        lock.get(&main_id).cloned().unwrap_or_default()
     }
 }

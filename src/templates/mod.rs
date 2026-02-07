@@ -1,5 +1,6 @@
 pub mod boss_template_manager;
 pub mod head_avatar_manager;
+pub mod image_by_name_template;
 pub mod intrinsic_template_manager;
 pub mod item_template_manager;
 pub mod map_template_manager;
@@ -7,5 +8,6 @@ pub mod mob_template_manager;
 pub mod npc_template_manager;
 pub mod option_template_manager;
 pub mod pet_template_manager;
+pub mod power_manager;
 pub mod skill_template_manager;
 pub mod task_template_manager;

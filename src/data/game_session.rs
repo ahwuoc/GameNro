@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::utils;
+
 pub struct AntiLogin {
     pub wrong_count: u32,
     pub last_wrong_time: u64,
@@ -22,11 +24,7 @@ impl AntiLogin {
 
     pub fn wrong(&mut self) {
         self.wrong_count += 1;
-        self.last_wrong_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        
+        self.last_wrong_time = utils::time::current_time_millis();
         if self.wrong_count >= 5 {
             self.can_login = false;
         }

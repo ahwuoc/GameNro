@@ -11,7 +11,7 @@ use crate::player::player_actor::pet::Pet;
 use crate::player::player_actor::PlayerActor;
 use crate::player::Player as RtPlayer;
 use crate::services::task_service::TaskService;
-use crate::services::{IntrinsicService, ServiceHandles};
+use crate::services::{skill_service, IntrinsicService, ServiceHandles};
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -275,6 +275,8 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     ServiceHandles::send_cai_trang(&player);
 
     send_time_skill(&player)?;
+
+    skill_service::send_skill_shortcut(&player)?;
 
     // clear vt sk
     clear_vtsk(session).await?;

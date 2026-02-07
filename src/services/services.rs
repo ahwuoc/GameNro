@@ -395,4 +395,13 @@ impl ServiceHandles {
         Self::send_mess_all_player_in_map(player, msg)?;
         Ok(())
     }
+
+    pub fn send_player_menu(player: &Player, target: &Player) -> Result<()> {
+        let mut msg = Message::new(-79);
+        msg.write_int(target.id as i32)?;
+        msg.write_long(target.n_point.power)?;
+        msg.write_utf(&target.get_caption())?;
+        player.send_to_client(msg)?;
+        Ok(())
+    }
 }

@@ -388,14 +388,12 @@ impl BossActor {
             if self.target_id.is_none() {
                 return;
             }
-            tracing::info!(
-                "Boss {} found target: {}",
-                self.player.id,
-                self.target_id.unwrap()
-            );
+            tracing::info!("Boss {} found target: {:?}", self.player.id, self.target_id);
         }
 
-        let target_id = self.target_id.unwrap();
+        let Some(target_id) = self.target_id else {
+            return;
+        };
         let Some(pl_handle) = self.zone_handle.get_player(target_id).await.unwrap_or(None) else {
             self.target_id = None;
             return;

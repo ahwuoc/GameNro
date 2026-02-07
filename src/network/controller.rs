@@ -30,10 +30,6 @@ impl AsyncController {
     pub async fn process(session: SessionArc, mut msg: Message) -> Result<()> {
         let data_len = msg.payload.len();
         let sub_cmd = msg.payload.get(0).copied().map(|b| b as i8);
-        // debug!(
-        //     "CMD: {} (0x{:02X}), len={}, sub_cmd={:?}",
-        //     msg.command, msg.command as u8, data_len, sub_cmd
-        // );
         match msg.command {
             cmd::KEY => {
                 if let Err(e) = session.send_key_async().await {
@@ -74,21 +70,32 @@ impl AsyncController {
 
                 Ok(())
             }
-            -40 => {
+            cmd::GET_ITEM => {
                 let type_byte = msg.read_byte()?;
                 let type_inventory = type_item_inventory::TypeItemInventory::try_from(type_byte)?;
                 let index = msg.read_byte()?;
                 item_controller::ItemController::get_item(&session, type_inventory, index).await?;
                 Ok(())
             }
-            -41 => {
+            cmd::GET_CAPTIONS => {
                 match msg.read_byte() {
                     Ok(gender) => {
-                        info!("Gender: {}", gender);
-                        let mut msg = Message::new(-41);
-                        msg.write_byte(1);
-                        msg.write_utf("Dau vuong cuong gia")?;
-                        session.transmit(msg);
+                        let captions = crate::templates::power_manager::get_all_captions();
+                        let mut response = Message::new(-41);
+                        response.write_byte(captions.len() as i8)?;
+
+                        let planet_name = match gender {
+                            0 => "Trái Đất",
+                            1 => "Namếc",
+                            2 => "Xayda",
+                            _ => "",
+                        };
+
+                        for caption in captions {
+                            let name = caption.name.replace("{planet}", planet_name);
+                            response.write_utf(&name)?;
+                        }
+                        session.transmit(response);
                     }
                     Err(e) => {
                         error!("Error reading byte {}", e);
@@ -97,7 +104,7 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -43 => {
+            cmd::DO_ITEM => {
                 let type_byte = msg.read_byte()?;
                 let type_action = type_item_inventory::TypeItemAction::try_from(type_byte)?;
                 let where_item = msg.read_byte()?;
@@ -111,22 +118,22 @@ impl AsyncController {
                 .await?;
                 Ok(())
             }
-            -93 => {
+            cmd::NOT_LOGIN_ALT => {
                 Self::handle_not_login(&session, msg).await?;
                 Ok(())
             }
-            11 => {
+            cmd::GET_MOB_TEMPLATE => {
                 let mob_id = msg.read_byte()?;
                 DataGame::send_mob_temp(&session, mob_id).await?;
                 Ok(())
             }
-            32 => {
+            cmd::NPC_SELECT => {
                 let npc_id = msg.read_short()?;
                 let select = msg.read_byte()?;
                 npc_service::npc_service::handle_menu_confirm(&session, npc_id, select).await?;
                 Ok(())
             }
-            6 => {
+            cmd::BUY_ITEM => {
                 let type_shop = msg.read_byte()?;
                 let temp_id = msg.read_short()?;
                 if let Err(e) = shop_service::take_item_shop(&session, type_shop, temp_id).await {
@@ -134,23 +141,23 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            66 => {
+            cmd::GET_IMAGE_BY_NAME => {
                 let img_name = msg.read_utf()?;
                 DataGame::send_image_by_name(&session, &img_name).await?;
                 Ok(())
             }
-            22 => {
+            cmd::DAU_THAN_CONFIRM => {
                 let _ = msg.read_byte()?;
                 let select = msg.read_byte()?;
                 npc_service::npc_service::handle_menu_confirm(&session, 4, select).await?;
                 Ok(())
             }
-            -32 => {
+            cmd::GET_ITEM_BG_TEMPLATE => {
                 let bg_id = msg.read_short()?;
                 DataGame::send_item_bg_template(&session, bg_id).await?;
                 Ok(())
             }
-            -34 => {
+            cmd::MAGIC_TREE => {
                 let action = msg.read_byte()?;
                 debug!("MagicTree action: {}", action);
                 match action {
@@ -164,11 +171,26 @@ impl AsyncController {
                 Ok(())
             }
 
-            -78 => {
+            cmd::CHECK_MOVE => {
                 let _ = msg.read_int();
                 Ok(())
             }
-            -67 => {
+            cmd::GET_PLAYER_MENU => {
+                let target_id = msg.read_int()?;
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    if let Some(zone) = crate::map::zone_manager::ZONE_MANAGER
+                        .get_zone(snapshot.map_id, snapshot.zone_id)
+                    {
+                        if let Some(target_handle) = zone.get_player(target_id as u64).await? {
+                            if let Some(target_snapshot) = target_handle.get_snapshot().await {
+                                ServiceHandles::send_player_menu(&snapshot, &target_snapshot)?;
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            }
+            cmd::GET_ICON => {
                 match msg.read_int() {
                     Ok(id) => {
                         DataGame::send_icon(&session, id).await?;
@@ -179,16 +201,16 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            33 => {
+            cmd::NPC_MENU => {
                 let npc_id = msg.read_short()?;
                 npc_service::npc_service::open_menu_controller(&session, npc_id).await?;
                 Ok(())
             }
-            -28 => {
+            cmd::NOT_MAP => {
                 Self::handle_message_not_map(&session, msg).await?;
                 Ok(())
             }
-            -107 => {
+            cmd::SHOW_INFO_PET => {
                 if let Some(handle) = session.get_player_handle().await {
                     handle.send_forget(crate::player::player_actor::PlayerMessage::ShowInfoPet);
                 }
@@ -219,13 +241,13 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -87 => {
+            cmd::UPDATE_DATA => {
                 if let Err(e) = DataGame::update_data(&session).await {
                     error!("Error updating data {}", e);
                 }
                 Ok(())
             }
-            -30 => {
+            cmd::CHANGE_TYPE_PK => {
                 let type_byte = msg.read_byte()?;
                 match type_byte {
                     16 => {
@@ -247,14 +269,14 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -38 => Ok(()),
-            -39 => {
+            cmd::FINISH_UPDATE => Ok(()),
+            cmd::FINISH_LOAD_MAP => {
                 if let Some(handle) = session.get_player_handle().await {
                     handle.send_forget(crate::player::player_actor::PlayerMessage::FinishLoadMap);
                 }
                 Ok(())
             }
-            29 => {
+            cmd::OPEN_ZONE_UI => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
                     ChangeMapService::open_zone_ui(&snapshot).await?;
                 }
@@ -277,7 +299,7 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -33 | -23 => {
+            cmd::CHANGE_MAP_WAYPOINT | cmd::CHANGE_MAP_WAYPOINT_ALT => {
                 if let Some(handle) = session.get_player_handle().await {
                     let _ = handle
                         .send(crate::player::player_actor::PlayerMessage::NetworkMessage(
@@ -287,7 +309,7 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -16 => {
+            cmd::HOI_SINH => {
                 if let Some(handle) = session.get_player_handle().await {
                     handle.send_forget(crate::player::player_actor::PlayerMessage::HoiSinh);
                 }
@@ -301,27 +323,27 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -91 => {
+            cmd::CAPSULE_MENU => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
                     ChangeMapService::open_capsule_menu(&snapshot)?;
                 }
                 Ok(())
             }
-            -7 => {
+            cmd::PLAYER_MOVE => {
                 Self::handle_player_move(&session, msg).await?;
                 Ok(())
             }
-            -63 => Ok(()),
-            112 => {
+            cmd::FLAG_BAG_ICON => Ok(()),
+            cmd::INTRINSIC_MENU => {
                 if let Some(handle) = session.get_player_handle().await {
                     services::IntrinsicService::show_menu(&session).await?;
                 }
                 Ok(())
             }
-            -113 => {
+            cmd::SKILL_SHORTCUT_UPDATE => {
                 let mut shortcuts = Vec::new();
                 for _ in 0..10 {
-                    shortcuts.push(msg.read_byte()? as u8);
+                    shortcuts.push(msg.read_byte()?);
                 }
                 if let Some(handle) = session.get_player_handle().await {
                     handle.send_forget(
@@ -332,7 +354,7 @@ impl AsyncController {
                 }
                 Ok(())
             }
-            -81 => {
+            cmd::COMBINE_INFO => {
                 let _ = msg.read_byte()?;
                 let len = msg.read_byte()?;
                 let mut index_item = Vec::new();

@@ -17,9 +17,9 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
 
     match parse_inventory_array(&model.data_inventory) {
         Ok(data_inventory) => {
-            p.inventory.gold = data_inventory.gold;
-            p.inventory.ruby = data_inventory.ruby;
-            p.inventory.gem = data_inventory.gem;
+            p.inventory.set_gold(data_inventory.gold);
+            p.inventory.set_ruby(data_inventory.ruby);
+            p.inventory.set_gem(data_inventory.gem);
         }
         Err(e) => {
             println!("Failed to parse inventory data: {}", e);
@@ -192,7 +192,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
                         .as_i64()
                         .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
                         .unwrap_or(-1);
-                    p.player_skill.skill_shortcut[i] = shortcut_id as u8;
+                    p.player_skill.skill_shortcut[i] = shortcut_id as i8;
                 }
             }
         }

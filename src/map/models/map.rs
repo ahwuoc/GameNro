@@ -204,9 +204,6 @@ impl Map {
 
     pub fn get_best_zone(&self) -> Option<ZoneHandle> {
         let zones = self.zones.read().unwrap();
-
-        // Since we can't easily get player count synchronously,
-        // return the first zone or implement a better balancing logic later
         zones.first().cloned()
     }
 

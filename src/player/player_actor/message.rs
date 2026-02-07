@@ -58,7 +58,7 @@ pub enum PlayerMessage {
     UpdateTick,
     GetSnapshot(tokio::sync::oneshot::Sender<Player>),
     UpdateSkillShortcuts {
-        shortcuts: Vec<u8>,
+        shortcuts: Vec<i8>,
     },
     IncreasePoint {
         type_increment: u8,

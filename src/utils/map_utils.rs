@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::map::Map;
-use crate::utils::Location;
+use crate::utils::{self, Location};
 
 pub struct MapUtils;
 
@@ -17,11 +17,7 @@ impl MapUtils {
     }
 
     pub fn get_random_position_in_map(map: &Map) -> (i16, i16) {
-        use std::time::SystemTime;
-        let seed = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u32;
+        let seed = crate::utils::time::current_time_millis() as u32;
 
         let x = (seed % (map.info.map_width as u32)) as i16;
         let y = (seed % (map.info.map_height as u32)) as i16;

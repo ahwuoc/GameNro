@@ -110,7 +110,14 @@ impl BossManager {
                 );
                 continue;
             }
-            let zone = zones.choose(&mut rand::rng()).unwrap();
+            let Some(zone) = zones.choose(&mut rand::rng()) else {
+                tracing::warn!(
+                    "Boss {} - No valid zone selected for map {}, skipping",
+                    template.id,
+                    map_id
+                );
+                continue;
+            };
 
             let x = rand::random_range(100..400);
             let y = rand::random_range(300..400);

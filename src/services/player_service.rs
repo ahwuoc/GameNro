@@ -120,12 +120,16 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
 
     if effect_result.bienkhi_finished {
         let update = EffectSkillService::set_is_monkey_state(player);
+        player.n_point.cal_point();
         EffectSkillService::send_monkey_messages(&update);
+        let _ = crate::services::player_info_service::send_point_info_sync(player);
     }
 
     if effect_result.monkey_down {
         let update = EffectSkillService::monkey_down_state(player);
+        player.n_point.cal_point(); // Recalc stats (crit về normal)
         EffectSkillService::send_monkey_messages(&update);
+        let _ = crate::services::player_info_service::send_point_info_sync(player);
     }
 
     if effect_result.huyt_sao_expired {

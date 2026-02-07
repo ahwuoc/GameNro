@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::item::item::Item;
+use crate::{constant, item::item::Item};
 
 #[derive(Debug, Clone)]
 pub struct Inventory {
@@ -33,6 +33,19 @@ impl Inventory {
         }
     }
 
+    // ============Set==========
+    pub fn set_gem(&mut self, amount: i32) {
+        self.gem = amount.min(constant::limit::LIMIT_GEM);
+    }
+
+    pub fn set_ruby(&mut self, amount: i32) {
+        self.ruby = amount.min(constant::limit::LIMIT_RUBY);
+    }
+
+    pub fn set_gold(&mut self, amount: i64) {
+        self.gold = amount.min(constant::limit::LIMIT_GOLD);
+    }
+
     pub fn get_gem(&self) -> i32 {
         self.gem
     }
@@ -61,7 +74,10 @@ impl Inventory {
     }
 
     pub fn add_gem(&mut self, amount: i32) {
-        self.gem = self.gem.saturating_add(amount);
+        self.gem = self
+            .gem
+            .saturating_add(amount)
+            .min(constant::limit::LIMIT_GEM);
     }
 
     pub fn sub_gem(&mut self, amount: i32) -> bool {
@@ -73,7 +89,10 @@ impl Inventory {
     }
 
     pub fn add_ruby(&mut self, amount: i32) {
-        self.ruby = self.ruby.saturating_add(amount);
+        self.ruby = self
+            .ruby
+            .saturating_add(amount)
+            .min(constant::limit::LIMIT_RUBY);
     }
 
     pub fn sub_ruby(&mut self, amount: i32) {

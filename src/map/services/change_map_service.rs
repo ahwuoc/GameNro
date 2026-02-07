@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
+use tracing_subscriber::util;
+
 use crate::{
-    constant::task_type::TaskType,
     constant::{
         cmd::cmd,
         const_map::{
@@ -10,13 +11,17 @@ use crate::{
             TASK_16_0, TASK_18_0, TASK_19_0, TASK_1_0, TASK_20_0, TASK_21_0, TASK_24_0, TASK_27_0,
             TASK_2_0, TASK_3_0, TASK_4_0, TASK_7_0,
         },
+        task_type::TaskType,
     },
+    item::ItemTime,
     map::{map_manager, models::zone::ZoneHandle, services::change_map_models::*},
     network::message::Message,
-    player::player::Player,
-    player::player_actor::message::PlayerMessage,
-    player::player_actor::PlayerHandle,
+    player::{
+        player::Player,
+        player_actor::{message::PlayerMessage, PlayerHandle},
+    },
     services::ServiceHandles,
+    utils,
 };
 
 use crate::map::WayPoint;
@@ -747,12 +752,8 @@ impl ChangeMapService {
     }
 
     fn calculate_random_x_position(map_width: i32) -> i16 {
-        use std::time::SystemTime;
         let usable = (map_width.max(200) - 200) as u32;
-        let seed = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u32;
+        let seed = utils::time::current_time_millis() as u32;
         (100 + (seed % usable)) as i16
     }
 

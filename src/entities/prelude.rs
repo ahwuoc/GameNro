@@ -45,6 +45,8 @@ pub use super::pet_template::Entity as PetTemplate;
 pub use super::player::Entity as Player;
 pub use super::post_question::Entity as PostQuestion;
 pub use super::posts::Entity as Posts;
+pub use super::power_caption::Entity as PowerCaption;
+pub use super::power_limit::Entity as PowerLimit;
 pub use super::radar::Entity as Radar;
 pub use super::received_items::Entity as ReceivedItems;
 pub use super::received_items_options::Entity as ReceivedItemsOptions;

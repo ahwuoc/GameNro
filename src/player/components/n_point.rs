@@ -1,4 +1,7 @@
+use rand::Rng;
+
 use crate::player::components::PointType;
+use crate::templates::power_manager;
 
 #[derive(Debug, Clone)]
 pub struct NPoint {
@@ -57,6 +60,8 @@ pub struct NPoint {
     pub dame_fusion: i32,
     pub def_fusion: i32,
     pub crit_fusion: i8,
+
+    pub is_monkey_active: bool,
 }
 
 impl NPoint {
@@ -102,6 +107,8 @@ impl NPoint {
             dame_fusion: 0,
             def_fusion: 0,
             crit_fusion: 0,
+
+            is_monkey_active: false,
         }
     }
 
@@ -173,6 +180,9 @@ impl NPoint {
             .crit_base
             .saturating_add(self.crit_add)
             .saturating_add(self.crit_fusion);
+        if self.is_monkey_active {
+            self.crit = 110;
+        }
     }
 
     fn clamp_current_values(&mut self) {
@@ -219,6 +229,18 @@ impl NPoint {
             103 => self.tl_mp.push(param as i32),       // KI +#%
             _ => {}                                     // Các option khác chưa xử lý
         }
+    }
+
+    pub fn roll_crit(&self) -> bool {
+        if self.crit >= 100 {
+            return true;
+        }
+        if self.crit <= 0 {
+            return false;
+        }
+        let mut rng = rand::rng();
+        let roll: i8 = rng.random_range(0..100);
+        roll < self.crit
     }
 
     pub fn get_dame_attack(&self, is_crit: bool) -> i32 {
@@ -315,61 +337,31 @@ impl NPoint {
     }
 
     pub fn get_hp_mp_limit(&self) -> i32 {
-        match self.limit_power {
-            0 => 220000,
-            1 => 240000,
-            2 => 300000,
-            3 => 350000,
-            4 => 400000,
-            5 => 450000,
-            6 => 500000,
-            7 => 525000,
-            8 => 550000,
-            _ => 0,
+        if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
+            return limit.hp as i32;
         }
+        0
     }
 
     pub fn get_dame_limit(&self) -> i32 {
-        match self.limit_power {
-            0 => 11000,
-            1 => 12000,
-            2 => 15000,
-            3 => 18000,
-            4 => 20000,
-            5 => 22000,
-            6 => 24000,
-            7 => 24500,
-            8 => 25000,
-            _ => 0,
+        if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
+            return limit.damage as i32;
         }
+        0
     }
 
     pub fn get_def_limit(&self) -> i32 {
-        match self.limit_power {
-            0 => 550,
-            1 => 600,
-            2 => 700,
-            3 => 800,
-            4 => 1000,
-            5 => 1200,
-            6 => 1400,
-            7 => 1500,
-            8 => 1600,
-            _ => 0,
+        if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
+            return limit.defense;
         }
+        0
     }
 
     pub fn get_crit_limit(&self) -> i8 {
-        match self.limit_power {
-            0 => 5,
-            1 => 6,
-            2 => 7,
-            3 => 8,
-            4 => 9,
-            5 => 10,
-            6..=8 => 10,
-            _ => 0,
+        if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
+            return limit.critical as i8;
         }
+        0
     }
     pub fn increnement_poin() {}
 }

@@ -1,3 +1,4 @@
+use crate::constant::task_id;
 use crate::constant::task_type::TaskType;
 use crate::entities::task_sub_template;
 use crate::network::message::Message;
@@ -18,7 +19,7 @@ impl TaskService {
     }
 
     /// Kiểm tra và cập nhật tiến trình nhiệm vụ tổng quát.
-    /// Đây là hàm trung tâm thay thế cho hàng loạt switch-case trong Java.
+    /// Đây là hàm trung tâm thay thế cho hàng loạt switch-case trong \.
     pub fn check_done_task(
         player: &mut Player,
         task_type: TaskType,
@@ -54,7 +55,6 @@ impl TaskService {
                     Self::add_done_sub_task(player, 1)?;
                 }
             } else if current_type == TaskType::TaskScripts {
-                // Xử lý các nhiệm vụ đặc biệt (Script-based tasks từ Java)
                 // target_id trong TaskScripts:
                 // "1" = PowerReach (kiểm tra sức mạnh)
                 // "2" = UseTiemNang (dùng tiềm năng)
@@ -66,19 +66,18 @@ impl TaskService {
                 match sub_task.target_id.as_str() {
                     "1" => {
                         // PowerReach - Kiểm tra sức mạnh theo task ID
-                        // Java: checkDoneTaskPower
                         let power_required = match player.task_player.task_main.id {
-                            7 => 16000,          // TASK_7_0
-                            8 => 40000,          // TASK_8_0
-                            10 => 200000,        // TASK_10_0
-                            11 => 500000,        // TASK_11_0 (cũng check 550k, 600k cho index 1,2)
-                            20 => 600_000_000,   // TASK_20_0
-                            21 => 2_000_000_000, // TASK_21_0
-                            27 => 35000,         // TASK_27_0 (Dame check, not power)
+                            task_id::TASK_7 => 16000,
+                            task_id::TASK_8 => 40000,
+                            task_id::TASK_10 => 200000,
+                            task_id::TASK_11 => 500000,
+                            task_id::TASK_20 => 600_000_000,
+                            task_id::TASK_21 => 2_000_000_000,
+                            task_id::TASK_27 => 35000,
                             _ => 0,
                         };
                         // Xử lý đặc biệt cho Task 11 có nhiều mốc sức mạnh
-                        if player.task_player.task_main.id == 11 {
+                        if player.task_player.task_main.id == task_id::TASK_11 {
                             let power_by_index = match player.task_player.task_main.index {
                                 0 => 500000,
                                 1 => 550000,
@@ -361,11 +360,6 @@ impl TaskService {
 }
 
 impl TaskService {
-    /// Các hằng số Task ID
-    pub const TASK_0_0: i32 = 0; // Di chuyển tới mũi tên chỉ dẫn
-    pub const TASK_0_1: i32 = 0; // Sub-task index 1
-    pub const TASK_12_0: i32 = 12;
-
     /// Lấy ID task hiện tại của player
     pub fn get_id_task(player: &Player) -> i32 {
         player.task_player.task_main.id
@@ -383,39 +377,39 @@ impl TaskService {
             39 | 40 | 41 => {
                 if x >= 635 {
                     // Player đã di chuyển tới vị trí mũi tên (x >= 635)
-                    Self::done_task_by_id(player, Self::TASK_0_0, 0)?;
+                    Self::done_task_by_id(player, task_id::TASK_0, 0)?;
                 }
             }
             // Map nhà (TraiDat=21, Namec=22, Xayda=23)
             21 | 22 | 23 => {
-                Self::done_task_by_id(player, Self::TASK_0_0, 1)?;
-                Self::done_task_by_id(player, Self::TASK_12_0, 0)?;
+                Self::done_task_by_id(player, task_id::TASK_0, 1)?;
+                Self::done_task_by_id(player, task_id::TASK_12, 0)?;
             }
             // Map Vũ trụ
             0 | 7 | 14 => {
-                Self::done_task_by_id(player, 8, 0)?; // TASK_8_0
+                Self::done_task_by_id(player, task_id::TASK_8, 0)?;
             }
             // Map Tinh cầu
             5 | 13 | 20 => {
-                Self::done_task_by_id(player, 9, 0)?; // TASK_9_0
+                Self::done_task_by_id(player, task_id::TASK_9, 0)?;
             }
             19 => {
-                Self::done_task_by_id(player, 17, 0)?; // TASK_17_0
+                Self::done_task_by_id(player, task_id::TASK_17, 0)?;
             }
             93 => {
-                Self::done_task_by_id(player, 23, 0)?; // TASK_23_0
+                Self::done_task_by_id(player, task_id::TASK_23, 0)?;
             }
             104 => {
-                Self::done_task_by_id(player, 24, 0)?; // TASK_24_0
+                Self::done_task_by_id(player, task_id::TASK_24, 0)?;
             }
             97 => {
-                Self::done_task_by_id(player, 25, 0)?; // TASK_25_0
+                Self::done_task_by_id(player, task_id::TASK_25, 0)?;
             }
             100 => {
-                Self::done_task_by_id(player, 26, 0)?; // TASK_26_0
+                Self::done_task_by_id(player, task_id::TASK_26, 0)?;
             }
             103 => {
-                Self::done_task_by_id(player, 27, 2)?; // TASK_27_2
+                Self::done_task_by_id(player, task_id::TASK_27, 2)?;
             }
             _ => {}
         }
@@ -443,7 +437,7 @@ impl TaskService {
             task_index
         );
 
-        if task_id == Self::TASK_0_0 && task_index == 0 {
+        if task_id == task_id::TASK_0 && task_index == 0 {
             tracing::debug!(target: "task", "Sending tutorial message for player {}", player.name);
             let text = format!(
                 "Chào Mừng {} Đến Với: {}\n\
@@ -471,7 +465,7 @@ impl TaskService {
         );
 
         if player.map_id == home_map {
-            if task_id == Self::TASK_0_0 && (task_index == 0 || task_index == 1) {
+            if task_id == task_id::TASK_0 && (task_index == 0 || task_index == 1) {
                 tracing::debug!("[TASK] Auto-skipping to index 2 for player {}", player.name);
                 player.task_player.task_main.index = 2;
                 player.task_player.task_main.count = 0;

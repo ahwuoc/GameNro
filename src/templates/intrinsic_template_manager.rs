@@ -10,19 +10,26 @@ pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mut intrinsics = intrinsic::Entity::find().all(pool).await?;
     intrinsics.sort_by_key(|i| i.id);
 
-    let mut lock = INSTRINSIC_TEMPLATES.write().unwrap();
-    *lock = intrinsics;
+    match INSTRINSIC_TEMPLATES.write() {
+        Ok(mut lock) => *lock = intrinsics,
+        Err(poisoned) => *poisoned.into_inner() = intrinsics,
+    }
     Ok(())
 }
 
 pub fn get(id: i8) -> Option<IntrinsicTemplate> {
-    let lock = INSTRINSIC_TEMPLATES.read().unwrap();
+    let lock = match INSTRINSIC_TEMPLATES.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
     lock.binary_search_by_key(&(id as i32), |i| i.id)
         .ok()
         .map(|idx| lock[idx].clone())
 }
 
 pub fn get_all() -> Vec<IntrinsicTemplate> {
-    let lock = INSTRINSIC_TEMPLATES.read().unwrap();
-    lock.clone()
+    match INSTRINSIC_TEMPLATES.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
 }

@@ -17,7 +17,7 @@ use crate::utils::random::{is_true, next_int};
 use crate::utils::{time, MapUtils};
 use tracing::{debug, info};
 
-pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
+pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32, is_crit: bool) {
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         let _ = zone
@@ -26,12 +26,19 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32) {
                 player_id: player.id,
                 mob_id: mob_id as u64,
                 damage,
+                is_crit,
             })
             .await;
     }
 }
 
-pub async fn attack_mob_actor(zone: &mut Zone, player_id: u64, mob_id: u64, damage: i32) {
+pub async fn attack_mob_actor(
+    zone: &mut Zone,
+    player_id: u64,
+    mob_id: u64,
+    damage: i32,
+    is_crit: bool,
+) {
     let (msg_opt, drop_info) = {
         if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
             if !mob.is_alive {
@@ -50,7 +57,7 @@ pub async fn attack_mob_actor(zone: &mut Zone, player_id: u64, mob_id: u64, dama
                             mob.id as i8,
                             new_hp,
                             real_damage,
-                            false,
+                            is_crit,
                         )),
                         None,
                     )
@@ -69,7 +76,7 @@ pub async fn attack_mob_actor(zone: &mut Zone, player_id: u64, mob_id: u64, dama
 
                     handle_mob_death(mob);
                     (
-                        Some(build_mob_die_message(mob.id as i8, real_damage, false)),
+                        Some(build_mob_die_message(mob.id as i8, real_damage, is_crit)),
                         Some((drop_x, drop_y, mob_temp_id)),
                     )
                 }

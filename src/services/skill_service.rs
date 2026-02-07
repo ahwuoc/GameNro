@@ -448,7 +448,7 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
         1
     };
 
-    let is_crit = player.n_point.crit >= 100;
+    let is_crit = player.n_point.roll_crit();
     let dame_hit = if is_crit { dame_hit * 2 } else { dame_hit };
 
     let zone_manager = &ZONE_MANAGER;
@@ -480,9 +480,10 @@ pub async fn deal_damage_to_mob(
     if miss {
         return None;
     }
-    let dame_attack = player.n_point.get_dame_attack(false);
+    let is_crit = player.n_point.roll_crit();
+    let dame_attack = player.n_point.get_dame_attack(is_crit);
     let _ = ServiceHandles::send_player_attack_mob(player, mob.id as u8);
-    let _ = mob_service::attack_mob(player, mob.id as i32, dame_attack).await;
+    let _ = mob_service::attack_mob(player, mob.id as i32, dame_attack, is_crit).await;
     None
 }
 
@@ -655,19 +656,23 @@ pub fn send_char_die(player: &Player) {
 }
 
 pub fn send_skill_shortcut(player: &Player) -> anyhow::Result<()> {
-    let skill_data = player.player_skill.skill_shortcut.clone();
+    let skill_data = &player.player_skill.skill_shortcut;
     let mut msg_k = Message::new(-30);
     msg_k.write_byte(61)?;
     msg_k.write_utf("KSkill")?;
     msg_k.write_int(skill_data.len() as i32)?;
-    msg_k.write(&skill_data)?;
+    for &b in skill_data.iter() {
+        msg_k.write_byte(b)?;
+    }
     player.send_to_client(msg_k)?;
 
     let mut msg_o = Message::new(-30);
     msg_o.write_byte(61)?;
     msg_o.write_utf("OSkill")?;
     msg_o.write_int(skill_data.len() as i32)?;
-    msg_o.write(&skill_data)?;
+    for &b in skill_data.iter() {
+        msg_o.write_byte(b)?;
+    }
     player.send_to_client(msg_o)?;
     Ok(())
 }
