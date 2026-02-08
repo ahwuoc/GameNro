@@ -107,7 +107,6 @@ pub async fn create_new_player(
         daily_gift: Set(Some(r#"[]"#.to_string())),
         ..Default::default()
     };
-
     AccountDao::create_player(db, player_data).await
 }
 
@@ -153,7 +152,6 @@ fn generate_items_bag(now: i64) -> String {
     let mut items = Vec::new();
     for i in 0..30 {
         if i == 0 {
-            // Thỏi vàng x10 với option
             items.push(ItemDataJson {
                 id: 63,
                 quantity: 10,

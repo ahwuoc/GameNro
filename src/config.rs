@@ -28,7 +28,7 @@ pub struct DatabaseConfig {
 }
 
 impl Config {
-    const PATH: &str = "./config.toml";
+    const PATH: &str = "./config_arc.toml";
     pub fn load() -> Result<Self> {
         let content = fs::read_to_string(Self::PATH)?;
         let config = toml::from_str(&content)?;

@@ -53,6 +53,8 @@ pub enum ZoneMessage {
     MapInfo {
         session: SessionArc,
         player_id: u64,
+        x: i16,
+        y: i16,
     },
     LoadAnotherToMe {
         player_id: u64,
@@ -70,6 +72,7 @@ pub enum ZoneMessage {
         mob_id: u64,
         damage: i32,
         is_crit: bool,
+        die_when_hp_full: bool,
     },
     SyncMobEffects {
         mob_id: u64,
@@ -94,6 +97,7 @@ pub enum ZoneMessage {
         range: i16,
         damage: i64,
         is_player: bool,
+        die_when_hp_full: bool,
     },
 }
 
@@ -180,9 +184,20 @@ impl ZoneHandle {
         Ok(rx.await?)
     }
 
-    pub async fn map_info(&self, session: SessionArc, player_id: u64) -> Result<()> {
+    pub async fn map_info(
+        &self,
+        session: SessionArc,
+        player_id: u64,
+        x: i16,
+        y: i16,
+    ) -> Result<()> {
         self.tx
-            .send(ZoneMessage::MapInfo { session, player_id })
+            .send(ZoneMessage::MapInfo {
+                session,
+                player_id,
+                x,
+                y,
+            })
             .await?;
         Ok(())
     }
@@ -341,8 +356,13 @@ impl Zone {
                     item_count: self.active_items.len() as i32,
                 });
             }
-            ZoneMessage::MapInfo { session, player_id } => {
-                self.handle_map_info(&session, player_id).await?;
+            ZoneMessage::MapInfo {
+                session,
+                player_id,
+                x,
+                y,
+            } => {
+                self.handle_map_info(&session, player_id, x, y).await?;
             }
             ZoneMessage::LoadAnotherToMe { player_id } => {
                 self.handle_load_another_to_me(player_id).await?;
@@ -365,8 +385,17 @@ impl Zone {
                 mob_id,
                 damage,
                 is_crit,
+                die_when_hp_full,
             } => {
-                mob_service::attack_mob_actor(self, player_id, mob_id, damage, is_crit).await;
+                mob_service::attack_mob_actor(
+                    self,
+                    player_id,
+                    mob_id,
+                    damage,
+                    is_crit,
+                    die_when_hp_full,
+                )
+                .await;
             }
             ZoneMessage::SyncMobEffects {
                 mob_id,
@@ -395,9 +424,18 @@ impl Zone {
                 range,
                 damage,
                 is_player,
+                die_when_hp_full,
             } => {
-                self.handle_area_damage(attacker_id, x, y, range, damage, is_player)
-                    .await;
+                self.handle_area_damage(
+                    attacker_id,
+                    x,
+                    y,
+                    range,
+                    damage,
+                    is_player,
+                    die_when_hp_full,
+                )
+                .await;
             }
         }
         Ok(())
@@ -431,7 +469,13 @@ impl Zone {
         Ok(())
     }
 
-    async fn handle_map_info(&self, session: &SessionArc, player_id: u64) -> Result<()> {
+    async fn handle_map_info(
+        &self,
+        session: &SessionArc,
+        _player_id: u64,
+        x: i16,
+        y: i16,
+    ) -> Result<()> {
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (
@@ -447,18 +491,6 @@ impl Zone {
             }
         };
 
-        let snapshot = {
-            if let Some(handle) = self.players.get(&player_id) {
-                let (tx, rx) = oneshot::channel();
-                handle
-                    .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-                    .await?;
-                rx.await?
-            } else {
-                return Err(anyhow::anyhow!("Player not in zone"));
-            }
-        };
-
         let mut msg = Message::new(-24);
         msg.write_byte((self.map_id as u8) as i8)?;
         msg.write_byte(planet_id)?;
@@ -467,8 +499,8 @@ impl Zone {
         msg.write_byte(map_type)?;
         msg.write_utf(&map_name)?;
         msg.write_byte(self.zone_id as i8)?;
-        msg.write_short(snapshot.location.x)?;
-        msg.write_short(snapshot.location.y)?;
+        msg.write_short(x)?;
+        msg.write_short(y)?;
 
         // Waypoints
         if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
@@ -556,7 +588,12 @@ impl Zone {
         }
 
         msg.write_byte(bg_type)?;
-        msg.write_byte(0)?;
+        let spaceship_id = session
+            .get_player_snapshot()
+            .await
+            .map(|s| s.spaceship_id)
+            .unwrap_or(0);
+        msg.write_byte(spaceship_id)?;
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
         session.transmit(msg);
@@ -614,6 +651,7 @@ impl Zone {
         range: i16,
         damage: i64,
         is_player: bool,
+        die_when_hp_full: bool,
     ) {
         let center = crate::utils::Location { x, y };
         let mut messages = Vec::new();
@@ -623,7 +661,7 @@ impl Zone {
                 if !mob.is_alive {
                     continue;
                 }
-                let real_damage = mob.take_damage(damage as i32);
+                let real_damage = mob.take_damage(damage as i32, die_when_hp_full);
                 if is_player {
                     mob.add_temporary_enemy(attacker_id);
                 }

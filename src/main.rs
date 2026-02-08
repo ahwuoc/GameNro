@@ -29,14 +29,17 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-
-    tracing::info!("Starting game server...");
     let config = Config::load()?;
     DbManager::init(&config.database).await?;
 
     services::manager::init().await?;
     services::manager::init_maps_world().await?;
     boss::manager::BossManager::init_boss().await;
+    println!(
+        "Server started successfully on {}:{}",
+        config.server.listen_host, config.server.listen_port
+    );
+
     network::start_server(&config.server).await?;
 
     Ok(())

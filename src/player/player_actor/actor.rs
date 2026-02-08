@@ -5,6 +5,7 @@ use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
+use crate::services::black_ball_war_service::BlackBallWarService;
 use crate::services::{player_info_service, player_service};
 use crate::{network::message::Message, services::command::CommandService};
 use std::time::Duration;
@@ -488,6 +489,21 @@ impl PlayerActor {
                 );
                 crate::services::magic_tree_service::unupgrade_magic_tree(&mut self.player);
             }
+            PlayerMessage::ChangeMapCapsule(index) => {
+                let _ =
+                    crate::map::services::change_map_service::ChangeMapService::change_map_capsule(
+                        &mut self.player,
+                        index,
+                        &self.session,
+                    )
+                    .await;
+                self.sync_pet_map().await;
+            }
+            PlayerMessage::ChangeMapBlackBall(index) => {
+                let _ =
+                    BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
+                self.sync_pet_map().await;
+            }
         }
     }
 
@@ -562,7 +578,7 @@ impl PlayerActor {
                     {
                         self.player.fusion.last_time_fusion =
                             crate::utils::time::current_time_millis();
-                        let icon_id: i16 = if self.player.gender == 2 { 3901 } else { 3790 };
+                        let icon_id: i16 = if self.player.gender == 1 { 3901 } else { 3790 };
                         let _ = crate::services::ServiceHandles::send_item_time(
                             &self.player,
                             icon_id,

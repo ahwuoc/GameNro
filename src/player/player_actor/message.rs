@@ -109,4 +109,6 @@ pub enum PlayerMessage {
     MagicTreeFastUpgrade,
     MagicTreeUnupgrade,
     RadarAction(i8, Message),
+    ChangeMapCapsule(i32),
+    ChangeMapBlackBall(i8),
 }

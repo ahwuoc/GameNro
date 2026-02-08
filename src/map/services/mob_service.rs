@@ -17,7 +17,13 @@ use crate::utils::random::{is_true, next_int};
 use crate::utils::{time, MapUtils};
 use tracing::{debug, info};
 
-pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32, is_crit: bool) {
+pub async fn attack_mob(
+    player: &Player,
+    mob_id: i32,
+    damage: i32,
+    is_crit: bool,
+    die_when_hp_full: bool,
+) {
     let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         let _ = zone
@@ -27,6 +33,7 @@ pub async fn attack_mob(player: &Player, mob_id: i32, damage: i32, is_crit: bool
                 mob_id: mob_id as u64,
                 damage,
                 is_crit,
+                die_when_hp_full,
             })
             .await;
     }
@@ -38,13 +45,14 @@ pub async fn attack_mob_actor(
     mob_id: u64,
     damage: i32,
     is_crit: bool,
+    die_when_hp_full: bool,
 ) {
     let (msg_opt, drop_info) = {
         if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
             if !mob.is_alive {
                 (None, None)
             } else {
-                let real_damage = mob.take_damage(damage);
+                let real_damage = mob.take_damage(damage, die_when_hp_full);
                 mob.add_temporary_enemy(player_id);
                 let new_hp = mob.hp;
                 info!(

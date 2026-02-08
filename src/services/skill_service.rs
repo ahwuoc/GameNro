@@ -286,7 +286,7 @@ pub async fn execute_genkidama(
         }
 
         if let Some(mob) = mob_target {
-            if let Some(msg) = deal_damage_to_mob(player, mob, false).await {
+            if let Some(msg) = deal_damage_to_mob(player, mob, false, true).await {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                     let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
@@ -306,6 +306,7 @@ pub async fn execute_genkidama(
                         range: range as i16,
                         damage: player.n_point.get_dame_attack(false) as i64,
                         is_player: true,
+                        die_when_hp_full: true,
                     })
                     .await;
             }
@@ -427,7 +428,7 @@ pub async fn execute_attack_skill(
     }
 
     if let Some(mob) = mob_target {
-        if let Some(msg) = deal_damage_to_mob(player, mob, false).await {
+        if let Some(msg) = deal_damage_to_mob(player, mob, false, false).await {
             let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
             if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
                 let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
@@ -478,6 +479,7 @@ pub async fn deal_damage_to_mob(
     player: &mut Player,
     mob: &mut RtMob,
     miss: bool,
+    die_when_hp_full: bool,
 ) -> Option<Message> {
     if miss {
         return None;
@@ -485,7 +487,14 @@ pub async fn deal_damage_to_mob(
     let is_crit = player.n_point.roll_crit();
     let dame_attack = player.n_point.get_dame_attack(is_crit);
     let _ = ServiceHandles::send_player_attack_mob(player, mob.id as u8);
-    let _ = mob_service::attack_mob(player, mob.id as i32, dame_attack, is_crit).await;
+    let _ = mob_service::attack_mob(
+        player,
+        mob.id as i32,
+        dame_attack,
+        is_crit,
+        die_when_hp_full,
+    )
+    .await;
     None
 }
 
@@ -589,10 +598,13 @@ pub async fn execute_tu_sat(player: &mut Player) {
                     range: range_bom as i16,
                     damage: dame,
                     is_player: true,
+                    die_when_hp_full: true,
                 })
                 .await;
 
             if let Ok(handles) = zone.get_all_players().await {
+                let is_monkey = player.effect_skill.is_monkey;
+                let base_dame = dame;
                 for handle in handles {
                     if handle.id == player.id {
                         continue;
@@ -606,8 +618,17 @@ pub async fn execute_tu_sat(player: &mut Player) {
                                 &target.location,
                                 range_bom,
                             ) {
+                                let mut actual_dame = base_dame;
+                                if target.is_boss {
+                                    actual_dame = if is_monkey {
+                                        base_dame / 3
+                                    } else {
+                                        base_dame / 2
+                                    };
+                                }
+
                                 handle.send_forget(PlayerMessage::Injured {
-                                    damage: dame as u64,
+                                    damage: actual_dame as u64,
                                     piercing: false,
                                     from_mob: false,
                                     attacker_id: Some(attacker_id),

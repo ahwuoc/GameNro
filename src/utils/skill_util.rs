@@ -160,7 +160,7 @@ pub fn get_percent_hp_huyt_sao(skill_point: i8) -> i32 {
 }
 
 pub fn get_range_bom(skill_point: i8) -> i16 {
-    400 + (skill_point as i16 * 30)
+    return 400 + skill_point as i16 * 30;
 }
 
 pub fn get_time_troi(skill_point: i8) -> u64 {

@@ -38,9 +38,10 @@ impl ChangeMapService {
         session: Option<&crate::network::session::SessionArc>,
     ) -> anyhow::Result<ChangeMapResult> {
         tracing::info!(
-            "ENTERING: change_map_to_zone (player: {}, map: {})",
+            "change_map_to_zone: player: {}, map: {}, target_y: {}",
             player.name,
-            zone.map_id
+            zone.map_id,
+            y
         );
         let current_map_is_cold = Self::is_cold_planet_map(player.map_id);
         let next_map_is_cold = Self::is_cold_planet_map(zone.map_id);
@@ -50,23 +51,58 @@ impl ChangeMapService {
             } else {
                 SpaceShipType::Default
             };
-            if let Some(sess) = session {
-                Self::spaceship_arrive(sess, SpaceshipSendType::AllPlayersInMap, actual_space_type)
-                    .await?;
+            if let Some(_) = session {
+                player.spaceship_id = actual_space_type as i8;
+                Self::spaceship_arrive(
+                    player,
+                    SpaceshipSendType::AllPlayersInMap,
+                    actual_space_type,
+                )
+                .await?;
             }
+        } else {
+            player.spaceship_id = space_type as i8;
         }
 
         Self::exit_map(player).await?;
+        if let Some(sess) = session {
+            sess.transmit(Message::new(cmd::MAP_CLEAR));
+        }
+
+        let map_width = if let Some(map) =
+            crate::map::managers::map_manager::MAP_MANAGER.find_by_id(zone.map_id)
+        {
+            map.info.map_width
+        } else {
+            2000
+        };
+
         let final_x = if x != -1 {
             x
         } else {
-            Self::calculate_random_x_position(2000)
+            Self::calculate_random_x_position(map_width)
         };
-        let final_y = y;
+        let final_y = if y != -1 {
+            y
+        } else {
+            Self::get_y_physic_in_top(zone.map_id, final_x, 100)
+        };
+        tracing::info!(
+            "change_map_to_zone: player: {}, final_coords: ({}, {})",
+            player.name,
+            final_x,
+            final_y
+        );
         player.location.set_position(final_x, final_y);
         Self::go_to_map(player, zone, session).await?;
         if let Some(sess) = session {
-            zone.map_info(sess.clone(), player.id).await?;
+            zone.map_info(
+                sess.clone(),
+                player.id,
+                player.location.x,
+                player.location.y,
+            )
+            .await?;
         }
         let cold_planet_effect = if current_map_is_cold != next_map_is_cold && !player.is_boss {
             if !current_map_is_cold && next_map_is_cold {
@@ -92,12 +128,10 @@ impl ChangeMapService {
         })
     }
 
-    /// Checks if a map ID corresponds to a Cold Planet map.
     pub fn is_cold_planet_map(map_id: i32) -> bool {
         matches!(map_id, 105 | 106 | 107 | 108 | 109 | 110)
     }
 
-    /// Sends the capsule travel menu to the player.
     pub fn open_capsule_menu(player: &Player) -> anyhow::Result<()> {
         let destinations = Self::get_capsule_destinations(player);
         let mut msg = Message::new(cmd::CAPSULE_MENU);
@@ -140,16 +174,8 @@ impl ChangeMapService {
         match target_zone {
             Some(zone) => {
                 player.save_capsule_location(player.map_id, player.zone_id);
-
-                Self::change_map_to_zone(
-                    player,
-                    &zone,
-                    -1,  // Random x
-                    100, // Standard y
-                    SpaceShipType::None,
-                    Some(session),
-                )
-                .await?;
+                Self::change_map_to_zone(player, &zone, -1, 5, SpaceShipType::Auto, Some(session))
+                    .await?;
 
                 Ok(CapsuleChangeResult::Success {
                     map_id: zone.map_id,
@@ -160,20 +186,63 @@ impl ChangeMapService {
         }
     }
 
-    /// Returns a list of available capsule destinations.
+    pub fn is_future_map(map_id: i32) -> bool {
+        (92..=100).contains(&map_id)
+    }
+
     fn get_capsule_destinations(player: &Player) -> Vec<CapsuleDestination> {
         let mut destinations = Vec::new();
-
-        // 1. Home map (Always available)
-        let home_map_id = Self::calculate_home_map(player.gender, false);
-        if let Some(zone) = Self::get_available_zone(home_map_id) {
-            destinations.push(CapsuleDestination {
-                map_id: zone.map_id,
-                map_name: Self::get_home_map_name(player.gender),
-                planet_name: Self::get_planet_name(player.gender),
-            });
+        if let Some((map_id, _)) = player.get_previous_capsule_location() {
+            if !matches!(map_id, 21 | 22 | 23) && !Self::is_future_map(map_id) {
+                Self::add_list_map_capsule(player, &mut destinations, map_id);
+            }
         }
+        Self::add_list_map_capsule(player, &mut destinations, 21 + player.gender as i32);
+        let map_ids = [
+            47,
+            45,
+            0,
+            7,
+            14,
+            5,
+            20,
+            13,
+            24 + player.gender as i32,
+            27,
+            19,
+            79,
+            84,
+            154,
+            52,
+        ];
+        for map_id in map_ids {
+            Self::add_list_map_capsule(player, &mut destinations, map_id);
+        }
+
         destinations
+    }
+
+    fn add_list_map_capsule(
+        player: &Player,
+        destinations: &mut Vec<CapsuleDestination>,
+        map_id: i32,
+    ) {
+        if destinations.iter().any(|d| d.map_id == map_id) {
+            return;
+        }
+
+        if let Some(zone) = Self::get_available_zone(map_id) {
+            if Self::check_map_can_join(player, &zone) == MapAccessResult::Allowed {
+                if let Some(map) = crate::map::managers::map_manager::MAP_MANAGER.find_by_id(map_id)
+                {
+                    destinations.push(CapsuleDestination {
+                        map_id,
+                        map_name: map.info.name.clone(),
+                        planet_name: map.info.planet_name.clone(),
+                    });
+                }
+            }
+        }
     }
 
     fn get_previous_capsule_zone(player: &Player) -> Option<ZoneHandle> {
@@ -205,8 +274,6 @@ impl ChangeMapService {
             _ => "Unknown".to_string(),
         }
     }
-
-    /// Opens the Zone Selection UI for the player.
     pub async fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
@@ -252,7 +319,6 @@ impl ChangeMapService {
         Ok(())
     }
 
-    /// Handles the request to change to a specific zone ID within the current map.
     pub async fn change_zone(
         player: &mut Player,
         zone_id: i32,
@@ -375,15 +441,8 @@ impl ChangeMapService {
                 space_type,
             } => {
                 if let Some(target_zone) = Self::get_specific_zone(home_map_id, zone_id) {
-                    Self::change_map_to_zone(
-                        player,
-                        &target_zone,
-                        -1,
-                        -1,
-                        space_type,
-                        Some(session),
-                    )
-                    .await?;
+                    Self::change_map_to_zone(player, &target_zone, x, y, space_type, Some(session))
+                        .await?;
                 }
             }
             GoHomeResult::NoAvailableZone => {
@@ -625,7 +684,6 @@ impl ChangeMapService {
         }
     }
 
-    /// Moves player to a specific map via spaceship.
     pub fn change_map_by_spaceship(
         player: &mut Player,
         map_id: i32,
@@ -648,10 +706,18 @@ impl ChangeMapService {
             SpaceShipType::Default
         };
 
+        let map_width = if let Some(map) =
+            crate::map::managers::map_manager::MAP_MANAGER.find_by_id(zone.map_id)
+        {
+            map.info.map_width * 24
+        } else {
+            1000
+        };
+
         let final_x = if x != -1 {
             x
         } else {
-            Self::calculate_random_x_position(2000)
+            Self::calculate_random_x_position(map_width)
         };
 
         let healing_result = Self::handle_spaceship_healing(player, space_type);
@@ -697,49 +763,33 @@ impl ChangeMapService {
         }
     }
 
-    /// Sends spaceship arrival effect to players.
     pub async fn spaceship_arrive(
-        session: &crate::network::session::SessionArc,
+        player: &Player,
         send_type: SpaceshipSendType,
         space_type: SpaceShipType,
     ) -> anyhow::Result<()> {
-        let player_id = {
-            let state = session.state.read().await;
-            state
-                .player_id
-                .ok_or_else(|| anyhow::anyhow!("No player ID"))?
-        };
         let mut msg = Message::new(cmd::SPACESHIP_ARRIVE);
-        msg.write_int(player_id as i32)?;
+        msg.write_int(player.id as i32)?;
         msg.write_byte(space_type as i8)?;
 
         let response = msg.clone();
 
         match send_type {
             SpaceshipSendType::AllPlayersInMap => {
-                if let Some(snapshot) = session.get_player_snapshot().await {
-                    let map_id = snapshot.map_id;
-                    let zone_id = snapshot.zone_id;
-
-                    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-                    if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
-                        zone.broadcast(response);
-                    }
+                let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+                    zone.broadcast(response);
                 }
             }
             SpaceshipSendType::SelfOnly => {
-                session.transmit(msg);
+                if let Some(ref session) = player.session {
+                    session.transmit(msg);
+                }
             }
             SpaceshipSendType::OthersInMap => {
-                if let Some(snapshot) = session.get_player_snapshot().await {
-                    let map_id = snapshot.map_id;
-                    let zone_id = snapshot.zone_id;
-                    let player_id = snapshot.id;
-
-                    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-                    if let Some(zone) = zone_manager.get_zone(map_id, zone_id) {
-                        zone.broadcast_except(response, player_id);
-                    }
+                let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+                    zone.broadcast_except(response, player.id);
                 }
             }
         }
@@ -752,9 +802,38 @@ impl ChangeMapService {
     }
 
     fn calculate_random_x_position(map_width: i32) -> i16 {
-        let usable = (map_width.max(200) - 200) as u32;
+        if map_width <= 200 {
+            return 100;
+        }
+        let usable = (map_width - 200) as u32;
         let seed = utils::time::current_time_millis() as u32;
         (100 + (seed % usable)) as i16
+    }
+
+    pub fn get_y_physic_in_top(map_id: i32, x: i16, y: i16) -> i16 {
+        let Some(map) = crate::map::managers::map_manager::MAP_MANAGER.find_by_id(map_id) else {
+            return y;
+        };
+
+        if map.info.tile_map.is_empty() || map.info.tile_map[0].is_empty() {
+            return y;
+        }
+
+        let tile_size = 24;
+        let r_x = (x as i32 / tile_size) as usize;
+        let r_y_start = (y as i32 / tile_size) as usize;
+
+        if r_y_start >= map.info.tile_map.len() || r_x >= map.info.tile_map[0].len() {
+            return y;
+        }
+        for i in r_y_start..map.info.tile_map.len() {
+            let tile = map.info.tile_map[i][r_x];
+            if map.info.tile_top.contains(&tile) {
+                return (i as i16) * tile_size as i16;
+            }
+        }
+
+        y
     }
 
     pub fn check_map_can_join(player: &Player, zone: &ZoneHandle) -> MapAccessResult {

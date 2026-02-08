@@ -1,4 +1,5 @@
 pub mod auth_service;
+pub mod black_ball_war_service;
 pub mod command;
 pub mod effect_skill_service;
 pub mod intrinsic_service;

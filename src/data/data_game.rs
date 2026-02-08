@@ -74,12 +74,10 @@ impl DataGame {
                 }
             }
         }
-
         let mut msg = Message::new(-74);
         msg.write_byte(1)?;
         msg.write_short(file_count as i16)?;
         session.transmit(msg);
-
         Ok(())
     }
 

@@ -105,7 +105,13 @@ impl ZoneManager {
             }
             zone.load_another_to_me(player_id).await?;
             zone.load_me_to_another(player_id).await?;
-            zone.map_info(session.clone(), player_id).await?;
+            zone.map_info(
+                session.clone(),
+                player_id,
+                player.location.x,
+                player.location.y,
+            )
+            .await?;
         }
         Ok(())
     }

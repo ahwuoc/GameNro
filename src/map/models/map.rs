@@ -85,20 +85,29 @@ impl MapInfo {
         let mobs = MobSpawn::parse(&template.mobs);
         let npcs = NpcSpawn::parse(&template.npcs);
 
-        let (map_width, map_height, tile_map) =
-            if let Some((w, h, tiles)) = TileLoader::read_tile_map_file(template.id) {
-                (w, h, tiles)
-            } else {
-                (0, 0, Vec::new())
-            };
+        let tile_data = TileLoader::load_tile_data(template.id, template.tile_id as i32)
+            .unwrap_or_else(|| crate::map::managers::tile_loader::TileData {
+                width: 0,
+                height: 0,
+                tile_map: Vec::new(),
+                tile_top: Vec::new(),
+            });
 
-        let tile_top = TileLoader::read_tile_top_file(template.tile_id).unwrap_or_default();
+        let map_width = tile_data.width * 24;
+        let map_height = tile_data.height * 24;
+        let tile_map = tile_data.tile_map;
+        let tile_top = tile_data.tile_top;
 
         Self {
             id: template.id,
             name: template.name.clone(),
             planet_id: template.planet_id,
-            planet_name: format!("Planet {}", template.planet_id),
+            planet_name: match template.planet_id {
+                0 => "Trái Đất".to_string(),
+                1 => "Namếc".to_string(),
+                2 => "Xayda".to_string(),
+                _ => format!("Planet {}", template.planet_id),
+            },
             tile_id: template.tile_id,
             bg_id: template.bg_id,
             bg_type: template.bg_type,

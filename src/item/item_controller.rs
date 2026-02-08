@@ -26,6 +26,11 @@ impl ItemController {
         }
         match type_action {
             TypeItemAction::DoThrowItem => {
+                if pl.map_id == 21 || pl.map_id == 22 || pl.map_id == 23 {
+                    ServiceHandles::send_message_alert(pl, "Không thể thực hiện");
+                    return Ok(None);
+                }
+
                 let item = if where_item == 0 {
                     &mut pl.inventory.items_body[index as usize]
                 } else {
@@ -33,6 +38,13 @@ impl ItemController {
                 };
                 if item.is_null_item() {
                     return Ok(None);
+                }
+
+                if let Some(id) = item.get_template_id() {
+                    if id == 570 || id == 457 {
+                        ServiceHandles::send_message_alert(pl, "Không thể bỏ vật phẩm này.");
+                        return Ok(None);
+                    }
                 }
 
                 let text = format!(
@@ -51,13 +63,20 @@ impl ItemController {
                 if item.is_null_item() {
                     return Ok(None);
                 }
-                if item.get_template_id() == Some(457) {
-                    ServiceHandles::send_message_alert(pl, "Bạn không thể bỏ vật phẩm này");
-                    return Ok(None);
+                if let Some(id) = item.get_template_id() {
+                    if id == 570 || id == 457 {
+                        ServiceHandles::send_message_alert(pl, "Bạn không thể bỏ vật phẩm này");
+                        return Ok(None);
+                    }
                 }
                 std::mem::take(item);
-                InventoryService::send_item_bag_to_client(pl)?;
-                InventoryService::send_item_body_to_client(pl)?;
+                if where_item == 0 {
+                    pl.stats_need_update = true;
+                    player_info_service::send_point_info_sync(pl)?;
+                    InventoryService::send_item_body_to_client(pl)?;
+                } else {
+                    InventoryService::send_item_bag_to_client(pl)?;
+                }
                 return Ok(None);
             }
             TypeItemAction::DoUseItem | TypeItemAction::AcceptUseItem => {

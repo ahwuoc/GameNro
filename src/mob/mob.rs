@@ -111,7 +111,7 @@ impl RtMob {
         !self.is_alive || self.hp <= 0
     }
 
-    pub fn take_damage(&mut self, mut damage: i32) -> i32 {
+    pub fn take_damage(&mut self, mut damage: i32, die_when_hp_full: bool) -> i32 {
         if !self.is_alive || self.hp <= 0 {
             return 0;
         }
@@ -123,7 +123,7 @@ impl RtMob {
             damage = self.max_hp / 10;
         }
 
-        if self.hp == self.max_hp && damage >= self.hp {
+        if !die_when_hp_full && self.hp == self.max_hp && damage >= self.hp {
             damage = self.hp - 1;
         }
 

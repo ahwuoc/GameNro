@@ -39,6 +39,7 @@ pub mod cmd {
     pub const EFFECT_CHANGE_MAP: i8 = -105;
     pub const CAPSULE_MENU: i8 = -91;
     pub const MAP_INFO: i8 = -24;
+    pub const MAP_CLEAR: i8 = -22;
     pub const PLAYER_LEAVE: i8 = -6;
     pub const SPACESHIP_ARRIVE: i8 = -65;
 

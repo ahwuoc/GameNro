@@ -6,11 +6,8 @@ pub const GENDER_NAMEC: i8 = 1;
 pub const GENDER_XAYDA: i8 = 2;
 
 // ========================================
-// Task Constants (from Java ConstTask)
-// These represent the minimum task progress required to access certain maps
-// ========================================
-pub const TASK_1_0: i32 = 2048; // Task 1.0 - đồi hoa cúc, đồi nấm tím, đồi hoang
-pub const TASK_2_0: i32 = 4096; // Task 2.0 - vách aru, vách moori, vách kakarot
+pub const TASK_1_0: i32 = 2048;
+pub const TASK_2_0: i32 = 4096;
 pub const TASK_3_0: i32 = 6144; // Task 3.0 - thung lũng tre, thị trấn moori, làng plane
 pub const TASK_4_0: i32 = 8192; // Task 4.0 - trạm tàu vũ trụ
 pub const TASK_7_0: i32 = 14336; // Task 7.0 - rừng nấm, thung lũng maima, rừng nguyên sinh
@@ -32,3 +29,10 @@ pub const MABU_HOME_MAP_ID: i32 = 114;
 // ========================================
 pub const BLACK_BALL_WAR_MAP_START: i32 = 85;
 pub const BLACK_BALL_WAR_MAP_END: i32 = 91;
+
+// ========================================
+// Map Change Types
+// ========================================
+pub const CHANGE_CAPSULE: i32 = 0;
+pub const CHANGE_BLACK_BALL: i32 = 1;
+pub const CHANGE_CUP: i32 = 2;

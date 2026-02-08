@@ -159,7 +159,7 @@ impl CommandService {
                             player,
                             &zone,
                             -1,
-                            -1,
+                            5,
                             SpaceShipType::TeleportYardrat,
                             Some(session),
                         )

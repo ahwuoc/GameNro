@@ -1,4 +1,6 @@
+use crate::constant::const_map;
 use crate::item::InventoryService;
+use crate::map::services::change_map_service::ChangeMapService;
 use crate::network::session::SessionArc;
 use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_manager::PLAYER_MANAGER;
@@ -41,9 +43,7 @@ impl UseItemService {
         match type_item {
             76 => {
                 let item_id = item_id.ok_or(anyhow::anyhow!("Item template id not found"))?;
-                // Check fusion
                 if pl.fusion.type_fusion != 0 {
-                    // Unfusion
                     if let Some(ref session) = pl.session {
                         if let Some(handle) = session.get_player_handle().await {
                             handle.send_forget(PlayerMessage::Unfusion);
@@ -51,8 +51,6 @@ impl UseItemService {
                     }
                     return Ok(UseItemResult::None);
                 }
-
-                // Start fusion
                 if let Some(template) =
                     crate::templates::fusion_template_manager::get(item_id as i32)
                 {
@@ -88,6 +86,18 @@ impl UseItemService {
                         pl.inventory.add_gold(500_000_000);
                         InventoryService::sub_quantity_item_bag(pl, index, 1);
                         return Ok(UseItemResult::AddedGold { index });
+                    }
+                    193 => {
+                        pl.interaction_state.type_change_map = const_map::CHANGE_CAPSULE;
+                        ChangeMapService::open_capsule_menu(pl)?;
+                        InventoryService::sub_quantity_item_bag(pl, index, 1);
+                        InventoryService::send_item_bag_to_client(pl)?;
+                        return Ok(UseItemResult::None);
+                    }
+                    194 => {
+                        pl.interaction_state.type_change_map = const_map::CHANGE_CAPSULE;
+                        ChangeMapService::open_capsule_menu(pl)?;
+                        return Ok(UseItemResult::None);
                     }
                     _ => {
                         return Ok(UseItemResult::Error(

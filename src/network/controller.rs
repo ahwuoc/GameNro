@@ -3,6 +3,7 @@ use crate::account::account_services::AccountServices;
 use crate::clan::clan_service::ClanService;
 use crate::combine::combine_service;
 use crate::constant::cmd::cmd;
+use crate::constant::const_map;
 use crate::data::data_game::DataGame;
 use crate::data::ItemData;
 use crate::database::DbManager;
@@ -336,8 +337,24 @@ impl AsyncController {
                 Ok(())
             }
             cmd::CAPSULE_MENU => {
+                let index = msg.read_byte()?;
                 if let Some(snapshot) = session.get_player_snapshot().await {
-                    ChangeMapService::open_capsule_menu(&snapshot)?;
+                    if let Some(handle) = session.get_player_handle().await {
+                        match snapshot.interaction_state.type_change_map {
+                            const_map::CHANGE_CAPSULE => {
+                                handle.send_forget(PlayerMessage::ChangeMapCapsule(index as i32));
+                            }
+                            const_map::CHANGE_BLACK_BALL => {
+                                handle.send_forget(PlayerMessage::ChangeMapBlackBall(index));
+                            }
+                            _ => {
+                                warn!(
+                                    "Unknown type_change_map: {} for player {}",
+                                    snapshot.interaction_state.type_change_map, snapshot.id
+                                );
+                            }
+                        }
+                    }
                 }
                 Ok(())
             }
@@ -580,7 +597,13 @@ impl AsyncController {
                         "Player {} added to zone {} map {}",
                         player_with_zone.name, zone.zone_id, zone.map_id
                     );
-                    zone.map_info(session.clone(), player_id).await?;
+                    zone.map_info(
+                        session.clone(),
+                        player_id,
+                        player_with_zone.location.x,
+                        player_with_zone.location.y,
+                    )
+                    .await?;
                 }
             } else {
                 error!(

@@ -32,24 +32,22 @@ impl PlayerItemTime {
 
     pub fn update(&mut self) {
         let now = Utc::now();
-        
-        // Check if an_danh effects have expired (30 minutes)
         if self.is_use_an_danh && (now - self.last_time_an_danh).num_minutes() >= 30 {
             self.is_use_an_danh = false;
         }
-        
+
         if self.is_use_an_danh_2 && (now - self.last_time_an_danh_2).num_minutes() >= 30 {
             self.is_use_an_danh_2 = false;
         }
-        
+
         if self.is_use_an_danh_3 && (now - self.last_time_an_danh_3).num_minutes() >= 30 {
             self.is_use_an_danh_3 = false;
         }
-        
+
         if self.is_use_an_danh_4 && (now - self.last_time_an_danh_4).num_minutes() >= 30 {
             self.is_use_an_danh_4 = false;
         }
-        
+
         if self.is_use_an_danh_5 && (now - self.last_time_an_danh_5).num_minutes() >= 30 {
             self.is_use_an_danh_5 = false;
         }
@@ -103,7 +101,7 @@ impl PlayerItemTime {
             5 => self.last_time_an_danh_5,
             _ => return 0,
         };
-        
+
         if self.is_an_danh_active(level) {
             let elapsed = (now - last_time).num_seconds();
             let remaining = 30 * 60 - elapsed; // 30 minutes in seconds
@@ -114,17 +112,30 @@ impl PlayerItemTime {
     }
 
     pub fn has_any_an_danh_active(&self) -> bool {
-        self.is_use_an_danh || self.is_use_an_danh_2 || self.is_use_an_danh_3 || 
-        self.is_use_an_danh_4 || self.is_use_an_danh_5
+        self.is_use_an_danh
+            || self.is_use_an_danh_2
+            || self.is_use_an_danh_3
+            || self.is_use_an_danh_4
+            || self.is_use_an_danh_5
     }
 
     pub fn get_active_an_danh_levels(&self) -> Vec<u8> {
         let mut levels = Vec::new();
-        if self.is_use_an_danh { levels.push(1); }
-        if self.is_use_an_danh_2 { levels.push(2); }
-        if self.is_use_an_danh_3 { levels.push(3); }
-        if self.is_use_an_danh_4 { levels.push(4); }
-        if self.is_use_an_danh_5 { levels.push(5); }
+        if self.is_use_an_danh {
+            levels.push(1);
+        }
+        if self.is_use_an_danh_2 {
+            levels.push(2);
+        }
+        if self.is_use_an_danh_3 {
+            levels.push(3);
+        }
+        if self.is_use_an_danh_4 {
+            levels.push(4);
+        }
+        if self.is_use_an_danh_5 {
+            levels.push(5);
+        }
         levels
     }
 

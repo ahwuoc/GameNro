@@ -172,16 +172,9 @@ impl PetActor {
             PetMessage::MasterAttackTarget(_target_id, _target_type) => {
                 // TODO: Sẽ xử lý logic tấn công mục tiêu cùng chủ nhân
             }
-            PetMessage::Fusion(is_porata) => {
+            PetMessage::Fusion(_is_porata) => {
                 self.pet.status = PetStatus::Fusion;
-                let zone_opt = zone_manager::ZONE_MANAGER
-                    .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
-                if let Some(zone) = zone_opt {
-                    let mut msg = Message::new(-8);
-                    let _ = msg.write_int(self.pet.player.id as i32);
-                    let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
-                    let _ = zone.remove_player(self.pet.player.id).await;
-                }
+                let _ = crate::map::ChangeMapService::exit_map_actor(&mut self.pet.player).await;
             }
             PetMessage::GetSnapshot(tx) => {
                 let _ = tx.send(self.pet.clone());

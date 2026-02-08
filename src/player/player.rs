@@ -84,6 +84,9 @@ pub struct Player {
     pub boss_component: Option<crate::player::components::boss::BossComponent>,
     pub magic_tree: MagicTree,
     pub radar_cards: Vec<radar::Card>,
+    pub map_id_before_capsule: i32,
+    pub zone_id_before_capsule: i32,
+    pub spaceship_id: i8,
 }
 
 impl Player {
@@ -140,6 +143,9 @@ impl Player {
             boss_component: None,
             magic_tree: MagicTree::new(),
             radar_cards: Vec::new(),
+            map_id_before_capsule: -1,
+            zone_id_before_capsule: -1,
+            spaceship_id: 1, // Default spaceship
         }
     }
 
@@ -524,15 +530,20 @@ impl Player {
     }
 
     pub fn has_previous_capsule_location(&self) -> bool {
-        false
+        self.map_id_before_capsule != -1
     }
 
     pub fn save_capsule_location(&mut self, map_id: i32, zone_id: i32) {
-        println!("Saving capsule location: map {} zone {}", map_id, zone_id);
+        self.map_id_before_capsule = map_id;
+        self.zone_id_before_capsule = zone_id;
     }
 
     pub fn get_previous_capsule_location(&self) -> Option<(i32, i32)> {
-        None
+        if self.has_previous_capsule_location() {
+            Some((self.map_id_before_capsule, self.zone_id_before_capsule))
+        } else {
+            None
+        }
     }
 
     pub fn update_zone_change_time(&mut self) {

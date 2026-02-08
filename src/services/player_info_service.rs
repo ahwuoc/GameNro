@@ -88,14 +88,12 @@ pub fn send_max_stamina(player: &RtPlayer) -> anyhow::Result<()> {
 
 pub fn send_current_stamina(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-68);
-    msg.write_short(player.n_point.stamina as i16)?; // current stamina
-
+    msg.write_short(player.n_point.stamina as i16)?;
     player.send_to_client(msg)?;
     Ok(())
 }
 
 pub fn send_pet_info(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending pet info");
     let mut msg = Message::new(-107);
     msg.write_byte(player.is_pet as i8)?;
     player.send_to_client(msg)?;
@@ -103,8 +101,6 @@ pub fn send_pet_info(player: &RtPlayer) -> anyhow::Result<()> {
 }
 
 pub fn send_top_rank_info(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending top rank info");
-
     let mut msg = Message::new(-119);
     msg.write_utf("1630679754740_-119_r")?;
 
