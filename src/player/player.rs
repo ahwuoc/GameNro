@@ -573,7 +573,7 @@ impl Player {
             return None;
         }
 
-        if self.effect_skill.count_charging >= 10 {
+        if self.effect_skill.count_charging >= 20 {
             return Some(ChargeUpdateResult {
                 should_stop: true,
                 hp_recovered: 0,
@@ -602,8 +602,9 @@ impl Player {
             });
         }
 
-        let hp_recovered = self.n_point.hp_max * percent_charge / 100;
-        let mp_recovered = self.n_point.mp_max * percent_charge / 100;
+        // Tính toán chuẩn Java: (Max / 100) * TiLe
+        let hp_recovered = (self.n_point.hp_max / 100) * percent_charge;
+        let mp_recovered = (self.n_point.mp_max / 100) * percent_charge;
 
         self.n_point.hp_current += hp_recovered;
         if self.n_point.hp_current > self.n_point.hp_max {
@@ -616,11 +617,12 @@ impl Player {
             self.n_point.mp_current = self.n_point.mp_max;
         }
 
+        // Chat mỗi 3 tick (ứng với 1.5 giây)
         let should_chat = self.effect_skill.count_charging % 3 == 0;
 
         self.effect_skill.count_charging += 1;
 
-        let should_stop = self.effect_skill.count_charging >= 10;
+        let should_stop = self.effect_skill.count_charging >= 20;
 
         Some(ChargeUpdateResult {
             should_stop,
