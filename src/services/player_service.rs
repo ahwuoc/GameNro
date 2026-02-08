@@ -191,5 +191,32 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
         }
     }
 
+    // Tự động hồi phục sau mỗi 30 giây
+    if now - player.n_point.last_time_hoi_phuc >= 30000 {
+        player.n_point.last_time_hoi_phuc = now;
+        if !player.is_die() {
+            let hp_hoi = player.n_point.hp_hoi;
+            let mp_hoi = player.n_point.mp_hoi;
+            if hp_hoi > 0 || mp_hoi > 0 {
+                player.n_point.hp_current =
+                    (player.n_point.hp_current + hp_hoi).min(player.n_point.hp_max);
+                player.n_point.mp_current =
+                    (player.n_point.mp_current + mp_hoi).min(player.n_point.mp_max);
+                let _ = crate::services::player_info_service::send_info_hp_mp_money(player);
+            }
+        }
+    }
+
+    // Tự động hồi thể lực sau mỗi 60 giây
+    if now - player.n_point.last_time_hoi_stamina >= 60000 {
+        player.n_point.last_time_hoi_stamina = now;
+        if player.n_point.stamina < player.n_point.max_stamina {
+            player.n_point.stamina += 1;
+            if !player.is_boss && !player.is_pet {
+                let _ = crate::services::player_info_service::send_current_stamina(player);
+            }
+        }
+    }
+
     Ok(())
 }

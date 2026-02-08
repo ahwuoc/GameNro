@@ -66,6 +66,10 @@ pub struct NPoint {
     pub dame_fusion_tl: i32,
 
     pub is_monkey_active: bool,
+    pub hp_hoi: i32,
+    pub mp_hoi: i32,
+    pub last_time_hoi_phuc: u64,
+    pub last_time_hoi_stamina: u64,
 }
 
 impl NPoint {
@@ -117,6 +121,10 @@ impl NPoint {
             dame_fusion_tl: 0,
 
             is_monkey_active: false,
+            hp_hoi: 0,
+            mp_hoi: 0,
+            last_time_hoi_phuc: 0,
+            last_time_hoi_stamina: 0,
         }
     }
 
@@ -135,6 +143,8 @@ impl NPoint {
         self.tl_mp.clear();
         self.tl_dame.clear();
         self.tl_def = 0;
+        self.hp_hoi = 0;
+        self.mp_hoi = 0;
     }
 
     pub fn set_base_point(&mut self) {
@@ -244,6 +254,11 @@ impl NPoint {
             }
             49 | 50 => self.tl_dame.push(param as i32), // Tấn công/Sức đánh +#%
             77 => self.tl_hp.push(param as i32),        // HP +#%
+            80 => self.hp_hoi += param as i32,          // HP hồi +#
+            81 => self.mp_hoi += param as i32,          // KI hồi +#
+            82 => self.hp_fusion_tl += param as i32,    // HP +#% khi hợp thể
+            83 => self.mp_fusion_tl += param as i32,    // KI +#% khi hợp thể
+            84 => self.dame_fusion_tl += param as i32,  // Sức đánh +#% khi hợp thể
             94 => self.tl_def += param,                 // Giáp +#%
             103 => self.tl_mp.push(param as i32),       // KI +#%
             _ => {}                                     // Các option khác chưa xử lý
