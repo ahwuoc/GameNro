@@ -439,7 +439,7 @@ impl Player {
         if dame < 0 {
             dame = 1;
         }
-        self.n_point.set_hp(self.n_point.hp_current - dame);
+        self.n_point.current_hp_sub(dame);
         if self.n_point.hp_current <= 0 {
             self.set_die();
         }

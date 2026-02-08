@@ -152,6 +152,16 @@ impl NPoint {
         self.mp_current
     }
 
+    pub fn current_stamina_add(&mut self, stamina_add: i16) -> i16 {
+        self.stamina = (self.stamina + stamina_add).min(self.max_stamina);
+        self.stamina
+    }
+
+    pub fn current_stamina_sub(&mut self, stamina_sub: i16) -> i16 {
+        self.stamina = (self.stamina - stamina_sub).max(0);
+        self.stamina
+    }
+
     pub fn is_full_hp(&self) -> bool {
         self.hp_current >= self.hp_max
     }

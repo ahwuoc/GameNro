@@ -180,21 +180,9 @@ impl PetActor {
                 let _ = tx.send(self.pet.clone());
             }
             PetMessage::HealPet { hp, mp, stamina } => {
-                self.pet
-                    .player
-                    .n_point
-                    .set_hp(self.pet.player.n_point.hp_current + hp);
-                self.pet
-                    .player
-                    .n_point
-                    .set_mp(self.pet.player.n_point.mp_current + mp);
-                self.pet.player.n_point.stamina = self
-                    .pet
-                    .player
-                    .n_point
-                    .stamina
-                    .saturating_add(stamina)
-                    .min(self.pet.player.n_point.max_stamina);
+                self.pet.player.n_point.current_hp_add(hp);
+                self.pet.player.n_point.current_mp_add(mp);
+                self.pet.player.n_point.current_stamina_add(stamina);
 
                 if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
                     let pet_snapshot = self.pet.clone();
@@ -380,8 +368,7 @@ impl PetActor {
                         )
                         .await;
                         zone.sync_mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
-                        self.pet.player.n_point.stamina =
-                            self.pet.player.n_point.stamina.saturating_sub(1);
+                        self.pet.player.n_point.current_stamina_sub(1);
                         self.pet_chat(None).await;
                     }
                 }
