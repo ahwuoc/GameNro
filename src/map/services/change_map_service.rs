@@ -746,17 +746,20 @@ impl ChangeMapService {
             if space_type == SpaceShipType::Tennis {
                 player.n_point.hp_current = player.n_point.hp_max;
                 player.n_point.mp_current = player.n_point.mp_max;
-                player.dead_flag = false;
+                player.revive();
+                let _ = crate::services::player_service::send_message_hs_char(player);
                 SpaceshipHealingResult::RevivedFullHp
             } else {
                 player.n_point.hp_current = 1;
                 player.n_point.mp_current = 1;
-                player.dead_flag = false;
+                player.revive();
+                let _ = crate::services::player_service::send_message_hs_char(player);
                 SpaceshipHealingResult::RevivedMinimalHp
             }
         } else if space_type == SpaceShipType::Tennis {
             player.n_point.hp_current = player.n_point.hp_max;
             player.n_point.mp_current = player.n_point.mp_max;
+            let _ = crate::services::player_info_service::send_point_info_sync(player);
             SpaceshipHealingResult::HealedToFull
         } else {
             SpaceshipHealingResult::NoHealing

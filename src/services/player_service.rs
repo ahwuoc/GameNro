@@ -83,14 +83,29 @@ pub fn hoi_sinh(pl: &mut Player) -> Result<()> {
     Ok(())
 }
 
-fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
-    let mut msg = Message::new(-16);
-    msg.write_int(player.id as i32)?;
-    msg.write_short(player.location.x)?;
-    msg.write_short(player.location.y)?;
-    msg.write_int(player.n_point.hp_max)?;
-    msg.write_int(player.n_point.mp_max)?;
-    ServiceHandles::send_mess_all_player_in_map(player, msg)?;
+pub fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
+    // 1. Gửi Message -16 (Trống) cho bản thân để báo sống lại
+    if let Some(ref session) = player.session {
+        let msg_16 = Message::new(-16);
+        session.transmit(msg_16);
+    }
+
+    // 2. Gửi Message -30, Subcommand 15 cho tất cả mọi người (bao gồm cả bản thân)
+    let mut msg_30 = Message::new(-30);
+    msg_30.write_byte(15)?; // Subcommand 15: hsChar
+    msg_30.write_int(player.id as i32)?;
+    msg_30.write_int(player.n_point.hp_current as i32)?;
+    msg_30.write_int(player.n_point.mp_current as i32)?;
+    msg_30.write_short(player.location.x)?;
+    msg_30.write_short(player.location.y)?;
+
+    ServiceHandles::send_mess_all_player_in_map(player, msg_30)?;
+
+    // 3. Cập nhật thông tin chỉ số cho bản thân
+    let _ = crate::services::player_info_service::send_point_info_sync(player);
+    // 4. Cập nhật thanh HP/MP cho bản thân
+    let _ = crate::services::player_info_service::send_message_info_hpmp(player);
+
     Ok(())
 }
 
