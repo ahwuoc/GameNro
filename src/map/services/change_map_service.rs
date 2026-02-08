@@ -53,6 +53,13 @@ impl ChangeMapService {
             };
             if let Some(_) = session {
                 player.spaceship_id = actual_space_type as i8;
+                let healing = Self::handle_spaceship_healing(player, actual_space_type);
+                tracing::info!(
+                    "change_map_to_zone: Auto healing result for {}: {:?}",
+                    player.name,
+                    healing
+                );
+
                 Self::spaceship_arrive(
                     player,
                     SpaceshipSendType::AllPlayersInMap,
@@ -62,6 +69,14 @@ impl ChangeMapService {
             }
         } else {
             player.spaceship_id = space_type as i8;
+            if space_type != SpaceShipType::None {
+                let healing = Self::handle_spaceship_healing(player, space_type);
+                tracing::info!(
+                    "change_map_to_zone: healing result for {}: {:?}",
+                    player.name,
+                    healing
+                );
+            }
         }
 
         Self::exit_map(player).await?;
@@ -741,6 +756,12 @@ impl ChangeMapService {
         space_type: SpaceShipType,
     ) -> SpaceshipHealingResult {
         let was_dead = player.is_die();
+        tracing::debug!(
+            "handle_spaceship_healing: player={}, dead={}, space_type={:?}",
+            player.name,
+            was_dead,
+            space_type
+        );
 
         if was_dead {
             if space_type == SpaceShipType::Tennis {
@@ -748,20 +769,36 @@ impl ChangeMapService {
                 player.n_point.mp_current = player.n_point.mp_max;
                 player.revive();
                 let _ = crate::services::player_service::send_message_hs_char(player);
+                tracing::info!(
+                    "handle_spaceship_healing: Revived {} with full HP/MP (Tennis)",
+                    player.name
+                );
                 SpaceshipHealingResult::RevivedFullHp
             } else {
                 player.n_point.hp_current = 1;
                 player.n_point.mp_current = 1;
                 player.revive();
                 let _ = crate::services::player_service::send_message_hs_char(player);
+                tracing::info!(
+                    "handle_spaceship_healing: Revived {} with 1 HP/MP (Other)",
+                    player.name
+                );
                 SpaceshipHealingResult::RevivedMinimalHp
             }
         } else if space_type == SpaceShipType::Tennis {
             player.n_point.hp_current = player.n_point.hp_max;
             player.n_point.mp_current = player.n_point.mp_max;
             let _ = crate::services::player_info_service::send_point_info_sync(player);
+            tracing::info!(
+                "handle_spaceship_healing: Healed {} to full HP/MP (Tennis)",
+                player.name
+            );
             SpaceshipHealingResult::HealedToFull
         } else {
+            tracing::debug!(
+                "handle_spaceship_healing: No healing needed for {}",
+                player.name
+            );
             SpaceshipHealingResult::NoHealing
         }
     }
