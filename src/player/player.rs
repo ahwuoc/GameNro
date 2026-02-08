@@ -18,7 +18,7 @@ use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::templates::pet_template_manager;
 use crate::templates::power_manager;
-use crate::utils::{time, Location};
+use crate::utils::{skill_util, time, Location};
 use serde_json::Value;
 
 use std::sync::Arc;
@@ -555,7 +555,7 @@ impl Player {
             return true;
         }
         if let Some(skill) = &self.player_skill.skill_select {
-            return self.n_point.mp_current >= skill.mana_use as i32;
+            return self.n_point.has_mp(skill.mana_use as i32);
         }
         false
     }
@@ -572,7 +572,6 @@ impl Player {
         if !self.effect_skill.is_charging {
             return None;
         }
-
         if self.effect_skill.count_charging >= 20 {
             return Some(ChargeUpdateResult {
                 should_stop: true,
@@ -588,10 +587,9 @@ impl Player {
             .as_ref()
             .map(|s| s.point)
             .unwrap_or(1);
-        let percent_charge = crate::utils::skill_util::get_percent_charge(skill_point);
+        let percent_charge = skill_util::get_percent_charge(skill_point);
         let is_dead = self.is_die();
-        let is_full = self.n_point.hp_current >= self.n_point.hp_max
-            && self.n_point.mp_current >= self.n_point.mp_max;
+        let is_full = self.n_point.is_full_hp_mp();
 
         if is_dead || is_full {
             return Some(ChargeUpdateResult {
@@ -601,27 +599,14 @@ impl Player {
                 should_chat: false,
             });
         }
-
-        // Tính toán chuẩn Java: (Max / 100) * TiLe
         let hp_recovered = (self.n_point.hp_max / 100) * percent_charge;
         let mp_recovered = (self.n_point.mp_max / 100) * percent_charge;
 
-        self.n_point.hp_current += hp_recovered;
-        if self.n_point.hp_current > self.n_point.hp_max {
-            self.n_point.hp_current = self.n_point.hp_max;
-        }
+        self.n_point.current_hp_add(hp_recovered);
+        self.n_point.current_mp_add(mp_recovered);
 
-        // Hồi MP
-        self.n_point.mp_current += mp_recovered;
-        if self.n_point.mp_current > self.n_point.mp_max {
-            self.n_point.mp_current = self.n_point.mp_max;
-        }
-
-        // Chat mỗi 3 tick (ứng với 1.5 giây)
         let should_chat = self.effect_skill.count_charging % 3 == 0;
-
         self.effect_skill.count_charging += 1;
-
         let should_stop = self.effect_skill.count_charging >= 20;
 
         Some(ChargeUpdateResult {

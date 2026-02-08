@@ -198,10 +198,8 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
             let hp_hoi = player.n_point.hp_hoi;
             let mp_hoi = player.n_point.mp_hoi;
             if hp_hoi > 0 || mp_hoi > 0 {
-                player.n_point.hp_current =
-                    (player.n_point.hp_current + hp_hoi).min(player.n_point.hp_max);
-                player.n_point.mp_current =
-                    (player.n_point.mp_current + mp_hoi).min(player.n_point.mp_max);
+                player.n_point.current_hp_add(hp_hoi);
+                player.n_point.current_mp_add(mp_hoi);
                 let _ = crate::services::player_info_service::send_info_hp_mp_money(player);
             }
         }

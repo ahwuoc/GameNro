@@ -379,9 +379,7 @@ impl EffectSkillService {
         player.effect_skill.level_monkey = 0;
         player.effect_skill.is_skill_bienkhi = false;
         player.n_point.is_monkey_active = false;
-        if player.n_point.hp_current > player.n_point.hp_max {
-            player.n_point.hp_current = player.n_point.hp_max;
-        }
+        player.n_point.current_hp_add(0);
 
         MonkeyStateUpdate {
             player_id: player.id,

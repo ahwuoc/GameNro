@@ -64,7 +64,7 @@ pub async fn execute_skill(
         (_, Skill::KAIOKEN) => {
             let hp_use = player.n_point.hp_max / 10;
             if player.n_point.hp_current > hp_use {
-                player.n_point.hp_current -= hp_use;
+                player.n_point.current_hp_sub(hp_use);
                 execute_attack_skill(player, pl_target, mob_target).await
             } else {
                 None
@@ -502,7 +502,7 @@ pub fn apply_skill_cost(player: &mut Player) {
     if let Some(ref mut skill) = player.player_skill.skill_select {
         skill.start_time_use = time::current_time_millis();
         if !player.is_boss && player.n_point.mp_current >= skill.mana_use as i32 {
-            player.n_point.mp_current -= skill.mana_use as i32;
+            player.n_point.current_mp_sub(skill.mana_use as i32);
         }
     }
 }
@@ -552,10 +552,7 @@ pub async fn execute_huyt_sao(player: &mut Player) {
         player.n_point.set_base_point();
 
         let heal_amount = (player.n_point.hp_current as i64 * percent_hp as i64 / 100) as i32;
-        player.n_point.hp_current = player.n_point.hp_current.saturating_add(heal_amount);
-        if player.n_point.hp_current > player.n_point.hp_max {
-            player.n_point.hp_current = player.n_point.hp_max;
-        }
+        player.n_point.current_hp_add(heal_amount);
 
         let _ = ServiceHandles::send_item_time(player, 3781, 30);
         let _ = player_info_service::send_point_info_sync(player);

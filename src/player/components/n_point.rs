@@ -132,6 +132,41 @@ impl NPoint {
         self.reset_bonus();
         self.set_base_point();
     }
+    pub fn current_hp_add(&mut self, hp_add: i32) -> i32 {
+        self.hp_current = (self.hp_current + hp_add).min(self.hp_max);
+        self.hp_current
+    }
+
+    pub fn current_mp_add(&mut self, mp_add: i32) -> i32 {
+        self.mp_current = (self.mp_current + mp_add).min(self.mp_max);
+        self.mp_current
+    }
+
+    pub fn current_hp_sub(&mut self, hp_sub: i32) -> i32 {
+        self.hp_current = (self.hp_current - hp_sub).max(0);
+        self.hp_current
+    }
+
+    pub fn current_mp_sub(&mut self, mp_sub: i32) -> i32 {
+        self.mp_current = (self.mp_current - mp_sub).max(0);
+        self.mp_current
+    }
+
+    pub fn is_full_hp(&self) -> bool {
+        self.hp_current >= self.hp_max
+    }
+
+    pub fn is_full_mp(&self) -> bool {
+        self.mp_current >= self.mp_max
+    }
+
+    pub fn is_full_hp_mp(&self) -> bool {
+        self.is_full_hp() && self.is_full_mp()
+    }
+
+    pub fn has_mp(&self, amount: i32) -> bool {
+        self.mp_current >= amount
+    }
 
     fn reset_bonus(&mut self) {
         self.hp_add = 0;

@@ -909,10 +909,7 @@ impl PlayerActor {
         self.player.n_point.huyt_sao_buff = percent_hp;
         self.player.stats_need_update = true;
         let heal_amount = (self.player.n_point.hp_current as i64 * percent_hp as i64 / 100) as i32;
-        self.player.n_point.hp_current = self.player.n_point.hp_current.saturating_add(heal_amount);
-        if self.player.n_point.hp_current > self.player.n_point.hp_max {
-            self.player.n_point.hp_current = self.player.n_point.hp_max;
-        }
+        self.player.n_point.current_hp_add(heal_amount);
         let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
         let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
     }
