@@ -140,7 +140,7 @@ impl BossActor {
             let _ = ServiceHandles::send_hp_sync(&self.player);
         }
 
-        if self.player.n_point.hp_current <= 0 {
+        if self.player.is_die() {
             self.chat_end();
             self.state = BossState::Changing;
         }
@@ -378,7 +378,7 @@ impl BossActor {
         });
     }
     async fn handle_fighting(&mut self) {
-        if self.player.n_point.hp_current <= 0 {
+        if self.player.is_die() {
             self.state = BossState::Changing;
             return;
         }
@@ -562,9 +562,8 @@ impl BossActor {
             }
 
             self.player.n_point.hp_max = stage.hp;
-            self.player.n_point.hp_current = stage.hp;
             self.player.n_point.mp_max = stage.mp;
-            self.player.n_point.mp_current = stage.mp;
+            self.player.n_point.set_full_hp_mp();
             self.player.n_point.dame = stage.dame;
 
             self.player.player_skill.skills.clear();
@@ -675,31 +674,26 @@ impl BossActor {
         let _ = ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 0);
         let _ = ServiceHandles::send_hp_sync(&self.player);
 
-        if self.player.n_point.hp_current <= 0 {
+        if self.player.is_die() {
             self.chat_end();
             self.state = BossState::Changing;
         }
         real_damage
     }
 
-    /// Default death handling
     pub async fn default_death(&mut self) {
         self.chat_end();
         self.state = BossState::Changing;
     }
 
-    /// Default stage change
     pub async fn default_stage_change(&mut self, new_stage: usize) {
         self.current_stage = new_stage;
         self.transform_to_next_stage().await;
     }
-
-    /// Default find target - tìm player gần nhất
     pub async fn default_find_target(&self) -> Option<u64> {
         self.find_target_enemy().await
     }
 
-    /// Default choose skill - random skill available
     pub fn default_choose_skill(&self) -> Option<Skill> {
         if self.player.player_skill.skills.is_empty() {
             return None;
@@ -721,19 +715,16 @@ impl BossActor {
         available_skills.choose(&mut rng).cloned()
     }
 
-    /// Default attack
     pub async fn default_attack(&mut self, target_id: u64) {
         if let Some(skill) = self.default_choose_skill() {
             self.use_skill(skill, target_id).await;
         }
     }
 
-    /// Default move
     pub async fn default_move(&mut self, target_x: i16, target_y: i16) {
         self.move_to(target_x, target_y).await;
     }
 
-    /// Default chat on appear
     pub fn default_chat_appear(&self) -> Vec<String> {
         if let Some(template) = boss_template_manager::get(&self.template_id) {
             template

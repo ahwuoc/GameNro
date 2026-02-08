@@ -162,6 +162,25 @@ impl NPoint {
         self.stamina
     }
 
+    pub fn power_add(&mut self, power_add: i64) -> i64 {
+        self.power = self.power.saturating_add(power_add);
+        self.power
+    }
+
+    pub fn tiem_nang_add(&mut self, tiem_nang_add: i64) -> i64 {
+        self.tiem_nang = self.tiem_nang.saturating_add(tiem_nang_add);
+        self.tiem_nang
+    }
+
+    pub fn tiem_nang_sub(&mut self, tiem_nang_sub: i64) -> bool {
+        if self.tiem_nang >= tiem_nang_sub {
+            self.tiem_nang -= tiem_nang_sub;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_full_hp(&self) -> bool {
         self.hp_current >= self.hp_max
     }
@@ -277,6 +296,19 @@ impl NPoint {
 
     pub fn set_mp(&mut self, value: i32) {
         self.mp_current = value.min(self.mp_max).max(0);
+    }
+
+    pub fn set_full_hp(&mut self) {
+        self.hp_current = self.hp_max;
+    }
+
+    pub fn set_full_mp(&mut self) {
+        self.mp_current = self.mp_max;
+    }
+
+    pub fn set_full_hp_mp(&mut self) {
+        self.set_full_hp();
+        self.set_full_mp();
     }
 
     pub fn add_option(&mut self, option_id: i8, param: i16) {
@@ -408,11 +440,7 @@ impl NPoint {
     }
 
     fn do_use_tiem_nang(&mut self, tiem_nang: i64) -> bool {
-        if self.tiem_nang < tiem_nang {
-            return false;
-        }
-        self.tiem_nang -= tiem_nang;
-        true
+        self.tiem_nang_sub(tiem_nang)
     }
 
     pub fn get_hp_mp_limit(&self) -> i32 {

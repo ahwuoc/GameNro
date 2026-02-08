@@ -73,8 +73,7 @@ pub fn hoi_sinh(pl: &mut Player) -> Result<()> {
 
     pl.last_time_revived = now;
     pl.revive();
-    pl.n_point.set_hp(pl.n_point.hp_max);
-    pl.n_point.set_mp(pl.n_point.mp_max);
+    pl.n_point.set_full_hp_mp();
 
     ServiceHandles::send_message_eat_dauthan(pl)?;
     ServiceHandles::send_gold_gem_ruby_to_client(pl)?;
@@ -179,7 +178,7 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
             EffectSkillService::HOLD_EFFECT,
         );
     }
-    if player.n_point.hp_current <= 0 && !player.dead_flag {
+    if player.is_die() && !player.dead_flag {
         player.dead_flag = true;
         if player.effect_skill.is_monkey || player.effect_skill.is_skill_bienkhi {
             player.is_transform = false;
@@ -209,7 +208,7 @@ pub async fn update_player_tick(player: &mut Player) -> Result<()> {
     if now - player.n_point.last_time_hoi_stamina >= 60000 {
         player.n_point.last_time_hoi_stamina = now;
         if player.n_point.stamina < player.n_point.max_stamina {
-            player.n_point.stamina += 1;
+            player.n_point.current_stamina_add(1);
             if !player.is_boss && !player.is_pet {
                 let _ = crate::services::player_info_service::send_current_stamina(player);
             }

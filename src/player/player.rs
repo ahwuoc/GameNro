@@ -448,14 +448,14 @@ impl Player {
 
     pub fn set_die(&mut self) {
         self.dead_flag = true;
-        self.n_point.hp_current = 0;
+        self.n_point.set_hp(0);
         let _ = crate::services::services::ServiceHandles::send_player_die(self);
     }
 
     pub fn revive(&mut self) {
         self.dead_flag = false;
         if self.n_point.hp_current <= 0 {
-            self.n_point.hp_current = 1;
+            self.n_point.set_hp(1);
         }
         self.just_revived = true;
         self.last_time_revived = time::current_time_millis();
@@ -479,7 +479,7 @@ impl Player {
     pub fn dispose(&mut self) {
         self.before_dispose = true;
         self.session_id = None;
-        self.session = None; // Clear session reference
+        self.session = None;
         println!("Player {} disposed", self.name);
     }
 
