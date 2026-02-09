@@ -169,8 +169,6 @@ fn generate_items_bag(now: i64) -> String {
     }
     serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
 }
-
-/// Generate items_box with rada at slot 0 (30 slots)
 fn generate_items_box(now: i64) -> String {
     use crate::player::player_data::{ItemDataJson, ItemOptionJson};
     let mut items = Vec::new();
@@ -249,7 +247,7 @@ pub async fn update_account_last_login(account_id: i32) -> Result<account::Model
     let db = DbManager::get_pool();
     if let Some(account_model) = account::Entity::find_by_id(account_id).one(db).await? {
         let mut account_data = account_model.into_active_model();
-        account_data.last_time_login = Set(Some(Utc::now()));
+        account_data.last_time_login = Set(Utc::now());
         AccountDao::update_account(db, account_data).await
     } else {
         Err(DbErr::Custom("Account not found".to_string()))

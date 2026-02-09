@@ -558,7 +558,7 @@ impl AsyncController {
         {
             let pool = DbManager::get_pool();
             let mut account_data = account.into_active_model();
-            account_data.last_time_login = Set(Some(Utc::now()));
+            account_data.last_time_login = Set(Utc::now());
             AccountDao::update_account(&pool, account_data).await?;
         }
 
@@ -642,17 +642,8 @@ impl AsyncController {
                 let last_login = account.last_time_login;
                 let last_logout = account.last_time_logout;
 
-                let seconds_pass_1 = if let Some(t) = last_login {
-                    (now - t).num_seconds()
-                } else {
-                    999999
-                };
-
-                let seconds_pass = if let Some(t) = last_logout {
-                    (now - t).num_seconds()
-                } else {
-                    999999
-                };
+                let seconds_pass_1 = now.signed_duration_since(last_login).num_seconds();
+                let seconds_pass = now.signed_duration_since(last_logout).num_seconds();
 
                 if seconds_pass_1 < SECOND_WAIT_LOGIN {
                     let wait_time = if seconds_pass < seconds_pass_1 {

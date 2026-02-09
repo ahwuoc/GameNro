@@ -1,7 +1,7 @@
 /// Danh sách ID nhiệm vụ chính (Task Main ID)
 /// Dựa trên bảng `task_main_template` trong Database.
 
-pub const TASK_0: i32 = 0; // Nhiệm vụ đầu tiên
+pub const TASK_0_0: i32 = 0; // Nhiệm vụ đầu tiên
 pub const TASK_1: i32 = 1; // Nhiệm vụ tập luyện
 pub const TASK_2: i32 = 2; // Nhiệm vụ tìm thức ăn
 pub const TASK_3: i32 = 3; // Nhiệm vụ sao băng

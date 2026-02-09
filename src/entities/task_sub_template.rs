@@ -14,6 +14,7 @@ pub struct Model {
     pub map: i32,
     pub task_type: TaskType,
     pub target_id: String,
+    pub npc_say: Option<String>,
     #[sea_orm(primary_key, auto_increment = true, column_name = "id")]
     pub id: i32,
 }

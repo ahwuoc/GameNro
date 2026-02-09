@@ -12,5 +12,6 @@ pub mod radar_service;
 pub mod services;
 pub mod skill_service;
 pub mod task_service;
+pub mod task_utils;
 pub use intrinsic_service::IntrinsicService;
 pub use services::ServiceHandles;

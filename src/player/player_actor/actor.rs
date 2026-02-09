@@ -284,7 +284,7 @@ impl PlayerActor {
                 let _ = crate::services::task_service::TaskService::send_info_current_task(
                     &self.player,
                 );
-                let _ = crate::services::task_service::TaskService::send_tutorial_task_0(
+                let _ = crate::services::task_service::TaskService::send_tutorial_task_0_0_0(
                     &self.player,
                     "GameNro Server",
                 );
