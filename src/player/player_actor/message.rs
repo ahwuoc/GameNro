@@ -13,6 +13,11 @@ pub enum PlayerMessage {
     Chat {
         text: String,
     },
+    AddTNSM {
+        type_tnsm: i8,
+        param: i64,
+        is_ori: bool,
+    },
 
     SendPacket(Message),
 

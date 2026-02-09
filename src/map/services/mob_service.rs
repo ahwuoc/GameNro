@@ -34,6 +34,7 @@ pub async fn attack_mob(
                 damage,
                 is_crit,
                 die_when_hp_full,
+                player_power: player.n_point.power,
             })
             .await;
     }
@@ -46,6 +47,7 @@ pub async fn attack_mob_actor(
     damage: i32,
     is_crit: bool,
     die_when_hp_full: bool,
+    player_power: i64,
 ) {
     let (msg_opt, drop_info) = {
         if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
@@ -59,6 +61,15 @@ pub async fn attack_mob_actor(
                     "Mob {} (temp {}) takes {} damage. HP: {}/{}",
                     mob.id, mob.template_id, real_damage, new_hp, mob.max_hp
                 );
+
+                if let Some(handle) = zone.players.get(&player_id) {
+                    let tnsm_amount = mob.get_tiemnang_for_player(player_power, real_damage as i64);
+                    handle.send_forget(PlayerMessage::AddTNSM {
+                        type_tnsm: 2,
+                        param: tnsm_amount,
+                        is_ori: true,
+                    });
+                }
                 if !mob.is_dead() {
                     (
                         Some(build_mob_take_dame_client(

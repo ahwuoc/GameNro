@@ -1,0 +1,17 @@
+[server]
+listen_port = 14445
+listen_host = "127.0.0.1"
+
+[database]
+type_database="mysql"
+host="127.0.0.1"
+port=3306
+user="ahwuocdz"
+password="123456"
+db_name="nro"
+pool_size = 10
+max_connections = 20
+min_connections = 1
+[logging]
+level = "info"
+file = "logs/app.log"

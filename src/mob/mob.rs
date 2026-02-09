@@ -1,6 +1,11 @@
 #![allow(dead_code)]
+use crate::constant::const_mob::{BU_NHIN_MA_QUAI, MOC_NHAN};
+use crate::entities::caption;
 use crate::entities::mob_template::Model as MobTemplate;
+use crate::mob;
 use crate::models::EffectSkill;
+use crate::player::Player;
+use crate::templates::power_manager;
 use crate::utils::location::Location;
 use crate::utils::time;
 
@@ -109,6 +114,25 @@ impl RtMob {
 
     pub fn is_dead(&self) -> bool {
         !self.is_alive || self.hp <= 0
+    }
+    pub fn get_tiemnang_for_player(&self, player_power: i64, damage: i64) -> i64 {
+        let player_level = power_manager::get_level(player_power);
+        let mob_level = self.level;
+        let check_level = (player_level - mob_level).abs();
+        let mut tiem_nang = damage + (self.max_hp as f64 * 0.0005) as i64;
+        if self.template_id == MOC_NHAN {
+            tiem_nang = 1;
+        }
+        if check_level > 5 && player_level > mob_level {
+            tiem_nang = 1;
+        } else {
+            let divisor = (check_level as f64 * 0.5) + 1.25;
+            tiem_nang = (tiem_nang as f64 / divisor) as i64;
+        }
+        if tiem_nang < 1 {
+            tiem_nang = 1;
+        }
+        tiem_nang
     }
 
     pub fn take_damage(&mut self, mut damage: i32, die_when_hp_full: bool) -> i32 {

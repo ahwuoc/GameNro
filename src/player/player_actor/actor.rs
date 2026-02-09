@@ -233,6 +233,18 @@ impl PlayerActor {
                     "1", // PowerReach
                 );
             }
+            PlayerMessage::AddTNSM {
+                type_tnsm,
+                param,
+                is_ori,
+            } => {
+                crate::services::player_tnsm_services::tiemnang_sucmanh_add(
+                    &mut self.player,
+                    type_tnsm,
+                    param,
+                    is_ori,
+                );
+            }
             PlayerMessage::CreateMenu {
                 npc_id,
                 npc_say,

@@ -2,7 +2,7 @@ use crate::entities::power_caption::{self, Model as PowerCaption};
 use crate::entities::power_limit::{self, Model as PowerLimit};
 use once_cell::sync::Lazy;
 use sea_orm::{DatabaseConnection, EntityTrait};
-use std::sync::RwLock;
+use std::sync::{PoisonError, RwLock};
 
 static POWER_LIMITS: Lazy<RwLock<Vec<PowerLimit>>> = Lazy::new(|| RwLock::new(Vec::new()));
 static POWER_CAPTIONS: Lazy<RwLock<Vec<PowerCaption>>> = Lazy::new(|| RwLock::new(Vec::new()));
@@ -47,6 +47,18 @@ pub fn get_caption(power: i64) -> String {
         .last()
         .map(|c| c.name.clone())
         .unwrap_or_else(|| "Tân thủ".to_string())
+}
+
+pub fn get_level(power: i64) -> i8 {
+    let lock = match POWER_CAPTIONS.read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    lock.iter()
+        .filter(|c| power >= c.power_required)
+        .last()
+        .map(|c| c.id as i8)
+        .unwrap_or(0)
 }
 
 pub fn get_all_captions() -> Vec<PowerCaption> {

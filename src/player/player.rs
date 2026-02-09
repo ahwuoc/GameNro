@@ -87,6 +87,7 @@ pub struct Player {
     pub map_id_before_capsule: i32,
     pub zone_id_before_capsule: i32,
     pub spaceship_id: i8,
+    pub master_id: Option<u64>,
 }
 
 impl Player {
@@ -146,6 +147,7 @@ impl Player {
             map_id_before_capsule: -1,
             zone_id_before_capsule: -1,
             spaceship_id: 1, // Default spaceship
+            master_id: None,
         }
     }
 

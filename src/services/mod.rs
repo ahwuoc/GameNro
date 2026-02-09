@@ -7,10 +7,10 @@ pub mod magic_tree_service;
 pub mod manager;
 pub mod player_info_service;
 pub mod player_service;
+pub mod player_tnsm_services;
 pub mod radar_service;
 pub mod services;
 pub mod skill_service;
 pub mod task_service;
-
 pub use intrinsic_service::IntrinsicService;
 pub use services::ServiceHandles;

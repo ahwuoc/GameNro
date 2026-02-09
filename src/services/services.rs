@@ -423,4 +423,12 @@ impl ServiceHandles {
         player.send_to_client(msg)?;
         Ok(())
     }
+
+    pub fn send_tnsm(player: &Player, type_tnsm: i8, param: i64) -> Result<()> {
+        let mut msg = Message::new(-3);
+        msg.write_byte(type_tnsm)?;
+        msg.write_int(param as i32)?;
+        player.send_to_client(msg)?;
+        Ok(())
+    }
 }

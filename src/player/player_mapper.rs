@@ -31,25 +31,16 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     p.gender = model.gender as i8;
 
     // Parse point data
-    match parse_point_array(&model.data_point) {
-        Ok(data_point) => {
-            p.n_point.crit_base = data_point.crit_goc;
-            p.n_point.dame_base = data_point.damege_goc;
-            p.n_point.def_base = data_point.defen_goc;
-            p.n_point.limit_power = data_point.limit_power;
-            p.n_point.tiem_nang = data_point.tiem_nang;
-            p.n_point.max_stamina = data_point.max_stamina;
-            p.n_point.stamina = data_point.stamina;
-            p.n_point.hp_base = data_point.hp_goc;
-            p.n_point.mp_base = data_point.mp_goc;
-            p.n_point.power = data_point.power;
-            p.n_point.hp_current = data_point.pl_hp;
-            p.n_point.mp_current = data_point.pl_mp;
-        }
-        Err(e) => {
-            println!("Failed to parse point data: {}", e);
-        }
-    }
+    let data_point = parse_point_array(&model.data_point).unwrap_or_default();
+    p.n_point.set_crit_chiso(data_point.crit_goc);
+    p.n_point.set_dame_chiso(data_point.damege_goc);
+    p.n_point.set_def_chiso(data_point.defen_goc);
+    p.n_point.set_limit_power(data_point.limit_power);
+    p.n_point.set_tiem_nang(data_point.tiem_nang);
+    p.n_point.set_power(data_point.power);
+    p.n_point.set_hp_chiso(data_point.hp_goc);
+    p.n_point.set_mp_chiso(data_point.mp_goc);
+    p.n_point.max_stamina = data_point.max_stamina;
 
     match parse_location_array(&model.data_location) {
         Ok((mut map_id, mut x, mut y)) => {
@@ -200,6 +191,9 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
     }
 
     p.n_point.cal_point();
+    p.n_point.set_hp_current(data_point.pl_hp);
+    p.n_point.set_mp_current(data_point.pl_mp);
+    p.n_point.set_stamina(data_point.stamina);
 
     // Parse pet data
     match parse_pet_data(&model.pet) {

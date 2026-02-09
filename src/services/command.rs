@@ -167,6 +167,20 @@ impl CommandService {
                     }
                 }
                 return Ok(true);
+            } else if text.starts_with("sm ") {
+                let amount_str = text.strip_prefix("sm ").unwrap_or("");
+                if let Ok(amount) = amount_str.trim().parse::<i64>() {
+                    if let Some(handle) = PLAYER_MANAGER.get(player.id) {
+                        let _ = handle
+                            .send(PlayerMessage::AddTNSM {
+                                type_tnsm: 2,
+                                param: amount,
+                                is_ori: true,
+                            })
+                            .await;
+                    }
+                }
+                return Ok(true);
             }
         }
 

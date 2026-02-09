@@ -307,6 +307,7 @@ pub async fn execute_genkidama(
                         damage: player.n_point.get_dame_attack(false) as i64,
                         is_player: true,
                         die_when_hp_full: true,
+                        player_power: player.n_point.power,
                     })
                     .await;
             }
@@ -596,6 +597,7 @@ pub async fn execute_tu_sat(player: &mut Player) {
                     damage: dame,
                     is_player: true,
                     die_when_hp_full: true,
+                    player_power: player.n_point.power,
                 })
                 .await;
 

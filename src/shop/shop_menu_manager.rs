@@ -14,7 +14,6 @@ pub struct ShopMenuItem {
     pub tag_name: String,
     pub display_name: String,
     pub npc_id: i32,
-    /// None = tất cả, 0 = Trái Đất, 1 = Namek, 2 = Xayda
     pub is_gender: Option<i32>,
 }
 

@@ -127,6 +127,47 @@ impl NPoint {
             last_time_hoi_stamina: 0,
         }
     }
+    pub fn set_power(&mut self, power: i64) {
+        self.power = power;
+    }
+    pub fn set_tiem_nang(&mut self, tiem_nang: i64) {
+        self.tiem_nang = tiem_nang;
+    }
+    pub fn set_limit_power(&mut self, limit_power: i8) {
+        self.limit_power = limit_power;
+    }
+    pub fn set_stamina(&mut self, stamina: i16) {
+        self.stamina = stamina;
+    }
+    pub fn set_max_stamina(&mut self, max_stamina: i16) {
+        self.max_stamina = max_stamina;
+    }
+
+    pub fn set_hp_chiso(&mut self, hp_chiso: i32) {
+        self.hp_base = hp_chiso;
+    }
+
+    pub fn set_mp_chiso(&mut self, mp_chiso: i32) {
+        self.mp_base = mp_chiso;
+    }
+
+    pub fn set_dame_chiso(&mut self, dame_chiso: i32) {
+        self.dame_base = dame_chiso;
+    }
+
+    pub fn set_def_chiso(&mut self, def_chiso: i32) {
+        self.def_base = def_chiso;
+    }
+
+    pub fn set_crit_chiso(&mut self, crit_chiso: i8) {
+        self.crit_base = crit_chiso;
+    }
+    pub fn set_hp_current(&mut self, hp_current: i32) {
+        self.hp_current = hp_current;
+    }
+    pub fn set_mp_current(&mut self, mp_current: i32) {
+        self.mp_current = mp_current;
+    }
 
     pub fn cal_point(&mut self) {
         self.reset_bonus();
@@ -361,6 +402,34 @@ impl NPoint {
         }
         dame
     }
+    pub fn scale_tiemnang_by_power(&self, amount: i64) -> i64 {
+        if self.power >= 80_000_000_000 {
+            return amount / 100;
+        }
+        if self.power >= 50_000_000_000 {
+            return amount / 50;
+        }
+        if self.power >= 30_000_000_000 {
+            return amount / 20;
+        }
+        if self.power >= 10_000_000_000 {
+            return amount / 10;
+        }
+        if self.power >= 5_000_000_000 {
+            return amount / 5;
+        }
+        if self.power >= 1_000_000_000 {
+            return amount / 2;
+        }
+        amount
+    }
+
+    pub fn tiemnang_add(&mut self, amount: i64) {
+        self.tiem_nang += amount;
+    }
+    pub fn sucmanh_add(&mut self, amount: i64) {
+        self.power += amount;
+    }
 
     pub fn increase_point(&mut self, type_incr: u8, point: i16) -> Result<(), &'static str> {
         if !(1..1000).contains(&point) {
@@ -443,6 +512,12 @@ impl NPoint {
         self.tiem_nang_sub(tiem_nang)
     }
 
+    pub fn get_power_limit(&self) -> i64 {
+        if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
+            return limit.power as i64;
+        }
+        0
+    }
     pub fn get_hp_mp_limit(&self) -> i32 {
         if let Some(limit) = power_manager::get_limit(self.limit_power as i32) {
             return limit.hp as i32;
@@ -470,7 +545,6 @@ impl NPoint {
         }
         0
     }
-    pub fn increnement_poin() {}
 }
 
 impl Default for NPoint {

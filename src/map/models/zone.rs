@@ -73,6 +73,7 @@ pub enum ZoneMessage {
         damage: i32,
         is_crit: bool,
         die_when_hp_full: bool,
+        player_power: i64,
     },
     SyncMobEffects {
         mob_id: u64,
@@ -98,6 +99,7 @@ pub enum ZoneMessage {
         damage: i64,
         is_player: bool,
         die_when_hp_full: bool,
+        player_power: i64,
     },
 }
 
@@ -386,6 +388,7 @@ impl Zone {
                 damage,
                 is_crit,
                 die_when_hp_full,
+                player_power,
             } => {
                 mob_service::attack_mob_actor(
                     self,
@@ -394,6 +397,7 @@ impl Zone {
                     damage,
                     is_crit,
                     die_when_hp_full,
+                    player_power,
                 )
                 .await;
             }
@@ -425,6 +429,7 @@ impl Zone {
                 damage,
                 is_player,
                 die_when_hp_full,
+                player_power,
             } => {
                 self.handle_area_damage(
                     attacker_id,
@@ -434,6 +439,7 @@ impl Zone {
                     damage,
                     is_player,
                     die_when_hp_full,
+                    player_power,
                 )
                 .await;
             }
@@ -652,6 +658,7 @@ impl Zone {
         damage: i64,
         is_player: bool,
         die_when_hp_full: bool,
+        player_power: i64,
     ) {
         let center = crate::utils::Location { x, y };
         let mut messages = Vec::new();
@@ -664,6 +671,18 @@ impl Zone {
                 let real_damage = mob.take_damage(damage as i32, die_when_hp_full);
                 if is_player {
                     mob.add_temporary_enemy(attacker_id);
+                    // Cộng TNSM cho người chơi từ sát thương AOE
+                    if let Some(handle) = self.players.get(&attacker_id) {
+                        let tnsm_amount =
+                            mob.get_tiemnang_for_player(player_power, real_damage as i64);
+                        handle.send_forget(
+                            crate::player::player_actor::message::PlayerMessage::AddTNSM {
+                                type_tnsm: 2,
+                                param: tnsm_amount,
+                                is_ori: true,
+                            },
+                        );
+                    }
                 }
                 let msg = if mob.is_dead() {
                     mob_service::build_mob_die_message(mob.id as i8, real_damage, false)

@@ -1,9 +1,9 @@
-use crate::item::ItemService;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player;
 use crate::utils::skill_util;
+use crate::{item::ItemService, player::player_data::PetData};
 
 use super::{actor::PetActor, handle::PetHandle, Pet, PetStatus};
 
@@ -18,6 +18,7 @@ impl PetService {
         );
         master.pet_id = Some(pet_player.id);
         pet_player.is_pet = true;
+        pet_player.master_id = Some(master.id);
         pet_player.location = master.location.clone();
         pet_player.map_id = master.map_id;
         pet_player.zone_id = master.zone_id;
@@ -68,31 +69,32 @@ impl PetService {
         Ok(handle)
     }
 
-    pub async fn load_pet(
-        master: &mut Player,
-        data: crate::player::player_data::PetData,
-    ) -> anyhow::Result<PetHandle> {
+    pub async fn load_pet(master: &mut Player, data: PetData) -> anyhow::Result<PetHandle> {
         let mut pet_player = Player::new(master.id + 1000000, data.name, data.gender as u8);
         master.pet_id = Some(pet_player.id);
         pet_player.is_pet = true;
+        pet_player.master_id = Some(master.id);
         pet_player.head = data.head;
         pet_player.location = master.location.clone();
         pet_player.map_id = master.map_id;
         pet_player.zone_id = master.zone_id;
 
         // Load points
-        pet_player.n_point.hp_base = data.n_point.hp_goc;
-        pet_player.n_point.mp_base = data.n_point.mp_goc;
-        pet_player.n_point.dame_base = data.n_point.damege_goc;
-        pet_player.n_point.def_base = data.n_point.defen_goc;
-        pet_player.n_point.crit_base = data.n_point.crit_goc;
-        pet_player.n_point.hp_current = data.n_point.pl_hp;
-        pet_player.n_point.mp_current = data.n_point.pl_mp;
-        pet_player.n_point.power = data.n_point.power;
-        pet_player.n_point.tiem_nang = data.n_point.tiem_nang;
-        pet_player.n_point.stamina = data.n_point.stamina;
+        pet_player.n_point.set_hp_chiso(data.n_point.hp_goc);
+        pet_player.n_point.set_mp_chiso(data.n_point.mp_goc);
+        pet_player.n_point.set_dame_chiso(data.n_point.damege_goc);
+        pet_player.n_point.set_def_chiso(data.n_point.defen_goc);
+        pet_player.n_point.set_crit_chiso(data.n_point.crit_goc);
+        pet_player.n_point.set_power(data.n_point.power);
+        pet_player.n_point.set_tiem_nang(data.n_point.tiem_nang);
+        pet_player.n_point.set_limit_power(data.n_point.limit_power);
         pet_player.n_point.max_stamina = data.n_point.max_stamina;
-        pet_player.n_point.limit_power = data.n_point.limit_power;
+
+        pet_player.n_point.cal_point();
+
+        pet_player.n_point.set_hp_current(data.n_point.pl_hp);
+        pet_player.n_point.set_mp_current(data.n_point.pl_mp);
+        pet_player.n_point.set_stamina(data.n_point.stamina);
 
         // Load items body
         for item_data in data.items_body {
