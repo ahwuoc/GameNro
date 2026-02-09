@@ -648,6 +648,10 @@ impl ChangeMapService {
         }
         Self::send_effect_map_to_me(player)?;
         Self::send_effect_me_to_map(player)?;
+
+        // Refresh mũi tên nhiệm vụ khi vào map mới
+        let _ = crate::services::task_service::TaskService::send_update_count_sub_task(player);
+
         Ok(())
     }
 

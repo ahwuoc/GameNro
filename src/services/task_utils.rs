@@ -1,3 +1,6 @@
+use crate::constant::task_type::TaskType;
+use crate::entities::task_sub_template;
+use crate::map::managers::map_manager::MAP_MANAGER;
 use crate::player::Player;
 
 /// Các hàm tiện ích dùng chung cho Task System.

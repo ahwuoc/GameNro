@@ -219,6 +219,7 @@ impl TaskService {
         }
 
         player.send_to_client(msg)?;
+        let _ = Self::send_update_count_sub_task(player);
         Ok(())
     }
 
@@ -256,7 +257,6 @@ impl TaskService {
                     task_id::TASK_27 => 35000,
                     _ => 0,
                 };
-                // Xử lý đặc biệt cho Task 11 có nhiều mốc sức mạnh
                 if player.task_player.task_main.id == task_id::TASK_11 {
                     let power_by_index = match player.task_player.task_main.index {
                         0 => 500000,

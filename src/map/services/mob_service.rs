@@ -2,7 +2,7 @@ use crate::constant::task_type::TaskType;
 use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
 use crate::map::item_map::ItemMap;
-use crate::map::map_service::is_map_black_ball_war;
+use crate::map::map_service::{self, is_map_black_ball_war, is_map_tanthu};
 use crate::map::models::zone::{Zone, ZoneHandle};
 use crate::map::services::item_map_service::ItemMapService;
 use crate::map::zone::ZoneMessage;
@@ -141,7 +141,16 @@ async fn drop_item_on_mob_death_actor(
         return;
     }
 
-    let items = get_mob_rewards(map_id, mob_template_id);
+    let mut task_id = -1;
+    if let Some(handle) = zone.players.get(&player_id) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let _ = handle.send(PlayerMessage::GetSnapshot(tx)).await;
+        if let Ok(player) = rx.await {
+            task_id = player.task_player.task_main.id;
+        }
+    }
+
+    let items = get_mob_rewards(map_id, mob_template_id, task_id);
 
     for item in items {
         if item.template.is_none() {
@@ -173,10 +182,15 @@ async fn drop_item_on_mob_death_actor(
     }
 }
 
-fn get_mob_rewards(map_id: i32, mob_template_id: i16) -> Vec<Item> {
+fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32) -> Vec<Item> {
     let mut drops: Vec<Item> = Vec::new();
 
-    if crate::map::services::map_service::is_map_black_ball_war(map_id) {
+    if is_map_tanthu(map_id) && task_id == crate::constant::task_id::TASK_2 {
+        if let Some(dui_ga) = ItemService::create_new_item(73) {
+            drops.push(dui_ga);
+        }
+    }
+    if map_service::is_map_black_ball_war(map_id) {
         let vang_quantity = next_int(500, 3000);
         let gold_id = if vang_quantity < 1000 {
             76
@@ -252,15 +266,6 @@ pub async fn update_actor(zone: &mut Zone) {
         for (mob_id, target_id, is_retaliation, mob_loc, player_loc, dist, player_hp) in attacks {
             if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
                 if mob.is_alive && can_mob_attack(mob, current_time) {
-                    let reason = if is_retaliation {
-                        "retaliation"
-                    } else {
-                        "aggressive"
-                    };
-                    // info!(
-                    //     "Mob {} (temp {}) Name {} ATK Player {} [Reason: {}] Mob:({},{}) -> Pl:({},{}) Dist:{:.1}",
-                    //     mob.id, mob.template_id, mob.name, target_id, reason, mob_loc.x, mob_loc.y, player_loc.x, player_loc.y, dist
-                    // );
                     mob.start_time_attack_player = current_time;
                     if let Some(handle) = zone.players.get(&target_id) {
                         let damage = mob.get_dame_attack();
