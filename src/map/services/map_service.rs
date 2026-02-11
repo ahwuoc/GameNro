@@ -6,6 +6,12 @@ use crate::services::ServiceHandles;
 pub fn is_map_black_ball_war(map_id: i32) -> bool {
     map_id >= const_map::BLACK_BALL_WAR_MAP_START && map_id <= const_map::BLACK_BALL_WAR_MAP_END
 }
+pub fn is_future_map(map_id: i32) -> bool {
+    (92..=100).contains(&map_id)
+}
+pub fn is_mapa_mabu(map_id: i32) -> bool {
+    matches!(map_id, 114 | 115 | 117 | 118 | 119 | 120)
+}
 pub fn is_map_tanthu(map_id: i32) -> bool {
     map_id == 1 || map_id == 8 || map_id == 15
 }

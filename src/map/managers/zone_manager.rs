@@ -105,11 +105,18 @@ impl ZoneManager {
             }
             zone.load_another_to_me(player_id).await?;
             zone.load_me_to_another(player_id).await?;
+            let task_info = Some((
+                player.task_player.task_main.id,
+                player.task_player.task_main.index,
+            ));
+            let spaceship_id = player.spaceship_id;
             zone.map_info(
                 session.clone(),
                 player_id,
                 player.location.x,
                 player.location.y,
+                task_info,
+                spaceship_id,
             )
             .await?;
         }

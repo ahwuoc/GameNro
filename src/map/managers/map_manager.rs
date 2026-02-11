@@ -21,6 +21,7 @@ impl MapManager {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         map.init_zones(&zone_manager)?;
         map.init_mobs().await?;
+        // map.init_items().await?;
 
         self.instances.insert(map.info.id, map);
         Ok(())

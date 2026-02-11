@@ -16,6 +16,7 @@ use crate::player::MagicTree;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
+use crate::services::{player_info_service, ServiceHandles};
 use crate::templates::pet_template_manager;
 use crate::templates::power_manager;
 use crate::utils::{skill_util, time, Location};
@@ -451,7 +452,14 @@ impl Player {
     pub fn set_die(&mut self) {
         self.dead_flag = true;
         self.n_point.set_hp(0);
-        let _ = crate::services::services::ServiceHandles::send_player_die(self);
+        if self.effect_skill.is_monkey || self.effect_skill.is_skill_bienkhi {
+            self.is_transform = false;
+            let update = EffectSkillService::monkey_down_state(self);
+            self.n_point.cal_point();
+            EffectSkillService::send_monkey_messages(&update);
+            player_info_service::send_point_info_sync(self);
+        }
+        ServiceHandles::send_player_die(self);
     }
 
     pub fn revive(&mut self) {

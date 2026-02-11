@@ -1528,6 +1528,8 @@ public class TaskService {
         }
     }
 
+    // ==============Task Side==============
+
     public void checkDoneClanTaskKillMob(Player player, Mob mob) {
         if (player.playerTask != null && player.playerTask.clanTask.template != null) {
             if ((player.playerTask.clanTask.template.id == 0 && mob.tempId == ConstMob.KHUNG_LONG)
@@ -1603,6 +1605,8 @@ public class TaskService {
             }
         }
     }
+
+    // ==============Task Clan==============
 
     private void notifyProcessClanTask(Player player) {
         int percentDone = player.playerTask.clanTask.getPercentProcess();

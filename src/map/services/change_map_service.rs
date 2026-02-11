@@ -14,13 +14,20 @@ use crate::{
         task_type::TaskType,
     },
     item::ItemTime,
-    map::{map_manager, models::zone::ZoneHandle, services::change_map_models::*},
-    network::message::Message,
+    map::{
+        map_manager::{self, MAP_MANAGER},
+        map_service,
+        models::zone::ZoneHandle,
+        services::change_map_models::*,
+        zone_manager::ZONE_MANAGER,
+    },
+    network::{message::Message, session::SessionArc},
     player::{
         player::Player,
         player_actor::{message::PlayerMessage, PlayerHandle},
+        player_manager::PLAYER_MANAGER,
     },
-    services::ServiceHandles,
+    services::{task_service::TaskService, ServiceHandles},
     utils,
 };
 
@@ -37,12 +44,6 @@ impl ChangeMapService {
         space_type: SpaceShipType,
         session: Option<&crate::network::session::SessionArc>,
     ) -> anyhow::Result<ChangeMapResult> {
-        tracing::info!(
-            "change_map_to_zone: player: {}, map: {}, target_y: {}",
-            player.name,
-            zone.map_id,
-            y
-        );
         let current_map_is_cold = Self::is_cold_planet_map(player.map_id);
         let next_map_is_cold = Self::is_cold_planet_map(zone.map_id);
         if space_type == SpaceShipType::Auto {
@@ -79,7 +80,7 @@ impl ChangeMapService {
             }
         }
 
-        Self::exit_map(player).await?;
+        Self::exit_current_map(player).await?;
         if let Some(sess) = session {
             sess.transmit(Message::new(cmd::MAP_CLEAR));
         }
@@ -111,11 +112,18 @@ impl ChangeMapService {
         player.location.set_position(final_x, final_y);
         Self::go_to_map(player, zone, session).await?;
         if let Some(sess) = session {
+            let task_info = Some((
+                player.task_player.task_main.id,
+                player.task_player.task_main.index,
+            ));
+            let spaceship_id = player.spaceship_id;
             zone.map_info(
                 sess.clone(),
                 player.id,
                 player.location.x,
                 player.location.y,
+                task_info,
+                spaceship_id,
             )
             .await?;
         }
@@ -170,7 +178,7 @@ impl ChangeMapService {
     pub async fn change_map_capsule(
         player: &mut Player,
         destination_index: i32,
-        session: &crate::network::session::SessionArc,
+        session: &SessionArc,
     ) -> anyhow::Result<CapsuleChangeResult> {
         let destinations = Self::get_capsule_destinations(player);
 
@@ -201,14 +209,10 @@ impl ChangeMapService {
         }
     }
 
-    pub fn is_future_map(map_id: i32) -> bool {
-        (92..=100).contains(&map_id)
-    }
-
     fn get_capsule_destinations(player: &Player) -> Vec<CapsuleDestination> {
         let mut destinations = Vec::new();
         if let Some((map_id, _)) = player.get_previous_capsule_location() {
-            if !matches!(map_id, 21 | 22 | 23) && !Self::is_future_map(map_id) {
+            if !matches!(map_id, 21 | 22 | 23) && map_service::is_future_map(map_id) {
                 Self::add_list_map_capsule(player, &mut destinations, map_id);
             }
         }
@@ -246,16 +250,13 @@ impl ChangeMapService {
             return;
         }
 
-        if let Some(zone) = Self::get_available_zone(map_id) {
-            if Self::check_map_can_join(player, &zone) == MapAccessResult::Allowed {
-                if let Some(map) = crate::map::managers::map_manager::MAP_MANAGER.find_by_id(map_id)
-                {
-                    destinations.push(CapsuleDestination {
-                        map_id,
-                        map_name: map.info.name.clone(),
-                        planet_name: map.info.planet_name.clone(),
-                    });
-                }
+        if Self::check_map_access(player, map_id) == MapAccessResult::Allowed {
+            if let Some(map) = MAP_MANAGER.find_by_id(map_id) {
+                destinations.push(CapsuleDestination {
+                    map_id,
+                    map_name: map.info.name.clone(),
+                    planet_name: map.info.planet_name.clone(),
+                });
             }
         }
     }
@@ -292,16 +293,12 @@ impl ChangeMapService {
     pub async fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Không thể đổi khu vực trong map này")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Không thể đổi khu vực trong map này")?;
             return Ok(());
         };
 
         if Self::is_special_map(zone.map_id) && !player.is_admin {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Không thể đổi khu vực trong map này")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Không thể đổi khu vực trong map này")?;
             return Ok(());
         }
 
@@ -337,37 +334,29 @@ impl ChangeMapService {
     pub async fn change_zone(
         player: &mut Player,
         zone_id: i32,
-        session: &crate::network::session::SessionArc,
+        session: &SessionArc,
     ) -> anyhow::Result<()> {
         let session_opt = Some(session);
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(current_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Không thể đến khu vực này @")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Không thể đến khu vực này @")?;
             return Ok(());
         };
 
         if !player.is_admin && !player.is_boss && !Self::can_change_zone_now(player) {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Chưa thể chuyển khu vực lúc này vui lòng chờ")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Chưa thể chuyển khu vực lúc này vui lòng chờ")?;
             return Ok(());
         }
 
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Không thể đến khu vực này")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Không thể đến khu vực này")?;
             return Ok(());
         }
 
         if let Some(target_zone) = Self::get_specific_zone(current_zone.map_id, zone_id) {
             let info = target_zone.get_zone_info().await?;
             if info.current_players >= info.max_player && !player.is_admin && !player.is_boss {
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Khu vực này đã đầy")?;
-                player.send_to_client(msg)?;
+                ServiceHandles::send_thong_bao(player, "Khu vực này đã đầy")?;
                 return Ok(());
             }
 
@@ -382,9 +371,7 @@ impl ChangeMapService {
             .await?;
             player.update_zone_change_time();
         } else {
-            let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-            msg.write_utf("Không thể thực hiện")?;
-            player.send_to_client(msg)?;
+            ServiceHandles::send_thong_bao(player, "Không thể thực hiện")?;
         }
 
         Ok(())
@@ -417,7 +404,7 @@ impl ChangeMapService {
                     )
                     .await?;
                 } else {
-                    ServiceHandles::send_message_alert(player, "Lỗi khi chuyển map")?;
+                    ServiceHandles::send_thong_bao(player, "Lỗi khi chuyển map")?;
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
@@ -428,16 +415,16 @@ impl ChangeMapService {
                     player.location.y,
                     player.map_id
                 );
-                ServiceHandles::send_message_alert(player, "Waypoint not found")?;
+                ServiceHandles::send_thong_bao(player, "Waypoint not found")?;
             }
             WaypointChangeResult::TaskRequirementNotMet { .. } => {
-                ServiceHandles::send_message_alert(player, "Bạn chưa thể đến khu vực này")?;
+                ServiceHandles::send_thong_bao(player, "Bạn chưa thể đến khu vực này")?;
             }
             WaypointChangeResult::InvalidPlayerZone => {
-                ServiceHandles::send_message_alert(player, "Lỗi hệ thống")?;
+                ServiceHandles::send_thong_bao(player, "Lỗi hệ thống")?;
             }
             WaypointChangeResult::DestinationUnavailable => {
-                ServiceHandles::send_message_alert(player, "Khu vực không khả dụng")?;
+                ServiceHandles::send_thong_bao(player, "Khu vực không khả dụng")?;
             }
         }
         Ok(())
@@ -461,14 +448,10 @@ impl ChangeMapService {
                 }
             }
             GoHomeResult::NoAvailableZone => {
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Không thể về nhà lúc này")?;
-                session.transmit(msg);
+                ServiceHandles::send_thong_bao(player, "Không thể về nhà lúc này")?;
             }
             GoHomeResult::PlayerIsBoss => {
-                let mut msg = Message::new(cmd::SEND_ALTER_MESSAGE);
-                msg.write_utf("Boss không thể sử dụng chức năng này")?;
-                session.transmit(msg);
+                ServiceHandles::send_thong_bao(player, "Boss không thể sử dụng chức năng này")?;
             }
         }
 
@@ -503,9 +486,14 @@ impl ChangeMapService {
             return WaypointChangeResult::NoWaypointFound;
         };
 
-        if !Self::check_task_requirement(player, wp.go_map) {
-            let required_task_id = Self::get_required_task_id(wp.go_map);
-            return WaypointChangeResult::TaskRequirementNotMet { required_task_id };
+        let access = Self::check_map_access(player, wp.go_map);
+        if access != MapAccessResult::Allowed {
+            return match access {
+                MapAccessResult::TaskRequirementNotMet { required_task_id } => {
+                    WaypointChangeResult::TaskRequirementNotMet { required_task_id }
+                }
+                _ => WaypointChangeResult::DestinationUnavailable,
+            };
         }
 
         if let Some(zone) = Self::get_available_zone(wp.go_map) {
@@ -534,21 +522,35 @@ impl ChangeMapService {
         None
     }
 
-    pub fn check_task_requirement(player: &Player, map_id: i32) -> bool {
-        if player.is_admin {
-            return true;
+    pub fn check_map_access(player: &Player, map_id: i32) -> MapAccessResult {
+        if map_id == -1 {
+            return MapAccessResult::InvalidZone;
+        }
+
+        if player.is_boss || player.is_admin {
+            return MapAccessResult::Allowed;
         }
 
         let required_task_id = Self::get_required_task_id_for_map(map_id);
-        if required_task_id == 0 {
-            return true;
+        if required_task_id > 0 && player.get_task_id() < required_task_id {
+            return MapAccessResult::TaskRequirementNotMet { required_task_id };
         }
 
-        player.get_task_id() >= required_task_id
-    }
-
-    pub fn get_required_task_id(map_id: i32) -> i32 {
-        Self::get_required_task_id_for_map(map_id)
+        match player.gender {
+            GENDER_TRAI_DAT if matches!(map_id, 22 | 23) => MapAccessResult::GenderRestricted {
+                player_gender: player.gender,
+                allowed_gender: (map_id - 21) as i8,
+            },
+            GENDER_NAMEC if matches!(map_id, 21 | 23) => MapAccessResult::GenderRestricted {
+                player_gender: player.gender,
+                allowed_gender: (map_id - 21) as i8,
+            },
+            GENDER_XAYDA if matches!(map_id, 21 | 22) => MapAccessResult::GenderRestricted {
+                player_gender: player.gender,
+                allowed_gender: (map_id - 21) as i8,
+            },
+            _ => MapAccessResult::Allowed,
+        }
     }
 
     pub fn get_required_task_id_for_map(map_id: i32) -> i32 {
@@ -581,26 +583,8 @@ impl ChangeMapService {
         player.location.set_position(x, player.location.y);
     }
 
-    pub async fn exit_map(player: &mut Player) -> anyhow::Result<()> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-        if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-            tracing::info!(
-                "ENTERING: exit_map (player: {}, current_map: {})",
-                player.name,
-                player.map_id
-            );
-            let mut msg = Message::new(cmd::PLAYER_LEAVE);
-            msg.write_int(player.id as i32)?;
-            ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
-            zone.remove_player(player.id).await?;
-            tracing::info!("EXITING: exit_map (player: {})", player.name);
-        }
-        player.zone_id = 0;
-        Ok(())
-    }
-
-    pub async fn exit_map_actor(player: &mut Player) -> anyhow::Result<()> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    pub async fn exit_current_map(player: &mut Player) -> anyhow::Result<()> {
+        let zone_manager = &ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             let mut msg = Message::new(cmd::PLAYER_LEAVE);
             msg.write_int(player.id as i32)?;
@@ -614,7 +598,7 @@ impl ChangeMapService {
     pub async fn go_to_map(
         player: &mut Player,
         zone: &ZoneHandle,
-        session: Option<&crate::network::session::SessionArc>,
+        session: Option<&SessionArc>,
     ) -> anyhow::Result<()> {
         tracing::info!(
             "ENTERING: go_to_map (player: {}, target_map: {})",
@@ -624,7 +608,7 @@ impl ChangeMapService {
         player.zone_id = zone.zone_id;
         player.map_id = zone.map_id;
 
-        if let Some(handle) = crate::player::player_manager::PLAYER_MANAGER.get(player.id) {
+        if let Some(handle) = PLAYER_MANAGER.get(player.id) {
             handle.send_forget(PlayerMessage::TaskAction(
                 TaskType::GoToMap,
                 zone.map_id.to_string(),
@@ -639,24 +623,21 @@ impl ChangeMapService {
 
     pub async fn finish_load_map(
         player: &Player,
-        session: Option<&crate::network::session::SessionArc>,
+        session: Option<&SessionArc>,
     ) -> anyhow::Result<()> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let zone_manager = &ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
             zone.load_another_to_me(player.id).await?;
             zone.load_me_to_another(player.id).await?;
         }
         Self::send_effect_map_to_me(player)?;
         Self::send_effect_me_to_map(player)?;
-
-        // Refresh mũi tên nhiệm vụ khi vào map mới
-        let _ = crate::services::task_service::TaskService::send_update_count_sub_task(player);
-
+        TaskService::send_update_count_sub_task(player);
         Ok(())
     }
 
     pub fn send_effect_map_to_me(player: &Player) -> anyhow::Result<()> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let zone_manager = &ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
             return Ok(());
         };
@@ -674,11 +655,9 @@ impl ChangeMapService {
             (gender as i32) + 21
         }
     }
-    pub fn is_mabu_map(map_id: i32) -> bool {
-        matches!(map_id, 114 | 115 | 117 | 118 | 119 | 120)
-    }
+
     pub fn go_home(player: &mut Player) -> GoHomeResult {
-        let is_in_mabu = Self::is_mabu_map(player.map_id);
+        let is_in_mabu = map_service::is_mapa_mabu(player.map_id);
         let home_map_id = Self::calculate_home_map(player.gender, is_in_mabu);
         let zone = Self::get_available_zone(home_map_id);
 
@@ -700,58 +679,6 @@ impl ChangeMapService {
                 }
             }
             None => GoHomeResult::NoAvailableZone,
-        }
-    }
-
-    pub fn change_map_by_spaceship(
-        player: &mut Player,
-        map_id: i32,
-        zone_id: i32,
-        x: i16,
-    ) -> SpaceshipTravelResult {
-        let target_zone = if zone_id == -1 {
-            Self::get_available_zone(map_id)
-        } else {
-            Self::get_specific_zone(map_id, zone_id)
-        };
-
-        let Some(zone) = target_zone else {
-            return SpaceshipTravelResult::NoAvailableZone;
-        };
-
-        let space_type = if player.has_tennis_spaceship() {
-            SpaceShipType::Tennis
-        } else {
-            SpaceShipType::Default
-        };
-
-        let map_width = if let Some(map) =
-            crate::map::managers::map_manager::MAP_MANAGER.find_by_id(zone.map_id)
-        {
-            map.info.map_width * 24
-        } else {
-            1000
-        };
-
-        let final_x = if x != -1 {
-            x
-        } else {
-            Self::calculate_random_x_position(map_width)
-        };
-
-        let healing_result = Self::handle_spaceship_healing(player, space_type);
-
-        player.location.set_position(final_x, 5);
-        player.map_id = zone.map_id;
-        player.zone_id = zone.zone_id;
-
-        SpaceshipTravelResult::Success {
-            map_id: zone.map_id,
-            zone_id: zone.zone_id,
-            x: final_x,
-            y: 5,
-            space_type,
-            healing_result,
         }
     }
 
@@ -853,7 +780,7 @@ impl ChangeMapService {
     }
 
     pub fn get_y_physic_in_top(map_id: i32, x: i16, y: i16) -> i16 {
-        let Some(map) = crate::map::managers::map_manager::MAP_MANAGER.find_by_id(map_id) else {
+        let Some(map) = MAP_MANAGER.find_by_id(map_id) else {
             return y;
         };
 
@@ -876,68 +803,5 @@ impl ChangeMapService {
         }
 
         y
-    }
-
-    pub fn check_map_can_join(player: &Player, zone: &ZoneHandle) -> MapAccessResult {
-        if zone.map_id == -1 {
-            return MapAccessResult::InvalidZone;
-        }
-
-        if player.is_boss || player.is_admin {
-            return MapAccessResult::Allowed;
-        }
-        let required_task_id = Self::get_required_task_id_for_map(zone.map_id);
-        if required_task_id > 0 && player.get_task_id() < required_task_id {
-            return MapAccessResult::TaskRequirementNotMet { required_task_id };
-        }
-        if let Some(result) = Self::check_gender_restriction(player, zone.map_id) {
-            return result;
-        }
-
-        MapAccessResult::Allowed
-    }
-
-    fn check_gender_restriction(player: &Player, map_id: i32) -> Option<MapAccessResult> {
-        match player.gender {
-            GENDER_TRAI_DAT => {
-                if map_id == 22 || map_id == 23 {
-                    return Some(MapAccessResult::GenderRestricted {
-                        player_gender: player.gender,
-                        allowed_gender: (map_id - 21) as i8,
-                    });
-                }
-            }
-            GENDER_NAMEC => {
-                if map_id == 21 || map_id == 23 {
-                    return Some(MapAccessResult::GenderRestricted {
-                        player_gender: player.gender,
-                        allowed_gender: (map_id - 21) as i8,
-                    });
-                }
-            }
-            GENDER_XAYDA => {
-                if map_id == 21 || map_id == 22 {
-                    return Some(MapAccessResult::GenderRestricted {
-                        player_gender: player.gender,
-                        allowed_gender: (map_id - 21) as i8,
-                    });
-                }
-            }
-            _ => {}
-        }
-        None
-    }
-
-    pub fn is_home_map(map_id: i32) -> bool {
-        matches!(map_id, 21 | 22 | 23)
-    }
-
-    pub fn get_home_map_gender(map_id: i32) -> Option<i8> {
-        match map_id {
-            21 => Some(GENDER_TRAI_DAT),
-            22 => Some(GENDER_NAMEC),
-            23 => Some(GENDER_XAYDA),
-            _ => None,
-        }
     }
 }

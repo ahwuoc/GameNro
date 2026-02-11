@@ -18,6 +18,9 @@ use crate::templates::npc_template_manager;
 
 pub mod npc_service {
     use crate::map::map_manager;
+    use crate::npc::handlers::cargo::CargoHandler;
+    use crate::npc::handlers::cui::CuiHandler;
+    use crate::npc::handlers::dr_drief::DrDriefHandler;
     use crate::utils::MapUtils;
 
     use super::*;
@@ -73,7 +76,6 @@ pub mod npc_service {
         false
     }
 
-    /// Mở menu NPC - entry point
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
         let player_name = session
             .get_player_snapshot()
@@ -96,20 +98,9 @@ pub mod npc_service {
             if let Some(sub_task) =
                 crate::services::task_service::TaskService::get_current_sub_task(&snapshot)
             {
-                let home_npc_id = match snapshot.gender {
-                    0 => 0, // Trái đất -> Gohan
-                    1 => 2, // Namec -> Moori
-                    2 => 1, // Xayda -> Paragus
-                    _ => -1,
-                };
-
-                let is_match_npc = sub_task.target_id == "-1"
-                    || sub_task.npc_id == npc_id as i32
-                    || sub_task.target_id == npc_id.to_string()
-                    || (sub_task.npc_id == -2 && npc_id == home_npc_id as i16);
-
+                println!("sub task: {:?}", sub_task);
                 if sub_task.task_type == crate::constant::task_type::TaskType::TalkNpc
-                    && is_match_npc
+                    && crate::services::task_service::TaskService::is_match_npc(&snapshot, npc_id)
                 {
                     is_talk_task = true;
                     tracing::debug!(
@@ -130,7 +121,7 @@ pub mod npc_service {
 
             if is_talk_task {
                 hide_wait_dialog(session)?;
-                return Ok(()); // NGĂN CHẶN MỞ MENU Ở ĐÂY
+                return Ok(());
             }
         }
 
@@ -153,20 +144,19 @@ pub mod npc_service {
         Ok(())
     }
 
-    /// Lấy handler cho NPC - dùng NpcId enum
     fn get_handler(npc_id: i16) -> Option<Box<dyn NpcHandler + Send + Sync>> {
         let npc = NpcId::from_i16(npc_id)?;
 
         match npc {
-            // NPC có logic đặc biệt
             NpcId::BaHatMit => Some(Box::new(BahatmitHandler)),
+            NpcId::Cui => Some(Box::new(CuiHandler)),
             NpcId::RuongDo => Some(Box::new(RuongDoHandler)),
             NpcId::ConMeo => Some(Box::new(ConMeoHandler)),
             NpcId::Santa => Some(Box::new(SantaHandler)),
             NpcId::DauThan => Some(Box::new(DauThanHandler)),
             NpcId::OngGohan | NpcId::OngMoori | NpcId::OngParagus => Some(Box::new(NpcHomeHandler)),
-
-            // NPC shop động - load từ database
+            NpcId::DrDrief => Some(Box::new(DrDriefHandler)),
+            NpcId::Cargo => Some(Box::new(CargoHandler)),
             NpcId::Bunma => Some(Box::new(DynamicShopHandler::new(
                 MenuId::BunmaMenu,
                 "Chào bạn! Tôi là Bunma, bạn cần gì?",
@@ -184,13 +174,11 @@ pub mod npc_service {
         }
     }
 
-    /// Xử lý khi player chọn menu option
     pub async fn handle_menu_confirm(
         session: &SessionArc,
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
-        // Lấy menu state từ player
         let state = if let Some(snapshot) = session.get_player_snapshot().await {
             Some(snapshot.interaction_state.get_index_menu())
         } else {
@@ -213,7 +201,6 @@ pub mod npc_service {
             return Ok(());
         }
 
-        // Tạo NpcContext và gọi handler
         let ctx = NpcContext::new(session, npc_id).await;
 
         if let Some(handler) = get_handler(npc_id) {
@@ -244,7 +231,6 @@ pub mod npc_service {
         Ok(())
     }
 
-    /// Tạo menu trực tiếp với Player reference
     pub fn create_menu_player(
         player: &mut Player,
         npc_id: i16,

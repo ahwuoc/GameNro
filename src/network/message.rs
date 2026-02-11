@@ -9,7 +9,6 @@ pub struct Message {
 }
 
 impl Message {
-    const BYTES: i8 = 1;
     pub fn new(command: i8) -> Self {
         Self {
             command,

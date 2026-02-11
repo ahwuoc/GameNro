@@ -101,6 +101,12 @@ impl ServiceHandles {
         player.send_to_client(response)?;
         Ok(())
     }
+    pub fn send_thong_bao(player: &Player, text: &str) -> Result<()> {
+        let mut response = Message::new(cmd::THONG_BAO);
+        response.write_utf(text)?;
+        player.send_to_client(response)?;
+        Ok(())
+    }
     pub fn send_message_alert_session(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);
         response.write_utf(text);
@@ -178,7 +184,6 @@ impl ServiceHandles {
         pl.send_to_client(msg);
         Ok(())
     }
-
     pub fn send_cai_trang(player: &Player) -> anyhow::Result<()> {
         let mut message = Message::new(-90);
         message.write_byte(1)?;

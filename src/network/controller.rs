@@ -602,6 +602,11 @@ impl AsyncController {
                         player_id,
                         player_with_zone.location.x,
                         player_with_zone.location.y,
+                        Some((
+                            player_with_zone.task_player.task_main.id,
+                            player_with_zone.task_player.task_main.index,
+                        )),
+                        player_with_zone.spaceship_id,
                     )
                     .await?;
                 }
@@ -827,16 +832,6 @@ impl AsyncController {
             };
             handle.send(PlayerMessage::Move { x: to_x, y }).await?;
         }
-
-        Ok(())
-    }
-
-    async fn send_player_move_to_zone(player: &Player, zone: &Zone) -> Result<()> {
-        let mut msg = Message::new(-7);
-        msg.write_int(player.id as i32)?;
-        msg.write_short(player.location.x)?;
-        msg.write_short(player.location.y)?;
-        ServiceHandles::send_mess_another_not_me_in_map(player, msg)?;
 
         Ok(())
     }

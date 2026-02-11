@@ -1,3 +1,5 @@
+use crate::item::InventoryService;
+use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::ChangeMapService;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
@@ -6,9 +8,11 @@ use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::black_ball_war_service::BlackBallWarService;
+use crate::services::effect_skill_service::EffectSkillService;
+use crate::services::task_service::TaskService;
 use crate::services::{player_info_service, player_service};
 use crate::{network::message::Message, services::command::CommandService};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
@@ -18,6 +22,7 @@ pub struct PlayerActor {
     pub session: SessionArc,
     pub pet_handle: Option<PetHandle>,
     pub last_finish_load_time: Option<std::time::Instant>,
+    pub last_pick_time: Option<std::time::Instant>,
 }
 
 impl PlayerActor {
@@ -32,7 +37,19 @@ impl PlayerActor {
             session,
             pet_handle: None,
             last_finish_load_time: None,
+            last_pick_time: None,
         }
+    }
+
+    fn check_cooldown(last_time: &mut Option<Instant>, millis: u64) -> bool {
+        let now = Instant::now();
+        if let Some(t) = *last_time {
+            if now.duration_since(t).as_millis() < millis as u128 {
+                return false;
+            }
+        }
+        *last_time = Some(now);
+        true
     }
 
     pub async fn run(mut self) {
@@ -261,36 +278,14 @@ impl PlayerActor {
                 );
             }
             PlayerMessage::FinishLoadMap => {
-                let now = std::time::Instant::now();
-                if let Some(last_time) = self.last_finish_load_time {
-                    if now.duration_since(last_time).as_millis() < 200 {
-                        // Bỏ qua nếu gọi lặp quá nhanh (dưới 200ms)
-                        return;
-                    }
+                if !Self::check_cooldown(&mut self.last_finish_load_time, 200) {
+                    return;
                 }
-                self.last_finish_load_time = Some(now);
 
-                tracing::info!(
-                    "ENTERING: PlayerMessage::FinishLoadMap (player: {})",
-                    self.player.id
-                );
-                let _ =
-                    crate::map::services::change_map_service::ChangeMapService::finish_load_map(
-                        &self.player,
-                        Some(&self.session),
-                    )
-                    .await;
-
-                let _ = crate::services::task_service::TaskService::send_info_current_task(
-                    &self.player,
-                );
-                let _ = crate::services::task_service::TaskService::send_tutorial_task_0_0_0(
-                    &self.player,
-                    "GameNro Server",
-                );
-                let _ = crate::services::task_service::TaskService::check_auto_skip_task_home(
-                    &mut self.player,
-                );
+                ChangeMapService::finish_load_map(&self.player, Some(&self.session)).await;
+                TaskService::send_info_current_task(&self.player);
+                TaskService::send_tutorial_task_0_0_0(&self.player, "GameNro Server");
+                TaskService::check_auto_skip_task_home(&mut self.player);
 
                 tracing::info!(
                     "EXITING: PlayerMessage::FinishLoadMap (player: {})",
@@ -306,8 +301,7 @@ impl PlayerActor {
                 }
 
                 if self.player.effect_skill.use_troi {
-                    let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-                        .get_zone(self.player.map_id, self.player.zone_id);
+                    let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
 
                     if let Some(zone) = zone_opt {
                         if let Some(mob_id) = self.player.effect_skill.mob_an_troi_id {
@@ -317,21 +311,12 @@ impl PlayerActor {
                             zone.remove_player_hold(target_id, self.player.id);
                         }
                     }
-                    crate::services::effect_skill_service::EffectSkillService::remove_use_troi(
-                        &mut self.player,
-                    );
+                    EffectSkillService::remove_use_troi(&mut self.player);
                 }
 
-                self.player.location.x = x;
-                self.player.location.y = y;
-
+                self.player.location.set_position(x, y);
                 let map_id = self.player.map_id;
-                let _ =
-                    crate::services::task_service::TaskService::check_done_task_go_to_map_position(
-                        &mut self.player,
-                        map_id,
-                        x,
-                    );
+                TaskService::check_done_task_go_to_map_position(&mut self.player, map_id, x);
 
                 if let Some(ref pet_handle) = self.pet_handle {
                     let _ = pet_handle.send(PetMessage::MasterLocation(x, y)).await;
@@ -502,19 +487,26 @@ impl PlayerActor {
                 crate::services::magic_tree_service::unupgrade_magic_tree(&mut self.player);
             }
             PlayerMessage::ChangeMapCapsule(index) => {
-                let _ =
-                    crate::map::services::change_map_service::ChangeMapService::change_map_capsule(
-                        &mut self.player,
-                        index,
-                        &self.session,
-                    )
-                    .await;
+                ChangeMapService::change_map_capsule(&mut self.player, index, &self.session).await;
                 self.sync_pet_map().await;
             }
             PlayerMessage::ChangeMapBlackBall(index) => {
-                let _ =
-                    BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
+                BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
                 self.sync_pet_map().await;
+            }
+            PlayerMessage::SendInfoTo(target_handle) => {
+                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
+                    &target_handle,
+                    &self.player,
+                );
+            }
+            PlayerMessage::SendInfoToAll(targets) => {
+                for target_handle in targets {
+                    let _ = crate::services::ServiceHandles::send_player_info_to_handle(
+                        &target_handle,
+                        &self.player,
+                    );
+                }
             }
         }
     }
@@ -639,7 +631,7 @@ impl PlayerActor {
         if self.player.fusion.is_timed_fusion() {
             let now = crate::utils::time::current_time_millis();
             if self.player.fusion.is_fusion_expired(now) {
-                tracing::info!(
+                println!(
                     "[FUSION] Player {} fusion timer expired, auto-unfusion",
                     self.player.id
                 );
@@ -647,7 +639,7 @@ impl PlayerActor {
             }
         }
 
-        let _ = player_service::update_player_tick(&mut self.player).await;
+        player_service::update_player_tick(&mut self.player).await;
     }
 
     async fn handle_network_command(&mut self, mut msg: Message) -> anyhow::Result<()> {
@@ -870,24 +862,41 @@ impl PlayerActor {
     }
 
     async fn handle_pick_item(&mut self, item_map_id: i32) {
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.player.map_id, self.player.zone_id);
-        if let Some(zone_handle) = zone_opt {
-            match zone_handle.remove_item(item_map_id).await {
-                Ok(Some(mut item_map)) => {
-                    if let Some(template) = item_map.item_template {
-                        let mut item =
-                            crate::item::item::Item::with_template(template, item_map.quantity);
-                        item.item_options = item_map.options.clone();
-                        let item_template_id =
-                            item.template.as_ref().map(|t| t.id as i32).unwrap_or(0);
+        if !Self::check_cooldown(&mut self.last_pick_time, 200) {
+            return;
+        }
 
-                        if crate::item::inventory_service::InventoryService::add_item_bag(
-                            &mut self.player,
-                            item,
-                        )
-                        .is_ok()
-                        {
+        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
+        if zone_opt.is_none() {
+            println!(
+                "[PICK_DBG] NO ZONE for map={}, zone={}",
+                self.player.map_id, self.player.zone_id
+            );
+            return;
+        }
+        let zone_handle = zone_opt.unwrap();
+
+        match zone_handle.remove_item(item_map_id).await {
+            Ok(Some(mut item_map)) => {
+                println!(
+                    "[PICK_DBG] removed OK: id={}, item_id={}, qty={}, has_template={}",
+                    item_map.item_map_id,
+                    item_map.get_item_id(),
+                    item_map.quantity,
+                    item_map.item_template.is_some()
+                );
+                if let Some(template) = item_map.item_template.clone() {
+                    let mut item =
+                        crate::item::item::Item::with_template(template, item_map.quantity);
+                    item.item_options = item_map.options.clone();
+                    let item_template_id = item.template.as_ref().map(|t| t.id as i32).unwrap_or(0);
+
+                    match InventoryService::add_item_bag(&mut self.player, item) {
+                        Ok(_) => {
+                            println!(
+                                "[PICK_ITEM] Player {} picked up item_map_id: {}, item_id: {}",
+                                self.player.id, item_map_id, item_template_id
+                            );
                             let msg = crate::map::services::item_map_service::ItemMapService::build_pickup_notification_message(
                                 item_map_id,
                                 self.player.id,
@@ -908,9 +917,23 @@ impl PlayerActor {
                                 &item_template_id.to_string(),
                             );
                         }
+                        Err(e) => {
+                            println!(
+                                "[PICK_DBG] add_item_bag FAILED: err={:?}, putting item back",
+                                e
+                            );
+                            let _ = zone_handle.add_item(item_map).await;
+                        }
                     }
+                } else {
+                    println!("[PICK_DBG] item has NO template, skipping");
                 }
-                _ => {}
+            }
+            Ok(None) => {
+                println!("[PICK_DBG] remove_item returned None (item not in zone)");
+            }
+            Err(e) => {
+                println!("[PICK_DBG] remove_item ERROR: {:?}", e);
             }
         }
     }
@@ -975,7 +998,7 @@ impl PlayerActor {
         )
         .await;
 
-        let _ = ChangeMapService::exit_map_actor(&mut self.player).await;
+        let _ = ChangeMapService::exit_current_map(&mut self.player).await;
         PLAYER_MANAGER.remove(self.player.id);
     }
 }

@@ -4,6 +4,7 @@ use crate::item::type_item_inventory::{TypeItemAction, TypeItemInventory};
 use crate::map::SpaceShipType;
 use crate::network::message::Message;
 use crate::player::player::Player;
+use crate::player::player_actor::handle::PlayerHandle;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 
@@ -116,4 +117,8 @@ pub enum PlayerMessage {
     RadarAction(i8, Message),
     ChangeMapCapsule(i32),
     ChangeMapBlackBall(i8),
+    /// Gửi thông tin của mình cho một player khác (asynchronous)
+    SendInfoTo(PlayerHandle),
+    /// Gửi thông tin của mình cho danh sách các player (asynchronous)
+    SendInfoToAll(Vec<PlayerHandle>),
 }

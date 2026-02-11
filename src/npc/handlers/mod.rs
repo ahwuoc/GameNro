@@ -1,12 +1,17 @@
 use crate::constant::menu_enum::MenuId;
+use crate::map::services::change_map_models::SpaceShipType;
+use crate::map::ChangeMapService;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player_actor::{PlayerHandle, PlayerMessage};
 use crate::player::Player;
 
 pub mod bahatmit;
+pub mod cargo;
 pub mod conmeo;
+pub mod cui;
 pub mod dau_than;
+pub mod dr_drief;
 pub mod dynamic_shop_handler;
 pub mod ong_gohan;
 pub mod ruong_do;
@@ -14,18 +19,13 @@ pub mod santa;
 
 use async_trait::async_trait;
 
-/// Context chứa tất cả thông tin cần thiết cho NPC interaction
 pub struct NpcContext<'a> {
-    /// Network session để gửi message cho client
     pub session: &'a SessionArc,
-    /// Player handle để thao tác với player state (actor pattern)
     pub player_handle: Option<PlayerHandle>,
-    /// NPC ID đang tương tác
     pub npc_id: i16,
 }
 
 impl<'a> NpcContext<'a> {
-    /// Tạo NpcContext mới
     pub async fn new(session: &'a SessionArc, npc_id: i16) -> Self {
         let player_handle = session.get_player_handle().await;
         Self {
@@ -35,12 +35,10 @@ impl<'a> NpcContext<'a> {
         }
     }
 
-    /// Gửi message trực tiếp cho client
     pub fn transmit(&self, msg: Message) {
         self.session.transmit(msg);
     }
 
-    /// NPC nói với player
     pub fn npc_chat(&self, message: &str) -> anyhow::Result<()> {
         let mut msg = Message::new(124);
         msg.write_short(self.npc_id)?;
@@ -94,6 +92,21 @@ impl<'a> NpcContext<'a> {
             });
         }
         Ok(())
+    }
+
+    pub async fn change_map_by_spaceship(&self, map_id: i32, x: i16, y: i16) -> anyhow::Result<()> {
+        if let Some(zone) = ChangeMapService::get_available_zone(map_id) {
+            self.send_player_message(PlayerMessage::ChangeMap {
+                map_id,
+                zone_id: zone.zone_id,
+                x,
+                y,
+                space_type: SpaceShipType::Auto,
+            });
+            Ok(())
+        } else {
+            self.npc_chat("Hiện tại khu vực này đang quá tải, vui lòng quay lại sau.")
+        }
     }
 }
 

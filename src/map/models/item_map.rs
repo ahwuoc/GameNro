@@ -50,13 +50,13 @@ pub struct ItemMap {
 
 impl ItemMap {
     pub fn new(
-        item_map_id: i32,
         template: Option<ItemTemplate>,
         quantity: i32,
         x: i32,
         y: i32,
         player_id: i64,
     ) -> Self {
+        let item_map_id = crate::map::services::item_map_service::next_item_map_id();
         let current_time = Utc::now();
         let is_black_ball = template
             .as_ref()

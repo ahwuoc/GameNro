@@ -1,4 +1,5 @@
 package map.Service;
+
 import map.ItemMap;
 import player.Player;
 import network.Message;
@@ -26,7 +27,6 @@ public class ItemMapService {
         }
     }
 
-    //xóa item map và gửi item map biến mất
     public void removeItemMapAndSendClient(ItemMap itemMap) {
         sendItemMapDisappear(itemMap);
         removeItemMap(itemMap);

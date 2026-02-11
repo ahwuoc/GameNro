@@ -1,16 +1,19 @@
 #![allow(dead_code)]
-use crate::map::item_map::ItemMap;
 use crate::map::map_manager;
 use crate::map::services::mob_service;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
+use crate::player::player_actor::message::PlayerMessage;
+use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::player_service;
+use crate::{constant::const_item::ITEM_DUI_GA, map::item_map::ItemMap};
 use anyhow::Result;
 use std::collections::HashMap;
+
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
@@ -55,6 +58,8 @@ pub enum ZoneMessage {
         player_id: u64,
         x: i16,
         y: i16,
+        task_info: Option<(i32, i32)>,
+        spaceship_id: i8,
     },
     LoadAnotherToMe {
         player_id: u64,
@@ -192,6 +197,8 @@ impl ZoneHandle {
         player_id: u64,
         x: i16,
         y: i16,
+        task_info: Option<(i32, i32)>,
+        spaceship_id: i8,
     ) -> Result<()> {
         self.tx
             .send(ZoneMessage::MapInfo {
@@ -199,6 +206,8 @@ impl ZoneHandle {
                 player_id,
                 x,
                 y,
+                task_info,
+                spaceship_id,
             })
             .await?;
         Ok(())
@@ -363,8 +372,11 @@ impl Zone {
                 player_id,
                 x,
                 y,
+                task_info,
+                spaceship_id,
             } => {
-                self.handle_map_info(&session, player_id, x, y).await?;
+                self.handle_map_info(&session, player_id, x, y, task_info, spaceship_id)
+                    .await?;
             }
             ZoneMessage::LoadAnotherToMe { player_id } => {
                 self.handle_load_another_to_me(player_id).await?;
@@ -476,11 +488,13 @@ impl Zone {
     }
 
     async fn handle_map_info(
-        &self,
+        &mut self,
         session: &SessionArc,
-        _player_id: u64,
+        player_id: u64,
         x: i16,
         y: i16,
+        player_task_info: Option<(i32, i32)>,
+        spaceship_id: i8,
     ) -> Result<()> {
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
@@ -496,6 +510,27 @@ impl Zone {
                 (0i8, 0i8, 0i8, 0i8, 0i8, format!("Map {}", self.map_id))
             }
         };
+
+        if matches!(self.map_id, 42 | 43 | 44) {
+            if let Some((3, 1)) = player_task_info {
+                if !self
+                    .active_items
+                    .iter()
+                    .any(|i| i.get_item_id() == ITEM_DUI_GA)
+                {
+                    if let Some(template) =
+                        crate::templates::item_template_manager::get(ITEM_DUI_GA)
+                    {
+                        let x = 70;
+                        let y = if self.map_id == 43 { 264 } else { 288 };
+
+                        let mut item_map = ItemMap::new(Some(template), 1, x as i32, y as i32, -1);
+                        item_map.set_location(self.map_id, self.zone_id, x as i32, y as i32);
+                        self.active_items.push(item_map);
+                    }
+                }
+            }
+        }
 
         let mut msg = Message::new(-24);
         msg.write_byte((self.map_id as u8) as i8)?;
@@ -576,7 +611,24 @@ impl Zone {
             msg.write_short(avatar)?;
         }
 
-        msg.write_byte(0)?;
+        // Item Maps (Moved up before BG/Eff items)
+        let filtered_items = self.get_filtered_items_with_task(player_task_info).await;
+        let item_count = filtered_items.len().min(127) as i8;
+        tracing::info!(
+            "[ITEM_SYNC] Sending {} items to player {} in Map {}-{}",
+            item_count,
+            player_id,
+            self.map_id,
+            self.zone_id
+        );
+        msg.write_byte(item_count)?;
+        for item in filtered_items.iter().take(item_count as usize) {
+            msg.write_short(item.item_map_id as i16)?;
+            msg.write_short(item.get_item_id())?;
+            msg.write_short(item.x as i16)?;
+            msg.write_short(item.y as i16)?;
+            msg.write_int(item.player_id as i32)?;
+        }
 
         // Map Graphics/Effects
         let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
@@ -594,16 +646,56 @@ impl Zone {
         }
 
         msg.write_byte(bg_type)?;
-        let spaceship_id = session
-            .get_player_snapshot()
-            .await
-            .map(|s| s.spaceship_id)
-            .unwrap_or(0);
         msg.write_byte(spaceship_id)?;
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
         session.transmit(msg);
         Ok(())
+    }
+
+    async fn get_filtered_items(&self, player_id: u64) -> Vec<ItemMap> {
+        let player_task_info = if let Some(handle) = PLAYER_MANAGER.get(player_id) {
+            handle
+                .get_snapshot()
+                .await
+                .map(|p| (p.task_player.task_main.id, p.task_player.task_main.index))
+        } else {
+            None
+        };
+        self.get_filtered_items_with_task(player_task_info).await
+    }
+
+    async fn get_filtered_items_with_task(
+        &self,
+        player_task_info: Option<(i32, i32)>,
+    ) -> Vec<ItemMap> {
+        let mut filtered = Vec::new();
+
+        for item in &self.active_items {
+            let item_temp_id = item.get_item_id();
+
+            match item_temp_id {
+                ITEM_DUI_GA => {
+                    // Em bé
+                    if let Some((3, 1)) = player_task_info {
+                        filtered.push(item.clone());
+                    }
+                }
+                74 => {
+                    // Dùi gà nướng
+                    if let Some((task_id, _)) = player_task_info {
+                        if task_id >= 3 {
+                            filtered.push(item.clone());
+                        }
+                    }
+                }
+                726 => {
+                    filtered.push(item.clone());
+                }
+                _ => filtered.push(item.clone()),
+            }
+        }
+        filtered
     }
 
     async fn handle_load_another_to_me(&self, player_id: u64) -> Result<()> {
@@ -613,15 +705,8 @@ impl Zone {
 
         for (other_id, other_handle) in &self.players {
             if *other_id != player_id {
-                let (tx, rx) = oneshot::channel();
-                other_handle
-                    .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-                    .await?;
-                let other_snapshot = rx.await?;
-                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
-                    receiver_handle,
-                    &other_snapshot,
-                );
+                // Thay vì chờ snapshot (deadlock risk), chúng ta yêu cầu player kia tự gửi info
+                other_handle.send_forget(PlayerMessage::SendInfoTo(receiver_handle.clone()));
             }
         }
         Ok(())
@@ -631,19 +716,17 @@ impl Zone {
         let Some(player_handle) = self.players.get(&player_id) else {
             return Ok(());
         };
-        let (tx, rx) = oneshot::channel();
-        player_handle
-            .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-            .await?;
-        let snapshot = rx.await?;
 
+        let mut others = Vec::new();
         for (receiver_id, receiver_handle) in &self.players {
             if *receiver_id != player_id {
-                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
-                    receiver_handle,
-                    &snapshot,
-                );
+                others.push(receiver_handle.clone());
             }
+        }
+
+        if !others.is_empty() {
+            // Yêu cầu player hiện tại tự gửi info cho tất cả những người khác
+            player_handle.send_forget(PlayerMessage::SendInfoToAll(others));
         }
         Ok(())
     }
@@ -671,7 +754,6 @@ impl Zone {
                 let real_damage = mob.take_damage(damage as i32, die_when_hp_full);
                 if is_player {
                     mob.add_temporary_enemy(attacker_id);
-                    // Cộng TNSM cho người chơi từ sát thương AOE
                     if let Some(handle) = self.players.get(&attacker_id) {
                         let tnsm_amount =
                             mob.get_tiemnang_for_player(player_power, real_damage as i64);

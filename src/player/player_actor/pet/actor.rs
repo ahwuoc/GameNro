@@ -1,6 +1,6 @@
-use crate::map;
 use crate::map::models::zone::ZoneHandle;
 use crate::map::zone_manager::{self, ZONE_MANAGER};
+use crate::map::{self, ChangeMapService, SpaceShipType};
 use crate::network::message::Message;
 use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::pet::message::PetMessage;
@@ -83,9 +83,9 @@ impl PetActor {
             self.pet.player.name, self.pet.player.id
         );
 
-        let _ = crate::map::ChangeMapService::exit_map_actor(&mut self.pet.player).await;
+        let _ = ChangeMapService::exit_current_map(&mut self.pet.player).await;
 
-        crate::player::player_manager::PLAYER_MANAGER.remove(self.pet.player.id);
+        PLAYER_MANAGER.remove(self.pet.player.id);
     }
 
     async fn handle_change_map(
@@ -94,7 +94,7 @@ impl PetActor {
         zone_id: i32,
         x: i16,
         y: i16,
-        _space_type: crate::map::services::change_map_models::SpaceShipType,
+        _space_type: SpaceShipType,
     ) {
         if self.pet.status == PetStatus::GoHome || self.pet.status == PetStatus::Fusion {
             return;
@@ -104,8 +104,8 @@ impl PetActor {
             return;
         }
 
-        if let Some(zone) = zone_manager::ZONE_MANAGER.get_zone(map_id, zone_id) {
-            let _ = map::ChangeMapService::exit_map_actor(&mut self.pet.player).await;
+        if let Some(zone) = ZONE_MANAGER.get_zone(map_id, zone_id) {
+            let _ = map::ChangeMapService::exit_current_map(&mut self.pet.player).await;
             self.pet.player.location.x = x;
             self.pet.player.location.y = y;
             let _ = map::ChangeMapService::go_to_map(&mut self.pet.player, &zone, None).await;
@@ -174,7 +174,7 @@ impl PetActor {
             }
             PetMessage::Fusion(_is_porata) => {
                 self.pet.status = PetStatus::Fusion;
-                let _ = crate::map::ChangeMapService::exit_map_actor(&mut self.pet.player).await;
+                let _ = ChangeMapService::exit_current_map(&mut self.pet.player).await;
             }
             PetMessage::GetSnapshot(tx) => {
                 let _ = tx.send(self.pet.clone());

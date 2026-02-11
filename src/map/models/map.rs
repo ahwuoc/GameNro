@@ -3,11 +3,14 @@ use crate::map::models::zone::ZoneHandle;
 use crate::map::tile_loader::TileLoader;
 pub use crate::map::waypoint::WayPoint;
 use crate::map::zone_manager::ZoneManager;
+use crate::map::ItemMap;
 use crate::mob::RtMob;
 use crate::templates::mob_template_manager;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::atomic::AtomicI32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -183,6 +186,9 @@ impl Map {
         Ok(())
     }
 
+    pub async fn init_items(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
     pub fn init_npcs(
         &self,
         _npc_ids: &[i32],

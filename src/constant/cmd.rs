@@ -19,6 +19,7 @@ pub mod cmd {
     // ===== Chat =====
     pub const CHAT: i8 = 44;
     pub const SEND_ALTER_MESSAGE: i8 = -26;
+    pub const THONG_BAO: i8 = -25;
 
     // ===== Combat =====
     pub const ATTACK_MOB: i8 = 54;

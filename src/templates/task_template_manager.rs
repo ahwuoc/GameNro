@@ -28,7 +28,10 @@ impl TaskTemplateManager {
             main_map.insert(task.id, task);
         }
 
-        let task_subs = TaskSubTemplate::find().all(db).await?;
+        let task_subs = TaskSubTemplate::find()
+            .order_by_asc(task_sub_template::Column::Id)
+            .all(db)
+            .await?;
         let mut sub_map: HashMap<i32, Vec<task_sub_template::Model>> = HashMap::new();
         for sub in task_subs {
             sub_map

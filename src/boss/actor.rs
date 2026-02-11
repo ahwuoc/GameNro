@@ -102,7 +102,7 @@ impl BossActor {
     }
 
     async fn dispose(&mut self) {
-        let _ = ChangeMapService::exit_map_actor(&mut self.player).await;
+        let _ = ChangeMapService::exit_current_map(&mut self.player).await;
     }
 
     async fn handle_message(&mut self, msg: PlayerMessage) {

@@ -24,6 +24,8 @@ fast_image_resize = { version = "6.0.0", features = ["image"] }
 enum_dispatch = "0.3.13"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+leaky-bucket = "1.1.2"
+
 [[bin]]
 name = "arc_nro"
 path = "src/main.rs"

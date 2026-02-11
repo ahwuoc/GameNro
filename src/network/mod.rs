@@ -114,7 +114,6 @@ async fn cleanup_session(session: SessionArc, write_task: tokio::task::JoinHandl
         let _ = handle
             .send(crate::player::player_actor::PlayerMessage::Logout)
             .await;
-        // The actor will handle saving and map exit in dispose()
         (&*SESSION_MANAGER).remove_session(handle.id as i64);
         info!(
             "Player {} session removed and logout signal sent",

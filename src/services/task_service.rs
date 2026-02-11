@@ -1,22 +1,58 @@
+use std::panic::panic_any;
+
+use crate::constant::const_npc::CON_MEO;
 use crate::constant::task_type::TaskType;
 use crate::constant::{const_npc, task_id};
 use crate::entities::task_sub_template;
 use crate::network::message::Message;
+use crate::network::session;
 use crate::player::Player;
 use crate::services::task_utils::TaskUtils;
 use crate::services::ServiceHandles;
+use crate::templates::npc_template_manager;
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
 use anyhow::Result;
 
 pub struct TaskService;
 
 impl TaskService {
-    /// Lấy thông tin template của sub-task hiện tại mà người chơi đang thực hiện.
     pub fn get_current_sub_task(player: &Player) -> Option<task_sub_template::Model> {
         let sub_tasks = TASK_TEMPLATE_MANAGER.get_sub_tasks(player.task_player.task_main.id);
-        sub_tasks
-            .get(player.task_player.task_main.index as usize)
-            .cloned()
+        let index = player.task_player.task_main.index as usize;
+
+        if index >= sub_tasks.len() && !sub_tasks.is_empty() {
+            tracing::warn!(
+                "[TASK] Player {} stuck at index {} for task {}. Auto-fixing...",
+                player.name,
+                index,
+                player.task_player.task_main.id
+            );
+            return sub_tasks.last().cloned();
+        }
+
+        sub_tasks.get(index).cloned()
+    }
+    pub fn resolve_id(input: &str, gender: i8) -> i32 {
+        let parts: Vec<&str> = input.split(',').collect();
+        if parts.len() == 3 {
+            parts
+                .get(gender as usize)
+                .and_then(|&s| s.parse::<i32>().ok())
+                .unwrap_or(-1)
+        } else {
+            input.parse::<i32>().unwrap_or(-1)
+        }
+    }
+
+    /// Kiểm tra xem NPC hiện tại có khớp với NPC yêu cầu của Task không
+    pub fn is_match_npc(player: &Player, target_npc_id: i16) -> bool {
+        if let Some(sub_task) = Self::get_current_sub_task(player) {
+            if let Some(npc_list) = &sub_task.npc_id {
+                let npc_id = Self::resolve_id(npc_list, player.gender);
+                return target_npc_id as i32 == npc_id || npc_list == "-1";
+            }
+        }
+        false
     }
 
     pub fn check_done_task(
@@ -26,25 +62,57 @@ impl TaskService {
     ) -> Result<()> {
         if let Some(sub_task) = Self::get_current_sub_task(player) {
             let current_type = sub_task.task_type;
+
+            // Logic xử lý TaskScripts trước
+            if current_type == TaskType::TaskScripts {
+                return Self::handle_task_scripts(player, task_type, target_id, &sub_task);
+            }
+
             if current_type == task_type {
                 let mut is_match = false;
-                let sub_targets: Vec<&str> = sub_task.target_id.split(',').collect();
 
-                if sub_task.target_id == "-1" || sub_targets.contains(&target_id) {
-                    is_match = true;
-                } else if task_type == TaskType::TalkNpc {
-                    // Xử lý NPC đặc biệt cho TalkNpc (id -2 là NPC theo hành tinh)
-                    if sub_targets.contains(&target_id) {
-                        is_match = true;
-                    } else if sub_task.npc_id == target_id.parse::<i32>().unwrap_or(-1) {
-                        is_match = true;
-                    } else if sub_task.npc_id == -2 {
-                        // NPC hành tinh
-                        let planet_npc_id = TaskUtils::get_planet_npc_id(player.gender);
-                        if target_id == planet_npc_id.to_string() {
-                            is_match = true;
+                match task_type {
+                    TaskType::TalkNpc | TaskType::ConfirmMenu => {
+                        if let Some(npc_list) = &sub_task.npc_id {
+                            let npc_id = Self::resolve_id(npc_list, player.gender);
+                            if target_id == npc_id.to_string() || npc_list == "-1" {
+                                is_match = true;
+                            }
                         }
                     }
+                    TaskType::KillMob => {
+                        if let Some(mob_list) = &sub_task.mob_id {
+                            let sub_targets: Vec<&str> = mob_list.split(',').collect();
+                            if mob_list == "-1" || sub_targets.contains(&target_id) {
+                                is_match = true;
+                            }
+                        }
+                    }
+                    TaskType::KillBoss => {
+                        if let Some(boss_list) = &sub_task.boss_id {
+                            let sub_targets: Vec<&str> = boss_list.split(',').collect();
+                            if boss_list == "-1" || sub_targets.contains(&target_id) {
+                                is_match = true;
+                            }
+                        }
+                    }
+                    TaskType::PickItem | TaskType::UseItem => {
+                        if let Some(item_list) = &sub_task.pick_item_id {
+                            let sub_targets: Vec<&str> = item_list.split(',').collect();
+                            if item_list == "-1" || sub_targets.contains(&target_id) {
+                                is_match = true;
+                            }
+                        }
+                    }
+                    TaskType::GoToMap => {
+                        if let Some(map_list) = &sub_task.map_id {
+                            let map_id = Self::resolve_id(map_list, player.gender);
+                            if target_id == map_id.to_string() || map_list == "-1" {
+                                is_match = true;
+                            }
+                        }
+                    }
+                    _ => {}
                 }
 
                 if is_match {
@@ -58,20 +126,6 @@ impl TaskService {
                     );
                     Self::add_done_sub_task(player, 1)?;
                 }
-            } else if current_type == TaskType::TaskScripts {
-                Self::handle_task_scripts(player, task_type, target_id, &sub_task)?;
-            } else {
-                if player.task_player.task_main.id < 5 {
-                    tracing::debug!(
-                        target: "task",
-                        "No Match: player={}, current={:?}({}), input={:?}({})",
-                        player.name,
-                        current_type,
-                        sub_task.target_id,
-                        task_type,
-                        target_id
-                    );
-                }
             }
         }
         Ok(())
@@ -80,15 +134,20 @@ impl TaskService {
         if let Some(sub_task) = Self::get_current_sub_task(player) {
             player.task_player.task_main.count += num;
 
+            let count = player.task_player.task_main.count;
+            let max_count = sub_task.max_count;
+            let notify = sub_task.notify.clone();
+            let task_type = sub_task.task_type;
+
             tracing::debug!(
                 target: "task",
                 "Update Progress: player={}, count={}/{}",
                 player.name,
-                player.task_player.task_main.count,
-                sub_task.max_count
+                count,
+                max_count
             );
 
-            if player.task_player.task_main.count >= sub_task.max_count {
+            if count >= max_count {
                 tracing::debug!(
                     target: "task",
                     "Sub-task Completed: player={}, sub_task={}",
@@ -98,12 +157,31 @@ impl TaskService {
                 Self::send_next_sub_task(player)?;
             } else {
                 Self::send_update_count_sub_task(player)?;
+
+                if !notify.is_empty() {
+                    let prefix_text = match task_type {
+                        TaskType::KillMob | TaskType::KillBoss => "đánh",
+                        TaskType::PickItem => "nhặt",
+                        TaskType::UseItem => "dùng",
+                        _ => "",
+                    };
+
+                    if !prefix_text.is_empty() {
+                        let text = format!(
+                            "Bạn {} được {}/{} {}",
+                            prefix_text,
+                            count,
+                            max_count,
+                            TaskUtils::transform_name(player, &notify)
+                        );
+                        ServiceHandles::send_thong_bao(player, &text)?;
+                    }
+                }
             }
         }
         Ok(())
     }
 
-    /// Chuyển sang sub-task tiếp theo hoặc task chính tiếp theo.
     pub fn send_next_sub_task(player: &mut Player) -> Result<()> {
         let sub_tasks = TASK_TEMPLATE_MANAGER.get_sub_tasks(player.task_player.task_main.id);
         player.task_player.task_main.index += 1;
@@ -116,27 +194,32 @@ impl TaskService {
             player.send_to_client(msg)?;
 
             if let Some(next_st) = sub_tasks.get(player.task_player.task_main.index as usize) {
-                let npc_id = if next_st.npc_id == -2 {
-                    TaskUtils::get_planet_npc_id(player.gender)
-                } else {
-                    next_st.npc_id as i16
-                };
-
-                if let Some(session) = &player.session {
-                    let chat_text = next_st.npc_say.as_ref().unwrap_or(&next_st.notify);
-                    let transformed_text = TaskUtils::transform_name(player, chat_text);
-
-                    let _ = crate::npc::npc_service::npc_service::npc_chat(
-                        session,
-                        &transformed_text,
-                        npc_id,
-                    );
-                }
+                Self::send_npc_chat_sub_task(player, next_st)?;
             }
-
-            // Gửi lại thông tin task mới (Message 40)
             Self::send_task_main(player)?;
         }
+        Ok(())
+    }
+
+    fn send_npc_chat_sub_task(player: &Player, sub_task: &task_sub_template::Model) -> Result<()> {
+        let npc_id = if let Some(npc_list) = &sub_task.npc_id {
+            Self::resolve_id(npc_list, player.gender)
+        } else {
+            const_npc::CON_MEO as i32
+        };
+
+        let Some(chattext) = sub_task.npc_say.as_ref() else {
+            return Ok(());
+        };
+
+        let text = TaskUtils::transform_name(player, chattext);
+        let mut msg = Message::new(38);
+        msg.write_short(npc_id as i16)?;
+        msg.write_utf(&text)?;
+        if let Some(npc) = npc_template_manager::get(npc_id as i16) {
+            msg.write_short(npc.avatar.unwrap_or(0) as i16)?;
+        }
+        player.send_to_client(msg)?;
         Ok(())
     }
 
@@ -161,28 +244,13 @@ impl TaskService {
             .map(|t| t.name)
             .unwrap_or_else(|| "Nhiệm vụ mới".to_string());
 
-        ServiceHandles::send_message_alert(
+        ServiceHandles::send_thong_bao(
             player,
             &format!("Nhiệm vụ tiếp theo của bạn là: {}", next_task_name),
         )?;
 
         if let Some(first_st) = Self::get_current_sub_task(player) {
-            let npc_id = if first_st.npc_id == -2 {
-                TaskUtils::get_planet_npc_id(player.gender)
-            } else {
-                first_st.npc_id as i16
-            };
-
-            if let Some(session) = &player.session {
-                let chat_text = first_st.npc_say.as_ref().unwrap_or(&first_st.notify);
-                let transformed_text = TaskUtils::transform_name(player, chat_text);
-
-                let _ = crate::npc::npc_service::npc_service::npc_chat(
-                    session,
-                    &transformed_text,
-                    npc_id,
-                );
-            }
+            Self::send_npc_chat_sub_task(player, &first_st)?;
         }
         Ok(())
     }
@@ -203,13 +271,21 @@ impl TaskService {
 
         for stm in &sub_tasks {
             msg.write_utf(&TaskUtils::transform_name(player, &stm.name))?;
-            let npc_id = if stm.npc_id == -2 {
-                TaskUtils::get_planet_npc_id(player.gender)
+
+            let npc_id = if let Some(npc_list) = &stm.npc_id {
+                Self::resolve_id(npc_list, player.gender)
             } else {
-                stm.npc_id as i16
+                -1
             };
+
+            let map_id = if let Some(map_list) = &stm.map_id {
+                Self::resolve_id(map_list, player.gender)
+            } else {
+                -1
+            };
+
             msg.write_byte(npc_id as i8)?;
-            msg.write_short(stm.map as i16)?;
+            msg.write_short(map_id as i16)?;
             msg.write_utf(&TaskUtils::transform_name(player, &stm.notify))?;
         }
 
@@ -236,102 +312,60 @@ impl TaskService {
         target_id: &str,
         sub_task: &task_sub_template::Model,
     ) -> Result<()> {
-        // target_id trong TaskScripts:
-        // "1" = PowerReach (kiểm tra sức mạnh)
-        // "2" = UseTiemNang (dùng tiềm năng)
-        // "3" = OpenRuongDo (mở rương đồ - TASK_0_3)
-        // "4" = JoinClan (gia nhập bang - TASK_13_0)
-        // "5" = Find7Stars (tìm 7 ngọc rồng - TASK_8_1)
-        // "6" = DameReach (đạt sát thương - TASK_27_0)
-        // "-1" = Script trigger bất kỳ (auto-complete khi được gọi)
-        match sub_task.target_id.as_str() {
-            "1" => {
-                // PowerReach - Kiểm tra sức mạnh theo task ID
-                let power_required = match player.task_player.task_main.id {
-                    task_id::TASK_7 => 16000,
-                    task_id::TASK_8 => 40000,
-                    task_id::TASK_10 => 200000,
-                    task_id::TASK_11 => 500000,
-                    task_id::TASK_20 => 600_000_000,
-                    task_id::TASK_21 => 2_000_000_000,
-                    task_id::TASK_27 => 35000,
-                    _ => 0,
-                };
-                if player.task_player.task_main.id == task_id::TASK_11 {
-                    let power_by_index = match player.task_player.task_main.index {
-                        0 => 500000,
-                        1 => 550000,
-                        2 => 600000,
-                        _ => 0,
-                    };
-                    if player.n_point.power >= power_by_index {
-                        tracing::debug!(
-                            target: "task",
-                            "Script PowerReach OK (Task 11): player={}, power={}",
-                            player.name,
-                            player.n_point.power
-                        );
-                        Self::add_done_sub_task(player, 1)?;
-                    }
-                } else if player.n_point.power >= power_required {
-                    tracing::debug!(
-                        target: "task",
-                        "Script PowerReach OK: player={}, power={}",
-                        player.name,
-                        player.n_point.power
-                    );
+        let main_id = player.task_player.task_main.id;
+        let index = player.task_player.task_main.index;
+
+        match main_id {
+            task_id::TASK_0_0 => {
+                if index == 0 && task_type == TaskType::TaskScripts {
+                    tracing::debug!(target: "task", "Script Task 0_0 OK: player={}", player.name);
                     Self::add_done_sub_task(player, 1)?;
-                }
-            }
-            "2" => {
-                if task_type == TaskType::TaskScripts && target_id == "2" {
-                    tracing::debug!(target: "task", "Script UseTiemNang OK: player={}", player.name);
-                    Self::add_done_sub_task(player, 1)?;
-                }
-            }
-            "3" => {
-                if (task_type == TaskType::TaskScripts || task_type == TaskType::TalkNpc)
+                } else if index == 3
+                    && (task_type == TaskType::TaskScripts || task_type == TaskType::TalkNpc)
                     && target_id == "3"
                 {
                     tracing::debug!(target: "task", "Script OpenRuongDo OK: player={}", player.name);
                     Self::add_done_sub_task(player, 1)?;
                 }
             }
-            "4" => {
-                if task_type == TaskType::TaskScripts && target_id == "4" {
+            task_id::TASK_7
+            | task_id::TASK_8
+            | task_id::TASK_10
+            | task_id::TASK_11
+            | task_id::TASK_20
+            | task_id::TASK_21
+            | task_id::TASK_27 => {
+                if player.n_point.power >= sub_task.power_require {
+                    tracing::debug!(
+                        target: "task",
+                        "Script PowerReach OK: player={}, power={}, require={}",
+                        player.name,
+                        player.n_point.power,
+                        sub_task.power_require
+                    );
+                    Self::add_done_sub_task(player, 1)?;
+                }
+            }
+            task_id::TASK_3 => {
+                if index == 0 && task_type == TaskType::TaskScripts && target_id == "2" {
+                    tracing::debug!(target: "task", "Script UseTiemNang OK: player={}", player.name);
+                    Self::add_done_sub_task(player, 1)?;
+                }
+            }
+            // Gia nhập bang hội
+            task_id::TASK_13 => {
+                if index == 0 && task_type == TaskType::TaskScripts {
                     tracing::debug!(target: "task", "Script JoinClan OK: player={}", player.name);
                     Self::add_done_sub_task(player, 1)?;
                 }
             }
-            "5" => {
-                if task_type == TaskType::TaskScripts && target_id == "5" {
-                    tracing::debug!(target: "task", "Script Find7Stars OK: player={}", player.name);
-                    Self::add_done_sub_task(player, 1)?;
-                }
-            }
-            "6" => {
-                if player.n_point.dame >= 35000 {
-                    tracing::debug!(
-                        target: "task",
-                        "Script DameReach OK: player={}, dame={}",
-                        player.name,
-                        player.n_point.dame
-                    );
-                    Self::add_done_sub_task(player, 1)?;
-                }
-            }
-            "-1" => {
+            _ => {
+                // Auto-complete các task generic script
                 if task_type == TaskType::TaskScripts {
-                    tracing::debug!(
-                        target: "task",
-                        "Script Generic OK: player={}, target_id={}",
-                        player.name,
-                        target_id
-                    );
+                    tracing::debug!(target: "task", "Script Generic OK: player={}, main_id={}", player.name, main_id);
                     Self::add_done_sub_task(player, 1)?;
                 }
             }
-            _ => {}
         }
         Ok(())
     }
@@ -379,25 +413,18 @@ impl TaskService {
     pub fn check_done_task_go_to_map_position(
         player: &mut Player,
         map_id: i32,
-        x: i16,
+        _x: i16,
     ) -> Result<()> {
+        Self::check_done_task(player, TaskType::GoToMap, &map_id.to_string())?;
+
         match map_id {
-            // Map làng (TraiDat=39, Namec=40, Xayda=41)
             39 | 40 | 41 => {
-                if x >= 300 {
-                    Self::done_task_by_id(player, task_id::TASK_0_0, 0)?;
-                }
+                Self::done_task_by_id(player, task_id::TASK_0_0, 0)?;
             }
-            // Map nhà (TraiDat=21, Namec=22, Xayda=23)
             21 | 22 | 23 => {
                 Self::done_task_by_id(player, task_id::TASK_0_0, 1)?;
                 Self::done_task_by_id(player, task_id::TASK_12, 0)?;
             }
-            // Map Vũ trụ
-            0 | 7 | 14 => {
-                Self::done_task_by_id(player, task_id::TASK_8, 0)?;
-            }
-            // Map Tinh cầu
             5 | 13 | 20 => {
                 Self::done_task_by_id(player, task_id::TASK_9, 0)?;
             }
@@ -423,10 +450,16 @@ impl TaskService {
         }
         Ok(())
     }
+
     fn done_task_by_id(player: &mut Player, task_id: i32, task_index: i32) -> Result<()> {
         if player.task_player.task_main.id == task_id
             && player.task_player.task_main.index == task_index
         {
+            tracing::debug!(
+                target: "task",
+                "done_task_by_id: Match! player={}, task_id={}, index={}",
+                player.name, task_id, task_index
+            );
             Self::add_done_sub_task(player, 1)?;
         }
         Ok(())

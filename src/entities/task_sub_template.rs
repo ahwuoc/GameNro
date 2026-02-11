@@ -5,18 +5,20 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "task_sub_template")]
 pub struct Model {
-    pub task_main_id: i32,
-    #[sea_orm(column_name = "NAME")]
-    pub name: String,
-    pub max_count: i32,
-    pub notify: String,
-    pub npc_id: i32,
-    pub map: i32,
-    pub task_type: TaskType,
-    pub target_id: String,
-    pub npc_say: Option<String>,
     #[sea_orm(primary_key, auto_increment = true, column_name = "id")]
     pub id: i32,
+    pub task_main_id: i32,
+    pub task_type: TaskType,
+    pub name: String,
+    pub npc_id: Option<String>,
+    pub map_id: Option<String>,
+    pub mob_id: Option<String>,
+    pub boss_id: Option<String>,
+    pub pick_item_id: Option<String>,
+    pub power_require: i64,
+    pub max_count: i32,
+    pub notify: String,
+    pub npc_say: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

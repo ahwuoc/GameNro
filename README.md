@@ -24,6 +24,12 @@ Dự án được **migrate từ server Java multi-thread cũ** sang mô hình *
 - **Asynchronous Services**  
   Toàn bộ logic nghiệp vụ chạy async, tránh block main loop, phù hợp với server realtime.
 
+- **Actor Deadlock Prevention (NEW)**  
+  Áp dụng mô hình **Asynchronous Info Exchange** để loại bỏ circular `.await` giữa các Actor:
+  - Thay vì `ZoneActor` gọi ngược (`.await`) vào `PlayerActor` để lấy thông tin (gây treo), server sử dụng cơ chế **Push Model**.
+  - **`PlayerMessage::SendInfoTo`**: Actor tự gửi thông tin của mình cho người khác một cách bất đồng bộ khi được yêu cầu.
+  - Loại bỏ hoàn toàn các yêu cầu snapshot chéo giữa các Actor trong quá trình đổi map và load nhân vật.
+
 ---
 
 ## 📁 Cấu Trúc Thư Mục `src/`

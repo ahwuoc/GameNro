@@ -1,9 +1,10 @@
-#![allow(dead_code)]
 use super::message::Message;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player as RtPlayer;
+use leaky_bucket::RateLimiter;
 use std::io;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpStream};
 use tokio::sync::{mpsc, Mutex, RwLock};
@@ -14,9 +15,24 @@ pub struct SessionReader {
     keys: Arc<Vec<u8>>,
     cur_r: usize,
     sent_key: bool,
+    limiter: RateLimiter,
 }
 
 impl SessionReader {
+    pub fn new(read_half: OwnedReadHalf, keys: Arc<Vec<u8>>) -> Self {
+        Self {
+            read_half,
+            keys,
+            cur_r: 0,
+            sent_key: false,
+            limiter: RateLimiter::builder()
+                .max(50)
+                .initial(50)
+                .refill(50)
+                .interval(Duration::from_secs(1))
+                .build(),
+        }
+    }
     fn read_key(&mut self, b: u8) -> u8 {
         let key_byte = self.keys[self.cur_r % self.keys.len()];
         self.cur_r = (self.cur_r + 1) % self.keys.len();
@@ -32,11 +48,8 @@ impl SessionReader {
         self.reset_key_position();
     }
 
-    pub fn update_keys(&mut self, keys: Arc<Vec<u8>>) {
-        self.keys = keys;
-    }
-
     pub async fn read_message(&mut self) -> io::Result<Message> {
+        self.limiter.acquire(1).await;
         let mut cmd_buf = [0u8; 1];
         self.read_half.read_exact(&mut cmd_buf).await?;
         let mut cmd_u8 = cmd_buf[0];
@@ -81,7 +94,7 @@ pub struct SessionWriter {
 }
 
 impl SessionWriter {
-    pub const SEPICAL_CMDS: [i8; 7] = [-32, -66, -74, 11, -67, -87, 66];
+    pub const SPECIAL_CMDS: [i8; 7] = [-32, -66, -74, 11, -67, -87, 66];
 
     fn write_key(&mut self, b: u8) -> u8 {
         let key_byte = self.keys[self.cur_w % self.keys.len()];
@@ -99,7 +112,7 @@ impl SessionWriter {
     }
 
     fn check_special_cmd(&self, cmd: i8) -> bool {
-        Self::SEPICAL_CMDS.contains(&cmd)
+        Self::SPECIAL_CMDS.contains(&cmd)
     }
 
     pub async fn send_message(&mut self, msg: &Message) -> io::Result<()> {
@@ -168,18 +181,16 @@ impl SessionWriter {
     }
 }
 
-use crate::player::player_actor::{PlayerActor, PlayerHandle};
+use crate::player::player_actor::{PlayerActor, PlayerHandle, PlayerMessage};
 
 #[derive(Debug)]
 pub struct SessionState {
     pub keys: Arc<Vec<u8>>,
     pub sent_key: bool,
     pub zoom_level: u8,
-    pub player_id: Option<u64>,
     pub player_handle: Option<PlayerHandle>,
     pub user_id: Option<i32>,
     pub version: i32,
-    pub vnd: i32,
 }
 
 impl SessionState {
@@ -188,11 +199,9 @@ impl SessionState {
             keys,
             sent_key: false,
             zoom_level: 1,
-            player_id: None,
             player_handle: None,
             user_id: None,
             version: 0,
-            vnd: 0,
         }
     }
 }
@@ -210,12 +219,7 @@ impl AsyncSession {
         let keys = Arc::new(b"AHWUOCDZ".to_vec());
 
         Self {
-            reader: Arc::new(Mutex::new(SessionReader {
-                read_half,
-                keys: keys.clone(),
-                cur_r: 0,
-                sent_key: false,
-            })),
+            reader: Arc::new(Mutex::new(SessionReader::new(read_half, keys.clone()))),
             writer: Arc::new(Mutex::new(SessionWriter {
                 write_half,
                 keys: keys.clone(),
@@ -235,10 +239,6 @@ impl AsyncSession {
         self.writer.clone()
     }
 
-    pub fn get_state(&self) -> Arc<RwLock<SessionState>> {
-        self.state.clone()
-    }
-
     pub async fn set_message_channel(&self, tx: mpsc::Sender<Message>) {
         if let Ok(mut guard) = self.message_tx.write() {
             *guard = Some(tx);
@@ -246,21 +246,23 @@ impl AsyncSession {
     }
 
     pub fn transmit(&self, msg: Message) -> bool {
-        if let Ok(guard) = self.message_tx.read() {
-            if let Some(tx) = guard.as_ref() {
-                match tx.try_send(msg) {
-                    Ok(_) => true,
-                    Err(mpsc::error::TrySendError::Full(_)) => {
-                        eprintln!("[WARN] Message queue full");
-                        false
-                    }
-                    Err(mpsc::error::TrySendError::Closed(_)) => false,
-                }
-            } else {
+        let guard = match self.message_tx.read() {
+            Ok(g) => g,
+            Err(_) => return false,
+        };
+
+        let tx = match guard.as_ref() {
+            Some(t) => t,
+            None => return false,
+        };
+
+        match tx.try_send(msg) {
+            Ok(_) => true,
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                eprintln!("[WARN] Message queue full");
                 false
             }
-        } else {
-            false
+            Err(mpsc::error::TrySendError::Closed(_)) => false,
         }
     }
 
@@ -308,7 +310,6 @@ impl AsyncSession {
         tokio::spawn(actor.run());
         PLAYER_MANAGER.add(player_id, handle.clone());
         let mut state = self.state.write().await;
-        state.player_id = Some(player_id);
         state.player_handle = Some(handle);
     }
 
@@ -320,10 +321,7 @@ impl AsyncSession {
     pub async fn get_player_snapshot(&self) -> Option<RtPlayer> {
         let handle = self.get_player_handle().await?;
         let (tx, rx) = tokio::sync::oneshot::channel();
-        if let Ok(_) = handle
-            .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-            .await
-        {
+        if let Ok(_) = handle.send(PlayerMessage::GetSnapshot(tx)).await {
             rx.await.ok()
         } else {
             None
@@ -358,11 +356,6 @@ impl AsyncSession {
     pub async fn set_zoom_level(&self, level: u8) {
         let mut state = self.state.write().await;
         state.zoom_level = level;
-    }
-
-    pub async fn get_keys(&self) -> Vec<u8> {
-        let state = self.state.read().await;
-        state.keys.as_ref().clone()
     }
 
     pub async fn shutdown(&self) -> io::Result<()> {

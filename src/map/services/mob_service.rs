@@ -157,17 +157,8 @@ async fn drop_item_on_mob_death_actor(
             continue;
         }
 
-        static NEXT_ID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(1);
-        let item_map_id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-        let mut item_map = ItemMap::new(
-            item_map_id,
-            item.template.clone(),
-            item.quantity,
-            x,
-            y,
-            player_id as i64,
-        );
+        let mut item_map =
+            ItemMap::new(item.template.clone(), item.quantity, x, y, player_id as i64);
         item_map.set_location(map_id, zone_id, x, y);
 
         item_map.options = item.item_options.clone();
