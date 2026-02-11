@@ -1,6 +1,6 @@
 use crate::entities::skill_template;
 use crate::utils::skill_util;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -40,8 +40,8 @@ pub struct NClass {
     pub skill_templates: Vec<SkillTemplate>,
 }
 
-static SKILL_TEMPLATES: Lazy<RwLock<Vec<SkillTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
-static NCLASSES: Lazy<RwLock<Vec<NClass>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static SKILL_TEMPLATES: LazyLock<RwLock<Vec<SkillTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
+static NCLASSES: LazyLock<RwLock<Vec<NClass>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let templates = skill_template::Entity::find().all(db).await?;

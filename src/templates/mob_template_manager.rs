@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 use std::{collections::HashMap, sync::RwLock};
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::entities::mob_template::{self, Model as MobTemplate};
 
-static MOB_TEMPLATES: Lazy<RwLock<HashMap<i8, MobTemplate>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static MOB_TEMPLATES: LazyLock<RwLock<HashMap<i8, MobTemplate>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mobs = mob_template::Entity::find().all(pool).await?;

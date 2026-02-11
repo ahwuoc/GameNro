@@ -1,11 +1,11 @@
 use std::sync::RwLock;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::entities::img_by_name::{self, Model as ImageByName};
 
-pub static IMAGE_BY_NAME: Lazy<RwLock<Vec<ImageByName>>> = Lazy::new(|| RwLock::new(Vec::new()));
+pub static IMAGE_BY_NAME: LazyLock<RwLock<Vec<ImageByName>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut rows = img_by_name::Entity::find().all(db).await?;

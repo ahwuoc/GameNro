@@ -1,12 +1,12 @@
 use crate::entities::prelude::Radar as RadarEntity;
 use crate::models::radar::{OptionCard, RadarCardTemplate};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use serde_json::Value;
 use std::sync::RwLock;
 
-static RADAR_TEMPLATES: Lazy<RwLock<Vec<RadarCardTemplate>>> =
-    Lazy::new(|| RwLock::new(Vec::new()));
+static RADAR_TEMPLATES: LazyLock<RwLock<Vec<RadarCardTemplate>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let models = RadarEntity::find().all(db).await?;

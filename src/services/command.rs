@@ -16,7 +16,6 @@ use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player;
 use crate::services::skill_service;
 use crate::services::ServiceHandles;
-use sysinfo::System;
 
 pub struct CommandService;
 
@@ -91,7 +90,9 @@ impl CommandService {
             } else if text == "menu" {
                 let online_players = SESSION_MANAGER.get_online_count();
                 let online_sessions = online_players;
-                let threads = System::new_all().cpus().len();
+                let threads = std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1);
 
                 let menu_text = format!(
                     "Admin Menu\nTotal players: {}\nTotal sessions: {}\nTotal threads: {}",

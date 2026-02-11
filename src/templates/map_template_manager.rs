@@ -1,10 +1,10 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
 use crate::entities::map_template::{self, Model as MapTemplate};
 
-pub static MAP_TEMPLATES: Lazy<RwLock<Vec<MapTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
+pub static MAP_TEMPLATES: LazyLock<RwLock<Vec<MapTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mut map_templates = map_template::Entity::find().all(pool).await?;

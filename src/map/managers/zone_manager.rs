@@ -1,6 +1,6 @@
 use crate::map::models::zone::{Zone, ZoneHandle};
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use tokio::sync::mpsc;
 
 pub struct ZoneManager {
@@ -124,4 +124,4 @@ impl ZoneManager {
     }
 }
 
-pub static ZONE_MANAGER: Lazy<ZoneManager> = Lazy::new(|| ZoneManager::new());
+pub static ZONE_MANAGER: LazyLock<ZoneManager> = LazyLock::new(|| ZoneManager::new());

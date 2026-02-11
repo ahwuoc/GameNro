@@ -1,9 +1,9 @@
 use crate::player::player::Player;
 use crate::player::player_actor::PlayerHandle;
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static PLAYER_MANAGER: Lazy<PlayerManager> = Lazy::new(|| PlayerManager::new());
+pub static PLAYER_MANAGER: LazyLock<PlayerManager> = LazyLock::new(|| PlayerManager::new());
 
 pub struct PlayerManager {
     players: DashMap<u64, PlayerHandle>,

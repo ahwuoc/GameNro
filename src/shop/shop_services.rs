@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
@@ -15,7 +15,7 @@ use crate::{
     network::{message::Message, session::AsyncSession},
 };
 
-static SHOP_DATA: Lazy<DashMap<String, Arc<ShopData>>> = Lazy::new(DashMap::new);
+static SHOP_DATA: LazyLock<DashMap<String, Arc<ShopData>>> = LazyLock::new(DashMap::new);
 
 #[derive(Debug, Clone)]
 

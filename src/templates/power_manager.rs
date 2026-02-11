@@ -1,11 +1,11 @@
 use crate::entities::power_caption::{self, Model as PowerCaption};
 use crate::entities::power_limit::{self, Model as PowerLimit};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::{PoisonError, RwLock};
 
-static POWER_LIMITS: Lazy<RwLock<Vec<PowerLimit>>> = Lazy::new(|| RwLock::new(Vec::new()));
-static POWER_CAPTIONS: Lazy<RwLock<Vec<PowerCaption>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static POWER_LIMITS: LazyLock<RwLock<Vec<PowerLimit>>> = LazyLock::new(|| RwLock::new(Vec::new()));
+static POWER_CAPTIONS: LazyLock<RwLock<Vec<PowerCaption>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     // Load Power Limits

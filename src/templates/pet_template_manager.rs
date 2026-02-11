@@ -1,10 +1,10 @@
 use crate::entities::pet_template::Model as PetTemplate;
 use crate::entities::prelude::PetTemplate as PetTemplateEntity;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
-static PET_TEMPLATES: Lazy<RwLock<Vec<PetTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static PET_TEMPLATES: LazyLock<RwLock<Vec<PetTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut templates = PetTemplateEntity::find().all(db).await?;

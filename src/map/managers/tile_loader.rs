@@ -1,7 +1,7 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::fs;
 
-pub static TILE_TOP_DATA: Lazy<Vec<Vec<i32>>> = Lazy::new(|| TileLoader::load_tile_top_data());
+pub static TILE_TOP_DATA: LazyLock<Vec<Vec<i32>>> = LazyLock::new(|| TileLoader::load_tile_top_data());
 
 pub struct TileLoader;
 

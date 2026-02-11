@@ -1,11 +1,11 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
 use crate::entities::item_option_template::{self, Model as ItemOptionModel};
 
-static ITEM_OPTION_TEMPLATES: Lazy<RwLock<Vec<ItemOptionModel>>> =
-    Lazy::new(|| RwLock::new(Vec::new()));
+static ITEM_OPTION_TEMPLATES: LazyLock<RwLock<Vec<ItemOptionModel>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut rows = item_option_template::Entity::find().all(db).await?;

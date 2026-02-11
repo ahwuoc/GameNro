@@ -1,9 +1,9 @@
 use crate::{entities::item_template::Model as ItemTemplate, item::ItemDao};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::DatabaseConnection;
 use std::sync::RwLock;
 
-static ITEM_TEMPLATES: Lazy<RwLock<Vec<ItemTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static ITEM_TEMPLATES: LazyLock<RwLock<Vec<ItemTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut itemplates = ItemDao::get_all_item_templates(db).await?;

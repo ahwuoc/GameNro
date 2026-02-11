@@ -12,10 +12,10 @@ pub mod session;
 pub mod session_manager;
 
 use crate::player::player_manager::PLAYER_MANAGER;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use session_manager::SessionManager;
 
-pub static SESSION_MANAGER: Lazy<SessionManager> = Lazy::new(|| SessionManager::new());
+pub static SESSION_MANAGER: LazyLock<SessionManager> = LazyLock::new(|| SessionManager::new());
 
 #[instrument(skip(config))]
 pub async fn start_server(config: &ServerConfig) -> anyhow::Result<()> {

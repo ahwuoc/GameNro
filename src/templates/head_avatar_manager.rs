@@ -1,9 +1,9 @@
 use crate::entities::head_avatar::{self, Model as HeadAvatar};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
-static HEAD_AVATARS: Lazy<RwLock<Vec<HeadAvatar>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static HEAD_AVATARS: LazyLock<RwLock<Vec<HeadAvatar>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut rows = head_avatar::Entity::find().all(db).await?;

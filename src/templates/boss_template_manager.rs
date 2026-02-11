@@ -1,12 +1,12 @@
 use crate::entities::boss_template;
 use crate::entities::prelude::BossTemplate;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::*;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-static BOSS_TEMPLATES: Lazy<RwLock<HashMap<String, boss_template::Model>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static BOSS_TEMPLATES: LazyLock<RwLock<HashMap<String, boss_template::Model>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let items = BossTemplate::find().all(db).await?;

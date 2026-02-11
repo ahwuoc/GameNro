@@ -1,13 +1,13 @@
 use crate::entities::map_template::Model as MapTemplate;
 use crate::map::Map;
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 pub struct MapManager {
     instances: DashMap<i32, Map>,
 }
 
-pub static MAP_MANAGER: Lazy<MapManager> = Lazy::new(|| MapManager::new());
+pub static MAP_MANAGER: LazyLock<MapManager> = LazyLock::new(|| MapManager::new());
 
 impl MapManager {
     fn new() -> Self {

@@ -2,13 +2,13 @@ use crate::database::DbManager;
 use crate::entities::clan::Entity as ClanEntity;
 use crate::models::clan::Clan;
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::EntityTrait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-pub static CLAN_MANAGER: Lazy<ClanManager> = Lazy::new(|| ClanManager::new());
+pub static CLAN_MANAGER: LazyLock<ClanManager> = LazyLock::new(|| ClanManager::new());
 
 pub struct ClanManager {
     clans: DashMap<i32, Arc<RwLock<Clan>>>,

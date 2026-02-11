@@ -1,9 +1,9 @@
 use crate::entities::npc_template::{self, Model as NpcTemplate};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
-static NPC_TEMPLATE: Lazy<RwLock<Vec<NpcTemplate>>> = Lazy::new(|| RwLock::new(Vec::new()));
+static NPC_TEMPLATE: LazyLock<RwLock<Vec<NpcTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let mut templates = npc_template::Entity::find().all(db).await?;

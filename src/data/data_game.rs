@@ -9,15 +9,15 @@ use dashmap::DashMap;
 use dotenv::dotenv;
 use fast_image_resize as fir;
 use image::ImageFormat;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::env;
 use std::fs;
 
 pub use crate::templates::skill_template_manager::{NClass, Skill, SkillTemplate};
 
-pub static CACHE_ICON: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
-pub static CACHE_IMG_BY_NAME: Lazy<DashMap<String, Vec<u8>>> = Lazy::new(|| DashMap::new());
-pub static CACHE_EFFECT: Lazy<DashMap<String, (Vec<u8>, Vec<u8>)>> = Lazy::new(|| DashMap::new());
+pub static CACHE_ICON: LazyLock<DashMap<String, Vec<u8>>> = LazyLock::new(|| DashMap::new());
+pub static CACHE_IMG_BY_NAME: LazyLock<DashMap<String, Vec<u8>>> = LazyLock::new(|| DashMap::new());
+pub static CACHE_EFFECT: LazyLock<DashMap<String, (Vec<u8>, Vec<u8>)>> = LazyLock::new(|| DashMap::new());
 
 pub struct DataGame;
 

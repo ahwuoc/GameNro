@@ -1,12 +1,12 @@
 use crate::entities::fusion_template::Entity as FusionTemplateEntity;
 use crate::models::fusion::{FusionAvatarData, FusionTemplate};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-static FUSION_TEMPLATES: Lazy<RwLock<HashMap<i32, FusionTemplate>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static FUSION_TEMPLATES: LazyLock<RwLock<HashMap<i32, FusionTemplate>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub async fn load(db: &DatabaseConnection) -> anyhow::Result<()> {
     let templates = FusionTemplateEntity::find().all(db).await?;

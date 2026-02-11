@@ -1,6 +1,6 @@
 use crate::entities::prelude::*;
 use crate::entities::{task_main_template, task_sub_template};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::*;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -10,8 +10,8 @@ pub struct TaskTemplateManager {
     sub_tasks: RwLock<HashMap<i32, Vec<task_sub_template::Model>>>,
 }
 
-pub static TASK_TEMPLATE_MANAGER: Lazy<TaskTemplateManager> =
-    Lazy::new(|| TaskTemplateManager::new());
+pub static TASK_TEMPLATE_MANAGER: LazyLock<TaskTemplateManager> =
+    LazyLock::new(|| TaskTemplateManager::new());
 
 impl TaskTemplateManager {
     fn new() -> Self {

@@ -1,10 +1,10 @@
 use crate::entities::intrinsic::{self, Model as IntrinsicTemplate};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::sync::RwLock;
 
-static INSTRINSIC_TEMPLATES: Lazy<RwLock<Vec<IntrinsicTemplate>>> =
-    Lazy::new(|| RwLock::new(Vec::new()));
+static INSTRINSIC_TEMPLATES: LazyLock<RwLock<Vec<IntrinsicTemplate>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mut intrinsics = intrinsic::Entity::find().all(pool).await?;
