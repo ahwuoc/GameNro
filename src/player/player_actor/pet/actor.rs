@@ -66,6 +66,20 @@ impl PetActor {
                             self.handle_change_map(map_id, zone_id, x, y, space_type)
                                 .await;
                         }
+                        PlayerMessage::SendInfoTo(target_handle) => {
+                            let _ = ServiceHandles::send_player_info_to_handle(
+                                &target_handle,
+                                &self.pet.player,
+                            );
+                        }
+                        PlayerMessage::SendInfoToAll(targets) => {
+                            for target_handle in targets {
+                                let _ = ServiceHandles::send_player_info_to_handle(
+                                    &target_handle,
+                                    &self.pet.player,
+                                );
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -105,16 +119,10 @@ impl PetActor {
         }
 
         if let Some(zone) = ZONE_MANAGER.get_zone(map_id, zone_id) {
-            let _ = map::ChangeMapService::exit_current_map(&mut self.pet.player).await;
-            self.pet.player.location.x = x;
-            self.pet.player.location.y = y;
-            let _ = map::ChangeMapService::go_to_map(&mut self.pet.player, &zone, None).await;
-            tracing::info!(
-                "Pet {} changed map to {} zone {}",
-                self.pet.player.id,
-                map_id,
-                zone_id
-            );
+            ChangeMapService::exit_current_map(&mut self.pet.player).await;
+            self.pet.player.location.set_position(x, y);
+            ChangeMapService::go_to_map(&mut self.pet.player, &zone, None).await;
+            ChangeMapService::finish_load_map(&self.pet.player, None).await;
         }
     }
 

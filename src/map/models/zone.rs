@@ -10,6 +10,7 @@ use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::player_service;
+use crate::services::player_tnsm_services::TypeTNSM;
 use crate::templates::item_template_manager;
 use crate::{
     constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE},
@@ -811,13 +812,11 @@ impl Zone {
                     if let Some(handle) = self.players.get(&attacker_id) {
                         let tnsm_amount =
                             mob.get_tiemnang_for_player(player_power, real_damage as i64);
-                        handle.send_forget(
-                            crate::player::player_actor::message::PlayerMessage::AddTNSM {
-                                type_tnsm: 2,
-                                param: tnsm_amount,
-                                is_ori: true,
-                            },
-                        );
+                        handle.send_forget(PlayerMessage::AddTNSM {
+                            type_tnsm: TypeTNSM::All,
+                            param: tnsm_amount,
+                            is_ori: true,
+                        });
                     }
                 }
                 let msg = if mob.is_dead() {

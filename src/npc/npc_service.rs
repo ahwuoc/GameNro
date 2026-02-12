@@ -21,6 +21,7 @@ pub mod npc_service {
     use crate::npc::handlers::cargo::CargoHandler;
     use crate::npc::handlers::cui::CuiHandler;
     use crate::npc::handlers::dr_drief::DrDriefHandler;
+    use crate::services::task_service::TaskService;
     use crate::utils::MapUtils;
 
     use super::*;
@@ -98,9 +99,8 @@ pub mod npc_service {
             if let Some(sub_task) =
                 crate::services::task_service::TaskService::get_current_sub_task(&snapshot)
             {
-                println!("sub task: {:?}", sub_task);
-                if sub_task.task_type == crate::constant::task_type::TaskType::TalkNpc
-                    && crate::services::task_service::TaskService::is_match_npc(&snapshot, npc_id)
+                if sub_task.task_type == TaskType::TalkNpc
+                    && TaskService::is_match_npc(&snapshot, npc_id)
                 {
                     is_talk_task = true;
                     tracing::debug!(

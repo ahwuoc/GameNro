@@ -1,7 +1,15 @@
 use crate::player::{player_actor::PlayerMessage, player_manager::PLAYER_MANAGER, Player};
 use crate::services::ServiceHandles;
 
-pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: i8, mut param: i64, is_ori: bool) {
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum TypeTNSM {
+    SucManh = 0,
+    TiemNang = 1,
+    All = 2,
+}
+
+pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: TypeTNSM, mut param: i64, is_ori: bool) {
     if pl.is_pet {
         pl.n_point.sucmanh_add(param);
         pl.n_point.tiemnang_add(param);
@@ -27,10 +35,10 @@ pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: i8, mut param: i64, is_o
 
         if power < limit {
             match type_tnsm {
-                1 => {}
-                2 | _ => {
+                TypeTNSM::All => {
                     pl.n_point.sucmanh_add(param_scaled);
                 }
+                _ => {}
             }
             tracing::debug!(
                 "Player {} added {} SMTN. Power: {}/{}",

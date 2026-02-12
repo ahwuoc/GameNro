@@ -18,7 +18,7 @@ use crate::player::player_actor::{
     pet::{message::PetMessage, PetStatus},
     PlayerMessage,
 };
-use crate::player::{player_mapper, Player};
+use crate::player::{player_mapper, Fusion, Player};
 use crate::services::auth_service;
 use crate::services::{self, player_info_service, player_service, ServiceHandles};
 use crate::shop::shop_services::shop_service;
@@ -232,7 +232,12 @@ impl AsyncController {
                     if let Some(handle) = session.get_player_handle().await {
                         if status == PetStatus::Fusion {
                             handle.send_forget(PlayerMessage::Fusion {
-                                type_fusion: 4,
+                                type_fusion: Fusion::LUONG_LONG_NHAT_THE,
+                                template_id: 1,
+                            });
+                        } else if status == PetStatus::HTVV {
+                            handle.send_forget(PlayerMessage::Fusion {
+                                type_fusion: Fusion::HOP_THE_VINH_VIEN,
                                 template_id: 1,
                             });
                         } else {

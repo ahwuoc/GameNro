@@ -11,6 +11,7 @@ use crate::network::message::Message;
 use crate::player::player::Player;
 use crate::player::player_actor::message::PlayerMessage;
 use crate::services::effect_skill_service::EffectSkillService;
+use crate::services::player_tnsm_services::TypeTNSM;
 use crate::services::ServiceHandles;
 use crate::templates::item_template_manager;
 use crate::utils::random::{is_true, next_int};
@@ -65,7 +66,7 @@ pub async fn attack_mob_actor(
                 if let Some(handle) = zone.players.get(&player_id) {
                     let tnsm_amount = mob.get_tiemnang_for_player(player_power, real_damage as i64);
                     handle.send_forget(PlayerMessage::AddTNSM {
-                        type_tnsm: 2,
+                        type_tnsm: TypeTNSM::All,
                         param: tnsm_amount,
                         is_ori: true,
                     });

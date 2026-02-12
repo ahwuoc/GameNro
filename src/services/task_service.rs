@@ -46,7 +46,6 @@ impl TaskService {
         }
     }
 
-    /// Kiểm tra xem NPC hiện tại có khớp với NPC yêu cầu của Task không
     pub fn is_match_npc(player: &Player, target_npc_id: i16) -> bool {
         if let Some(sub_task) = Self::get_current_sub_task(player) {
             if let Some(npc_list) = &sub_task.npc_id {

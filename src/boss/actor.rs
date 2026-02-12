@@ -119,6 +119,15 @@ impl BossActor {
                 self.handle_injured(damage, piercing, from_mob, attacker_id)
                     .await;
             }
+            PlayerMessage::SendInfoTo(target_handle) => {
+                let _ = ServiceHandles::send_player_info_to_handle(&target_handle, &self.player);
+            }
+            PlayerMessage::SendInfoToAll(targets) => {
+                for target_handle in targets {
+                    let _ =
+                        ServiceHandles::send_player_info_to_handle(&target_handle, &self.player);
+                }
+            }
             _ => {}
         }
     }
@@ -150,12 +159,6 @@ impl BossActor {
             return;
         }
         self.last_update = Instant::now();
-        // tracing::debug!(
-        //     "BossActor::update ticking for {} (State: {:?})",
-        //     self.player.id,
-        //     self.state
-        // );
-
         let template = boss_template_manager::get(&self.template_id);
         let boss_type = template
             .as_ref()

@@ -1,3 +1,5 @@
+use sea_orm::sea_query::extension::postgres::Type;
+
 use crate::combine::combine_type::CombineType;
 use crate::constant::task_type::TaskType;
 use crate::item::type_item_inventory::{TypeItemAction, TypeItemInventory};
@@ -7,6 +9,7 @@ use crate::player::player::Player;
 use crate::player::player_actor::handle::PlayerHandle;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
+use crate::services::player_tnsm_services::TypeTNSM;
 
 pub enum PlayerMessage {
     NetworkMessage(Message),
@@ -15,7 +18,7 @@ pub enum PlayerMessage {
         text: String,
     },
     AddTNSM {
-        type_tnsm: i8,
+        type_tnsm: TypeTNSM,
         param: i64,
         is_ori: bool,
     },

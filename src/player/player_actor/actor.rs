@@ -1,7 +1,8 @@
 use crate::constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE};
+use crate::item::item_controller::ItemController;
 use crate::item::{InventoryService, Item};
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::map::{item_map_service, ChangeMapService, ItemMapService};
+use crate::map::{item_map_service, ChangeMapService, ItemMapService, SpaceShipType};
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
@@ -9,11 +10,14 @@ use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
+use crate::player::Fusion;
 use crate::services::black_ball_war_service::BlackBallWarService;
 use crate::services::command::CommandService;
 use crate::services::effect_skill_service::EffectSkillService;
+use crate::services::player_tnsm_services::{tiemnang_sucmanh_add, TypeTNSM};
 use crate::services::task_service::TaskService;
-use crate::services::{player_info_service, player_service, ServiceHandles};
+use crate::services::{player_info_service, player_service, player_tnsm_services, ServiceHandles};
+use crate::templates::fusion_template_manager;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{error, info};
@@ -113,7 +117,7 @@ impl PlayerActor {
                 if let Ok(false) =
                     CommandService::check(&mut self.player, &self.session, &text).await
                 {
-                    let _ = crate::services::ServiceHandles::chat(
+                    let _ = ServiceHandles::chat(
                         &self.session,
                         self.player.id,
                         self.player.map_id,
@@ -219,7 +223,7 @@ impl PlayerActor {
                 type_item_inventory,
                 index,
             } => {
-                let _ = crate::item::item_controller::ItemController::handle_get_item_actor(
+                let _ = ItemController::handle_get_item_actor(
                     &self.session,
                     &mut self.player,
                     type_item_inventory,
@@ -263,7 +267,7 @@ impl PlayerActor {
                 param,
                 is_ori,
             } => {
-                crate::services::player_tnsm_services::tiemnang_sucmanh_add(
+                player_tnsm_services::tiemnang_sucmanh_add(
                     &mut self.player,
                     type_tnsm,
                     param,
@@ -557,7 +561,6 @@ impl PlayerActor {
             }
         }
     }
-
     async fn handle_fusion(&mut self, type_fusion: i8, template_id: i32) {
         if self.player.fusion.type_fusion != 0 {
             return;
@@ -567,8 +570,22 @@ impl PlayerActor {
             let (tx, rx) = tokio::sync::oneshot::channel();
             let _ = pet_handle.send(PetMessage::GetSnapshot(tx)).await;
             if let Ok(pet_snapshot) = rx.await {
-                if let Some(template) = crate::templates::fusion_template_manager::get(template_id)
-                {
+                if type_fusion == Fusion::HOP_THE_VINH_VIEN && self.player.gender == 1 {
+                    ServiceHandles::send_fusion_effect(&self.player, Fusion::LUONG_LONG_NHAT_THE);
+                    let _ = pet_handle.tx.send(PlayerMessage::Logout).await;
+                    self.pet_handle = None;
+
+                    let pet_power = pet_snapshot.player.n_point.power;
+                    player_tnsm_services::tiemnang_sucmanh_add(
+                        &mut self.player,
+                        TypeTNSM::All,
+                        pet_power,
+                        false,
+                    );
+                    player_info_service::send_pet_info(&self.player);
+                    return;
+                }
+                if let Some(template) = fusion_template_manager::get(template_id) {
                     self.player.fusion.type_fusion = type_fusion;
                     self.player.fusion.template_id = template_id;
 
@@ -587,19 +604,13 @@ impl PlayerActor {
                     self.player.n_point.set_hp(self.player.n_point.hp_max);
                     self.player.n_point.set_mp(self.player.n_point.mp_max);
 
-                    let _ = pet_handle.send(PetMessage::Fusion(true)).await;
+                    pet_handle.send(PetMessage::Fusion(true)).await;
 
-                    let _ =
-                        crate::services::player_info_service::send_point_info_sync(&self.player);
-                    let _ =
-                        crate::services::player_info_service::send_info_hp_mp_money(&self.player);
-                    let _ = crate::services::ServiceHandles::send_cai_trang(&self.player);
-                    let _ = crate::services::ServiceHandles::send_fusion_effect(
-                        &self.player,
-                        type_fusion,
-                    );
-                    if type_fusion == crate::player::components::fusion::Fusion::LUONG_LONG_NHAT_THE
-                    {
+                    player_info_service::send_point_info_sync(&self.player);
+                    player_info_service::send_info_hp_mp_money(&self.player);
+                    ServiceHandles::send_cai_trang(&self.player);
+                    ServiceHandles::send_fusion_effect(&self.player, type_fusion);
+                    if type_fusion == Fusion::LUONG_LONG_NHAT_THE {
                         self.player.fusion.last_time_fusion =
                             crate::utils::time::current_time_millis();
                         let icon_id: i16 = if self.player.gender == 1 { 3901 } else { 3790 };
@@ -800,7 +811,7 @@ impl PlayerActor {
                     zone_id: self.player.zone_id,
                     x: self.player.location.x,
                     y: self.player.location.y,
-                    space_type: crate::map::services::change_map_models::SpaceShipType::None,
+                    space_type: SpaceShipType::None,
                 })
                 .await;
         }
@@ -1019,9 +1030,7 @@ impl PlayerActor {
                     }
                 }
             }
-            _ => {
-                // Vật phẩm không tồn tại hoặc đã bị nhặt
-            }
+            _ => {}
         }
     }
 

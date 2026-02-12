@@ -14,6 +14,7 @@ use crate::player::player_actor::pet::PetService;
 use crate::player::player_actor::pet::PetStatus;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player;
+use crate::services::player_tnsm_services::TypeTNSM;
 use crate::services::skill_service;
 use crate::services::ServiceHandles;
 
@@ -174,7 +175,7 @@ impl CommandService {
                     if let Some(handle) = PLAYER_MANAGER.get(player.id) {
                         let _ = handle
                             .send(PlayerMessage::AddTNSM {
-                                type_tnsm: 2,
+                                type_tnsm: TypeTNSM::All,
                                 param: amount,
                                 is_ori: true,
                             })

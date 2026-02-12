@@ -30,7 +30,8 @@ public class Pet extends Player {
     private static final short ARANGE_CAN_ATTACK = 300;
     private static final short ARANGE_ATT_SKILL1 = 50;
 
-    private static final short[][] PET_ID = {{285, 286, 287}, {288, 289, 290}, {282, 283, 284}, {304, 305, 303}};
+    private static final short[][] PET_ID = { { 285, 286, 287 }, { 288, 289, 290 }, { 282, 283, 284 },
+            { 304, 305, 303 } };
 
     public static final byte FOLLOW = 0;
     public static final byte PROTECT = 1;
@@ -146,6 +147,7 @@ public class Pet extends Player {
                 return "Sư phụ ơi con lên cấp rồi";
         }
     }
+
     public void fusionGogeta(boolean porata) {
         if (this.isDie()) {
             Service.gI().sendThongBao(master, "Đệ cu chết rồi hợp thể chóa giề");
@@ -171,8 +173,9 @@ public class Pet extends Player {
                 Item item = master.inventory.itemsBody.get(5);
                 Item petItem = this.inventory.itemsBody.get(5);
                 boolean hasItem = item.isNotNullItem() && (item.template.id == 1693 || item.template.id == 1553);
-                boolean sameItem = item.isNotNullItem() && petItem.isNotNullItem() && item.template.id == petItem.template.id;
-                if (hasItem && !sameItem) {                
+                boolean sameItem = item.isNotNullItem() && petItem.isNotNullItem()
+                        && item.template.id == petItem.template.id;
+                if (hasItem && !sameItem) {
                     SkillService.gI().sendPlayerPrepareBom(master, 2000);
                 }
             }
@@ -215,7 +218,8 @@ public class Pet extends Player {
             } else {
                 master.fusion.lastTimeFusion = System.currentTimeMillis();
                 master.fusion.typeFusion = ConstPlayer.LUONG_LONG_NHAT_THE;
-                ItemTimeService.gI().sendItemTime(master, master.gender == ConstPlayer.NAMEC ? 3901 : 3790, Fusion.TIME_FUSION / 1000);
+                ItemTimeService.gI().sendItemTime(master, master.gender == ConstPlayer.NAMEC ? 3901 : 3790,
+                        Fusion.TIME_FUSION / 1000);
             }
             this.status = FUSION;
             ChangeMapService.gI().exitMap(this);
@@ -270,7 +274,6 @@ public class Pet extends Player {
             timeMoveIdle = Util.nextInt(5000, 8000);
             idle = false;
         }
-        //Util.nextInt(dir == -1 ? 50 : -50, dir == -1 ? 50 : 50)
     }
 
     private void masterDoesNotAttack() {
@@ -294,8 +297,8 @@ public class Pet extends Player {
         try {
             if (this.master != null && this.master.zone != null) {
                 super.update();
-                increasePoint(); //cộng chỉ số
-                updatePower(); //check mở skill...
+                increasePoint(); // cộng chỉ số
+                updatePower(); // check mở skill...
                 if (isDie()) {
                     if (System.currentTimeMillis() - lastTimeDie > 50000) {
                         Service.gI().hsChar(this, nPoint.hpMax, nPoint.mpMax);
@@ -331,7 +334,9 @@ public class Pet extends Player {
                         }
                         playerAttack = findPlayerAttack();
                         if (playerAttack != null) {
-                            if ((this.typePet == 2 || this.typePet == 4) && Util.isTrue(1, 5) && playerAttack.nPoint.hp < 1_000_000_000 && !playerAttack.nPoint.islinhthuydanhbac && !playerAttack.isBoss) {
+                            if ((this.typePet == 2 || this.typePet == 4) && Util.isTrue(1, 5)
+                                    && playerAttack.nPoint.hp < 1_000_000_000 && !playerAttack.nPoint.islinhthuydanhbac
+                                    && !playerAttack.isBoss) {
                                 playerAttack.setDie(this);
                                 Service.gI().chat(this, "HAKAI " + playerAttack.name + "!");
                                 Service.gI().sendThongBao(playerAttack, "Bạn đã bị Hakai!");
@@ -340,18 +345,20 @@ public class Pet extends Player {
                             }
                             int disToPlayer = Util.getDistance(this, playerAttack);
                             if (disToPlayer <= ARANGE_ATT_SKILL1) {
-                                //đấm
+                                // đấm
                                 this.playerSkill.skillSelect = getSkill(1);
                                 if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                     if (SkillService.gI().canUseSkillWithMana(this)) {
-                                        PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-60, 60), playerAttack.location.y);
+                                        PlayerService.gI().playerMove(this,
+                                                playerAttack.location.x + Util.nextInt(-60, 60),
+                                                playerAttack.location.y);
                                         SkillService.gI().useSkill(this, playerAttack, null, -1, null);
                                     } else {
                                         askPea();
                                     }
                                 }
                             } else {
-                                //chưởng
+                                // chưởng
                                 this.playerSkill.skillSelect = getSkill(2);
                                 if (this.playerSkill.skillSelect.skillId != -1) {
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
@@ -365,7 +372,9 @@ public class Pet extends Player {
                                     this.playerSkill.skillSelect = getSkill(1);
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                         if (SkillService.gI().canUseSkillWithMana(this)) {
-                                            PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-60, 60), playerAttack.location.y);
+                                            PlayerService.gI().playerMove(this,
+                                                    playerAttack.location.x + Util.nextInt(-60, 60),
+                                                    playerAttack.location.y);
                                             SkillService.gI().useSkill(this, playerAttack, null, -1, null);
                                         } else {
                                             askPea();
@@ -380,18 +389,19 @@ public class Pet extends Player {
                         if (mobAttack != null) {
                             int disToMob = Util.getDistance(this, mobAttack);
                             if (disToMob <= ARANGE_ATT_SKILL1) {
-                                //đấm
+                                // đấm
                                 this.playerSkill.skillSelect = getSkill(1);
                                 if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                     if (SkillService.gI().canUseSkillWithMana(this)) {
-                                        PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-60, 60), mobAttack.location.y);
+                                        PlayerService.gI().playerMove(this,
+                                                mobAttack.location.x + Util.nextInt(-60, 60), mobAttack.location.y);
                                         SkillService.gI().useSkill(this, null, mobAttack, -1, null);
                                     } else {
                                         askPea();
                                     }
                                 }
                             } else {
-                                //chưởng
+                                // chưởng
                                 this.playerSkill.skillSelect = getSkill(2);
                                 if (this.playerSkill.skillSelect.skillId != -1) {
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
@@ -405,7 +415,8 @@ public class Pet extends Player {
                                     this.playerSkill.skillSelect = getSkill(1);
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                         if (SkillService.gI().canUseSkillWithMana(this)) {
-                                            PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-60, 60), mobAttack.location.y);
+                                            PlayerService.gI().playerMove(this,
+                                                    mobAttack.location.x + Util.nextInt(-60, 60), mobAttack.location.y);
                                             SkillService.gI().useSkill(this, null, mobAttack, -1, null);
                                         } else {
                                             askPea();
@@ -427,18 +438,20 @@ public class Pet extends Player {
                         if (playerAttack != null) {
                             int disToPlayer = Util.getDistance(this, playerAttack);
                             if (disToPlayer <= ARANGE_ATT_SKILL1) {
-                                //đấm
+                                // đấm
                                 this.playerSkill.skillSelect = getSkill(1);
                                 if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                     if (SkillService.gI().canUseSkillWithMana(this)) {
-                                        PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-60, 60), playerAttack.location.y);
+                                        PlayerService.gI().playerMove(this,
+                                                playerAttack.location.x + Util.nextInt(-60, 60),
+                                                playerAttack.location.y);
                                         SkillService.gI().useSkill(this, playerAttack, null, -1, null);
                                     } else {
                                         askPea();
                                     }
                                 }
                             } else {
-                                //chưởng
+                                // chưởng
                                 this.playerSkill.skillSelect = getSkill(2);
                                 if (this.playerSkill.skillSelect.skillId != -1) {
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
@@ -452,7 +465,9 @@ public class Pet extends Player {
                                     this.playerSkill.skillSelect = getSkill(1);
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                         if (SkillService.gI().canUseSkillWithMana(this)) {
-                                            PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-60, 60), playerAttack.location.y);
+                                            PlayerService.gI().playerMove(this,
+                                                    playerAttack.location.x + Util.nextInt(-60, 60),
+                                                    playerAttack.location.y);
                                             SkillService.gI().useSkill(this, playerAttack, null, -1, null);
                                         } else {
                                             askPea();
@@ -469,7 +484,8 @@ public class Pet extends Player {
                                 this.playerSkill.skillSelect = getSkill(1);
                                 if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                     if (SkillService.gI().canUseSkillWithMana(this)) {
-                                        PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
+                                        PlayerService.gI().playerMove(this,
+                                                mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
                                         SkillService.gI().useSkill(this, playerAttack, mobAttack, -1, null);
                                     } else {
                                         askPea();
@@ -479,14 +495,16 @@ public class Pet extends Player {
                                 this.playerSkill.skillSelect = getSkill(2);
                                 if (this.playerSkill.skillSelect.skillId != -1) {
                                     if (SkillService.gI().canUseSkillWithMana(this)) {
-                                        PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
+                                        PlayerService.gI().playerMove(this,
+                                                mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
                                         SkillService.gI().useSkill(this, playerAttack, mobAttack, -1, null);
                                     }
                                 } else {
                                     this.playerSkill.skillSelect = getSkill(1);
                                     if (SkillService.gI().canUseSkillWithCooldown(this) && canAttack()) {
                                         if (SkillService.gI().canUseSkillWithMana(this)) {
-                                            PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
+                                            PlayerService.gI().playerMove(this,
+                                                    mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
                                             SkillService.gI().useSkill(this, playerAttack, mobAttack, -1, null);
                                         } else {
                                             askPea();
@@ -501,7 +519,8 @@ public class Pet extends Player {
                         break;
 
                     case GOHOME:
-                        if (this.zone != null && (this.zone.map.mapId == 21 || this.zone.map.mapId == 22 || this.zone.map.mapId == 23)) {
+                        if (this.zone != null && (this.zone.map.mapId == 21 || this.zone.map.mapId == 22
+                                || this.zone.map.mapId == 23)) {
                             if (System.currentTimeMillis() - lastTimeMoveAtHome <= 5000) {
                                 return;
                             } else {
@@ -571,7 +590,7 @@ public class Pet extends Player {
                 lastTimeAskPea = System.currentTimeMillis();
                 return;
             }
-            Service.gI().chatJustForMe(master, this,"Sư phụ ơi cho con đậu thần");
+            Service.gI().chatJustForMe(master, this, "Sư phụ ơi cho con đậu thần");
             UseItem.gI().eatPea(master);
             lastTimeAskPea = System.currentTimeMillis();
         }
@@ -587,7 +606,8 @@ public class Pet extends Player {
             }
             switch (this.playerSkill.skillSelect.template.id) {
                 case Skill.THAI_DUONG_HA_SAN:
-                    if (SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
+                    if (SkillService.gI().canUseSkillWithCooldown(this)
+                            && SkillService.gI().canUseSkillWithMana(this)) {
                         SkillService.gI().useSkill(this, null, null, -1, null);
                         Service.gI().chatJustForMe(master, this, "Bất ngờ chưa ông già");
                         return true;
@@ -606,7 +626,8 @@ public class Pet extends Player {
                     }
                     return false;
                 case Skill.KAIOKEN:
-                    if (SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
+                    if (SkillService.gI().canUseSkillWithCooldown(this)
+                            && SkillService.gI().canUseSkillWithMana(this)) {
 
                         mobAttack = this.findMobAttack();
                         playerAttack = this.findPlayerAttack();
@@ -616,8 +637,10 @@ public class Pet extends Player {
                             if (dis > ARANGE_ATT_SKILL1) {
                                 PlayerService.gI().playerMove(this, playerAttack.location.x, playerAttack.location.y);
                             } else {
-                                if (SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
-                                    PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-20, 20), playerAttack.location.y);
+                                if (SkillService.gI().canUseSkillWithCooldown(this)
+                                        && SkillService.gI().canUseSkillWithMana(this)) {
+                                    PlayerService.gI().playerMove(this, playerAttack.location.x + Util.nextInt(-20, 20),
+                                            playerAttack.location.y);
                                 }
                             }
                         } else if (mobAttack == null) {
@@ -628,8 +651,10 @@ public class Pet extends Player {
                             if (dis > ARANGE_ATT_SKILL1) {
                                 PlayerService.gI().playerMove(this, mobAttack.location.x, mobAttack.location.y);
                             } else {
-                                if (SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
-                                    PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-20, 20), mobAttack.location.y);
+                                if (SkillService.gI().canUseSkillWithCooldown(this)
+                                        && SkillService.gI().canUseSkillWithMana(this)) {
+                                    PlayerService.gI().playerMove(this, mobAttack.location.x + Util.nextInt(-20, 20),
+                                            mobAttack.location.y);
                                 }
                             }
                         }
@@ -655,19 +680,22 @@ public class Pet extends Player {
             }
             switch (this.playerSkill.skillSelect.template.id) {
                 case Skill.BIEN_KHI:
-                    if (!this.effectSkill.isMonkey && SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
+                    if (!this.effectSkill.isMonkey && SkillService.gI().canUseSkillWithCooldown(this)
+                            && SkillService.gI().canUseSkillWithMana(this)) {
                         SkillService.gI().useSkill(this, null, null, -1, null);
                         return true;
                     }
                     return false;
                 case Skill.KHIEN_NANG_LUONG:
-                    if (!this.effectSkill.isShielding && SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
+                    if (!this.effectSkill.isShielding && SkillService.gI().canUseSkillWithCooldown(this)
+                            && SkillService.gI().canUseSkillWithMana(this)) {
                         SkillService.gI().useSkill(this, null, null, -1, null);
                         return true;
                     }
                     return false;
                 case Skill.DE_TRUNG:
-                    if (this.mobMe == null && SkillService.gI().canUseSkillWithCooldown(this) && SkillService.gI().canUseSkillWithMana(this)) {
+                    if (this.mobMe == null && SkillService.gI().canUseSkillWithCooldown(this)
+                            && SkillService.gI().canUseSkillWithMana(this)) {
                         SkillService.gI().useSkill(this, null, null, -1, null);
                         return true;
                     }
@@ -897,7 +925,7 @@ public class Pet extends Player {
         return mobAtt;
     }
 
-    //Sức mạnh mở skill đệ
+    // Sức mạnh mở skill đệ
     private void updatePower() {
         if (this.playerSkill != null) {
             switch (this.playerSkill.getSizeSkill()) {
@@ -924,8 +952,8 @@ public class Pet extends Player {
         Skill currentSkill = this.playerSkill.skills.get(1);
         Skill skill = null;
 
-        int[] tiLe = {33, 33, 34};
-        byte[] skills = {Skill.KAMEJOKO, Skill.MASENKO, Skill.ANTOMIC};
+        int[] tiLe = { 33, 33, 34 };
+        byte[] skills = { Skill.KAMEJOKO, Skill.MASENKO, Skill.ANTOMIC };
 
         int totalTiLe = 0;
         for (int t : tiLe) {
@@ -956,15 +984,15 @@ public class Pet extends Player {
         }
 
         skill.coolDown = 1000;
-        this.playerSkill.skills.set(1, skill);  // Thêm kỹ năng mới vào vị trí 1
+        this.playerSkill.skills.set(1, skill); // Thêm kỹ năng mới vào vị trí 1
     }
 
     public void openSkill3() {
         Skill skill = null;
 
         // Danh sách kỹ năng và tỉ lệ tương ứng
-        int[] tiLe = {30, 40, 30};
-        byte[] skills = {Skill.THAI_DUONG_HA_SAN, Skill.TAI_TAO_NANG_LUONG, Skill.KAIOKEN};
+        int[] tiLe = { 30, 40, 30 };
+        byte[] skills = { Skill.THAI_DUONG_HA_SAN, Skill.TAI_TAO_NANG_LUONG, Skill.KAIOKEN };
 
         int totalTiLe = 0;
         for (int t : tiLe) {
@@ -982,7 +1010,7 @@ public class Pet extends Player {
             }
         }
 
-        this.playerSkill.skills.set(2, skill);  // Thêm kỹ năng mới vào vị trí 2
+        this.playerSkill.skills.set(2, skill); // Thêm kỹ năng mới vào vị trí 2
     }
 
     public void openSkill4() {
@@ -1034,7 +1062,8 @@ public class Pet extends Player {
     public boolean canAttack() {
         if (this.master.isPl() && this.master.doesNotAttack && this.master.charms.tdDeTu < System.currentTimeMillis()) {
             if (Util.canDoWithTime(lastTimeAskAttack, 10000)) {
-                Service.gI().chatJustForMe(master, this, this.typePet == 4 ? "Sao ngươi không đánh đi?" : "Sao sư phụ không đánh đi?");
+                Service.gI().chatJustForMe(master, this,
+                        this.typePet == 4 ? "Sao ngươi không đánh đi?" : "Sao sư phụ không đánh đi?");
                 lastTimeAskAttack = System.currentTimeMillis();
             }
             return false;
@@ -1046,11 +1075,11 @@ public class Pet extends Player {
         if (this.typePet == 4) {
             if (Util.canDoWithTime(lastTimeChat, indexChat == 0 ? 15000 : 1500)) {
                 String[] chat = {
-                    "Ta chính là thế giới",
-                    "Ta chính là công lí",
-                    "Hãy chiêm ngưỡng vẻ đẹp của ta! Hỡi con người",
-                    "Sức mạnh to lớn nằm trong cơ thể bất tử",
-                    "Ta sẽ đem công lí tới toàn bộ vũ trụ này"
+                        "Ta chính là thế giới",
+                        "Ta chính là công lí",
+                        "Hãy chiêm ngưỡng vẻ đẹp của ta! Hỡi con người",
+                        "Sức mạnh to lớn nằm trong cơ thể bất tử",
+                        "Ta sẽ đem công lí tới toàn bộ vũ trụ này"
                 };
                 Service.gI().chat(this, chat[indexChat]);
                 indexChat = (indexChat + 1) % chat.length;
@@ -1059,11 +1088,11 @@ public class Pet extends Player {
         } else {
             if (Util.canDoWithTime(lastTimeChat, indexChat == 0 ? 15000 : 1500)) {
                 String[] chat = {
-                    "Mày chán sống rồi à " + player.name + "?",
-                    "Mày muốn chết đúng không?",
-                    "Ngày này năm sau",
-                    "Tao sẽ nhớ uống thật nhiều nước",
-                    "Để đái vào mộ mày"
+                        "Mày chán sống rồi à " + player.name + "?",
+                        "Mày muốn chết đúng không?",
+                        "Ngày này năm sau",
+                        "Tao sẽ nhớ uống thật nhiều nước",
+                        "Để đái vào mộ mày"
                 };
                 Service.gI().chat(this, chat[indexChat]);
                 indexChat = (indexChat + 1) % chat.length;
@@ -1074,7 +1103,7 @@ public class Pet extends Player {
 
     @Override
     public void dispose() {
-        if (zone !=null) {
+        if (zone != null) {
             ChangeMapService.gI().exitMap(this);
         }
         this.mobAttack = null;

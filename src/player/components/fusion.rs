@@ -8,11 +8,8 @@ pub struct Fusion {
 impl Fusion {
     pub const NON_FUSION: i8 = 0;
     pub const LUONG_LONG_NHAT_THE: i8 = 4;
-    pub const HOP_THE_PORATA: i8 = 6;
-    pub const HOP_THE_PORATA2: i8 = 7;
-
+    pub const HOP_THE_VINH_VIEN: i8 = 1;
     pub const TIME_FUSION: u64 = 600_000;
-
     pub fn new() -> Self {
         Self {
             type_fusion: Self::NON_FUSION,

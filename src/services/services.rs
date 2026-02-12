@@ -1,6 +1,7 @@
 use crate::network::session::SessionArc;
 use crate::player::player_actor::PlayerHandle;
 use crate::services::player_info_service::sub_command_i30;
+use crate::services::player_tnsm_services::TypeTNSM;
 use crate::{
     constant::cmd::cmd,
     network::{
@@ -434,9 +435,9 @@ impl ServiceHandles {
         Ok(())
     }
 
-    pub fn send_tnsm(player: &Player, type_tnsm: i8, param: i64) -> Result<()> {
+    pub fn send_tnsm(player: &Player, type_tnsm: TypeTNSM, param: i64) -> Result<()> {
         let mut msg = Message::new(-3);
-        msg.write_byte(type_tnsm)?;
+        msg.write_byte(type_tnsm as i8)?;
         msg.write_int(param as i32)?;
         player.send_to_client(msg)?;
         Ok(())
