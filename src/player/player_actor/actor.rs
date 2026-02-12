@@ -1,6 +1,8 @@
-use crate::item::InventoryService;
+use crate::constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE};
+use crate::item::{InventoryService, Item};
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::map::ChangeMapService;
+use crate::map::{item_map_service, ChangeMapService, ItemMapService};
+use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
 use crate::player::player_actor::message::PlayerMessage;
@@ -8,10 +10,10 @@ use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::black_ball_war_service::BlackBallWarService;
+use crate::services::command::CommandService;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::task_service::TaskService;
-use crate::services::{player_info_service, player_service};
-use crate::{network::message::Message, services::command::CommandService};
+use crate::services::{player_info_service, player_service, ServiceHandles};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{error, info};
@@ -81,11 +83,12 @@ impl PlayerActor {
     async fn handle_message(&mut self, msg: PlayerMessage) {
         match msg {
             PlayerMessage::TaskAction(task_type, target_id) => {
-                let _ = crate::services::task_service::TaskService::check_done_task(
-                    &mut self.player,
-                    task_type,
-                    &target_id,
+                let old_task = (
+                    self.player.task_player.task_main.id,
+                    self.player.task_player.task_main.index,
                 );
+                TaskService::check_done_task(&mut self.player, task_type, &target_id);
+                self.handle_task_advance(old_task).await;
             }
             PlayerMessage::NetworkMessage(m) => {
                 let command = m.command;
@@ -238,6 +241,10 @@ impl PlayerActor {
                 type_increment,
                 point,
             } => {
+                let old_task = (
+                    self.player.task_player.task_main.id,
+                    self.player.task_player.task_main.index,
+                );
                 self.player.n_point.increase_point(type_increment, point);
                 let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
 
@@ -249,6 +256,7 @@ impl PlayerActor {
                     &mut self.player,
                     "1", // PowerReach
                 );
+                self.handle_task_advance(old_task).await;
             }
             PlayerMessage::AddTNSM {
                 type_tnsm,
@@ -317,7 +325,6 @@ impl PlayerActor {
                 self.player.location.set_position(x, y);
                 let map_id = self.player.map_id;
                 TaskService::check_done_task_go_to_map_position(&mut self.player, map_id, x);
-
                 if let Some(ref pet_handle) = self.pet_handle {
                     let _ = pet_handle.send(PetMessage::MasterLocation(x, y)).await;
                 }
@@ -359,14 +366,15 @@ impl PlayerActor {
                 {
                     self.sync_pet_map().await;
 
-                    let _ = crate::map::services::change_map_service::ChangeMapService::change_map_to_zone(
+                    ChangeMapService::change_map_to_zone(
                         &mut self.player,
                         &zone,
                         x,
                         y,
                         space_type,
                         Some(&self.session),
-                    ).await;
+                    )
+                    .await;
                 }
             }
             PlayerMessage::UpdateTick => {
@@ -383,9 +391,7 @@ impl PlayerActor {
                         crate::utils::time::current_time_millis();
                     self.player.effect_skill.pl_troi_id = caster_id;
                 } else {
-                    crate::services::effect_skill_service::EffectSkillService::remove_an_troi(
-                        &mut self.player,
-                    );
+                    EffectSkillService::remove_an_troi(&mut self.player);
                 }
             }
             PlayerMessage::SetPetHandle(handle) => {
@@ -507,6 +513,20 @@ impl PlayerActor {
                         &self.player,
                     );
                 }
+            }
+        }
+    }
+
+    async fn handle_task_advance(&mut self, old_task: (i32, i32)) {
+        let new_task = (
+            self.player.task_player.task_main.id,
+            self.player.task_player.task_main.index,
+        );
+        if old_task != new_task {
+            if let Some(zone) = crate::map::zone_manager::ZONE_MANAGER
+                .get_zone(self.player.map_id, self.player.zone_id)
+            {
+                let _ = zone.check_spawn_task_item(self.player.id, new_task).await;
             }
         }
     }
@@ -866,74 +886,141 @@ impl PlayerActor {
             return;
         }
 
-        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
-        if zone_opt.is_none() {
-            println!(
-                "[PICK_DBG] NO ZONE for map={}, zone={}",
-                self.player.map_id, self.player.zone_id
+        let zone_handle = match ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id) {
+            Some(zh) => zh,
+            None => return,
+        };
+
+        // 1. Kiểm tra quyền nhặt (Peek trước)
+        let item_map_peek = match zone_handle.get_item(item_map_id).await {
+            Ok(Some(it)) => it,
+            _ => return,
+        };
+
+        if !item_map_peek.can_pickup(self.player.id, Some(self.player.clan_id)) {
+            let _ = ServiceHandles::send_thong_bao_to_player(
+                &self.player,
+                "Không thể nhặt vật phẩm của người khác",
             );
             return;
         }
-        let zone_handle = zone_opt.unwrap();
 
+        // 2. Nhặt món đồ ra khỏi zone
         match zone_handle.remove_item(item_map_id).await {
-            Ok(Some(mut item_map)) => {
-                println!(
-                    "[PICK_DBG] removed OK: id={}, item_id={}, qty={}, has_template={}",
-                    item_map.item_map_id,
-                    item_map.get_item_id(),
-                    item_map.quantity,
-                    item_map.item_template.is_some()
-                );
+            Ok(Some(item_map)) => {
+                let item_id = item_map.get_item_id();
+                let item_type = item_map.get_item_type();
+
+                // Logic Đùi gà nướng (Hồi HP/KI)
+                if item_id == ITEM_DUI_GA_NUONG && matches!(self.player.map_id, 21 | 22 | 23) {
+                    self.player.n_point.set_hp(self.player.n_point.hp_max);
+                    self.player.n_point.set_mp(self.player.n_point.mp_max);
+                    player_info_service::send_point_info_sync(&self.player);
+                    player_info_service::send_info_hp_mp_money(&self.player);
+
+                    let mut msg = Message::new(-20);
+                    let _ = msg.write_short(item_map_id as i16);
+                    let _ = msg
+                        .write_utf("Bạn vừa ăn đùi gà nướng, HP và KI đã được hồi phục hoàn toàn");
+                    self.session.transmit(msg);
+
+                    let pickup_msg = ItemMapService::build_pickup_notification_message(
+                        item_map_id,
+                        self.player.id,
+                    );
+                    let _ = ServiceHandles::send_to_other_in_zone(
+                        &zone_handle,
+                        pickup_msg,
+                        self.player.id,
+                    );
+                    let disappear_msg = ItemMapService::build_item_disappear_message(item_map_id);
+                    let _ = ServiceHandles::send_to_all_in_zone(&zone_handle, disappear_msg);
+                    return;
+                }
+                if item_id == ITEM_EM_BE && matches!(self.player.map_id, 42 | 43 | 44) {
+                    let mut msg = Message::new(-20);
+                    let _ = msg.write_short(item_map_id as i16);
+                    let _ = msg.write_utf("Wow, một em bé dễ thương!");
+                    self.session.transmit(msg);
+
+                    TaskService::check_done_task_pick_item(&mut self.player, &item_id.to_string());
+
+                    let pickup_msg = ItemMapService::build_pickup_notification_message(
+                        item_map_id,
+                        self.player.id,
+                    );
+                    let _ = ServiceHandles::send_to_other_in_zone(
+                        &zone_handle,
+                        pickup_msg,
+                        self.player.id,
+                    );
+                    let disappear_msg = ItemMapService::build_item_disappear_message(item_map_id);
+                    let _ = ServiceHandles::send_to_all_in_zone(&zone_handle, disappear_msg);
+                    return;
+                }
                 if let Some(template) = item_map.item_template.clone() {
-                    let mut item =
-                        crate::item::item::Item::with_template(template, item_map.quantity);
+                    let mut item = Item::with_template(template, item_map.quantity);
                     item.item_options = item_map.options.clone();
                     let item_template_id = item.template.as_ref().map(|t| t.id as i32).unwrap_or(0);
 
                     match InventoryService::add_item_bag(&mut self.player, item) {
                         Ok(_) => {
-                            println!(
-                                "[PICK_ITEM] Player {} picked up item_map_id: {}, item_id: {}",
-                                self.player.id, item_map_id, item_template_id
-                            );
-                            let msg = crate::map::services::item_map_service::ItemMapService::build_pickup_notification_message(
+                            let msg = ItemMapService::build_pickup_notification_message(
                                 item_map_id,
                                 self.player.id,
                             );
-                            let _ = crate::services::ServiceHandles::send_to_all_in_zone(
+                            ServiceHandles::send_to_other_in_zone(
                                 &zone_handle,
                                 msg,
+                                self.player.id,
                             );
 
-                            let disappearing_msg = crate::map::services::item_map_service::ItemMapService::build_item_disappear_message(item_map_id);
-                            let _ = crate::services::ServiceHandles::send_to_all_in_zone(
-                                &zone_handle,
-                                disappearing_msg,
-                            );
+                            let disappearing_msg =
+                                ItemMapService::build_item_disappear_message(item_map_id);
 
-                            let _ = crate::services::task_service::TaskService::check_done_task_pick_item(
+                            ServiceHandles::send_to_all_in_zone(&zone_handle, disappearing_msg);
+
+                            if item_type >= 0 && item_type < 5 {
+                                let mut msg = Message::new(-20);
+                                let _ = msg.write_short(item_map_id as i16);
+                                let _ = msg.write_utf(&format!(
+                                    "Bạn nhận được {}",
+                                    item_map
+                                        .item_template
+                                        .as_ref()
+                                        .map(|t| t.name.clone())
+                                        .unwrap_or_default()
+                                ));
+                                self.session.transmit(msg);
+                            } else if matches!(item_type, 9 | 10 | 34) && item_map.quantity > 30000
+                            {
+                                let mut msg = Message::new(-20);
+                                let _ = msg.write_short(item_map_id as i16);
+                                let _ = msg.write_utf(&format!(
+                                    "Bạn vừa nhận được {} {}",
+                                    item_map.quantity,
+                                    item_map
+                                        .item_template
+                                        .as_ref()
+                                        .map(|t| t.name.clone())
+                                        .unwrap_or_default()
+                                ));
+                                self.session.transmit(msg);
+                            }
+
+                            TaskService::check_done_task_pick_item(
                                 &mut self.player,
                                 &item_template_id.to_string(),
                             );
                         }
-                        Err(e) => {
-                            println!(
-                                "[PICK_DBG] add_item_bag FAILED: err={:?}, putting item back",
-                                e
-                            );
+                        Err(_) => {
                             let _ = zone_handle.add_item(item_map).await;
                         }
                     }
-                } else {
-                    println!("[PICK_DBG] item has NO template, skipping");
                 }
             }
-            Ok(None) => {
-                println!("[PICK_DBG] remove_item returned None (item not in zone)");
-            }
-            Err(e) => {
-                println!("[PICK_DBG] remove_item ERROR: {:?}", e);
+            _ => {
+                // Vật phẩm không tồn tại hoặc đã bị nhặt
             }
         }
     }

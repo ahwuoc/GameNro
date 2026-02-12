@@ -422,7 +422,6 @@ impl EffectSkillService {
             let _ = msg2.write_byte(if update.is_monkey { 1 } else { 0 });
             let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg2);
 
-            // Cập nhật tốc độ (-30, 8)
             let mut msg3 = crate::services::player_info_service::sub_command_i30(8).unwrap();
             let _ = msg3.write_int(update.player_id as i32);
             let _ = msg3.write_byte(update.speed);

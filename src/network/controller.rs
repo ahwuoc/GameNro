@@ -37,6 +37,7 @@ pub struct AsyncController;
 impl AsyncController {
     #[instrument(skip(session, msg), fields(command = msg.command, sub_cmd))]
     pub async fn process(session: SessionArc, mut msg: Message) -> Result<()> {
+        let command = msg.command;
         let data_len = msg.payload.len();
         let sub_cmd = msg.payload.get(0).copied().map(|b| b as i8);
         match msg.command {
@@ -64,9 +65,7 @@ impl AsyncController {
                 let master_id = if is_mob_me { msg.read_int()? } else { -1 };
 
                 if let Some(handle) = session.get_player_handle().await {
-                    let mut handled = false;
                     handle.send_forget(PlayerMessage::AttackMob { mob_id });
-                    handled = true;
                 }
                 Ok(())
             }
@@ -588,6 +587,8 @@ impl AsyncController {
         {
             (&*SESSION_MANAGER).add_session(player_id as i64, session.clone());
         }
+        Self::send_login_success_data(session).await?;
+
         if let Some(zone) = zone_handle {
             if let Some(handle) = session.get_player_handle().await {
                 if let Err(e) = zone.add_player(handle).await {
@@ -616,9 +617,12 @@ impl AsyncController {
                     player_id
                 );
             }
+        } else {
+            error!(
+                "[LOGIN] zone_handle is NONE for player {}, MAP_INFO skipped!",
+                player_id
+            );
         }
-
-        Self::send_login_success_data(session).await?;
         Ok(())
     }
 
@@ -696,15 +700,10 @@ impl AsyncController {
     }
 
     async fn send_login_success_data(session: &SessionArc) -> Result<()> {
-        debug!("[LEGACY LOGIN] Step 1: send_small_version (-77)");
         DataGame::send_small_version(session).await?;
-        debug!("[LEGACY LOGIN] Step 2: send_message_93 (-93)");
         Self::send_message_93(session).await?;
-        debug!("[LEGACY LOGIN] Step 3: send_version_game (-28)");
         DataGame::send_version_game(session).await?;
-        debug!("[LEGACY LOGIN] Step 4: send_data_item_bg (-31)");
         DataGame::send_data_item_bg(session).await?;
-        debug!("[LEGACY LOGIN] Step 5: send_all_player_info");
         player_info_service::send_all_player_info(session).await?;
         info!("[LEGACY LOGIN] All login data sent!");
         Ok(())
@@ -818,7 +817,6 @@ impl AsyncController {
         let _can_fly = msg.read_byte()?;
         let to_x = msg.read_short()?;
         let to_y_result = msg.read_short();
-
         if let Some(handle) = session.get_player_handle().await {
             let y = match to_y_result {
                 Ok(y) => y,

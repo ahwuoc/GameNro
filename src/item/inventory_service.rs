@@ -1,6 +1,5 @@
 use std::ops::Add;
 
-
 use crate::item::inventory::{self, Inventory};
 use crate::item::item::Item;
 use crate::network::message::Message;
@@ -90,8 +89,13 @@ impl InventoryService {
                     let _ = Self::send_item_bag_to_client(pl);
                     Ok(())
                 } else {
-                    let _ = ServiceHandles::send_message_alert(pl, "Hành trang đầy");
-                    Err(anyhow::anyhow!("Hành trang đầy"))
+                    let _ = ServiceHandles::send_thong_bao_to_player(
+                        pl,
+                        "Hành trang không còn chỗ trống, không thể nhặt thêm",
+                    );
+                    Err(anyhow::anyhow!(
+                        "Hành trang không còn chỗ trống, không thể nhặt thêm"
+                    ))
                 }
             }
         }

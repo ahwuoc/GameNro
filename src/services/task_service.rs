@@ -1,5 +1,7 @@
+use std::clone;
 use std::panic::panic_any;
 
+use crate::constant::cmd::cmd::GET_MOB_TEMPLATE;
 use crate::constant::const_npc::CON_MEO;
 use crate::constant::task_type::TaskType;
 use crate::constant::{const_npc, task_id};
@@ -9,8 +11,8 @@ use crate::network::session;
 use crate::player::Player;
 use crate::services::task_utils::TaskUtils;
 use crate::services::ServiceHandles;
-use crate::templates::npc_template_manager;
 use crate::templates::task_template_manager::TASK_TEMPLATE_MANAGER;
+use crate::templates::{boss_template_manager, mob_template_manager, npc_template_manager};
 use anyhow::Result;
 
 pub struct TaskService;
@@ -165,16 +167,36 @@ impl TaskService {
                         TaskType::UseItem => "dùng",
                         _ => "",
                     };
-
+                    let target_name = match task_type {
+                        TaskType::KillBoss => {
+                            let boss_id = sub_task.boss_id.as_deref().unwrap_or("0");
+                            boss_template_manager::get(&boss_id).map(|x| x.name.clone())
+                        }
+                        TaskType::KillMob => {
+                            let mob_id = sub_task.mob_id.as_deref().unwrap_or("0");
+                            let split_ids = mob_id.split(",").collect::<Vec<&str>>();
+                            if split_ids.len() > 1 {
+                                let first_id = split_ids[player.gender as usize];
+                                mob_template_manager::get(first_id.parse::<i8>().unwrap_or(0))
+                                    .map(|x| x.name.clone())
+                            } else if split_ids.len() == 1 {
+                                mob_template_manager::get(split_ids[0].parse::<i8>().unwrap_or(0))
+                                    .map(|x| x.name.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+                    let target_name = target_name.unwrap_or("".to_string()).to_lowercase();
                     if !prefix_text.is_empty() {
                         let text = format!(
                             "Bạn {} được {}/{} {}",
-                            prefix_text,
-                            count,
-                            max_count,
-                            TaskUtils::transform_name(player, &notify)
+                            prefix_text, count, max_count, target_name,
                         );
-                        ServiceHandles::send_thong_bao(player, &text)?;
+
+                        println!("=============TEXT============ {}", &text);
+                        ServiceHandles::send_thong_bao_to_player(player, &text)?;
                     }
                 }
             }
@@ -244,7 +266,7 @@ impl TaskService {
             .map(|t| t.name)
             .unwrap_or_else(|| "Nhiệm vụ mới".to_string());
 
-        ServiceHandles::send_thong_bao(
+        ServiceHandles::send_thong_bao_to_player(
             player,
             &format!("Nhiệm vụ tiếp theo của bạn là: {}", next_task_name),
         )?;

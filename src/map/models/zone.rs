@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::map::map_manager;
+use crate::map::map_manager::{self, MAP_MANAGER};
 use crate::map::services::mob_service;
 use crate::mob::RtMob;
 use crate::network::message::Message;
@@ -10,7 +10,11 @@ use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::player_service;
-use crate::{constant::const_item::ITEM_DUI_GA, map::item_map::ItemMap};
+use crate::templates::item_template_manager;
+use crate::{
+    constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE},
+    map::item_map::ItemMap,
+};
 use anyhow::Result;
 use std::collections::HashMap;
 
@@ -105,6 +109,10 @@ pub enum ZoneMessage {
         is_player: bool,
         die_when_hp_full: bool,
         player_power: i64,
+    },
+    CheckSpawnTaskItem {
+        player_id: u64,
+        task_info: (i32, i32),
     },
 }
 
@@ -260,6 +268,16 @@ impl ZoneHandle {
             except_id: Some(except_id),
         });
     }
+
+    pub async fn check_spawn_task_item(&self, player_id: u64, task_info: (i32, i32)) -> Result<()> {
+        self.tx
+            .send(ZoneMessage::CheckSpawnTaskItem {
+                player_id,
+                task_info,
+            })
+            .await?;
+        Ok(())
+    }
 }
 
 pub struct Zone {
@@ -384,6 +402,23 @@ impl Zone {
             ZoneMessage::LoadMeToAnother { player_id } => {
                 self.handle_load_me_to_another(player_id).await?;
             }
+            ZoneMessage::CheckSpawnTaskItem {
+                player_id,
+                task_info,
+            } => {
+                self.spawn_special_item_task(Some(task_info));
+                // Send CMD 68 to this player for any task items they can now see
+                if let Some(player_handle) = self.players.get(&player_id) {
+                    let filtered_items = self.get_filtered_items_with_task(Some(task_info)).await;
+                    for item in filtered_items {
+                        let item_id = item.get_item_id();
+                        if item_id == ITEM_DUI_GA_NUONG || item_id == ITEM_EM_BE {
+                            let msg = crate::map::services::item_map_service::ItemMapService::build_item_appear_for_me_message(&item);
+                            player_handle.send_forget(PlayerMessage::SendPacket(msg));
+                        }
+                    }
+                }
+            }
             ZoneMessage::UpdateTick => {
                 self.update().await?;
             }
@@ -487,6 +522,51 @@ impl Zone {
         Ok(())
     }
 
+    // handle map info
+    fn spawn_special_item_task(&mut self, player_task_info: Option<(i32, i32)>) {
+        if matches!(self.map_id, 42 | 43 | 44 | 21 | 22 | 23) {
+            if let Some((task_id, task_index)) = player_task_info {
+                let mut item_to_spawn = None;
+
+                if matches!(self.map_id, 21 | 22 | 23) && task_id > 2 {
+                    if !self
+                        .active_items
+                        .iter()
+                        .any(|it| it.get_item_id() == ITEM_DUI_GA_NUONG)
+                    {
+                        let (x, y) = if self.map_id == 21 {
+                            (633, 315)
+                        } else if self.map_id == 22 {
+                            (633, 315)
+                        } else {
+                            (633, 320)
+                        };
+                        item_to_spawn = Some((ITEM_DUI_GA_NUONG, x, y));
+                    }
+                }
+                if matches!(self.map_id, 42 | 43 | 44) && task_id == 3 && task_index == 1 {
+                    if !self
+                        .active_items
+                        .iter()
+                        .any(|i| i.get_item_id() == ITEM_EM_BE)
+                    {
+                        let x = 70;
+                        let y = if self.map_id == 43 { 264 } else { 288 };
+                        item_to_spawn = Some((ITEM_EM_BE, x, y));
+                    }
+                }
+
+                if let Some((template_id, x, y)) = item_to_spawn {
+                    if let Some(template) = item_template_manager::get(template_id) {
+                        let mut item_map = ItemMap::new(Some(template), 1, x as i32, y as i32, -1);
+                        item_map.set_location(self.map_id, self.zone_id, x as i32, y as i32);
+                        self.active_items.push(item_map);
+                    }
+                }
+            }
+        }
+    }
+
     async fn handle_map_info(
         &mut self,
         session: &SessionArc,
@@ -496,6 +576,11 @@ impl Zone {
         player_task_info: Option<(i32, i32)>,
         spaceship_id: i8,
     ) -> Result<()> {
+        tracing::info!(
+            "[MAP_INFO] Start for player {} Map {}",
+            player_id,
+            self.map_id
+        );
         let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
             if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
                 (
@@ -511,26 +596,7 @@ impl Zone {
             }
         };
 
-        if matches!(self.map_id, 42 | 43 | 44) {
-            if let Some((3, 1)) = player_task_info {
-                if !self
-                    .active_items
-                    .iter()
-                    .any(|i| i.get_item_id() == ITEM_DUI_GA)
-                {
-                    if let Some(template) =
-                        crate::templates::item_template_manager::get(ITEM_DUI_GA)
-                    {
-                        let x = 70;
-                        let y = if self.map_id == 43 { 264 } else { 288 };
-
-                        let mut item_map = ItemMap::new(Some(template), 1, x as i32, y as i32, -1);
-                        item_map.set_location(self.map_id, self.zone_id, x as i32, y as i32);
-                        self.active_items.push(item_map);
-                    }
-                }
-            }
-        }
+        self.spawn_special_item_task(player_task_info);
 
         let mut msg = Message::new(-24);
         msg.write_byte((self.map_id as u8) as i8)?;
@@ -544,7 +610,7 @@ impl Zone {
         msg.write_short(y)?;
 
         // Waypoints
-        if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
+        if let Some(map) = MAP_MANAGER.find_by_id(self.map_id) {
             let wps = &map.info.waypoints;
             let count = (wps.len().min(127)) as i8;
             msg.write_byte(count)?;
@@ -611,16 +677,8 @@ impl Zone {
             msg.write_short(avatar)?;
         }
 
-        // Item Maps (Moved up before BG/Eff items)
         let filtered_items = self.get_filtered_items_with_task(player_task_info).await;
         let item_count = filtered_items.len().min(127) as i8;
-        tracing::info!(
-            "[ITEM_SYNC] Sending {} items to player {} in Map {}-{}",
-            item_count,
-            player_id,
-            self.map_id,
-            self.zone_id
-        );
         msg.write_byte(item_count)?;
         for item in filtered_items.iter().take(item_count as usize) {
             msg.write_short(item.item_map_id as i16)?;
@@ -629,8 +687,6 @@ impl Zone {
             msg.write_short(item.y as i16)?;
             msg.write_int(item.player_id as i32)?;
         }
-
-        // Map Graphics/Effects
         let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
         if let Ok(data) = std::fs::read(&bg_item_path) {
             msg.write(&data)?;
@@ -650,6 +706,7 @@ impl Zone {
         msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
 
         session.transmit(msg);
+        tracing::info!("[MAP_INFO] Transmitted MapInfo -24 to player {}", player_id);
         Ok(())
     }
 
@@ -675,13 +732,13 @@ impl Zone {
             let item_temp_id = item.get_item_id();
 
             match item_temp_id {
-                ITEM_DUI_GA => {
+                ITEM_EM_BE => {
                     // Em bé
                     if let Some((3, 1)) = player_task_info {
                         filtered.push(item.clone());
                     }
                 }
-                74 => {
+                ITEM_DUI_GA_NUONG => {
                     // Dùi gà nướng
                     if let Some((task_id, _)) = player_task_info {
                         if task_id >= 3 {
@@ -702,10 +759,8 @@ impl Zone {
         let Some(receiver_handle) = self.players.get(&player_id) else {
             return Ok(());
         };
-
         for (other_id, other_handle) in &self.players {
             if *other_id != player_id {
-                // Thay vì chờ snapshot (deadlock risk), chúng ta yêu cầu player kia tự gửi info
                 other_handle.send_forget(PlayerMessage::SendInfoTo(receiver_handle.clone()));
             }
         }
@@ -725,7 +780,6 @@ impl Zone {
         }
 
         if !others.is_empty() {
-            // Yêu cầu player hiện tại tự gửi info cho tất cả những người khác
             player_handle.send_forget(PlayerMessage::SendInfoToAll(others));
         }
         Ok(())

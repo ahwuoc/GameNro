@@ -1,4 +1,3 @@
-
 use crate::data::DataGame;
 use crate::entities::prelude::ItemShop;
 use crate::item::Item;
@@ -182,7 +181,7 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
         .iter()
         .filter(|sk| sk.template_id != -1)
         .collect();
-    msg.write_byte(valid_skill.len() as i8);
+    msg.write_byte(valid_skill.len() as i8)?;
     for skill in valid_skill {
         msg.write_short(skill.skill_id)?;
     }
@@ -197,10 +196,10 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
 
     write_inventory(&mut msg, &player.inventory.items_box, 73)?;
     DataGame::send_head_to_client(&mut msg).await?;
-    msg.write_short(player.get_head())?; // num17 - number of head/avatar pairs
-    msg.write_short(514)?; // charId[gender][0]
-    msg.write_short(515)?; // charId[gender][1]
-    msg.write_short(537)?; // charId[gender][2]
+
+    msg.write_short(514)?; // chim trai dat
+    msg.write_short(515)?; // chim namek
+    msg.write_short(537)?; // chim xayda
     msg.write_byte(0)?; // isNhapThe (0 = false, 1 = true)
     msg.write_int(333)?; // deltaTime (server time)
     msg.write_byte(if player.is_new_member { 1 } else { 0 })?; // isNewMember

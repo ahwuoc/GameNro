@@ -117,8 +117,6 @@ pub enum PlayerMessage {
     RadarAction(i8, Message),
     ChangeMapCapsule(i32),
     ChangeMapBlackBall(i8),
-    /// Gửi thông tin của mình cho một player khác (asynchronous)
     SendInfoTo(PlayerHandle),
-    /// Gửi thông tin của mình cho danh sách các player (asynchronous)
     SendInfoToAll(Vec<PlayerHandle>),
 }

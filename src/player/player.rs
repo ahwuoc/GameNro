@@ -147,7 +147,7 @@ impl Player {
             radar_cards: Vec::new(),
             map_id_before_capsule: -1,
             zone_id_before_capsule: -1,
-            spaceship_id: 1, // Default spaceship
+            spaceship_id: 0,
             master_id: None,
         }
     }

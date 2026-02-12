@@ -1,4 +1,3 @@
-/// Enum defining the types of spaceships available in the game.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i8)]
 pub enum SpaceShipType {

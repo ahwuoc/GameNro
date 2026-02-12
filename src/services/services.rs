@@ -1,4 +1,5 @@
 use crate::network::session::SessionArc;
+use crate::player::player_actor::PlayerHandle;
 use crate::services::player_info_service::sub_command_i30;
 use crate::{
     constant::cmd::cmd,
@@ -101,7 +102,7 @@ impl ServiceHandles {
         player.send_to_client(response)?;
         Ok(())
     }
-    pub fn send_thong_bao(player: &Player, text: &str) -> Result<()> {
+    pub fn send_thong_bao_to_player(player: &Player, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::THONG_BAO);
         response.write_utf(text)?;
         player.send_to_client(response)?;
@@ -197,7 +198,7 @@ impl ServiceHandles {
     }
 
     pub fn send_player_info_to_handle(
-        handle: &crate::player::player_actor::PlayerHandle,
+        handle: &PlayerHandle,
         target_snapshot: &Player,
     ) -> Result<()> {
         let mut msg = Message::new(-5);
@@ -221,8 +222,12 @@ impl ServiceHandles {
         let eff_buff_1 = 0;
         let eff_buff_2 = 0;
         let eff_buff_3 = 0;
-        let spaceship_id = 0;
-        let is_monkey = 0;
+        let spaceship_id = target_snapshot.spaceship_id;
+        let is_monkey = if target_snapshot.effect_skill.is_monkey {
+            1
+        } else {
+            0
+        };
         let mount_id = 0;
         let c_flag = 0;
         let none = 0;

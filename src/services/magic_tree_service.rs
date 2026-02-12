@@ -44,7 +44,7 @@ impl MagicTreeService {
                     "MagicTreeService::harvest_pea: Added {} peas to bag",
                     curr_peas
                 );
-                let _ = ServiceHandles::send_thong_bao(
+                let _ = ServiceHandles::send_thong_bao_to_player(
                     player,
                     &format!(
                         "Bạn vừa thu hoạch được {} hạt Đậu thần cấp {}",

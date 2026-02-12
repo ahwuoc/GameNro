@@ -85,9 +85,7 @@ impl ChangeMapService {
             sess.transmit(Message::new(cmd::MAP_CLEAR));
         }
 
-        let map_width = if let Some(map) =
-            crate::map::managers::map_manager::MAP_MANAGER.find_by_id(zone.map_id)
-        {
+        let map_width = if let Some(map) = MAP_MANAGER.find_by_id(zone.map_id) {
             map.info.map_width
         } else {
             2000
@@ -293,12 +291,18 @@ impl ChangeMapService {
     pub async fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
-            ServiceHandles::send_thong_bao(player, "Không thể đổi khu vực trong map này")?;
+            ServiceHandles::send_thong_bao_to_player(
+                player,
+                "Không thể đổi khu vực trong map này",
+            )?;
             return Ok(());
         };
 
         if Self::is_special_map(zone.map_id) && !player.is_admin {
-            ServiceHandles::send_thong_bao(player, "Không thể đổi khu vực trong map này")?;
+            ServiceHandles::send_thong_bao_to_player(
+                player,
+                "Không thể đổi khu vực trong map này",
+            )?;
             return Ok(());
         }
 
@@ -339,24 +343,27 @@ impl ChangeMapService {
         let session_opt = Some(session);
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         let Some(current_zone) = zone_manager.get_zone(player.map_id, player.zone_id) else {
-            ServiceHandles::send_thong_bao(player, "Không thể đến khu vực này @")?;
+            ServiceHandles::send_thong_bao_to_player(player, "Không thể đến khu vực này @")?;
             return Ok(());
         };
 
         if !player.is_admin && !player.is_boss && !Self::can_change_zone_now(player) {
-            ServiceHandles::send_thong_bao(player, "Chưa thể chuyển khu vực lúc này vui lòng chờ")?;
+            ServiceHandles::send_thong_bao_to_player(
+                player,
+                "Chưa thể chuyển khu vực lúc này vui lòng chờ",
+            )?;
             return Ok(());
         }
 
         if Self::is_special_map(current_zone.map_id) && !player.is_admin && !player.is_boss {
-            ServiceHandles::send_thong_bao(player, "Không thể đến khu vực này")?;
+            ServiceHandles::send_thong_bao_to_player(player, "Không thể đến khu vực này")?;
             return Ok(());
         }
 
         if let Some(target_zone) = Self::get_specific_zone(current_zone.map_id, zone_id) {
             let info = target_zone.get_zone_info().await?;
             if info.current_players >= info.max_player && !player.is_admin && !player.is_boss {
-                ServiceHandles::send_thong_bao(player, "Khu vực này đã đầy")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Khu vực này đã đầy")?;
                 return Ok(());
             }
 
@@ -371,7 +378,7 @@ impl ChangeMapService {
             .await?;
             player.update_zone_change_time();
         } else {
-            ServiceHandles::send_thong_bao(player, "Không thể thực hiện")?;
+            ServiceHandles::send_thong_bao_to_player(player, "Không thể thực hiện")?;
         }
 
         Ok(())
@@ -404,7 +411,7 @@ impl ChangeMapService {
                     )
                     .await?;
                 } else {
-                    ServiceHandles::send_thong_bao(player, "Lỗi khi chuyển map")?;
+                    ServiceHandles::send_thong_bao_to_player(player, "Lỗi khi chuyển map")?;
                 }
             }
             WaypointChangeResult::NoWaypointFound => {
@@ -415,16 +422,16 @@ impl ChangeMapService {
                     player.location.y,
                     player.map_id
                 );
-                ServiceHandles::send_thong_bao(player, "Waypoint not found")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Waypoint not found")?;
             }
             WaypointChangeResult::TaskRequirementNotMet { .. } => {
-                ServiceHandles::send_thong_bao(player, "Bạn chưa thể đến khu vực này")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Bạn chưa thể đến khu vực này")?;
             }
             WaypointChangeResult::InvalidPlayerZone => {
-                ServiceHandles::send_thong_bao(player, "Lỗi hệ thống")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Lỗi hệ thống")?;
             }
             WaypointChangeResult::DestinationUnavailable => {
-                ServiceHandles::send_thong_bao(player, "Khu vực không khả dụng")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Khu vực không khả dụng")?;
             }
         }
         Ok(())
@@ -448,10 +455,13 @@ impl ChangeMapService {
                 }
             }
             GoHomeResult::NoAvailableZone => {
-                ServiceHandles::send_thong_bao(player, "Không thể về nhà lúc này")?;
+                ServiceHandles::send_thong_bao_to_player(player, "Không thể về nhà lúc này")?;
             }
             GoHomeResult::PlayerIsBoss => {
-                ServiceHandles::send_thong_bao(player, "Boss không thể sử dụng chức năng này")?;
+                ServiceHandles::send_thong_bao_to_player(
+                    player,
+                    "Boss không thể sử dụng chức năng này",
+                )?;
             }
         }
 
