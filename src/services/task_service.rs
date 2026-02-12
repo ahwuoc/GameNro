@@ -2,10 +2,12 @@ use std::clone;
 use std::panic::panic_any;
 
 use crate::constant::cmd::cmd::GET_MOB_TEMPLATE;
+use crate::constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG};
 use crate::constant::const_npc::CON_MEO;
 use crate::constant::task_type::TaskType;
 use crate::constant::{const_npc, task_id};
 use crate::entities::task_sub_template;
+use crate::item::InventoryService;
 use crate::network::message::Message;
 use crate::network::session;
 use crate::player::Player;
@@ -63,12 +65,9 @@ impl TaskService {
     ) -> Result<()> {
         if let Some(sub_task) = Self::get_current_sub_task(player) {
             let current_type = sub_task.task_type;
-
-            // Logic xử lý TaskScripts trước
             if current_type == TaskType::TaskScripts {
                 return Self::handle_task_scripts(player, task_type, target_id, &sub_task);
             }
-
             if current_type == task_type {
                 let mut is_match = false;
 
@@ -77,7 +76,32 @@ impl TaskService {
                         if let Some(npc_list) = &sub_task.npc_id {
                             let npc_id = Self::resolve_id(npc_list, player.gender);
                             if target_id == npc_id.to_string() || npc_list == "-1" {
-                                is_match = true;
+                                if player.task_player.task_main.id == task_id::TASK_2
+                                    && player.task_player.task_main.index == 1
+                                {
+                                    let total_count = InventoryService::count_item_bag_with_id(
+                                        player,
+                                        ITEM_DUI_GA_BINH_THUONG,
+                                    );
+
+                                    if total_count >= 10 {
+                                        InventoryService::sub_item_bag_with_id(
+                                            player,
+                                            ITEM_DUI_GA_BINH_THUONG,
+                                            10,
+                                        );
+                                        let _ = InventoryService::send_item_bag(player);
+                                        is_match = true;
+                                    } else {
+                                        ServiceHandles::send_thong_bao_to_player(
+                                            player,
+                                            "Con chưa có đủ 10 đùi gà để nộp!",
+                                        )?;
+                                        return Ok(());
+                                    }
+                                } else {
+                                    is_match = true;
+                                }
                             }
                         }
                     }

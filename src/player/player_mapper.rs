@@ -201,7 +201,6 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
             if let Some(ref data) = pet_data {
                 p.type_pet = data.type_pet;
             }
-            p.is_pet = pet_data.is_some();
             p.pet_data = pet_data;
         }
         Err(e) => {

@@ -17,6 +17,31 @@ impl InventoryService {
             .find(|it| it.is_not_null_item() && it.get_template_id() == Some(targert_id))
     }
 
+    pub fn count_item_bag_with_id(pl: &Player, target_id: i16) -> i32 {
+        pl.inventory
+            .items_bag
+            .iter()
+            .filter(|it| it.is_not_null_item() && it.get_template_id() == Some(target_id))
+            .map(|it| it.quantity)
+            .sum()
+    }
+
+    pub fn sub_item_bag_with_id(pl: &mut Player, target_id: i16, mut quantity_to_sub: i32) {
+        for it in pl.inventory.items_bag.iter_mut() {
+            if it.is_not_null_item() && it.get_template_id() == Some(target_id) {
+                let sub = it.quantity.min(quantity_to_sub);
+                it.quantity -= sub;
+                if it.quantity <= 0 {
+                    *it = Item::default();
+                }
+                quantity_to_sub -= sub;
+                if quantity_to_sub <= 0 {
+                    break;
+                }
+            }
+        }
+    }
+
     pub fn send_open_box(player: &Player) -> anyhow::Result<()> {
         let mut msg = Message::new(-35);
         msg.write_byte(1)?;
@@ -221,25 +246,10 @@ impl InventoryService {
             32 => 6,
             23 | 24 => 7,
             _ => {
-                // ServiceHandles::send_message_alert(session, "Vật phẩm không thể trang bị");
-                // TODO: Need session or player alert method
-                // For now, assume player.send_alert if exists, or just skip session usage if removed
-                // Actually, ServiceHandles::send_message_alert takes session.
-                // We should let this return error or refactor alert to take player.
-                // Let's refactor alert later.
-                // But wait, if we remove session, we can't call alert.
-                // WE SHOULD REFACTOR ServiceHandles::send_message_alert TO TAKE PLAYER FIRST?
-                // Or just use player.send_to_client with the alert message.
-
-                // Constructing alert message manually for now or assuming refactor.
-                // Let's stick to strict replacement.
-                // If I remove session, I must provide way to send.
-                // Let's use player.send_to_client(ServiceHandles::create_alert_msg(...))
                 return Ok(());
             }
         };
         if index_body >= pl.inventory.items_body.len() {
-            // ServiceHandles::send_message_alert...
             return Ok(());
         }
 

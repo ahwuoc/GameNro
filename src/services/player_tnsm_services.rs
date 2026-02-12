@@ -35,23 +35,25 @@ pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: TypeTNSM, mut param: i64
 
         if power < limit {
             match type_tnsm {
-                TypeTNSM::All => {
+                TypeTNSM::TiemNang => {}
+                TypeTNSM::SucManh | TypeTNSM::All => {
                     pl.n_point.sucmanh_add(param_scaled);
                 }
-                _ => {}
             }
             tracing::debug!(
-                "Player {} added {} SMTN. Power: {}/{}",
+                "Player {} added {} (scaled: {}) SMTN. Power: {}/{}",
                 pl.name,
+                param,
                 param_scaled,
                 pl.n_point.power,
                 limit
             );
         } else {
             tracing::debug!(
-                "Player {} reached power limit ({}), add potential only: {}",
+                "Player {} reached power limit ({}), add potential only: {} (scaled: {})",
                 pl.name,
                 limit,
+                param,
                 param_scaled
             );
         }
@@ -59,7 +61,6 @@ pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: TypeTNSM, mut param: i64
         if let Err(e) = ServiceHandles::send_tnsm(pl, type_tnsm, param_scaled) {
             tracing::error!("Failed to send TNSM to client: {:?}", e);
         }
-
         if is_ori {
             if pl.clan_id != -1 {
                 // TODO: Triển khai cộng TNSM cho bang hội

@@ -93,7 +93,7 @@ pub fn send_current_stamina(player: &RtPlayer) -> anyhow::Result<()> {
 
 pub fn send_pet_info(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-107);
-    msg.write_byte(player.is_pet as i8)?;
+    msg.write_byte(player.pet_id.is_some() as i8)?;
     player.send_to_client(msg)?;
     Ok(())
 }
@@ -107,7 +107,7 @@ pub fn send_top_rank_info(player: &RtPlayer) -> anyhow::Result<()> {
 }
 pub fn send_notification_tab(player: &RtPlayer) -> anyhow::Result<()> {
     let mut msg = Message::new(-50);
-    msg.write_byte(0)?; // notification count
+    msg.write_byte(0)?;
 
     player.send_to_client(msg)?;
     Ok(())

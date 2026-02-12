@@ -250,7 +250,8 @@ impl PlayerActor {
                     self.player.task_player.task_main.index,
                 );
                 self.player.n_point.increase_point(type_increment, point);
-                let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
+                self.player.n_point.cal_point();
+                player_info_service::send_point_info_sync(&self.player);
 
                 let _ = crate::services::task_service::TaskService::check_done_task_scripts(
                     &mut self.player,
@@ -527,9 +528,7 @@ impl PlayerActor {
             self.player.task_player.task_main.index,
         );
         if old_task != new_task {
-            if let Some(zone) = crate::map::zone_manager::ZONE_MANAGER
-                .get_zone(self.player.map_id, self.player.zone_id)
-            {
+            if let Some(zone) = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id) {
                 let _ = zone.check_spawn_task_item(self.player.id, new_task).await;
             }
         }
@@ -922,7 +921,6 @@ impl PlayerActor {
                 let item_id = item_map.get_item_id();
                 let item_type = item_map.get_item_type();
 
-                // Logic Đùi gà nướng (Hồi HP/KI)
                 if item_id == ITEM_DUI_GA_NUONG && matches!(self.player.map_id, 21 | 22 | 23) {
                     self.player.n_point.set_hp(self.player.n_point.hp_max);
                     self.player.n_point.set_mp(self.player.n_point.mp_max);

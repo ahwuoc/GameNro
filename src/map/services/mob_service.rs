@@ -1,3 +1,5 @@
+use crate::constant;
+use crate::constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG};
 use crate::constant::task_type::TaskType;
 use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
@@ -177,8 +179,8 @@ async fn drop_item_on_mob_death_actor(
 fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32) -> Vec<Item> {
     let mut drops: Vec<Item> = Vec::new();
 
-    if is_map_tanthu(map_id) && task_id == crate::constant::task_id::TASK_2 {
-        if let Some(dui_ga) = ItemService::create_new_item(73) {
+    if is_map_tanthu(map_id) && task_id == constant::task_id::TASK_2 {
+        if let Some(dui_ga) = ItemService::create_new_item(ITEM_DUI_GA_BINH_THUONG) {
             drops.push(dui_ga);
         }
     }

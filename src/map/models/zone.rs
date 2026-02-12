@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::map::map_manager::{self, MAP_MANAGER};
 use crate::map::services::mob_service;
+use crate::map::ItemMapService;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
@@ -13,7 +14,7 @@ use crate::services::player_service;
 use crate::services::player_tnsm_services::TypeTNSM;
 use crate::templates::item_template_manager;
 use crate::{
-    constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE},
+    constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG, ITEM_EM_BE},
     map::item_map::ItemMap,
 };
 use anyhow::Result;
@@ -408,13 +409,15 @@ impl Zone {
                 task_info,
             } => {
                 self.spawn_special_item_task(Some(task_info));
-                // Send CMD 68 to this player for any task items they can now see
                 if let Some(player_handle) = self.players.get(&player_id) {
                     let filtered_items = self.get_filtered_items_with_task(Some(task_info)).await;
                     for item in filtered_items {
                         let item_id = item.get_item_id();
-                        if item_id == ITEM_DUI_GA_NUONG || item_id == ITEM_EM_BE {
-                            let msg = crate::map::services::item_map_service::ItemMapService::build_item_appear_for_me_message(&item);
+                        if item_id == ITEM_DUI_GA_BINH_THUONG
+                            || item_id == ITEM_DUI_GA_NUONG
+                            || item_id == ITEM_EM_BE
+                        {
+                            let msg = ItemMapService::build_item_appear_for_me_message(&item);
                             player_handle.send_forget(PlayerMessage::SendPacket(msg));
                         }
                     }
@@ -538,7 +541,7 @@ impl Zone {
                         let (x, y) = if self.map_id == 21 {
                             (633, 315)
                         } else if self.map_id == 22 {
-                            (633, 315)
+                            (56, 315)
                         } else {
                             (633, 320)
                         };
@@ -597,6 +600,7 @@ impl Zone {
             }
         };
 
+        // Spawn special item task
         self.spawn_special_item_task(player_task_info);
 
         let mut msg = Message::new(-24);
@@ -739,10 +743,10 @@ impl Zone {
                         filtered.push(item.clone());
                     }
                 }
-                ITEM_DUI_GA_NUONG => {
-                    // Dùi gà nướng
+                ITEM_DUI_GA_BINH_THUONG | ITEM_DUI_GA_NUONG => {
+                    // Dùi gà normal hoặc nướng
                     if let Some((task_id, _)) = player_task_info {
-                        if task_id >= 3 {
+                        if task_id >= 2 {
                             filtered.push(item.clone());
                         }
                     }
