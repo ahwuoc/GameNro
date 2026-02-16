@@ -1,9 +1,8 @@
 package matches;
+ 
 import consts.ConstPlayer;
-import interfaces.IPVP;
-import managers.PVPManager;
 import player.Player;
-import player.Service.PlayerService;
+import services.PlayerService;
 
 public abstract class PVP implements IPVP {
 

@@ -1,4 +1,5 @@
 package player;
+ 
 import consts.ConstPlayer;
 import lombok.Setter;
 import utils.Util;
@@ -11,6 +12,7 @@ public class Fusion {
     private Player player;
     public byte typeFusion;
     public long lastTimeFusion;
+
     public Fusion(Player player) {
         this.player = player;
     }
@@ -20,8 +22,8 @@ public class Fusion {
             this.player.pet.unFusion();
         }
     }
-    
-    public void dispose(){
+
+    public void dispose() {
         this.player = null;
     }
 

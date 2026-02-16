@@ -1,11 +1,5 @@
 package services;
-
-/*
- *
- *
- * @author YourSoulMatee
- */
-
+ 
 import consts.ConstNpc;
 import npc.Npc;
 import npc.NpcFactory;
@@ -39,12 +33,12 @@ public class NpcService {
     }
 
     private void createMenu(Player player, int indexMenu, byte npcTempId, int avatar, String npcSay, String... menuSelect) {
-        if (player == null || !player.isPl() || player.idMark == null) {
+        if (player == null || !player.isPl() || player.iDMark == null) {
             return;
         }
         Message msg;
         try {
-            player.idMark.setIndexMenu(indexMenu);
+            player.iDMark.setIndexMenu(indexMenu);
             msg = new Message(32);
             msg.writer().writeShort(npcTempId);
             msg.writer().writeUTF(npcSay);

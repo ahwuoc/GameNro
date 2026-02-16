@@ -1,12 +1,13 @@
 package services.func;
-import data.BlackGokuManager;
-import database.PlayerDAO;
+ 
+import DucPro.Functions;
+import jdbc.DBConnecter;
+import jdbc.daos.PlayerDAO;
 import player.Player;
 import network.Message;
 import server.Client;
 import server.Maintenance;
 import services.Service;
-import utils.Functions;
 import utils.Logger;
 import utils.TimeUtil;
 import utils.Util;
@@ -15,12 +16,10 @@ import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import server.ServerManager;
 
 public class TransactionService implements Runnable {
 
-    private static final int TIME_DELAY_TRADE = 10000;
+    private static final int TIME_DELAY_TRADE = 30000;
 
     static final Map<Player, Trade> PLAYER_TRADE = new HashMap<>();
 
@@ -39,7 +38,7 @@ public class TransactionService implements Runnable {
     public static TransactionService gI() {
         if (i == null) {
             i = new TransactionService();
-            Executors.newSingleThreadExecutor().submit(i);
+            new Thread(i).start();
         }
         return i;
     }
@@ -54,18 +53,17 @@ public class TransactionService implements Runnable {
                 Service.gI().sendThongBao(pl, "Chức năng bảo vệ đã được bật. Bạn vui lòng kiểm tra lại");
                 return;
             }
+            if (!pl.getSession().actived) {
+                Service.gI().sendThongBao(pl, "Vui lòng kích hoạt thành viên");
+                return;
+            }
             if (action == SEND_INVITE_TRADE) {
-                pl.idMark.setTransactionWP(false);
-                pl.idMark.setTransactionWVP(false);
+                pl.iDMark.setTransactionWP(false);
+                pl.iDMark.setTransactionWVP(false);
             }
             switch (action) {
                 case SEND_INVITE_TRADE:
                 case ACCEPT_TRADE:
-                    if (!pl.getSession().actived) {
-                        Service.gI().sendThongBao(pl,
-                                "Truy Cập: " + ServerManager.DOMAIN + "\n Để Mở Thành Viên");
-                        return;
-                    }
                     playerId = msg.reader().readInt();
                     plMap = pl.zone.getPlayerInMap(playerId);
                     if (plMap != null && plMap.isPl()) {
@@ -78,11 +76,11 @@ public class TransactionService implements Runnable {
                         }
                         if (trade == null) {
                             if (action == SEND_INVITE_TRADE) {
-                                if (Util.canDoWithTime(pl.idMark.getLastTimeTrade(), TIME_DELAY_TRADE)
-                                        && Util.canDoWithTime(plMap.idMark.getLastTimeTrade(), TIME_DELAY_TRADE)) {
+                                if (Util.canDoWithTime(pl.iDMark.getLastTimeTrade(), TIME_DELAY_TRADE)
+                                        && Util.canDoWithTime(plMap.iDMark.getLastTimeTrade(), TIME_DELAY_TRADE)) {
                                     boolean checkLogout1 = false;
                                     boolean checkLogout2 = false;
-                                    try (Connection con = BlackGokuManager.getConnection()) {
+                                    try ( Connection con = DBConnecter.getConnectionServer()) {
                                         checkLogout1 = PlayerDAO.checkLogout(con, pl);
                                         checkLogout2 = PlayerDAO.checkLogout(con, plMap);
                                     } catch (Exception e) {
@@ -95,15 +93,23 @@ public class TransactionService implements Runnable {
                                         Client.gI().kickSession(plMap.getSession());
                                         break;
                                     }
-                                    pl.idMark.setLastTimeTrade(System.currentTimeMillis());
-                                    pl.idMark.setPlayerTradeId((int) plMap.id);
+                                    if (pl.nPoint.power < 1_000_000_000L) {
+                                        Service.gI().sendThongBao(pl, "Đạt 1 tỷ SM moi giao dich duoc");
+                                        return;
+                                    }
+                                    if (plMap.nPoint.power < 1_000_000_000L) {
+                                        Service.gI().sendThongBao(plMap, "Đạt 1 tỷ SM moi giao dich duoc");
+                                        return;
+                                    }
+                                    pl.iDMark.setLastTimeTrade(System.currentTimeMillis());
+                                    pl.iDMark.setPlayerTradeId((int) plMap.id);
                                     sendInviteTrade(pl, plMap);
                                 } else {
                                     Service.gI().sendThongBao(pl, "Thử lại sau "
-                                            + TimeUtil.getTimeLeft(Math.max(pl.idMark.getLastTimeTrade(), plMap.idMark.getLastTimeTrade()), TIME_DELAY_TRADE / 1000));
+                                            + TimeUtil.getTimeLeft(Math.max(pl.iDMark.getLastTimeTrade(), plMap.iDMark.getLastTimeTrade()), TIME_DELAY_TRADE / 1000));
                                 }
                             } else {
-                                if (plMap.idMark.getPlayerTradeId() == pl.id) {
+                                if (plMap.iDMark.getPlayerTradeId() == pl.id) {
                                     trade = new Trade(pl, plMap);
                                     trade.openTabTrade();
                                 }
@@ -207,12 +213,12 @@ public class TransactionService implements Runnable {
     public void run() {
         while (!Maintenance.isRunning) {
             try {
-                long st = System.currentTimeMillis();
+                long start = System.currentTimeMillis();
                 Set<Map.Entry<Player, Trade>> entrySet = PLAYER_TRADE.entrySet();
                 for (Map.Entry entry : entrySet) {
                     ((Trade) entry.getValue()).update();
                 }
-                Functions.sleep(Math.max(300 - (System.currentTimeMillis() - st), 10));
+                Functions.sleep(Math.max(300 - (System.currentTimeMillis() - start), 10));
             } catch (Exception e) {
             }
         }

@@ -1,4 +1,6 @@
 package mob;
+
+
 import utils.TimeUtil;
 
 public class BigBoss extends Mob {

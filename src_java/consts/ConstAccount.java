@@ -1,4 +1,5 @@
 package consts;
+ 
 public class ConstAccount {
 
     public static final byte DEFAUT = -1;

@@ -1,9 +1,17 @@
 package player;
+ 
+import consts.ConstTaskBadges;
+import item.Item;
 import java.util.ArrayList;
 import java.util.List;
-import matches.The23rdMartialArtCongress.SuperRankService;
+import jdbc.daos.NDVSqlFetcher;
+import models.SuperRank.SuperRankService;
+import services.InventoryService;
+import services.ItemService;
+import services.NpcService;
 import services.Service;
-import map.Service.NpcService;
+import task.Badges.BadgesTaskService;
+import utils.TimeUtil;
 
 public class SuperRank {
 
@@ -13,8 +21,8 @@ public class SuperRank {
     public int lose;
     public List<String> history;
     public List<Long> lastTime;
-    public long lastPKTime;
-    public long lastRewardTime;
+    public long lastTimePK;
+    public long lastTimeReward;
     public int ticket = 3;
 
     public SuperRank(Player player) {
@@ -25,8 +33,8 @@ public class SuperRank {
 
     public void history(String text, long lastTime) {
         if (this.history.size() > 4) {
-           // this.history.removeFirst();
-           // this.lastTime.removeFirst();
+            this.history.remove(0);
+            this.lastTime.remove(0);
         }
         this.history.add(text);
         this.lastTime.add(lastTime);
@@ -35,10 +43,29 @@ public class SuperRank {
     public void reward() {
         int rw = SuperRankService.gI().reward(rank);
         if (rw != -1) {
-          Service.gI().sendThongBao(player, "Bạn đang ở TOP " + rank + " võ đài Siêu Hạng, được bú " + rw + " ngọc");
+            NpcService.gI().createTutorial(player, -1, "Bạn đang ở TOP " + rank + " võ đài Siêu Hạng, được thưởng " + rw + " Ngọc Xanh");
+            if (rank == 1) {
+                BadgesTaskService.updateCountBagesTask(player, ConstTaskBadges.CAO_THU_SIEU_HANG, 1);
+            }
             player.inventory.gem += rw;
+//             rwThoiVang(player,rw);
+            
         }
-        lastRewardTime = System.currentTimeMillis();
+        lastTimeReward = TimeUtil.currentTimeMillisPlus11();
+    }
+
+    public void rwThoiVang(Player pl, int sl) {
+        Item thoivang = ItemService.gI().createNewItem((short) 457);
+        thoivang.quantity = sl;
+        
+        if (InventoryService.gI().getCountEmptyBag(pl) <= 0) {
+            pl.inventory.itemsMailBox.add(thoivang);
+            NDVSqlFetcher.updateMailBox(pl);
+            Service.gI().sendThongBao(pl, "Hành trang đầy, Bạn đã nhận " + thoivang.template.name + " về hộp thư");
+        } else {
+            InventoryService.gI().addItemBag(pl, thoivang);
+        }
+        InventoryService.gI().sendItemBag(pl);
     }
 
     public void dispose() {
@@ -46,7 +73,7 @@ public class SuperRank {
         lastTime.clear();
         win = -1;
         lose = -1;
-        lastPKTime = -1;
+        lastTimePK = -1;
         player = null;
     }
 }

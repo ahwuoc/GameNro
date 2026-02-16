@@ -1,80 +1,92 @@
 package server;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-import radar.OptionCard;
-import services.RadarService;
-import radar.RadarCard;
-import player.system.ConsignItem;
-import managers.ConsignShopManager;
-import data.BlackGokuManager;
+import models.Card.OptionCard;
+import models.Card.RadarService;
+import models.Card.RadarCard;
+import models.Consign.ConsignItem;
+import models.Consign.ConsignShopManager;
+import jdbc.DBConnecter;
 import consts.ConstPlayer;
 import consts.ConstMap;
 import data.DataGame;
-import database.ShopDAO;
-import player.system.Template.*;
+import jdbc.daos.ShopDAO;
+import models.Template.*;
 import clan.Clan;
 import clan.ClanMember;
+import consts.ConstNpc;
+import consts.ConstSQL;
 
 import static data.DataGame.MAP_MOUNT_NUM;
+import encrypt.ImageUtil;
 
-import player.system.GiftCode;
-import managers.GiftCodeManager;
+import models.GiftCode.GiftCode;
+import models.GiftCode.GiftCodeManager;
 import intrinsic.Intrinsic;
 import item.Item;
 import item.Item.ItemOption;
 import map.WayPoint;
 import npc.Npc;
 import npc.NpcFactory;
+import player.badges.BagesTemplate;
 import shop.Shop;
 import skill.NClass;
 import skill.Skill;
+import task.Badges.BadgesTaskTemplate;
 import task.SideTaskTemplate;
 import task.SubTaskMain;
 import task.TaskMain;
-import map.Service.MapService;
+import services.ItemService;
+import services.MapService;
 import utils.Logger;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import map.Zone;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Properties;
+import java.util.stream.IntStream;
+import map.EffectMap;
 
+import matches.TOP;
+import utils.Util;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import npc.NonInteractiveNPC;
-import player.badges.BagesTemplate;
-import task.BadgesTaskTemplate;
+import power.CaptionManager;
+import power.PowerLimitManager;
+import sosumenh.SoSuMenhManager;
 import task.ClanTaskTemplate;
+import task.Pet.petTaskTemplate;
 
 public final class Manager {
 
     private static Manager instance;
-    public static long timeRealTop = 0;
+
     public static byte SERVER = 1;
-    public static byte SECOND_WAIT_LOGIN = 5;
-    public static int MAX_PER_IP = 10;
+    public static byte SECOND_WAIT_LOGIN = 10;
+    public static int MAX_PER_IP = 100000;
     public static int MAX_PLAYER = 2000;
     public static byte RATE_EXP_SERVER = 1;
     public static boolean LOCAL = false;
     public static boolean TEST = false;
     public static boolean DAO_AUTO_UPDATER = false;
+
     public static MapTemplate[] MAP_TEMPLATES;
     public static final List<map.Map> MAPS = new ArrayList<>();
-    private final ScheduledExecutorService mapUpdater = Executors.newSingleThreadScheduledExecutor();
     public static final List<ItemOptionTemplate> ITEM_OPTION_TEMPLATES = new ArrayList<>();
     public static final List<ArrHead2Frames> ARR_HEAD_2_FRAMES = new ArrayList<>();
     public static final Map<String, Byte> IMAGES_BY_NAME = new HashMap<>();
@@ -83,6 +95,7 @@ public final class Manager {
     public static final List<NpcTemplate> NPC_TEMPLATES = new ArrayList<>();
     public static final List<TaskMain> TASKS = new ArrayList<>();
     public static final List<SideTaskTemplate> SIDE_TASKS_TEMPLATE = new ArrayList<>();
+    public static final List<petTaskTemplate> PET_TASKS_TEMPLATE = new ArrayList<>();
     public static final List<ClanTaskTemplate> CLAN_TASKS_TEMPLATE = new ArrayList<>();
     public static final List<AchievementTemplate> ACHIEVEMENT_TEMPLATE = new ArrayList<>();
     public static final List<Intrinsic> INTRINSICS = new ArrayList<>();
@@ -98,8 +111,141 @@ public final class Manager {
     public static final List<Clan> CLANS = new ArrayList<>();
     public static final List<String> NOTIFY = new ArrayList<>();
     public static final List<BadgesTaskTemplate> TASKS_BADGES_TEMPLATE = new ArrayList<>();
+
     public static final List<BagesTemplate> BAGES_TEMPLATES = new ArrayList<>();
-    public static final short[][] trangBiKichHoat = {{0, 6, 21, 27}, {1, 7, 22, 28}, {2, 8, 23, 29}};
+    public static List<TOP> topChienLuc;
+    public static List<TOP> topSM;
+    public static List<TOP> topNap;
+    public static List<TOP> topSSM;
+    public static List<TOP> topTet;
+    public static List<TOP> topHopQua;
+    public static List<TOP> topbossday;
+    public static List<TOP> topbang;
+    public static List<TOP> topSD;
+    public static List<TOP> topHP;
+    public static List<TOP> topKI;
+    public static List<TOP> topNV;
+    public static List<TOP> topSK;
+    public static List<TOP> topPVP;
+    public static List<TOP> topNHS;
+    public static List<TOP> topDC;
+    public static List<TOP> topVDST;
+    public static List<TOP> topWHIS;
+    public static long timeRealTop = 0;
+
+    public static final short[][] trangBiKichHoat = { { 0, 6, 21, 27 }, { 1, 7, 22, 28 }, { 2, 8, 23, 29 } };
+    public static final short[][] trangBiKichHoatVipRada = { { 281, 561, 656, 1060 }, { 281, 561, 656, 1061 },
+            { 281, 561, 656, 1062 } };
+
+    public static String formatNumber(long number) {
+        if (number >= 1_000_000_000) { // Tỷ
+            return String.format("%.1f tỷ", number / 1_000_000_000.0);
+        } else if (number >= 1_000_000) { // Triệu
+            return String.format("%.1ftr", number / 1_000_000.0);
+        } else if (number >= 1_000) { // Nghìn
+            return String.format("%.1fk", number / 1_000.0);
+        }
+        return String.valueOf(number); // Số nhỏ hơn 1.000 hiển thị bình thường
+    }
+
+    public static int getRankByName(String playerName) {
+        // Tìm player trong danh sách topbossday theo tên
+        Optional<TOP> playerOpt = topbossday.stream()
+                .filter(p -> p.getName().equalsIgnoreCase(playerName)) // So sánh tên không phân biệt chữ hoa chữ thường
+                .findFirst();
+
+        // Nếu tìm thấy player, trả về rank (bắt đầu từ 1)
+        if (playerOpt.isPresent()) {
+            return topbossday.indexOf(playerOpt.get()) + 1; // Rank bắt đầu từ 1
+        } else {
+            return -1; // Trả về -1 nếu không tìm thấy player
+        }
+    }
+
+    public static int getRankByNamelc(String playerName) {
+        // Tìm player trong danh sách topbossday theo tên
+        Optional<TOP> playerOpt = topChienLuc.stream()
+                .filter(p -> p.getName().equalsIgnoreCase(playerName)) // So sánh tên không phân biệt chữ hoa chữ thường
+                .findFirst();
+
+        // Nếu tìm thấy player, trả về rank (bắt đầu từ 1)
+        if (playerOpt.isPresent()) {
+            return topChienLuc.indexOf(playerOpt.get()) + 1; // Rank bắt đầu từ 1
+        } else {
+            return -1; // Trả về -1 nếu không tìm thấy player
+        }
+    }
+
+    public static final short[][] trangBiKichHoatVipJay = { { 269,
+            563,
+            658,
+            1057 },
+            { 273,
+                    565,
+                    660,
+                    1058 },
+            { 277,
+                    567,
+                    662,
+                    1059 } };
+    public static final short[][] trangBiKichHoatVipAo = { { 233,
+            555,
+            650,
+            1048 },
+            { 237,
+                    557,
+                    652,
+                    1049 },
+            { 241,
+                    559,
+                    654,
+                    1050,
+                    1050 } };
+    public static final short[][] trangBiKichHoatVipQuan = { { 245,
+            556,
+            651,
+            1051 },
+            { 249,
+                    558,
+                    653,
+                    1052 },
+            { 253,
+                    560,
+                    655,
+                    1053 } };
+    public static final short[][] trangBiKichHoatVipGang = { { 257,
+            562,
+            657,
+            1054 },
+            { 261,
+                    564,
+                    659,
+                    1055 },
+            { 265,
+                    566,
+                    661,
+                    1056 } };
+
+    public static final int[][] doTraiDathd = new int[][] { { 3, 33, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555 }, // ao
+            { 9, 35, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556 }, // quan
+            { 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562 }, // gang
+            { 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563 },// giay
+    };
+    public static final int[] LINHTHU = { 1811, 1642, 1643, 1652, 1655, 1664, 1695, 1490, 1492, 1493, 1494, 1778, 1776,
+            1644, 1645, 1646, 1647, 1807, 1742,
+            1779, 1648, 1651, 1653, 1812, 1649, 1491, 1650, 1744
+    };
+    public static final int[][] doNamechd = new int[][] { { 4, 41, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557 }, // ao
+            { 10, 43, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558 }, // quan
+            { 25, 45, 46, 160, 161, 162, 163, 258, 259, 260, 261, 564 }, // gang
+            { 31, 47, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565 },// giay
+    };
+    public static final int[][] doXaydahd = new int[][] { { 5, 49, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559 }, // ao
+            { 11, 51, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560 }, // quan
+            { 26, 53, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566 }, // gang
+            { 32, 55, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567 },// giay
+    };
+    public static final int[] Rada = new int[] { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 };
 
     public static Manager gI() {
         if (instance == null) {
@@ -113,126 +259,74 @@ public final class Manager {
             loadProperties();
 
         } catch (IOException ex) {
-            Logger.logException(Manager.class, ex, "Lỗi load properites");
+            Logger.logException(Manager.class,
+                    ex, "Lỗi load properites");
             System.exit(0);
         }
-
+        // ImageUtil.initImage();
         this.loadDatabase();
         NpcFactory.createNpcConMeo();
         NpcFactory.createNpcRongThieng();
         this.initMap();
+        SoSuMenhManager.getInstance().loading();
+        Top.weekly.WeeklyTopManager.getInstance().initialize();
+        System.out.println("Finish connect Server: " + DBConnecter.DB_DATA);
     }
+
     private void initMap() {
-       int[][] tileTyleTop = readTileIndexTileType(ConstMap.TILE_TOP);
-       for (MapTemplate mapTemp : MAP_TEMPLATES) {
-        int[][] tileMap = readTileMap(mapTemp.id);
-        int[] tileTop = tileTyleTop[mapTemp.tileId - 1];
-        map.Map map = new map.Map(
-        mapTemp.id, mapTemp.name, mapTemp.planetId, mapTemp.tileId,
-        mapTemp.bgId, mapTemp.bgType, mapTemp.type, tileMap, tileTop,
-        mapTemp.zones, mapTemp.maxPlayerPerZone, mapTemp.wayPoints
-        );
-        MAPS.add(map);
-        map.initMob(mapTemp.mobTemp, mapTemp.mobLevel, mapTemp.mobHp, mapTemp.mobX, mapTemp.mobY);
-        map.initNpc(mapTemp.npcId, mapTemp.npcX, mapTemp.npcY);
+        int[][] tileTyleTop = readTileIndexTileType(ConstMap.TILE_TOP);
+        for (MapTemplate mapTemp : MAP_TEMPLATES) {
+            int[][] tileMap = readTileMap(mapTemp.id);
+            int[] tileTop = tileTyleTop[mapTemp.tileId - 1];
+            map.Map map = new map.Map(mapTemp.id,
+                    mapTemp.name, mapTemp.planetId, mapTemp.tileId, mapTemp.bgId,
+                    mapTemp.bgType, mapTemp.type, tileMap, tileTop,
+                    mapTemp.zones,
+                    mapTemp.maxPlayerPerZone, mapTemp.wayPoints, mapTemp.effectMaps);
+            MAPS.add(map);
+            map.initMob(mapTemp.mobTemp, mapTemp.mobLevel, mapTemp.mobHp, mapTemp.mobX, mapTemp.mobY);
+            map.initNpc(mapTemp.npcId, mapTemp.npcX, mapTemp.npcY);
+            new Thread(map, "Update map " + map.mapName).start();
+        }
+
+        int cx;
+        int cy;
+        // for (int i = 0; i <= 2; i++) {
+        // map.Map map;
+        // switch (i) {
+        // case 0 -> {
+        // cx = 593;
+        // cy = 432;
+        // map = MapService.gI().getMapById(7);
+        // }
+        // case 1 -> {
+        // cx = 620;
+        // cy = 408;
+        // map = MapService.gI().getMapById(14);
+        // }
+        // default -> {
+        // cx = 729;
+        // cy = 432;
+        // map = MapService.gI().getMapById(0);
+        // }
+        // }
+        // Npc npc = NpcFactory.createNPC(map.mapId, 1, cx, cy, ConstNpc.SO_SU_MENH);
+        // map.npcs.add(npc);
+        // }
+
+        new NonInteractiveNPC().initNonInteractiveNPC();
+        Logger.success("Initialize map successfully!\n");
     }
-    new NonInteractiveNPC().initNonInteractiveNPC();
-    new Thread(() -> {
-        try {
-            while (!Maintenance.isRunning) {
-                long st = System.currentTimeMillis();
-                for (map.Map map : MAPS) {
-                    for (Zone zone : map.zones) {
-                        try {
-                            zone.update();
-                        } catch (Exception e) {
-                            Logger.log(Logger.RED, "Lỗi khi cập nhật zone: " + e.getMessage());
-                        }
-                    }
-                }
-                long timeDo = System.currentTimeMillis() - st;
-                long sleepTime = 1000 - timeDo;
-                if (sleepTime > 0) {
-                    Thread.sleep(sleepTime);
-                }
-            }
-         } catch (InterruptedException e) {
-            Logger.log(Logger.RED, "Thread cập nhật map bị gián đoạn: " + e.getMessage());
-            Thread.currentThread().interrupt();
-         } catch (Exception e) {
-            Logger.log(Logger.RED, "Lỗi không xác định trong thread cập nhật map: " + e.getMessage());
-         }
-       }, "Update Maps").start();
-       Logger.log(Logger.GREEN, "Init map thành công! \n");
-   }
+
     private void loadDatabase() {
         long st = System.currentTimeMillis();
         JSONArray dataArray;
         JSONObject dataObject;
         PreparedStatement ps = null;
         ResultSet rs = null;
-        try (Connection ConnectionDatabase = BlackGokuManager.getConnection()) {
-            //load part
-            ps = ConnectionDatabase.prepareStatement("select * from part");
-            rs = ps.executeQuery();
-            List<Part> parts = new ArrayList<>();
-            while (rs.next()) {
-                Part part = new Part();
-                part.id = rs.getShort("id");
-                part.type = rs.getByte("type");
-                dataArray = (JSONArray) JSONValue.parse(rs.getString("data").replaceAll("\\\"", ""));
-                for (int j = 0; j < dataArray.size(); j++) {
-                    JSONArray pd = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(j)));
-                    part.partDetails.add(new PartDetail(Short.parseShort(String.valueOf(pd.get(0))),
-                            Byte.parseByte(String.valueOf(pd.get(1))),
-                            Byte.parseByte(String.valueOf(pd.get(2)))));
-                    pd.clear();
-                }
-                parts.add(part);
-                dataArray.clear();
-            }
-            DataOutputStream dos = new DataOutputStream(new FileOutputStream("data/update_data/part"));
-            dos.writeShort(parts.size());
-            for (Part part : parts) {
-                dos.writeByte(part.type);
-                for (PartDetail partDetail : part.partDetails) {
-                    dos.writeShort(partDetail.iconId);
-                    dos.writeByte(partDetail.dx);
-                    dos.writeByte(partDetail.dy);
-                }
-            }
-            dos.flush();
-            Logger.success("Successfully loaded part (" + parts.size() + ")\n");
-
-            //load bg item template
-            ps = ConnectionDatabase.prepareStatement("select * from bg_item_template");
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                BgItem bgItem = new BgItem();
-                bgItem.id = rs.getInt("id");
-                bgItem.layer = rs.getByte("layer");
-                bgItem.dx = rs.getShort("dx");
-                bgItem.dy = rs.getShort("dy");
-                bgItem.idImage = rs.getShort("image_id");
-                BG_ITEMS.add(bgItem);
-            }
-            Logger.success("Successfully loaded bg item template (" + BG_ITEMS.size() + ")\n");
-
-            //load array head 2 frames
-            ps = ConnectionDatabase.prepareStatement("select * from array_head_2_frames");
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                ArrHead2Frames arrHead2Frames = new ArrHead2Frames();
-                dataArray = (JSONArray) JSONValue.parse(rs.getString("data"));
-                for (int i = 0; i < dataArray.size(); i++) {
-                    arrHead2Frames.frames.add(Integer.valueOf(dataArray.get(i).toString()));
-                }
-                ARR_HEAD_2_FRAMES.add(arrHead2Frames);
-            }
-            Logger.success("Successfully loaded arr head 2 frames (" + ARR_HEAD_2_FRAMES.size() + ")\n");
-
-            //load clan
-            ps = ConnectionDatabase.prepareStatement("select * from clan");
+        try (Connection con2 = DBConnecter.getConnectionServer();) {
+            // load clan
+            ps = con2.prepareStatement("select * from clan");
             rs = ps.executeQuery();
             while (rs.next()) {
                 Clan clan = new Clan();
@@ -244,6 +338,7 @@ public final class Manager {
                 clan.powerPoint = rs.getLong("power_point");
                 clan.maxMember = rs.getByte("max_member");
                 clan.capsuleClan = rs.getInt("clan_point");
+                clan.Point = rs.getInt("Point");
                 clan.level = rs.getByte("level");
                 if (clan.level < 1) {
                     clan.level = 1;
@@ -276,16 +371,146 @@ public final class Manager {
                 CLANS.add(clan);
             }
 
-            ps = ConnectionDatabase.prepareStatement("select id from clan order by id desc limit 1");
+            ps = con2.prepareStatement("select id from clan order by id desc limit 1");
             rs = ps.executeQuery();
-            if (rs.first()) {
+            if (rs.next()) {
                 Clan.NEXT_ID = rs.getInt("id") + 1;
             }
 
             Logger.success("Successfully loaded clan (" + CLANS.size() + "), clan next id: " + Clan.NEXT_ID + "\n");
 
-            //load skill
-            ps = ConnectionDatabase.prepareStatement("select * from skill_template order by nclass_id, slot");
+            // Load item ki gui
+            ps = con2.prepareStatement("SELECT * FROM shop_ky_gui");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                int i = rs.getInt("id");
+                int idPl = rs.getInt("player_id");
+                byte tab = rs.getByte("tab");
+                short itemId = rs.getShort("item_id");
+                int gold = rs.getInt("gold");
+                int gem = rs.getInt("gem");
+                int quantity = rs.getInt("quantity");
+                long isTime = rs.getLong("lasttime");
+                boolean isBuy = rs.getByte("isBuy") == 1;
+                List<Item.ItemOption> op = new ArrayList<>();
+                JSONArray jsa2 = (JSONArray) JSONValue.parse(rs.getString("itemOption"));
+                for (int j = 0; j < jsa2.size(); ++j) {
+                    JSONObject jso2 = (JSONObject) jsa2.get(j);
+                    int idOptions = Integer.parseInt(jso2.get("id").toString());
+                    int param = Integer.parseInt(jso2.get("param").toString());
+                    op.add(new Item.ItemOption(idOptions, param));
+                }
+                ConsignShopManager.gI().listItem
+                        .add(new ConsignItem(i, itemId, idPl, tab, gold, gem, quantity, isTime, op, isBuy));
+            }
+            Logger.success("Successfully loaded Consign Item (" + ConsignShopManager.gI().listItem.size() + ")\n");
+
+            // Load giftcode
+            ps = con2.prepareStatement("SELECT * FROM giftcode");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                GiftCode giftcode = new GiftCode();
+                giftcode.code = rs.getString("code");
+                giftcode.id = rs.getInt("id");
+                giftcode.countLeft = rs.getInt("count_left");
+                if (giftcode.countLeft == -1) {
+                    giftcode.countLeft = 999999999;
+                }
+                giftcode.datecreate = rs.getTimestamp("datecreate");
+                giftcode.dateexpired = rs.getTimestamp("expired");
+                JSONArray jar = (JSONArray) JSONValue.parse(rs.getString("detail"));
+                if (jar != null) {
+                    for (int i = 0; i < jar.size(); ++i) {
+                        JSONObject jsonObj = (JSONObject) jar.get(i);
+
+                        int id = Integer.parseInt(jsonObj.get("temp_id").toString());
+                        int quantity = Integer.parseInt(jsonObj.get("quantity").toString());
+
+                        JSONArray option = (JSONArray) jsonObj.get("options");
+                        ArrayList<ItemOption> optionList = new ArrayList<>();
+
+                        if (option != null) {
+                            for (int u = 0; u < option.size(); u++) {
+                                JSONObject jsonobject = (JSONObject) option.get(u);
+                                int optionId = Integer.parseInt(jsonobject.get("id").toString());
+                                int param = Integer.parseInt(jsonobject.get("param").toString());
+                                optionList.add(new Item.ItemOption(optionId, param));
+                            }
+                        }
+                        giftcode.option.put(id, optionList);
+                        giftcode.detail.put(id, quantity);
+                    }
+                }
+                GiftCodeManager.gI().listGiftCode.add(giftcode);
+            }
+            Logger.success("Successfully loaded giftcode (" + GiftCodeManager.gI().listGiftCode.size() + ")\n");
+
+        } catch (Exception ex) {
+
+        }
+
+        try (Connection con = DBConnecter.getConnectionServer();) {
+            // load part
+            ps = con.prepareStatement("select * from part");
+            rs = ps.executeQuery();
+            List<Part> parts = new ArrayList<>();
+            while (rs.next()) {
+                Part part = new Part();
+                part.id = rs.getShort("id");
+                part.type = rs.getByte("type");
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("data").replaceAll("\\\"", ""));
+                for (int j = 0; j < dataArray.size(); j++) {
+                    JSONArray pd = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(j)));
+                    part.partDetails.add(new PartDetail(Short.parseShort(String.valueOf(pd.get(0))),
+                            Byte.parseByte(String.valueOf(pd.get(1))),
+                            Byte.parseByte(String.valueOf(pd.get(2)))));
+                    pd.clear();
+                }
+                parts.add(part);
+                dataArray.clear();
+            }
+            DataOutputStream dos = new DataOutputStream(new FileOutputStream("data/update_data/part"));
+            dos.writeShort(parts.size());
+            for (Part part : parts) {
+                dos.writeByte(part.type);
+                for (PartDetail partDetail : part.partDetails) {
+                    dos.writeShort(partDetail.iconId);
+                    dos.writeByte(partDetail.dx);
+                    dos.writeByte(partDetail.dy);
+                }
+            }
+            dos.flush();
+            Logger.success("Successfully loaded part (" + parts.size() + ")\n");
+
+            // load bg item template
+            ps = con.prepareStatement("select * from bg_item_template");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                BgItem bgItem = new BgItem();
+                bgItem.id = rs.getInt("id");
+                bgItem.layer = rs.getByte("layer");
+                bgItem.dx = rs.getShort("dx");
+                bgItem.dy = rs.getShort("dy");
+                bgItem.idImage = rs.getShort("image_id");
+                BG_ITEMS.add(bgItem);
+            }
+            Logger.success("Successfully loaded bg item template (" + BG_ITEMS.size() + ")\n");
+
+            // load array head 2 frames
+            ps = con.prepareStatement("select * from array_head_2_frames");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                ArrHead2Frames arrHead2Frames = new ArrHead2Frames();
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("data"));
+                for (int i = 0; i < dataArray.size(); i++) {
+                    arrHead2Frames.frames.add(Integer.valueOf(dataArray.get(i).toString()));
+                }
+                ARR_HEAD_2_FRAMES.add(arrHead2Frames);
+            }
+            Logger.success("Successfully loaded arr head 2 frames (" + ARR_HEAD_2_FRAMES.size() + ")\n");
+
+            // load skill
+            ps = con.prepareStatement("select * from skill_template order by nclass_id, slot");
             rs = ps.executeQuery();
             byte nClassId = -1;
             NClass nClass = null;
@@ -315,8 +540,7 @@ public final class Manager {
                                 .replaceAll("\"\\[", "[")
                                 .replaceAll("\"\\]", "]")
                                 .replaceAll("\\]\"", "]")
-                                .replaceAll("\\}\",\"\\{", "},{")
-                );
+                                .replaceAll("\\}\",\"\\{", "},{"));
                 for (int j = 0; j < dataArray.size(); j++) {
                     JSONObject dts = (JSONObject) JSONValue.parse(String.valueOf(dataArray.get(j)));
                     Skill skill = new Skill();
@@ -337,8 +561,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded skill (" + NCLASS.size() + ")\n");
 
-            //load head avatar
-            ps = ConnectionDatabase.prepareStatement("select * from head_avatar");
+            // load head avatar
+            ps = con.prepareStatement("select * from head_avatar");
             rs = ps.executeQuery();
             while (rs.next()) {
                 HeadAvatar headAvatar = new HeadAvatar(rs.getInt("head_id"), rs.getInt("avatar_id"));
@@ -346,8 +570,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded head avatar (" + HEAD_AVATARS.size() + ")\n");
 
-            //load flag bag
-            ps = ConnectionDatabase.prepareStatement("select * from flag_bag");
+            // load flag bag
+            ps = con.prepareStatement("select * from flag_bag");
             rs = ps.executeQuery();
             while (rs.next()) {
                 FlagBag flagBag = new FlagBag();
@@ -365,8 +589,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded flag bag (" + FLAGS_BAGS.size() + ")\n");
 
-            //load intrinsic
-            ps = ConnectionDatabase.prepareStatement("select * from intrinsic");
+            // load intrinsic
+            ps = con.prepareStatement("select * from intrinsic");
             rs = ps.executeQuery();
             while (rs.next()) {
                 Intrinsic intrinsic = new Intrinsic();
@@ -395,8 +619,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded intrinsic (" + INTRINSICS.size() + ")\n");
 
-            //load task
-            ps = ConnectionDatabase.prepareStatement("SELECT id, task_main_template.name, detail, "
+            // load task
+            ps = con.prepareStatement("SELECT id, task_main_template.name, detail, "
                     + "task_sub_template.name AS 'sub_name', max_count, notify, npc_id, map "
                     + "FROM task_main_template JOIN task_sub_template ON task_main_template.id = "
                     + "task_sub_template.task_main_id");
@@ -422,9 +646,20 @@ public final class Manager {
                 task.subTasks.add(subTask);
             }
             Logger.success("Successfully loaded task (" + TASKS.size() + ")\n");
-
-            //load side task
-            ps = ConnectionDatabase.prepareStatement("select * from side_task_template");
+            // load task pet
+            ps = con.prepareStatement("select * from task_pet_template");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                petTaskTemplate petTask = new petTaskTemplate();
+                petTask.id = rs.getInt("id");
+                petTask.name = rs.getString("nametask");
+                petTask.Maxcount = rs.getInt("maxCount");
+                petTask.Reward = rs.getInt("reward");
+                PET_TASKS_TEMPLATE.add(petTask);
+            }
+            Logger.success("Successfully loaded PetTask (" + PET_TASKS_TEMPLATE.size() + ")\n");
+            // load side task
+            ps = con.prepareStatement("select * from side_task_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 SideTaskTemplate sideTask = new SideTaskTemplate();
@@ -450,7 +685,7 @@ public final class Manager {
             Logger.success("Successfully loaded side task (" + SIDE_TASKS_TEMPLATE.size() + ")\n");
 
             // load task badges
-            ps = ConnectionDatabase.prepareStatement("select * from task_badges_template");
+            ps = con.prepareStatement("select * from task_badges_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 BadgesTaskTemplate badgesTaskTemplate = new BadgesTaskTemplate();
@@ -462,8 +697,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded task badges (" + TASKS_BADGES_TEMPLATE.size() + ")\n");
 
-            //load clan task
-            ps = ConnectionDatabase.prepareStatement("select * from clan_task_template");
+            // load clan task
+            ps = con.prepareStatement("select * from clan_task_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 ClanTaskTemplate clanTask = new ClanTaskTemplate();
@@ -488,70 +723,41 @@ public final class Manager {
             }
             Logger.success("Successfully loaded clan task (" + CLAN_TASKS_TEMPLATE.size() + ")\n");
 
-            //load achievement template
-            ps = ConnectionDatabase.prepareStatement("select * from achievement_template");
+            // load achievement template
+            ps = con.prepareStatement("select * from achievement_template");
             rs = ps.executeQuery();
             while (rs.next()) {
-                ACHIEVEMENT_TEMPLATE.add(new AchievementTemplate(rs.getString("info1"), rs.getString("info2"), rs.getInt("money"), rs.getLong("max_count")));
+                ACHIEVEMENT_TEMPLATE.add(new AchievementTemplate(rs.getString("info1"), rs.getString("info2"),
+                        rs.getInt("money"), rs.getLong("max_count")));
             }
             Logger.success("Successfully loaded achievement (" + ACHIEVEMENT_TEMPLATE.size() + ")\n");
 
-// Load item template, 750 items per load
-            int batchSize = 750;
-            int offset = 0;
-
-            try {
-                while (true) {
-                    ps = ConnectionDatabase.prepareStatement("SELECT * FROM item_template LIMIT ? OFFSET ?");
-                    ps.setInt(1, batchSize);  
-                    ps.setInt(2, offset);     
-                    rs = ps.executeQuery();
-                    if (!rs.next()) {
-                        break;
-                    }
-                    do {
-                        ItemTemplate itemTemp = new ItemTemplate();
-                        itemTemp.id = rs.getShort("id");
-                        itemTemp.type = rs.getByte("type");
-                        itemTemp.gender = rs.getByte("gender");
-                        itemTemp.name = rs.getString("name");
-                        itemTemp.description = rs.getString("description");
-                        itemTemp.level = rs.getByte("level");
-                        itemTemp.iconID = rs.getShort("icon_id");
-                        itemTemp.part = rs.getShort("part");
-                        itemTemp.isUpToUp = rs.getBoolean("is_up_to_up");
-                        itemTemp.strRequire = rs.getInt("power_require");
-                        itemTemp.gold = rs.getInt("gold");
-                        itemTemp.gem = rs.getInt("gem");
-                        itemTemp.head = rs.getInt("head");
-                        itemTemp.body = rs.getInt("body");
-                        itemTemp.leg = rs.getInt("leg");
-
-                        ITEM_TEMPLATES.add(itemTemp);
-                    } while (rs.next());
-                    offset += batchSize;
-                }
-
-                Logger.success("Successfully loaded map item template (" + ITEM_TEMPLATES.size() + " items)\n");
-
-            } catch (SQLException e) {
-                Logger.error("Error loading item templates: " + e.getMessage());
-            } finally {
-                // Đảm bảo đóng ResultSet và PreparedStatement
-                try {
-                    if (rs != null) {
-                        rs.close();
-                    }
-                    if (ps != null) {
-                        ps.close();
-                    }
-                } catch (SQLException e) {
-                    Logger.error("Error closing resources: " + e.getMessage());
-                }
+            // load item template
+            ps = con.prepareStatement("select * from item_template");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                ItemTemplate itemTemp = new ItemTemplate();
+                itemTemp.id = rs.getShort("id");
+                itemTemp.type = rs.getByte("type");
+                itemTemp.gender = rs.getByte("gender");
+                itemTemp.name = rs.getString("name");
+                itemTemp.description = rs.getString("description");
+                itemTemp.level = rs.getByte("level");
+                itemTemp.iconID = rs.getShort("icon_id");
+                itemTemp.part = rs.getShort("part");
+                itemTemp.isUpToUp = rs.getBoolean("is_up_to_up");
+                itemTemp.strRequire = rs.getInt("power_require");
+                itemTemp.gold = rs.getInt("gold");
+                itemTemp.gem = rs.getInt("gem");
+                itemTemp.head = rs.getInt("head");
+                itemTemp.body = rs.getInt("body");
+                itemTemp.leg = rs.getInt("leg");
+                ITEM_TEMPLATES.add(itemTemp);
             }
+            Logger.success("Successfully loaded map item template (" + ITEM_TEMPLATES.size() + ")\n");
 
-            //load item option template
-            ps = ConnectionDatabase.prepareStatement("select id, name from item_option_template");
+            // load item option template
+            ps = con.prepareStatement("select id, name from item_option_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 ItemOptionTemplate optionTemp = new ItemOptionTemplate();
@@ -561,27 +767,27 @@ public final class Manager {
             }
             Logger.success("Successfully loaded map item option template (" + ITEM_OPTION_TEMPLATES.size() + ")\n");
 
-            //load shop
-            SHOPS = ShopDAO.getShops(ConnectionDatabase);
+            // load shop
+            SHOPS = ShopDAO.getShops(con);
             Logger.success("Successfully loaded shop (" + SHOPS.size() + ")\n");
 
-            //load notify
-            ps = ConnectionDatabase.prepareStatement("select * from notify order by id desc");
+            // load notify
+            ps = con.prepareStatement("select * from notify order by id desc");
             rs = ps.executeQuery();
             while (rs.next()) {
                 NOTIFY.add(rs.getString("name") + "<>" + rs.getString("text"));
             }
             Logger.success("Successfully loaded notify (" + NOTIFY.size() + ")\n");
 
-            //load image by name
-            ps = ConnectionDatabase.prepareStatement("select name, n_frame from img_by_name");
+            // load image by name
+            ps = con.prepareStatement("select name, n_frame from img_by_name");
             rs = ps.executeQuery();
             while (rs.next()) {
                 IMAGES_BY_NAME.put(rs.getString("name"), rs.getByte("n_frame"));
             }
             Logger.success("Successfully loaded images by name (" + IMAGES_BY_NAME.size() + ")\n");
 
-            //Load mount
+            // Load mount
             for (ItemTemplate item : ITEM_TEMPLATES) {
                 if (item.type == 23 && getNFrameImageByName("mount_" + item.part + "_0") != 0) {
                     MAP_MOUNT_NUM.put(item.id, (short) (item.part + 30000));
@@ -589,33 +795,11 @@ public final class Manager {
             }
             Logger.success("Successfully loaded mount (" + MAP_MOUNT_NUM.size() + ")\n");
 
-            //Load item ki gui
-            ps = ConnectionDatabase.prepareStatement("SELECT * FROM shop_ky_gui");
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                int i = rs.getInt("id");
-                int idPl = rs.getInt("player_id");
-                byte tab = rs.getByte("tab");
-                short itemId = rs.getShort("item_id");
-                int gold = rs.getInt("gold");
-                int gem = rs.getInt("gem");
-                int quantity = rs.getInt("quantity");
-                long isTime = rs.getLong("lasttime");
-                boolean isBuy = rs.getByte("isBuy") == 1;
-                List<Item.ItemOption> op = new ArrayList<>();
-                JSONArray jsa2 = (JSONArray) JSONValue.parse(rs.getString("itemOption"));
-                for (int j = 0; j < jsa2.size(); ++j) {
-                    JSONObject jso2 = (JSONObject) jsa2.get(j);
-                    int idOptions = Integer.parseInt(jso2.get("id").toString());
-                    int param = Integer.parseInt(jso2.get("param").toString());
-                    op.add(new Item.ItemOption(idOptions, param));
-                }
-                ConsignShopManager.gI().listItem.add(new ConsignItem(i, itemId, idPl, tab, gold, gem, quantity, isTime, op, isBuy));
-            }
-            Logger.success("Successfully loaded Consign Item (" + ConsignShopManager.gI().listItem.size() + ")\n");
+            PowerLimitManager.getInstance().load();
+            CaptionManager.getInstance().load();
 
-            //load mob template
-            ps = ConnectionDatabase.prepareStatement("select * from mob_template");
+            // load mob template
+            ps = con.prepareStatement("select * from mob_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 MobTemplate mobTemp = new MobTemplate();
@@ -632,8 +816,8 @@ public final class Manager {
             }
             Logger.success("Successfully loaded mob template (" + MOB_TEMPLATES.size() + ")\n");
 
-            //load npc template
-            ps = ConnectionDatabase.prepareStatement("select * from npc_template");
+            // load npc template
+            ps = con.prepareStatement("select * from npc_template");
             rs = ps.executeQuery();
             while (rs.next()) {
                 NpcTemplate npcTemp = new NpcTemplate();
@@ -646,34 +830,14 @@ public final class Manager {
                 NPC_TEMPLATES.add(npcTemp);
             }
             Logger.success("Successfully loaded npc template (" + NPC_TEMPLATES.size() + ")\n");
-            ps = ConnectionDatabase.prepareStatement("select * from data_badges");
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                BagesTemplate template = new BagesTemplate();
-                template.id = rs.getInt("id");
-                template.idEffect = rs.getInt("idEffect");
-                template.idItem = rs.getInt("idItem");
-                template.NAME = rs.getString("NAME");
 
-                JSONArray option = (JSONArray) JSONValue.parse(rs.getString("Options"));;
-                if (option != null) {
-                    for (int u = 0; u < option.size(); u++) {
-                        JSONObject jsonobject = (JSONObject) option.get(u);
-                        int optionId = Integer.parseInt(jsonobject.get("id").toString());
-                        int param = Integer.parseInt(jsonobject.get("param").toString());
-                        template.options.add(new Item.ItemOption(optionId, param));
-                    }
-                }
-                BAGES_TEMPLATES.add(template);
-            }
-            Logger.success("Successfully loaded badges template (" + BAGES_TEMPLATES.size() + ")\n");
-            //load map template
-            ps = ConnectionDatabase.prepareStatement("select count(id) from map_template");
+            // load map template
+            ps = con.prepareStatement("select count(id) from map_template");
             rs = ps.executeQuery();
-            if (rs.first()) {
+            if (rs.next()) {
                 int countRow = rs.getShort(1);
                 MAP_TEMPLATES = new MapTemplate[countRow];
-                ps = ConnectionDatabase.prepareStatement("select * from map_template");
+                ps = con.prepareStatement("select * from map_template");
                 rs = ps.executeQuery();
                 short i = 0;
                 while (rs.next()) {
@@ -689,30 +853,32 @@ public final class Manager {
                     mapTemplate.bgId = rs.getByte("bg_id");
                     mapTemplate.zones = rs.getByte("zones");
                     mapTemplate.maxPlayerPerZone = rs.getByte("max_player");
-                    //load waypoints
+                    // load waypoints
                     dataArray = (JSONArray) JSONValue.parse(rs.getString("waypoints")
                             .replaceAll("\\[\"\\[", "[[")
                             .replaceAll("\\]\"\\]", "]]")
-                            .replaceAll("\",\"", ",")
-                    );
-                    for (int j = 0; j < dataArray.size(); j++) {
-                        WayPoint wp = new WayPoint();
-                        JSONArray dtwp = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(j)));
-                        wp.name = String.valueOf(dtwp.get(0));
-                        wp.minX = Short.parseShort(String.valueOf(dtwp.get(1)));
-                        wp.minY = Short.parseShort(String.valueOf(dtwp.get(2)));
-                        wp.maxX = Short.parseShort(String.valueOf(dtwp.get(3)));
-                        wp.maxY = Short.parseShort(String.valueOf(dtwp.get(4)));
-                        wp.isEnter = Byte.parseByte(String.valueOf(dtwp.get(5))) == 1;
-                        wp.isOffline = Byte.parseByte(String.valueOf(dtwp.get(6))) == 1;
-                        wp.goMap = Short.parseShort(String.valueOf(dtwp.get(7)));
-                        wp.goX = Short.parseShort(String.valueOf(dtwp.get(8)));
-                        wp.goY = Short.parseShort(String.valueOf(dtwp.get(9)));
-                        mapTemplate.wayPoints.add(wp);
-                        dtwp.clear();
+                            .replaceAll("\",\"", ","));
+                    if (dataArray != null) {
+                        for (int j = 0; j < dataArray.size(); j++) {
+                            WayPoint wp = new WayPoint();
+                            JSONArray dtwp = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(j)));
+                            wp.name = String.valueOf(dtwp.get(0));
+                            wp.minX = Short.parseShort(String.valueOf(dtwp.get(1)));
+                            wp.minY = Short.parseShort(String.valueOf(dtwp.get(2)));
+                            wp.maxX = Short.parseShort(String.valueOf(dtwp.get(3)));
+                            wp.maxY = Short.parseShort(String.valueOf(dtwp.get(4)));
+                            wp.isEnter = Byte.parseByte(String.valueOf(dtwp.get(5))) == 1;
+                            wp.isOffline = Byte.parseByte(String.valueOf(dtwp.get(6))) == 1;
+                            wp.goMap = Short.parseShort(String.valueOf(dtwp.get(7)));
+                            wp.goX = Short.parseShort(String.valueOf(dtwp.get(8)));
+                            wp.goY = Short.parseShort(String.valueOf(dtwp.get(9)));
+                            mapTemplate.wayPoints.add(wp);
+                            dtwp.clear();
+                        }
                     }
-                    dataArray.clear();
-                    //load mobs
+                    if (dataArray != null)
+                        dataArray.clear();
+                    // load mobs
                     dataArray = (JSONArray) JSONValue.parse(rs.getString("mobs").replaceAll("\\\"", ""));
                     mapTemplate.mobTemp = new byte[dataArray.size()];
                     mapTemplate.mobLevel = new byte[dataArray.size()];
@@ -729,7 +895,7 @@ public final class Manager {
                         dtm.clear();
                     }
                     dataArray.clear();
-                    //load npcs
+                    // load npcs
                     dataArray = (JSONArray) JSONValue.parse(rs.getString("npcs").replaceAll("\\\"", ""));
                     mapTemplate.npcId = new byte[dataArray.size()];
                     mapTemplate.npcX = new short[dataArray.size()];
@@ -742,12 +908,27 @@ public final class Manager {
                         dtn.clear();
                     }
                     dataArray.clear();
+                    // load eff
+                    dataArray = (JSONArray) JSONValue.parse(rs.getString("effect"));
+                    // for (int j = 0; j < dataArray.size(); j++) {
+                    // EffectMap em = new EffectMap();
+                    // dataObject = (JSONObject) JSONValue.parse(dataArray.get(j).toString());
+                    // em.setKey(String.valueOf(dataObject.get("key")));
+                    // em.setValue(String.valueOf(dataObject.get("value")));
+                    // mapTemplate.effectMaps.add(em);
+                    // }
+                    EffectMap em = new EffectMap();
+                    em.setKey("beff");
+                    em.setValue("15");
+                    mapTemplate.effectMaps.add(em);
+
+                    dataArray.clear();
                     MAP_TEMPLATES[i++] = mapTemplate;
                 }
                 Logger.success("Successfully loaded map template (" + MAP_TEMPLATES.length + ")\n");
             }
 
-            ps = ConnectionDatabase.prepareStatement("select * from radar");
+            ps = con.prepareStatement("select * from radar");
             rs = ps.executeQuery();
             while (rs.next()) {
                 RadarCard rd = new RadarCard();
@@ -774,60 +955,83 @@ public final class Manager {
                 for (int i = 0; i < arr.size(); i++) {
                     JSONObject ob = (JSONObject) arr.get(i);
                     if (ob != null) {
-                        rd.Options.add(new OptionCard(Integer.parseInt(ob.get("id").toString()), Short.parseShort(ob.get("param").toString()), Byte.parseByte(ob.get("activeCard").toString())));
+                        rd.Options.add(new OptionCard(Integer.parseInt(ob.get("id").toString()),
+                                Short.parseShort(ob.get("param").toString()),
+                                Byte.parseByte(ob.get("activeCard").toString())));
                     }
                 }
-                rd.Require = rs.getShort("require");
-                rd.RequireLevel = rs.getShort("require_level");
+                // rd.Require = rs.getShort("require");
+                // rd.RequireLevel = rs.getShort("require_level");
                 rd.AuraId = rs.getShort("aura_id");
                 RadarService.gI().RADAR_TEMPLATE.add(rd);
             }
             Logger.success("Successfully loaded radar template (" + RadarService.gI().RADAR_TEMPLATE.size() + ")\n");
 
-            //Load giftcode
-            ps = ConnectionDatabase.prepareStatement("SELECT * FROM giftcode");
+            File directory = new File("data/icon/x4");
+            if (directory.isDirectory()) {
+                Optional<File> maxFile = Arrays.stream(directory.listFiles())
+                        .filter(File::isFile)
+                        .filter(file -> file.getName().endsWith(".png"))
+                        .max(Comparator.comparingInt(file -> {
+                            String name = file.getName();
+                            return Integer.valueOf(name.substring(0, name.length() - 4));
+                        }));
+                if (maxFile.isPresent()) {
+                    String fileName = maxFile.get().getName();
+                    short maxVersion = Short.parseShort(fileName.substring(0, fileName.length() - 4));
+                    DataGame.maxSmallVersion = (short) (maxVersion + 1);
+                    Logger.success("Successfully loaded max small version (" + DataGame.maxSmallVersion + ")\n");
+                }
+            }
+
+            ps = con.prepareStatement("select * from data_badges");
             rs = ps.executeQuery();
             while (rs.next()) {
-                GiftCode giftcode = new GiftCode();
-                giftcode.code = rs.getString("code");
-                giftcode.id = rs.getInt("id");
-                giftcode.countLeft = rs.getInt("count_left");
-                if (giftcode.countLeft == -1) {
-                    giftcode.countLeft = 999999999;
-                }
-                giftcode.datecreate = rs.getTimestamp("datecreate");
-                giftcode.dateexpired = rs.getTimestamp("expired");
-                JSONArray jar = (JSONArray) JSONValue.parse(rs.getString("detail"));
-                if (jar != null) {
-                    for (int i = 0; i < jar.size(); ++i) {
-                        JSONObject jsonObj = (JSONObject) jar.get(i);
+                BagesTemplate template = new BagesTemplate();
+                template.id = rs.getInt("id");
+                template.idEffect = rs.getInt("idEffect");
+                template.idItem = rs.getInt("idItem");
+                template.NAME = rs.getString("NAME");
 
-                        int id = Integer.parseInt(jsonObj.get("id").toString());
-                        int quantity = Integer.parseInt(jsonObj.get("quantity").toString());
-
-                        JSONArray option = (JSONArray) jsonObj.get("options");
-                        ArrayList<ItemOption> optionList = new ArrayList<>();
-
-                        if (option != null) {
-                            for (int u = 0; u < option.size(); u++) {
-                                JSONObject jsonobject = (JSONObject) option.get(u);
-                                int optionId = Integer.parseInt(jsonobject.get("id").toString());
-                                int param = Integer.parseInt(jsonobject.get("param").toString());
-                                optionList.add(new Item.ItemOption(optionId, param));
-                            }
-                        }
-
-                        giftcode.option.put(id, optionList);
-                        giftcode.detail.put(id, quantity);
+                JSONArray option = (JSONArray) JSONValue.parse(rs.getString("Options"));
+                ;
+                if (option != null) {
+                    for (int u = 0; u < option.size(); u++) {
+                        JSONObject jsonobject = (JSONObject) option.get(u);
+                        int optionId = Integer.parseInt(jsonobject.get("id").toString());
+                        int param = Integer.parseInt(jsonobject.get("param").toString());
+                        template.options.add(new Item.ItemOption(optionId, param));
                     }
                 }
-
-                GiftCodeManager.gI().listGiftCode.add(giftcode);
+                BAGES_TEMPLATES.add(template);
             }
-            Logger.success("Successfully loaded giftcode (" + GiftCodeManager.gI().listGiftCode.size() + ")\n");
+            Logger.success("Successfully loaded badges template (" + BAGES_TEMPLATES.size() + ")\n");
+
+            topNV = realTop(ConstSQL.TOP_NV, con);
+            Logger.success("Successfully loaded task top (" + topNV.size() + ")\n");
+            topSM = realTop(ConstSQL.TOP_SM, con);
+            Logger.success("Successfully loaded power top (" + topSM.size() + ")\n");
+            topNap = realTop(ConstSQL.TOP_NAP, con);
+            Logger.success("Successfully loaded nạp top (" + topNap.size() + ")\n");
+            topWHIS = realTop(ConstSQL.TOP_WHIS, con);
+            Logger.success("Successfully loaded WHIS top (" + topWHIS.size() + ")\n");
+            topVDST = realTop(ConstSQL.TOP_VDST, con);
+            Logger.success("Successfully loaded VDST top (" + topVDST.size() + ")\n");
+
+            topSSM = realTop(ConstSQL.TOP_SO_SU_MENH, con);
+            Logger.success("Successfully loaded topSSM top (" + topSSM.size() + ")\n");
+            topbossday = realTop(ConstSQL.TOP_BOSS_DAY, con);
+            Logger.success("Successfully loaded topbossday top (" + topbossday.size() + ")\n");
+            topChienLuc = realTop(ConstSQL.TOP_CHIEN_LUC, con);
+            Logger.success("Successfully loaded topChienLuc top (" + topChienLuc.size() + ")\n");
+            topTet = realTop(ConstSQL.TOP_TET, con);
+            Logger.success("Successfully loaded TOP_TET top (" + topTet.size() + ")\n");
+            topSD = realTop(ConstSQL.TOP_SD, con);
+            Logger.success("Successfully loaded TOP_SD top (" + topSD.size() + ")\n");
 
         } catch (Exception e) {
-            Logger.logException(Manager.class, e, "Database loading error");
+            Logger.logException(Manager.class,
+                    e, "Database loading error");
             System.exit(0);
         } finally {
             try {
@@ -837,25 +1041,164 @@ public final class Manager {
                 if (ps != null) {
                     ps.close();
                 }
-                //AlyraManager.close();
-            } catch (SQLException e) {
+            } catch (SQLException ex) {
             }
         }
 
         Logger.log(Logger.PURPLE, "Total database loading time: " + (System.currentTimeMillis() - st) + " (ms)\n");
+    }
 
+    public void updateShop() {
+        try (Connection con = DBConnecter.getConnectionServer();) {
+            SHOPS = ShopDAO.getShops(con);
+        } catch (Exception ex) {
+
+        }
+    }
+
+    public static List<TOP> realTop(String query, Connection con) {
+        int i = 0;
+        List<TOP> tops = new ArrayList<>();
+        JSONArray dataArray;
+        try {
+            PreparedStatement ps = con.prepareStatement(query);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                short head = Util.getHead((byte) rs.getInt("gender"));
+                short body = (short) (rs.getInt("gender") == 1 ? 59 : 57);
+                short leg = (short) (rs.getInt("gender") == 1 ? 60 : 58);
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("items_body"));
+                JSONArray dataItem = (JSONArray) JSONValue.parse(dataArray.get(0).toString());
+                if (dataItem != null && dataItem.get(0) != null) {
+                    Item item;
+                    short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
+                    if (tempId != -1) {
+                        item = ItemService.gI().createNewItem(tempId,
+                                Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        body = (short) item.template.part;
+                    }
+                }
+                dataItem = (JSONArray) JSONValue.parse(dataArray.get(1).toString());
+                if (dataItem != null && dataItem.get(0) != null) {
+                    Item item;
+                    short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
+                    if (tempId != -1) {
+                        item = ItemService.gI().createNewItem(tempId,
+                                Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        leg = (short) item.template.part;
+                    }
+                }
+                dataItem = (JSONArray) JSONValue.parse(dataArray.get(5).toString());
+                if (dataItem != null && dataItem.get(0) != null) {
+                    Item item;
+                    short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
+                    if (tempId != -1) {
+                        item = ItemService.gI().createNewItem(tempId,
+                                Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        if (item.template.head != -1) {
+                            head = (short) item.template.head;
+                        }
+                        if (item.template.body != -1) {
+                            body = (short) item.template.body;
+                        }
+                        if (item.template.leg != -1) {
+                            leg = (short) item.template.leg;
+                        }
+                    }
+                }
+                dataArray.clear();
+                TOP top = TOP.builder().name(rs.getString("name")).gender(rs.getByte("gender")).head(head).body(body)
+                        .leg(leg).build();
+                switch (query) {
+                    case ConstSQL.TOP_NV -> {
+                        top.setNv(rs.getByte("nv"));
+                        top.setSubnv(rs.getByte("subnv"));
+                        top.setLasttime(rs.getLong("lasttime"));
+                    }
+                    case ConstSQL.TOP_KI -> {
+
+                    }
+                    case ConstSQL.TOP_DC -> {
+                        top.setDicanh(rs.getInt("dicanh"));
+                        top.setJuventus(rs.getInt("juventus"));
+                    }
+
+                    case ConstSQL.TOP_SM -> {
+                        top.setPower(rs.getLong("sm"));
+                    }
+                    case ConstSQL.TOP_NAP -> {
+                        top.setCash(rs.getInt("cash"));
+                    }
+                    case ConstSQL.TOP_SO_SU_MENH -> {
+                        top.setDiemsm(rs.getInt("point_value"));
+                    }
+
+                    case ConstSQL.TOP_TET -> {
+                        top.setDiemtet(rs.getInt("pointtet"));
+                    }
+                    case ConstSQL.TOP_BANG -> {
+                        top.setBanghoi(rs.getLong("power_point"));
+                    }
+                    case ConstSQL.TOP_BOSS_DAY -> {
+                        top.setBossday(rs.getInt("san_boss_points"));
+                    }
+                    case ConstSQL.TOP_SD -> {
+                        top.setSd(rs.getInt("dame_point_fusion"));
+                    }
+
+                    case ConstSQL.TOP_CHIEN_LUC -> {
+
+                        top.setChienluc(rs.getLong("luchien"));
+                    }
+
+                    // case ConstSQL.TOP_DUA_SM -> {
+                    // top.setPower(rs.getLong("sm"));
+                    // }
+                    // case ConstSQL.TOP_DUA_NAP -> {
+                    // top.setCash(rs.getInt("danap"));
+                    // }
+                    // case ConstSQL.TOP_DUA_QUOC_VUONG -> {
+                    // top.setThoivang(rs.getInt("thoi_vang"));
+                    // }
+                    case ConstSQL.TOP_WHIS -> {
+                        top.setLasttime(rs.getLong("lasttime"));
+                        top.setLevel(rs.getInt("top"));
+                        top.setTime(rs.getInt("time"));
+
+                        // switch (i) {
+                        // case 0 ->
+                        // top1Whis = rs.getLong("id");
+                        // case 1 ->
+                        // top2Whis = rs.getLong("id");
+                        // case 2 ->
+                        // top3Whis = rs.getLong("id");
+                        // }
+                        i++;
+                    }
+                    case ConstSQL.TOP_VDST -> {
+                        top.setDivdst(rs.getInt("time"));
+                        top.setLasttime(rs.getLong("lasttime"));
+                        i++;
+                    }
+                }
+                tops.add(top);
+            }
+        } catch (NumberFormatException | SQLException e) {
+            e.printStackTrace();
+        }
+        return tops;
     }
 
     public void loadProperties() throws IOException {
         Properties properties = new Properties();
-        properties.load(new FileInputStream("Config.properties"));
+        properties.load(new FileInputStream("data/config/config.properties"));
         Object value;
         if ((value = properties.get("server.sv")) != null) {
             SERVER = Byte.parseByte(String.valueOf(value));
         }
         if ((value = properties.get("server.name")) != null) {
             String name = String.valueOf(value);
-            ServerManager.NAME = name.equals("BlackGoku") ? " BlackGoku 1" : name;
+            ServerManager.NAME = name;
         }
         if ((value = properties.get("server.port")) != null) {
             ServerManager.PORT = Integer.parseInt(String.valueOf(value));
@@ -891,7 +1234,7 @@ public final class Manager {
             TEST = String.valueOf(value).toLowerCase().equals("true");
         }
         if ((value = properties.get("server.daoautoupdater")) != null) {
-            DAO_AUTO_UPDATER = String.valueOf(value).equalsIgnoreCase("true");
+            DAO_AUTO_UPDATER = String.valueOf(value).toLowerCase().equals("true");
         }
     }
 
@@ -923,7 +1266,8 @@ public final class Manager {
                 }
             }
         } catch (IOException e) {
-            Logger.logException(MapService.class, e);
+            Logger.logException(MapService.class,
+                    e);
         }
         return tileIndexTileType;
     }
@@ -949,6 +1293,7 @@ public final class Manager {
         }
         return tileMap;
     }
+
     public static Clan getClanById(int id) throws Exception {
         for (Clan clan : CLANS) {
             if (clan.id == id) {
@@ -985,4 +1330,21 @@ public final class Manager {
         }
     }
 
+    // Xử lý menu Top
+    public static Timestamp timeSuKienDuaTop = Timestamp.valueOf("2025-2-5 23:59:59");
+    public static String timeStartDuaTop = "10h ngày 15/2/2025";
+    public static String timeEndDuaTop = "23h59 ngày 5/2/2025";
+
+    public static String demTimeSuKien() {
+        LocalDateTime currentTime = LocalDateTime.now();
+        LocalDateTime eventTime = timeSuKienDuaTop.toLocalDateTime();
+
+        long daysRemaining = ChronoUnit.DAYS.between(currentTime, eventTime);
+        if (daysRemaining > 0) {
+            return "(" + daysRemaining + " ngày nữa)";
+        } else {
+            return "(Đã kết thúc)";
+        }
+    }
+    // End xử lý menu top
 }

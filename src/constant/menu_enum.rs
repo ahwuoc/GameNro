@@ -20,6 +20,10 @@ pub enum MenuId {
     MagicTreeConfirmUpgrade,
     MagicTreeUpgrade,
     MagicTreeConfirmUnupgrade,
+    // Training (Karin / Yajiro)
+    TapTuDong, // menu 2001
+    TapLuyen,  // menu 2002
+    ThachDau,  // menu 2003
 }
 
 impl Default for MenuId {

@@ -1,4 +1,6 @@
 package player;
+
+ 
 import services.Service;
 import utils.TimeUtil;
 import utils.Util;
@@ -7,20 +9,20 @@ public class RewardBlackBall {
 
     private static final int TIME_REWARD = 79200000;
 
-    public static final int R1S_1 = 20;
-    public static final int R1S_2 = 21;
-    public static final int R2S_1 = 35;
+    public static final int R1S_1 = 15;
+    public static final int R1S_2 = 15;
+    public static final int R2S_1 = 20;
     public static final int R2S_2 = 20;
-    public static final int R3S_1 = 35;
-    public static final int R3S_2 = 10;
-    public static final int R4S_1 = 10;
-    public static final int R4S_2 = 35;
-    public static final int R5S_1 = 35;
+    public static final int R3S_1 = 20;
+    public static final int R3S_2 = 20;
+    public static final int R4S_1 = 20;
+    public static final int R4S_2 = 20;
+    public static final int R5S_1 = 15;
     public static final int R5S_2 = 20;
     public static final int R5S_3 = 20;
-    public static final int R6S_1 = 40;
+    public static final int R6S_1 = 20;
     public static final int R6S_2 = 20;
-    public static final int R7S_1 = 14;
+    public static final int R7S_1 = 15;
     public static final int R7S_2 = 15;
 
     public static final int TIME_WAIT = 3600000;
@@ -71,11 +73,11 @@ public class RewardBlackBall {
                 case 5:
                 case 6:
                 case 7:
-                    Service.gI().sendThongBao(player, "Chỉ Số Tự Cộng Khi Nhặt xong");
+                    Service.gI().sendThongBao(player, "Bạn vừa nhận thưởng cái nịt :)");
                     break;
             }
         } else {
-            Service.gI().sendThongBao(player, "Chờ Đi....");
+            Service.gI().sendThongBao(player, "Chờ đợi là hạnh phúc :)");
         }
     }
 

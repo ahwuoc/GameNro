@@ -1,13 +1,5 @@
 package player;
-
-/*
- * @Author: NgocRongBlackGoku
- * @Description: Ngọc Rồng BlackGoku - Máy Chủ Chuẩn Teamobi 2024
- * @Group Zalo: https://zalo.me/g/qabzvn331
- */
-
-
-import item.Item;
+ 
 import mob.Mob;
 import skill.Skill;
 import services.SkillService;
@@ -20,7 +12,7 @@ public class NewSkill {
 
     public static final int TIME_GONG = 2000;
     public static final int TIME_END_24_25 = 3000;
-    public static final int TIME_END_26 = 11000;
+    public static final int TIME_END_26 = 5000;
 
     private Player player;
 
@@ -49,37 +41,13 @@ public class NewSkill {
     public boolean isStartSkillSpecial;
 
     public byte stepSkillSpecial;
-    
-    public byte typePaint;
 
-    public byte typeItem;
-    
     public long lastTimeSkillSpecial;
-    public byte getTypePaint() {
-        Item item = player.inventory.itemsBody.get(10);
-        if (item != null && item.isNotNullItem()) {
-            int itemId = item.template.id;
-            if (itemId == 1044 || itemId == 1211 || itemId == 1212) {
-                return 2;
-            }
-            if (itemId == 1278 || itemId == 1279 || itemId == 1280) {
-                return 3;
-            }
-        }
-        return 1;
-    }
 
-    public byte getTypeItem() {
-        Item item = player.inventory.itemsBody.get(10);
-        if (item != null && item.isNotNullItem()) {
-            int itemId = item.template.id;
-            if (itemId == 1279 && player.gender == 1) {
-                return 2;
-            }
-           return 1;
-        }
-        return 0;
-    }
+    public byte typePaint = 0;
+
+    public byte typeItem = 0;
+
     private void update() {
         if (this.isStartSkillSpecial = true) {
             SkillService.gI().updateSkillSpecial(player);
@@ -94,15 +62,14 @@ public class NewSkill {
         }
         this.skillSelect = this.player.playerSkill.skillSelect;
         if (this.player.isPl() && skillSelect.currLevel < 1000) {
-            skillSelect.currLevel++;
+            skillSelect.currLevel+=5;
             SkillService.gI().sendCurrLevelSpecial(player, skillSelect);
         }
         this.dir = dir;
         this._xPlayer = _xPlayer;
         this._yPlayer = _yPlayer;
-
         int length = _xObjTaget - _xPlayer;
-        int dx = dir * (skillSelect.point * 100 + 100);
+        int dx = skillSelect.dx + 24;//dir * (skillSelect.point * 100 + 100);
         if (skillSelect.template.id != Skill.MA_PHONG_BA) {
             if (Math.abs(dx) < Math.abs(length) || Math.abs(length) < 100) {
                 this._xObjTaget = (short) dx;
@@ -119,7 +86,7 @@ public class NewSkill {
 //            this.dir = 1;
 //        }
         this._xObjTaget = (short) Math.abs(this._xObjTaget);
-        this._yObjTaget = (short) Math.abs(_yObjTaget);
+        this._yObjTaget = (short) (skillSelect.template.id == Skill.LIEN_HOAN_CHUONG ? 30 : skillSelect.dy);//Math.abs(_yObjTaget);
         this.isStartSkillSpecial = true;
         this.stepSkillSpecial = 0;
         this.lastTimeSkillSpecial = System.currentTimeMillis();
@@ -173,6 +140,29 @@ public class NewSkill {
             };
             this.timer.schedule(timerTask, leep, leep);
         }
+    }
+
+    public int timeEnd() {
+        switch (skillSelect.template.id) {
+            case Skill.LIEN_HOAN_CHUONG:
+            case Skill.SUPER_KAME:
+                return TIME_END_24_25;
+            case Skill.MA_PHONG_BA:
+                return TIME_END_26;
+        }
+        return -1;
+    }
+    
+    public int getdx()
+    {
+        switch (skillSelect.template.id) {
+            case Skill.LIEN_HOAN_CHUONG:
+            case Skill.SUPER_KAME:
+                return _xObjTaget;
+            case Skill.MA_PHONG_BA:
+                return 50;
+        }
+        return -1;
     }
 
     public void dispose() {

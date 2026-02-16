@@ -1,4 +1,5 @@
 package shop;
+ 
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,4 +52,6 @@ public class TabShop {
             this.itemShops.clear();
         }
         this.itemShops = null;
-    }}
+    }
+
+}

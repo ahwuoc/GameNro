@@ -1,4 +1,5 @@
 package intrinsic;
+ 
 public class Intrinsic {
 
     public int id;

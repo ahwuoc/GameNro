@@ -1,48 +1,55 @@
 package map;
+
+
+import DucPro.Functions;
 import consts.ConstMap;
-import player.system.Template;
+import models.Template;
 import boss.Boss;
 import boss.BossID;
-import boss.BossManager.BossManager;
+import boss.BossManager;
 import consts.ConstMob;
+import consts.ConstNpc;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import services.dungeon.MajinBuuService;
-import dungeon.BlackBallWar;
-import dungeon.RedRibbonHQ;
-import services.dungeon.RedRibbonHQService;
+import models.MajinBuu.MajinBuuService;
+import models.BlackBallWar.BlackBallWar;
+import models.RedRibbonHQ.RedRibbonHQ;
+import models.RedRibbonHQ.RedRibbonHQService;
 import mob.Mob;
 import npc.Npc;
 import npc.NpcFactory;
 import player.Player;
 import server.Manager;
 import services.Service;
-import utils.Functions;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
-import mob.bigboss.GaChinCua;
-import mob.bigboss.GauTuongCuop;
-import mob.bigboss.Hirudegarn;
-import mob.bigboss.NguaChinLmao;
-import mob.bigboss.Piano;
-import mob.bigboss.RobotBaoVe;
-import mob.bigboss.VoiChinNga;
-import mob.bigboss.VuaBachTuoc;
-import dungeon.TreasureUnderSea;
-import services.dungeon.TreasureUnderSeaService;
-import services.dungeon.BlackBallWarService;
-import dungeon.SnakeWay;
-import services.dungeon.SnakeWayService;
-import dungeon.DestronGas;
-import services.dungeon.DestronGasService;
-import dungeon.MajinBuu14H;
-import services.dungeon.MajinBuu14HService;
-import services.dungeon.SuperDivineWaterService;
-import map.Service.MapService;
+import mob.bigboss_manifest.GaChinCua;
+import mob.bigboss_manifest.GauTuongCuop;
+import mob.bigboss_manifest.Gozila;
+import mob.bigboss_manifest.Hirudegarn;
+import mob.bigboss_manifest.Kong;
+import mob.bigboss_manifest.NguaChinLmao;
+import mob.bigboss_manifest.Piano;
+import mob.bigboss_manifest.RobotBaoVe;
+import mob.bigboss_manifest.VoiChinNga;
+import mob.bigboss_manifest.VuaBachTuoc;
+import models.TreasureUnderSea.TreasureUnderSea;
+import models.TreasureUnderSea.TreasureUnderSeaService;
+import models.BlackBallWar.BlackBallWarService;
+import models.SnakeWay.SnakeWay;
+import models.SnakeWay.SnakeWayService;
+import models.DestronGas.DestronGas;
+import models.DestronGas.DestronGasService;
+import models.DragonNamecWar.TranhNgocService;
+import models.MajinBuu.MajinBuu14H;
+import models.MajinBuu.MajinBuu14HService;
+import models.SuperDivineWater.SuperDivineWaterService;
+import services.MapService;
 import utils.Logger;
+
 public class Map implements Runnable {
 
     public static final byte T_EMPTY = 0;
@@ -75,10 +82,11 @@ public class Map implements Runnable {
     public int pxw;
     public int[] types;
     public int[] maps;
+    public List<EffectMap> effMap;
 
     public Map(int mapId, String mapName, byte planetId,
             byte tileId, byte bgId, byte bgType, byte type, int[][] tileMap,
-            int[] tileTop, int zones, int maxPlayer, List<WayPoint> wayPoints) {
+            int[] tileTop, int zones, int maxPlayer, List<WayPoint> wayPoints, List<EffectMap> effMap) {
         this.mapId = mapId;
         this.mapName = mapName;
         this.planetId = planetId;
@@ -91,6 +99,7 @@ public class Map implements Runnable {
         this.tileTop = tileTop;
         this.zones = new ArrayList<>();
         this.wayPoints = wayPoints;
+        this.effMap = effMap;
         try {
             this.mapHeight = tileMap.length * SIZE;
             this.mapWidth = tileMap[0].length * SIZE;
@@ -150,19 +159,20 @@ public class Map implements Runnable {
             this.npcs.add(NpcFactory.createNPC(this.mapId, 1, npcX[i], npcY[i], npcId[i]));
         }
     }
-    public void addNpc(Npc npc) {
-        this.npcs.add(npc);
-    }
-   @Override
+
+    @Override
     public void run() {
         while (true) {
             try {
                 long st = System.currentTimeMillis();
                 for (Zone zone : this.zones) {
-                    zone.update();
+                    try {
+                        zone.update();
+                    } catch (Exception e) {
+                        Logger.logException(Map.class, e, "Lỗi update zone");
+                    }
                 }
-                long timeDo = System.currentTimeMillis() - st;
-                Functions.sleep(1000 - timeDo);
+                Functions.sleep(Math.max(1000 - (System.currentTimeMillis() - st), 10));
             } catch (Exception e) {
                 Logger.logException(Map.class, e, "Lỗi update map " + this.mapName);
             }
@@ -181,7 +191,7 @@ public class Map implements Runnable {
                 mob.point.setHpFull(mobHp[i]);
                 mob.location.x = mobX[i];
                 mob.location.y = mobY[i];
-                mob.point.sethp(mob.point.getHpFull());
+                mob.point.sethp((mob.point.getHpFull()));
                 mob.pDame = temp.percentDame;
                 mob.pTiemNang = temp.percentTiemNang;
                 mob.type = temp.type;
@@ -205,10 +215,13 @@ public class Map implements Runnable {
                             mobZone = new NguaChinLmao(mob);
                         case ConstMob.PIANO ->
                             mobZone = new Piano(mob);
+                        case ConstMob.KONG->
+                            mobZone = new Kong(mob);
+                        case ConstMob.GOZILLA->
+                            mobZone = new Gozila(mob);
                         default ->
                             mobZone = new Mob(mob);
                     }
-
                     mobZone.zone = zone;
                     zone.mobs.add(mobZone);
                 }
@@ -242,6 +255,10 @@ public class Map implements Runnable {
 
             }
         }
+    }
+
+    private void initNamekBall(Player player) {
+        TranhNgocService.getInstance().dropBall(player, (byte) 1);
     }
 
     private void initItem() {
@@ -436,7 +453,7 @@ public class Map implements Runnable {
 
     public final void readTileMap(int mapId) {
         try {
-            try (DataInputStream dis = new DataInputStream(new FileInputStream("data/map/tile_map_data/" + mapId))) {
+            try ( DataInputStream dis = new DataInputStream(new FileInputStream("data/map/tile_map_data/" + mapId))) {
                 dis.readByte();
                 tmw = dis.readByte();
                 tmh = dis.readByte();

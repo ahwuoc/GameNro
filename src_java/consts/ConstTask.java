@@ -1,4 +1,5 @@
 package consts;
+ 
 public class ConstTask {
 
     //const level side task
@@ -9,14 +10,14 @@ public class ConstTask {
     public static final byte HELL = 4;
 
     //const gold reward side task
-    public static final int GOLD_EASY = 5000;
-    public static final int GOLD_NORMAL = 20000;
-    public static final int GOLD_HARD = 50000;
-    public static final int GOLD_VERY_HARD = 200000;
-    public static final int GOLD_HELL = 25;
+    public static final int GOLD_EASY = 10000000;
+    public static final int GOLD_NORMAL = 30000000;
+    public static final int GOLD_HARD = 50000000;
+    public static final int GOLD_VERY_HARD = 80000000;
+    public static final int GOLD_HELL = 100000000;
 
     //const max side task of date
-    public static final byte MAX_SIDE_TASK = 10;
+    public static final byte MAX_SIDE_TASK = 20;
 
     //const max clan task of date
     public static final byte MAX_CLAN_TASK = 5;

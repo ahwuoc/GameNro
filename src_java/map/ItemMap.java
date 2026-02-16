@@ -1,20 +1,20 @@
 package map;
 
 /*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
+ *
+ *
+ *  
  */
 import java.util.ArrayList;
 import java.util.List;
-import player.system.Template.ItemTemplate;
+import models.Template.ItemTemplate;
 import item.Item.ItemOption;
 import player.Player;
 import utils.Util;
-import map.Service.ItemMapService;
+import services.ItemMapService;
 import services.ItemService;
-import map.Service.MapService;
-import player.Service.PlayerService;
+import services.MapService;
+import services.PlayerService;
 import services.Service;
 
 public class ItemMap {
@@ -29,13 +29,16 @@ public class ItemMap {
     public long playerId;
     public List<ItemOption> options;
 
-    public long createTime;
-
+    private long createTime;
+    public boolean isPickedUp = false;
+    public boolean isCanHut = true;
     public int clanId = -1;
-
+    public boolean isNamecBallTranhDoat;
+    public byte typeHaveBallTranhDoat = -1;
     public boolean isBlackBall;
     public boolean isNamecBall;
-    public boolean isPickedUp;
+    
+    public String source; // Nguồn gốc của ItemMap
 
     public ItemMap(Zone zone, int tempId, int quantity, int x, int y, long playerId) {
         this.zone = zone;
@@ -117,7 +120,7 @@ public class ItemMap {
                     this.playerId = -1;
                 }
             }
-            if ((Util.canDoWithTime(createTime, 50000) && isNotNullItem() && itemTemplate.type != 22 || Util.canDoWithTime(createTime, 1800000)) && !this.isNamecBall) {
+            if ((Util.canDoWithTime(createTime, 50000) && isNotNullItem() && itemTemplate.type != 22 || Util.canDoWithTime(createTime, 180000)) && !this.isNamecBall) {
                 if (this.zone != null && this.zone.map.mapId != 21 && this.zone.map.mapId != 22
                         && this.zone.map.mapId != 23 && this.itemTemplate.id != 78
                         && this.itemTemplate.id != 726 && !(MapService.gI().isMapDoanhTrai(this.zone.map.mapId) && this.itemTemplate.id >= 14 && this.itemTemplate.id <= 20)) {

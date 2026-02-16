@@ -2,7 +2,6 @@ pub mod item_utils;
 pub mod location;
 pub mod map_utils;
 pub mod number_util;
-pub mod random;
 pub mod skill_util;
 pub mod time;
 

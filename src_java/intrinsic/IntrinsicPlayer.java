@@ -1,5 +1,6 @@
 package intrinsic;
-import player.Service.IntrinsicService;
+ 
+import services.IntrinsicService;
 
 public class IntrinsicPlayer {
 

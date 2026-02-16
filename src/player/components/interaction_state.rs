@@ -8,6 +8,8 @@ pub struct InteractionState {
     pub mbv: i32,
     pub type_change_map: i32,
     pub tag_shop: String,
+    pub is_thachdau: bool,
+    pub has_training_boss: bool,
 }
 
 impl InteractionState {
@@ -26,6 +28,13 @@ impl InteractionState {
     }
     pub fn get_tag_shop(&self) -> &str {
         &self.tag_shop
+    }
+    pub fn get_is_thachdau(&self) -> bool {
+        self.is_thachdau
+    }
+
+    pub fn set_is_thachdau(&mut self, is_training: bool) {
+        self.is_thachdau = is_training;
     }
 
     pub fn set_index_menu(&mut self, index: MenuId) {
@@ -54,5 +63,13 @@ impl InteractionState {
 
     pub fn set_mbv(&mut self, mbv: i32) {
         self.mbv = mbv;
+    }
+
+    pub fn get_has_training_boss(&self) -> bool {
+        self.has_training_boss
+    }
+
+    pub fn set_has_training_boss(&mut self, has: bool) {
+        self.has_training_boss = has;
     }
 }

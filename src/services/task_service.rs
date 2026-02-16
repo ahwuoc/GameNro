@@ -1,6 +1,7 @@
 use std::clone;
 use std::panic::panic_any;
 
+use crate::boss::boss_id::BOSS_TAU_PAY_PAY;
 use crate::constant::cmd::cmd::GET_MOB_TEMPLATE;
 use crate::constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG};
 use crate::constant::const_npc::CON_MEO;
@@ -8,6 +9,7 @@ use crate::constant::task_type::TaskType;
 use crate::constant::{const_npc, task_id};
 use crate::entities::task_sub_template;
 use crate::item::InventoryService;
+use crate::map::services::training_services;
 use crate::network::message::Message;
 use crate::network::session;
 use crate::player::Player;
@@ -22,7 +24,7 @@ pub struct TaskService;
 impl TaskService {
     pub fn get_current_sub_task(player: &Player) -> Option<task_sub_template::Model> {
         let sub_tasks = TASK_TEMPLATE_MANAGER.get_sub_tasks(player.task_player.task_main.id);
-        let index = player.task_player.task_main.index as usize;
+        let index = TaskUtils::get_task_index(player) as usize;
 
         if index >= sub_tasks.len() && !sub_tasks.is_empty() {
             tracing::warn!(
@@ -37,14 +39,19 @@ impl TaskService {
         sub_tasks.get(index).cloned()
     }
     pub fn resolve_id(input: &str, gender: i8) -> i32 {
-        let parts: Vec<&str> = input.split(',').collect();
+        let parts: Vec<&str> = input.split(",").map(|s| s.trim()).collect();
         if parts.len() == 3 {
             parts
                 .get(gender as usize)
-                .and_then(|&s| s.parse::<i32>().ok())
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(-1)
+        } else if parts.len() >= 1 {
+            parts
+                .get(0)
+                .and_then(|s| s.parse::<i32>().ok())
                 .unwrap_or(-1)
         } else {
-            input.parse::<i32>().unwrap_or(-1)
+            input.trim().parse::<i32>().unwrap_or(-1)
         }
     }
 
@@ -52,7 +59,13 @@ impl TaskService {
         if let Some(sub_task) = Self::get_current_sub_task(player) {
             if let Some(npc_list) = &sub_task.npc_id {
                 let npc_id = Self::resolve_id(npc_list, player.gender);
-                return target_npc_id as i32 == npc_id || npc_list == "-1";
+                let result = target_npc_id as i32 == npc_id || npc_list == "-1";
+                tracing::debug!(
+                    target: "task",
+                    "is_match_npc: player={}, target_npc={}, resolved_npc={}, npc_list={}, match={}",
+                    player.name, target_npc_id, npc_id, npc_list, result
+                );
+                return result;
             }
         }
         false
@@ -75,20 +88,26 @@ impl TaskService {
                     TaskType::TalkNpc | TaskType::ConfirmMenu => {
                         if let Some(npc_list) = &sub_task.npc_id {
                             let npc_id = Self::resolve_id(npc_list, player.gender);
+                            tracing::debug!(
+                                target: "task",
+                                "check_done_task (TALK): player={}, target_id={}, resolved_npc={}, npc_list={}",
+                                player.name, target_id, npc_id, npc_list
+                            );
                             if target_id == npc_id.to_string() || npc_list == "-1" {
-                                if player.task_player.task_main.id == task_id::TASK_2
-                                    && player.task_player.task_main.index == 1
+                                if TaskUtils::get_id_task(player) == task_id::TASK_2
+                                    && TaskUtils::get_task_index(player) == 1
                                 {
+                                    let required_count = 1;
                                     let total_count = InventoryService::count_item_bag_with_id(
                                         player,
                                         ITEM_DUI_GA_BINH_THUONG,
                                     );
 
-                                    if total_count >= 10 {
+                                    if total_count >= required_count {
                                         InventoryService::sub_item_bag_with_id(
                                             player,
                                             ITEM_DUI_GA_BINH_THUONG,
-                                            10,
+                                            required_count,
                                         );
                                         let _ = InventoryService::send_item_bag(player);
                                         is_match = true;
@@ -107,24 +126,23 @@ impl TaskService {
                     }
                     TaskType::KillMob => {
                         if let Some(mob_list) = &sub_task.mob_id {
-                            let sub_targets: Vec<&str> = mob_list.split(',').collect();
-                            if mob_list == "-1" || sub_targets.contains(&target_id) {
+                            let resolved_mob_id = Self::resolve_id(mob_list, player.gender);
+                            if mob_list == "-1" || target_id == resolved_mob_id.to_string() {
                                 is_match = true;
                             }
                         }
                     }
                     TaskType::KillBoss => {
-                        if let Some(boss_list) = &sub_task.boss_id {
-                            let sub_targets: Vec<&str> = boss_list.split(',').collect();
-                            if boss_list == "-1" || sub_targets.contains(&target_id) {
+                        if let Some(boss_id) = &sub_task.pick_item_id {
+                            if boss_id == "-1" || target_id == boss_id {
                                 is_match = true;
                             }
                         }
                     }
                     TaskType::PickItem | TaskType::UseItem => {
                         if let Some(item_list) = &sub_task.pick_item_id {
-                            let sub_targets: Vec<&str> = item_list.split(',').collect();
-                            if item_list == "-1" || sub_targets.contains(&target_id) {
+                            let resolved_item_id = Self::resolve_id(item_list, player.gender);
+                            if item_list == "-1" || target_id == resolved_item_id.to_string() {
                                 is_match = true;
                             }
                         }
@@ -135,6 +153,11 @@ impl TaskService {
                             if target_id == map_id.to_string() || map_list == "-1" {
                                 is_match = true;
                             }
+                        }
+                    }
+                    TaskType::TaskPower => {
+                        if player.n_point.power >= sub_task.power_require {
+                            is_match = true;
                         }
                     }
                     _ => {}
@@ -192,7 +215,7 @@ impl TaskService {
                     };
                     let target_name = match task_type {
                         TaskType::KillBoss => {
-                            let boss_id = sub_task.boss_id.as_deref().unwrap_or("0");
+                            let boss_id = sub_task.pick_item_id.as_deref().unwrap_or("0");
                             boss_template_manager::get(&boss_id).map(|x| x.name.clone())
                         }
                         TaskType::KillMob => {
@@ -217,8 +240,6 @@ impl TaskService {
                             "Bạn {} được {}/{} {}",
                             prefix_text, count, max_count, target_name,
                         );
-
-                        println!("=============TEXT============ {}", &text);
                         ServiceHandles::send_thong_bao_to_player(player, &text)?;
                     }
                 }
@@ -229,6 +250,13 @@ impl TaskService {
 
     pub fn send_next_sub_task(player: &mut Player) -> Result<()> {
         let sub_tasks = TASK_TEMPLATE_MANAGER.get_sub_tasks(player.task_player.task_main.id);
+
+        if let Some(current_subtask) = sub_tasks.get(TaskUtils::get_task_index(player) as usize) {
+            Self::send_npc_chat_sub_task(player, current_subtask)?;
+            if TaskUtils::get_id_task(player) == 7 && TaskUtils::get_task_index(player) == 0 {
+                training_services::call_boss_by_id(player, BOSS_TAU_PAY_PAY, false)?;
+            }
+        }
         player.task_player.task_main.index += 1;
         player.task_player.task_main.count = 0;
 
@@ -239,7 +267,10 @@ impl TaskService {
             player.send_to_client(msg)?;
 
             if let Some(next_st) = sub_tasks.get(player.task_player.task_main.index as usize) {
-                Self::send_npc_chat_sub_task(player, next_st)?;
+                if !next_st.notify.is_empty() {
+                    let notify_text = TaskUtils::transform_name(player, &next_st.notify, None);
+                    ServiceHandles::send_thong_bao_to_player(player, &notify_text)?;
+                }
             }
             Self::send_task_main(player)?;
         }
@@ -257,7 +288,7 @@ impl TaskService {
             return Ok(());
         };
 
-        let text = TaskUtils::transform_name(player, chattext);
+        let text = TaskUtils::transform_name(player, chattext, None);
         let mut msg = Message::new(38);
         msg.write_short(npc_id as i16)?;
         msg.write_utf(&text)?;
@@ -309,14 +340,17 @@ impl TaskService {
 
         let mut msg = Message::new(40);
         msg.write_short(main_task.id as i16)?;
-        msg.write_byte(player.task_player.task_main.index as i8)?;
-        msg.write_utf(&TaskUtils::transform_name(player, &main_task.name))?;
-        msg.write_utf(&TaskUtils::transform_name(player, &main_task.detail))?;
+        msg.write_byte(TaskUtils::get_task_index(player) as i8)?;
+        msg.write_utf(&TaskUtils::transform_name(player, &main_task.name, None))?;
+        msg.write_utf(&TaskUtils::transform_name(player, &main_task.detail, None))?;
         msg.write_byte(sub_tasks.len() as i8)?;
 
         for stm in &sub_tasks {
-            msg.write_utf(&TaskUtils::transform_name(player, &stm.name))?;
-
+            let mob_id = if let Some(mob_list) = &stm.mob_id {
+                Self::resolve_id(mob_list, player.gender)
+            } else {
+                -1
+            };
             let npc_id = if let Some(npc_list) = &stm.npc_id {
                 Self::resolve_id(npc_list, player.gender)
             } else {
@@ -328,10 +362,14 @@ impl TaskService {
             } else {
                 -1
             };
-
+            msg.write_utf(&TaskUtils::transform_name(player, &stm.name, Some(mob_id)))?;
             msg.write_byte(npc_id as i8)?;
             msg.write_short(map_id as i16)?;
-            msg.write_utf(&TaskUtils::transform_name(player, &stm.notify))?;
+            msg.write_utf(&TaskUtils::transform_name(
+                player,
+                &stm.notify,
+                Some(mob_id),
+            ))?;
         }
 
         msg.write_short(player.task_player.task_main.count as i16)?;
@@ -358,7 +396,7 @@ impl TaskService {
         sub_task: &task_sub_template::Model,
     ) -> Result<()> {
         let main_id = player.task_player.task_main.id;
-        let index = player.task_player.task_main.index;
+        let index = TaskUtils::get_task_index(player);
 
         match main_id {
             task_id::TASK_0_0 => {
@@ -448,13 +486,13 @@ impl TaskService {
     pub fn check_done_task_scripts(player: &mut Player, script_id: &str) -> Result<()> {
         Self::check_done_task(player, TaskType::TaskScripts, script_id)
     }
+
+    pub fn check_done_task_power(player: &mut Player) -> Result<()> {
+        Self::check_done_task(player, TaskType::TaskPower, "")
+    }
 }
 
 impl TaskService {
-    pub fn get_id_task(player: &Player) -> i32 {
-        player.task_player.task_main.id
-    }
-    // Task go map
     pub fn check_done_task_go_to_map_position(
         player: &mut Player,
         map_id: i32,
@@ -496,9 +534,25 @@ impl TaskService {
         Ok(())
     }
 
+    pub fn force_set_task(player: &mut Player, main_id: i32, sub_index: i32) -> Result<()> {
+        player.task_player.task_main.id = main_id;
+        player.task_player.task_main.index = sub_index;
+        player.task_player.task_main.count = 0;
+
+        Self::send_task_main(player)?;
+        if let Some(sub_task) = Self::get_current_sub_task(player) {
+            if !sub_task.notify.is_empty() {
+                let notify_text = TaskUtils::transform_name(player, &sub_task.notify, None);
+                ServiceHandles::send_thong_bao_to_player(player, &notify_text)?;
+            }
+            Self::send_npc_chat_sub_task(player, &sub_task)?;
+        }
+        Ok(())
+    }
+
     fn done_task_by_id(player: &mut Player, task_id: i32, task_index: i32) -> Result<()> {
-        if player.task_player.task_main.id == task_id
-            && player.task_player.task_main.index == task_index
+        if TaskUtils::get_id_task(player) == task_id
+            && TaskUtils::get_task_index(player) == task_index
         {
             tracing::debug!(
                 target: "task",
@@ -511,8 +565,8 @@ impl TaskService {
     }
 
     pub fn send_tutorial_task_0_0_0(player: &Player, server_name: &str) -> Result<()> {
-        let task_id = Self::get_id_task(player);
-        let task_index = player.task_player.task_main.index;
+        let task_id = TaskUtils::get_id_task(player);
+        let task_index = TaskUtils::get_task_index(player);
         tracing::debug!(
             target: "task",
             "send_tutorial_task_0: player={}, task_id={}, task_index={}",
@@ -539,8 +593,8 @@ impl TaskService {
 
     pub fn check_auto_skip_task_home(player: &mut Player) -> Result<()> {
         let home_map = (player.gender as i32) + 21; // 21, 22, 23
-        let task_id = Self::get_id_task(player);
-        let task_index = player.task_player.task_main.index;
+        let task_id = TaskUtils::get_id_task(player);
+        let task_index = TaskUtils::get_task_index(player);
 
         tracing::debug!(
             "[TASK] check_auto_skip_task_home: player={}, map_id={}, home_map={}, task_id={}, task_index={}",
@@ -563,7 +617,7 @@ impl TaskService {
             "[TASK] send_info_current_task: player={}, task_id={}, task_index={}, task_count={}",
             player.name,
             player.task_player.task_main.id,
-            player.task_player.task_main.index,
+            TaskUtils::get_task_index(player),
             player.task_player.task_main.count
         );
         Self::send_task_main(player)

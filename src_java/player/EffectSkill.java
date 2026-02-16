@@ -1,4 +1,5 @@
 package player;
+ 
 import lombok.Setter;
 import mob.Mob;
 import services.EffectSkillService;
@@ -19,12 +20,22 @@ public class EffectSkill {
     public boolean isShielding;
     public long lastTimeShieldUp;
     public int timeShield;
-
+    
+    public boolean isMucoi;
+    public boolean isObito;
     //biến khỉ
     public boolean isMonkey;
     public byte levelMonkey;
     public long lastTimeUpMonkey;
     public int timeMonkey;
+    //
+     public int timeAdroi19;
+    //biến khỉ
+    public boolean isSuper;
+    public byte levelSuper;
+    public long lastTimeUpSuper;
+    public int timeSuper;
+    public boolean isUpdateSuper;
 
     //Bình
     public boolean isBinh;
@@ -73,7 +84,9 @@ public class EffectSkill {
     //huýt sáo
     public int tiLeHPHuytSao;
     public long lastTimeHuytSao;
-
+    //kame Hắc Hóa
+     
+    public long lastTimeKame;
     //thôi miên
     public boolean isThoiMien;
     public long lastTimeThoiMien;
@@ -104,7 +117,10 @@ public class EffectSkill {
     public long lastTimeHalloween;
     public int timeHalloween;
     public int idOutfitHalloween;
-
+    // biến hình broly
+    public boolean isSpBroly;
+    public long lastTimeSpBroly;
+    public int timeSpBroly;
     //Use Mafuba
     public boolean isUseMafuba;
     public long lastTimeUseMafuba;
@@ -120,6 +136,12 @@ public class EffectSkill {
     public long lastTimeUseSkill;
     public int skillID;
     public int cooldown;
+
+    //Intrinsic vip
+    public boolean isIntrinsicVip;
+    public long lastTimeUseSkillVip;
+    public int skillIDVip;
+    public int cooldownVip;
 
     //Dame Buff
     public boolean isDameBuff;
@@ -137,6 +159,10 @@ public class EffectSkill {
         if (isMonkey) {
             EffectSkillService.gI().monkeyDown(player);
         }
+        if(isSuper){
+             EffectSkillService.gI().SuperDown(player);
+        }
+        
         if (isUseSkillMonkey) {
             EffectSkillService.gI().finishUseMonkey(player);
         }
@@ -180,6 +206,9 @@ public class EffectSkill {
         if (isMonkey && (Util.canDoWithTime(lastTimeUpMonkey, timeMonkey))) {
             EffectSkillService.gI().monkeyDown(player);
         }
+         if (isSuper && (Util.canDoWithTime(lastTimeUpSuper, timeSuper))) {
+            EffectSkillService.gI().SuperDown(player);
+        }
         if (isBinh && (Util.canDoWithTime(lastTimeUpBinh, timeBinh))) {
             EffectSkillService.gI().BinhDown(player);
         }
@@ -203,9 +232,13 @@ public class EffectSkill {
         if (isSocola && (Util.canDoWithTime(lastTimeSocola, timeSocola))) {
             EffectSkillService.gI().removeSocola(this.player);
         }
+        if (isSpBroly && (Util.canDoWithTime(lastTimeSpBroly, timeSpBroly))) {
+            EffectSkillService.gI().removeSpBroly(this.player);
+        }
         if (tiLeHPHuytSao != 0 && Util.canDoWithTime(lastTimeHuytSao, 30000)) {
             EffectSkillService.gI().removeHuytSao(this.player);
         }
+       
         if (isStone && Util.canDoWithTime(lastTimeStone, timeStone)) {
             EffectSkillService.gI().removeStone(this.player);
         }
@@ -224,10 +257,10 @@ public class EffectSkill {
         if (isChibi && Util.canDoWithTime(lastTimeChibi, timeChibi)) {
             EffectSkillService.gI().removeChibi(this.player);
         }
-//        if (isHalloween && Util.canDoWithTime(lastTimeHalloween, timeHalloween)) {
-//            EffectSkillService.gI().removeHalloween(this.player);
-//        }
-        if (isUseMafuba && Util.canDoWithTime(lastTimeUseMafuba, timeUseMafuba)) {
+        if (isHalloween && Util.canDoWithTime(lastTimeHalloween, timeHalloween)) {
+            EffectSkillService.gI().removeHalloween(this.player);
+        }
+        if (isUseMafuba && Util.canDoWithTime(lastTimeUseMafuba, timeUseMafuba - 1500)) {
             EffectSkillService.gI().finishUseMafuba(player);
         }
         if (isUseSkillMonkey && Util.canDoWithTime(lastTimeUseSkillMonkey, timeUseSkillMonkey)) {
@@ -235,6 +268,9 @@ public class EffectSkill {
         }
         if (isIntrinsic && Util.canDoWithTime(lastTimeUseSkill, cooldown)) {
             EffectSkillService.gI().releaseCooldownSkillByIntrinsic(player);
+        }
+        if (isIntrinsicVip && Util.canDoWithTime(lastTimeUseSkillVip, cooldownVip)) {
+            EffectSkillService.gI().releaseCooldownSkillByIntrinsicVip(player);
         }
         if (isDameBuff && Util.canDoWithTime(lastTimeDameBuff, timeDameBuff)) {
             EffectSkillService.gI().removeDameBuff(this.player);

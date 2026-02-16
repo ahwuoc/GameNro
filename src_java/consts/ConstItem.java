@@ -1,13 +1,6 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package consts;
 
-/**
- * @Build by Arriety
- */
 public class ConstItem {
 
     public static final int AO_VAI_3_LO = 0;
@@ -547,6 +540,7 @@ public class ConstItem {
     public static final int GIAP_TAP_LUYEN_CAP_1_534 = 534;
     public static final int GIAP_TAP_LUYEN_CAP_2_535 = 535;
     public static final int GIAP_TAP_LUYEN_CAP_3_536 = 536;
+    public static final int GIAP_TAP_LUYEN_CAP_4 = 1776;
     public static final int CHU_GIAI = 537;
     public static final int CHU_KHAI = 538;
     public static final int CHU_PHONG = 539;
@@ -762,8 +756,8 @@ public class ConstItem {
     public static final int THUNG_NEP = 749;
     public static final int THUNG_DAU_XANH = 750;
     public static final int LA_DONG = 751;
-    public static final int BANH_TET = 752;
-    public static final int BANH_CHUNG = 753;
+    public static final int BANH_TET = 1894;
+    public static final int BANH_CHUNG = 1893;
     public static final int NON_CHUOT_MAY_MAN = 754;
     public static final int NON_CHUOT_MAY_MAN_755 = 755;
     public static final int NON_CHUOT_MAY_MAN_756 = 756;
@@ -972,10 +966,7 @@ public class ConstItem {
     public static final int CAI_TRANG_CADIC_VO_SI = 959;
     public static final int CO_TRANG = 960;
     public static final int CO_DEN_961 = 961;
-    public static final int CAPSULE_THOI_TRANG_30_NGAY = 962;
-    public static final int CAPSULE_THOI_TRANG_7_NGAY = 963;
-    public static final int SAO_PHA_LE_964 = 964;
-    public static final int SAO_PHA_LE_965 = 965;
+
     public static final int TRAI_BONG = 966;
     public static final int SAO_LA = 967;
     public static final int SO_7_GOKU = 968;
@@ -1133,11 +1124,11 @@ public class ConstItem {
     public static final int NOEL_2022_GOKU = 1159;
     public static final int NOEL_2022_CADIC = 1160;
     public static final int NOEL_2022_POCOLO = 1161;
-    public static final int CUONG_NO_2 = 1154;
-    public static final int BO_KHI_2 = 1155;
-    public static final int BO_HUYET_2 = 1156;
-    public static final int GIAP_XEN_BO_HUNG_2 = 1157;
-    public static final int AN_DANH_2 = 1158;
+    public static final int CUONG_NO_2 = 1150;
+    public static final int BO_KHI_2 = 1151;
+    public static final int BO_HUYET_2 = 1152;
+    public static final int GIAP_XEN_BO_HUNG_2 = 1153;
+    public static final int AN_DANH_2 = 1154;
 
     public static final int CHU_LUN_1 = 1162;
     public static final int CHU_LUN_2 = 1163;
@@ -1147,7 +1138,7 @@ public class ConstItem {
     public static final int CHU_LUN_6 = 1167;
     public static final int CHU_LUN_7 = 1168;
     public static final int CHUONG_DONG = 1169;
-    public static final int CA_TUYET = 1170;
+    public static final int GOI_QUA_NOEL = 1170;
     public static final int BANH_QUY = 1171;
     public static final int KEO_DUONG = 1172;
     public static final int KEO_NGUOI_TUYET = 1173;
@@ -1232,33 +1223,63 @@ public class ConstItem {
     public static final int VOT_BAT_BO = 1251;
     public static final int VE_SAU_XEN = 1252;
     public static final int VE_SAU_XEN_TIEN_HOA = 1253;
-    public static final int BO_KEO_KINH_DI = 1352;
-    public static final int HAC_VO_THUONG = 1401;
-    public static final int BACH_VO_THUONG = 1402;
-    public static final int GIAP_TAP_LUYEN_CAP_4 = 1716;
-//    public static final int[] LIST_ITEM_NLSK_TET_2023 = {2027, 2028, 2029, 2030, 2030, 2037, 2038};
+    public static final int CAI_TRANG_VEGETA_HAKAI = 2000;
+    public static final int VE_DOI_AO_HUY_DIET = 2001;
+    public static final int VE_DOI_QUAN_HUY_DIET = 2002;
+    public static final int VE_DOI_GANG_HUY_DIET = 2003;
+    public static final int VE_DOI_GIAY_HUY_DIET = 2004;
+    public static final int VE_DOI_NHAN_HUY_DIET = 2005;
+    public static final int PHIEU_CAI_TRANG_HAI_TAC = 2006;
+    public static final int PHIEU_CAI_TRANG_HAI_TAC_2007 = 2007;
+    public static final int PHIEU_CAI_TRANG_HAI_TAC_2008 = 2008;
+    public static final int MANH_KICH_HOAT = 2009;
+    public static final int BUA_BAO_VE_VE = 2010;
+    public static final int THOI_VANG_2011 = 2011;
+    public static final int HOP_QUA_HALLOWEEN = 2012;
+    public static final int KEO_HALLOWEEN = 2013;
+    public static final int BANH_QUY_HALLOWEEN = 2014;
+    public static final int BI_NGO_HALLOWEEN = 2015;
+    public static final int GIO_KEO_BI_NGO = 2016;
+    public static final int HOP_MA_QUY = 2017;
+    public static final int VE_DOI_KEO = 2018;
+    public static final int TUI_BAO_VE = 2019;
+    public static final int VIEN_CAPSULE_20_10 = 2020;
+    public static final int HOP_QUA_TEACHER_DAY = 2021;
+    public static final int THE_GIA_HAN = 2022;
+    public static final int VE_TANG_NGOC_2023 = 2023;
+    public static final int LA_DONG_2023 = 2027;
+    public static final int LA_CHUOI = 2028;
+    public static final int THIT_HEO_2023 = 2029;
+    public static final int THIT_BA_CHI = 2030;
+    public static final int GIA_VI_TONG_HOP = 2031;
+    public static final int PHU_GIA_TAO_MAU = 2032;
+    public static final int BANH_TET_CHIN = 2033;
+    public static final int BANH_TET_2023 = 2034;
+    public static final int BANH_CHUNG_CHIN = 2035;
+    public static final int BANH_CHUNG_2023 = 2036;
+    public static final int GAO_NEP = 2037;
+    public static final int DO_XANH = 2038;
+    public static final int HOP_QUA_TET_2023 = 2039;
+
+    public static final int[] LIST_ITEM_NLSK_TET_2023 = { 2027, 2028, 2029, 2030, 2030, 2037, 2038 };
     public static final int[][][] LIST_ITEM_CLOTHES = {
-        {{0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555}, {6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556}, {21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562}, {27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
-        {{1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557}, {7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558}, {22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564}, {28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
-        {{2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559}, {8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560}, {23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566}, {29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}}
+            // áo , quần , găng ,giày,rada
+            // td -> nm -> xd
+            { { 0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555 },
+                    { 6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556 },
+                    { 21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562 },
+                    { 27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
+            { { 1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557 },
+                    { 7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558 },
+                    { 22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564 },
+                    { 28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
+            { { 2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559 },
+                    { 8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560 },
+                    { 23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566 },
+                    { 29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } }
     };
-
-    public static final short[] Ao_TraiDat = {0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555, 650};
-    public static final short[] Quan_TraiDat = {6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556, 651};
-    public static final short[] Gang_TraiDat = {21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562, 657};
-    public static final short[] Giay_TraiDat = {27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563, 658};
-
-    public static final short[] Ao_Namek = {1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557, 652};
-    public static final short[] Quan_Namek = {7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558, 653};
-    public static final short[] Gang_Namek = {22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564, 659};
-    public static final short[] Giay_Namek = {28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565, 660};
-
-    public static final short[] Ao_Xayda = {2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559, 654};
-    public static final short[] Quan_Xayda = {8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560, 655};
-    public static final short[] Gang_Xayda = {23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566, 661};
-    public static final short[] Giay_Xayda = {29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567, 662};
-    public static final short[] Rada_Gender = {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561, 656};
-    public static final short[][][] TrangBiKichHoat = {{Ao_TraiDat, Ao_Namek, Ao_Xayda,}, {Quan_TraiDat, Quan_Namek, Quan_Xayda},
-    {Gang_TraiDat, Gang_Namek, Gang_Xayda}, {Giay_TraiDat, Giay_Namek, Giay_Xayda}, {Rada_Gender, Rada_Gender, Rada_Gender, Rada_Gender}};
 
 }

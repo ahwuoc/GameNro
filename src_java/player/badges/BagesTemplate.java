@@ -11,8 +11,6 @@ import java.util.Set;
 
 public class BagesTemplate {
 
-   
-
     public int id;
     public int idEffect;
     public int idItem;
@@ -20,6 +18,7 @@ public class BagesTemplate {
     public List<Item.ItemOption> options = new ArrayList<>();
 
     public static int findIdItemByIdIdEffect(int idEffect) {
+        
         for (BagesTemplate data : Manager.BAGES_TEMPLATES) {
             if (data.idEffect == idEffect) {
                 return data.idItem;
@@ -36,14 +35,7 @@ public class BagesTemplate {
         }
         return -1;
     }
-public static BagesTemplate fineBadgesbyIdItem(int idItem) {
-        for (BagesTemplate data : Manager.BAGES_TEMPLATES) {
-            if (data.idItem == idItem) {
-                return data;
-            }
-        }
-        return null;
-    }
+
     public static List<Integer> listEffect(Player player) {
         Set<Integer> setIdItem = new HashSet<>();
         for (BadgesData data : player.dataBadges) {

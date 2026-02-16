@@ -1,11 +1,6 @@
 package player;
+ 
 public class Charms {
-
-    private Player player;
-
-    public Charms(Player player) {
-        this.player = player;
-    }
 
     public long tdTriTue;
     public long tdManhMe;
@@ -15,16 +10,10 @@ public class Charms {
     public long tdDeoDai;
     public long tdThuHut;
     public long tdDeTu;
-    public long tdDeTuMabu;
-    public long tdDeTuMabu2;
-    public long tdDeTuMabu3;
     public long tdTriTue3;
     public long tdTriTue4;
+
     public long lastTimeSubMinTriTueX4;
-    public long tdPhuHP;
-    public long tdPhuKI;
-    public long tdPhuSD;
-    public long tdPhuTNSM;
 
     public void addTimeCharms(int itemId, int min) {
         switch (itemId) {
@@ -88,54 +77,9 @@ public class Charms {
                 }
                 tdTriTue4 += min * 60 * 1000L;
                 break;
-            case 2025:
-                if (tdDeTuMabu < System.currentTimeMillis()) {
-                    tdDeTuMabu = System.currentTimeMillis();
-                }
-                tdDeTuMabu += min * 60 * 1000L;
-                break;
-            case 2076:
-                if (tdDeTuMabu2 < System.currentTimeMillis()) {
-                    tdDeTuMabu2 = System.currentTimeMillis();
-                }
-                tdDeTuMabu2 += min * 60 * 1000L;
-                break;
-            case 1387:
-                if (tdDeTuMabu3 < System.currentTimeMillis()) {
-                    tdDeTuMabu3 = System.currentTimeMillis();
-                }
-                tdDeTuMabu3 += min * 60 * 1000L;
-                break;
-            case 3000:
-                if (tdPhuHP < System.currentTimeMillis()) {
-                    tdPhuHP = System.currentTimeMillis();
-                }
-                tdPhuHP += min * 60 * 1000L;
-                break;
-            case 3001:
-                if (tdPhuKI < System.currentTimeMillis()) {
-                    tdPhuKI = System.currentTimeMillis();
-                }
-                tdPhuKI += min * 60 * 1000L;
-                break;
-            case 3002:
-                if (tdPhuSD < System.currentTimeMillis()) {
-                    tdPhuSD = System.currentTimeMillis();
-                }
-                tdPhuSD += min * 60 * 1000L;
-                break;
-            case 3003:
-                if (tdPhuTNSM < System.currentTimeMillis()) {
-                    tdPhuTNSM = System.currentTimeMillis();
-                }
-                tdPhuTNSM += min * 60 * 1000L;
-                break;
-
         }
     }
 
     public void dispose() {
-        this.player = null;
     }
 }
-

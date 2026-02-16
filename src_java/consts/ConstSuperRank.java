@@ -1,11 +1,5 @@
 package consts;
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-
-
+ 
 public class ConstSuperRank {
 
     public static final String TEXT_DUOI_HANG = "Không thể thi đấu dưới hạng mình";
@@ -18,7 +12,7 @@ public class ConstSuperRank {
     public static final String TEXT_DANG_THI_DAU = "Đang thi đấu";
     public static final String TEXT_KHONG_THE_THI_DAU_TREN_2_HANG = "Không thể thi đấu trên mình 2 hạng";
     public static final String TEXT_TOP_10 = "%1 vừa lên Top %2 Giải Siêu Hạng";
-    public static final String TEXT_THANG = "Thắng rồi haha, lên hạng %1";
+    public static final String TEXT_THANG = "";
     public static final String TEXT_THUA = "Thua rồi";
     public static final String TEXT_CLONE_THANG = "Đầu hàng chưa?";
     public static final String TEXT_CLONE_THUA = "Mạnh quá, ta chịu thua";

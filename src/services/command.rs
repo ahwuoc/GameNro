@@ -16,6 +16,7 @@ use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Player;
 use crate::services::player_tnsm_services::TypeTNSM;
 use crate::services::skill_service;
+use crate::services::task_service::TaskService;
 use crate::services::ServiceHandles;
 
 pub struct CommandService;
@@ -31,8 +32,7 @@ impl CommandService {
             if text == "b" {
                 let _ = BossManager::show_list_boss(player.id, session.get_version().await).await;
                 return Ok(true);
-            }
-            if text == "pet" {
+            } else if text == "pet" {
                 if player.pet_id.is_none() {
                     let handle = PetService::spawn_pet(player).await?;
                     if let Some(player_handle) = PLAYER_MANAGER.get(player.id) {
@@ -43,6 +43,19 @@ impl CommandService {
                     ServiceHandles::send_message_alert(player, "Đã gọi đệ tử!")?;
                 } else {
                     ServiceHandles::send_message_alert(player, "Bạn đã có đệ tử rồi!")?;
+                }
+                return Ok(true);
+            } else if text.starts_with("nv") {
+                let parts: Vec<&str> = text.split("_").collect();
+                if parts.len() == 3 {
+                    let main = parts[1].parse().unwrap_or(0);
+                    let sub = parts[2].parse().unwrap_or(0);
+                    TaskService::force_set_task(player, main, sub)?;
+                    ServiceHandles::send_thong_bao_to_player(player, "Đã chuyển nhiệm vụ!")?;
+                } else if parts.len() == 2 {
+                    let main = parts[1].parse().unwrap_or(0);
+                    TaskService::force_set_task(player, main, 0)?;
+                    ServiceHandles::send_thong_bao_to_player(player, "Đã chuyển nhiệm vụ!")?;
                 }
                 return Ok(true);
             } else if text == "boss" || text.starts_with("sb ") {
@@ -69,6 +82,7 @@ impl CommandService {
                     None,
                     -1,
                     Vec::new(),
+                    None,
                 )
                 .await
                 {

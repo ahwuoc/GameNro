@@ -1,4 +1,5 @@
 package services.func;
+ 
 import item.Item;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -7,21 +8,20 @@ import network.Message;
 import services.RewardService;
 import services.Service;
 import java.util.List;
-import player.Service.InventoryService;
+import server.io.MySession;
+import services.InventoryService;
 import services.ItemService;
 
 public class LuckyRound {
 
     private static final byte MAX_ITEM_IN_BOX = 100;
 
-    public static final byte USING_GEM = 7;
+    //1 gem and ruby
+    public static final byte USING_RUBY = 2;
     public static final byte USING_GOLD = 0;
-    public static final byte USING_TICKET = 1;
 
-    private static final byte PRICE_GEM = 4;
-    private static final int PRICE_GOLD = 250000000;
-    private static final int PRICE_TICKET = 1;
-    private static final int TICKET = 821;
+    private static final int PRICE_RUBY = 10;
+    private static final long PRICE_GOLD = 500000000L;
 
     private static LuckyRound instance;
 
@@ -33,7 +33,7 @@ public class LuckyRound {
     }
 
     public void openCrackBallUI(Player pl, byte type) {
-        pl.idMark.setTypeLuckyRound(type);
+        pl.iDMark.setTypeLuckyRound(type);
         Message msg = null;
         try {
             msg = new Message(-127);
@@ -43,29 +43,7 @@ public class LuckyRound {
                 msg.writer().writeShort(419 + i);
             }
             msg.writer().writeByte(type); //type price
-            msg.writer().writeInt(type == USING_GEM ? PRICE_GEM : PRICE_GOLD); //price
-            msg.writer().writeShort(-1); //id ticket
-            pl.sendMessage(msg);
-        } catch (IOException e) {
-        } finally {
-            if (msg != null) {
-                msg.cleanup();
-            }
-        }
-    }
-
-    public void openCrackBallVipUI(Player pl, byte type) {
-        pl.idMark.setTypeLuckyRound(type);
-        Message msg = null;
-        try {
-            msg = new Message(-127);
-            msg.writer().writeByte(0);
-            msg.writer().writeByte(7);
-            for (int i = 0; i < 7; i++) {
-                msg.writer().writeShort(419);
-            }
-            msg.writer().writeByte(type); //type price
-            msg.writer().writeInt(type == USING_GEM ? PRICE_GEM : PRICE_GOLD); //price
+            msg.writer().writeInt((int) (type == USING_RUBY ? PRICE_RUBY : PRICE_GOLD)); //price
             msg.writer().writeShort(-1); //id ticket
             pl.sendMessage(msg);
         } catch (IOException e) {
@@ -80,37 +58,30 @@ public class LuckyRound {
         try {
             msg.reader().readByte(); //type
             byte count = msg.reader().readByte();
-            switch (player.idMark.getTypeLuckyRound()) {
-                case USING_GEM:
+            switch (player.iDMark.getTypeLuckyRound()) {
+                case USING_RUBY:
                     openBallByGem(player, count);
                     break;
                 case USING_GOLD:
                     openBallByGold(player, count);
                     break;
-                case USING_TICKET:
-                    openBallByTicket(player, count);
-                    break;
             }
         } catch (Exception e) {
-            switch (player.idMark.getTypeLuckyRound()) {
-                case USING_GEM:
-                    openCrackBallVipUI(player, player.idMark.getTypeLuckyRound());
-                    break;
-                default:
-                    openCrackBallUI(player, player.idMark.getTypeLuckyRound());
-                    break;
-            }
+            openCrackBallUI(player,player.iDMark.getTypeLuckyRound());
         }
     }
 
     private void openBallByGem(Player player, byte count) {
-        int gemNeed = (count * PRICE_GEM);
+        int gemNeed = (count * PRICE_RUBY);
+//        player.pointtet += count;
+       
         if (player.inventory.gem < gemNeed) {
             Service.gI().sendThongBao(player, "Bạn không đủ ngọc để mở");
         } else {
             if (count + player.inventory.itemsBoxCrackBall.size() <= MAX_ITEM_IN_BOX) {
                 player.inventory.gem -= gemNeed;
-                List<Item> list = RewardService.gI().getListItemLuckyRound(player, count, true);
+               
+                List<Item> list = RewardService.gI().getListItemLuckyRound(player, count, false);
                 addItemToBox(player, list);
                 sendReward(player, list);
                 Service.gI().sendMoney(player);
@@ -121,7 +92,8 @@ public class LuckyRound {
     }
 
     private void openBallByGold(Player player, byte count) {
-        int goldNeed = (count * PRICE_GOLD);
+        long goldNeed = (count * PRICE_GOLD);
+//        player.pointtet += count;
         if (player.inventory.gold < goldNeed) {
             Service.gI().sendThongBao(player, "Bạn không đủ vàng để mở");
         } else {
@@ -136,27 +108,7 @@ public class LuckyRound {
             }
         }
     }
-
-    private void openBallByTicket(Player player, byte count) {
-        int ticketNeed = (count * PRICE_TICKET);
-        Item ticket = InventoryService.gI().findItemBag(player, TICKET);
-        if (ticket == null || ticket.quantity < ticketNeed) {
-            Service.gI().sendThongBao(player, "Bạn không đủ " + ItemService.gI().createNewItem((short) TICKET).template.name + " để quay");
-            sendReward(player, new ArrayList<>());
-        } else {
-            if (count + player.inventory.itemsBoxCrackBall.size() <= MAX_ITEM_IN_BOX) {
-                InventoryService.gI().subQuantityItemsBag(player, ticket, ticketNeed);
-                InventoryService.gI().sendItemBags(player);
-                List<Item> list = RewardService.gI().getListItemLuckyRound(player, count, true);
-                addItemToBox(player, list);
-                sendReward(player, list);
-                Service.gI().sendMoney(player);
-            } else {
-                Service.gI().sendThongBao(player, "Rương phụ đã đầy");
-            }
-        }
-    }
-
+    
     private void sendReward(Player player, List<Item> items) {
         Message msg = null;
         try {
@@ -176,6 +128,8 @@ public class LuckyRound {
     }
 
     private void addItemToBox(Player player, List<Item> items) {
-        player.inventory.itemsBoxCrackBall.addAll(items);
+        for (Item item : items) {
+            player.inventory.itemsBoxCrackBall.add(item);
+        }
     }
 }

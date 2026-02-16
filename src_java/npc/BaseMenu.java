@@ -1,4 +1,5 @@
 package npc;
+ 
 import java.io.IOException;
 import player.Player;
 import network.Message;

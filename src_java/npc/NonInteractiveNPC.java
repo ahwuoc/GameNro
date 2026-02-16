@@ -1,14 +1,16 @@
 package npc;
+
+
 import boss.BossID;
 import map.Map;
 import map.Zone;
-import matches.tournament.WorldMartialArtsTournamentManager;
+import models.WorldMartialArtsTournament.WorldMartialArtsTournamentManager;
 import server.Manager;
-import map.Service.MapService;
+import services.MapService;
 import services.Service;
 import utils.Util;
 import player.Player;
-import player.Service.PlayerService;
+import services.PlayerService;
 
 public class NonInteractiveNPC extends Player {
 

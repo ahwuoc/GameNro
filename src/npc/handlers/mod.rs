@@ -16,6 +16,7 @@ pub mod dynamic_shop_handler;
 pub mod ong_gohan;
 pub mod ruong_do;
 pub mod santa;
+pub mod than_meo;
 
 use async_trait::async_trait;
 

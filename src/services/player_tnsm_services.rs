@@ -58,6 +58,8 @@ pub fn tiemnang_sucmanh_add(pl: &mut Player, type_tnsm: TypeTNSM, mut param: i64
             );
         }
 
+        let _ = crate::services::task_service::TaskService::check_done_task_power(pl);
+
         if let Err(e) = ServiceHandles::send_tnsm(pl, type_tnsm, param_scaled) {
             tracing::error!("Failed to send TNSM to client: {:?}", e);
         }

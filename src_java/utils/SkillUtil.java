@@ -1,15 +1,10 @@
 package utils;
-
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
+ 
 import java.util.List;
 import player.Player;
 import skill.NClass;
 import skill.Skill;
-import player.system.Template.SkillTemplate;
+import models.Template.SkillTemplate;
 import server.Manager;
 
 public class SkillUtil {
@@ -47,23 +42,6 @@ public class SkillUtil {
         return template;
     }
 
-    public static List<Skill> findSkills(int tempId) {
-        List skills = nClassTD.getSkills(tempId);
-        if (skills == null) {
-            skills = nClassNM.getSkills(tempId);
-        }
-        if (skills == null) {
-            skills = nClassXD.getSkills(tempId);
-        }
-        return skills;
-    }
-
-    public static List<Skill> findPointSkill(int skillId) {
-        List skills = nClassTD.getSkills(skillId);
-
-        return skills;
-    }
-
     public static Skill createEmptySkill() {
         Skill skill = new Skill();
         skill.skillId = -1;
@@ -93,12 +71,22 @@ public class SkillUtil {
         return (level + 5) * 10000;
     }
 
+    public static int getTimeBNVC(int level) { //thời gian tồn tại BNVC
+        return (level + 5) * 1000;
+    }
+
     public static int getPercentHpMonkey(int level) { //tỉ lệ máu khỉ cộng thêm v
         return (level + 3) * 10;
     }
 
     public static int getPercentDameMonkey(int level) { //tỉ lệ dam khỉ cộng thêm v
         return (level + 3);
+    }
+    public static int getPercentbroly(int level){
+        return (level *5);
+    }
+    public static int getPercentSPbroly(int level){
+        return (level * 10)+50;
     }
 
     public static int getTimeStun(int level) { //thời gian choáng thái dương hạ san v
@@ -149,8 +137,12 @@ public class SkillUtil {
         return level + 3;
     }
 
-    public static int getTempMobMe(int level) {
+    public static int getTempMobMe(int level) { //template đẻ trứng
         int[] temp = {8, 11, 32, 25, 43, 49, 50};
+        return temp[level - 1];
+    }
+    public static int getTempMobMe2(int level) { //template đẻ trứng
+        int[] temp = {8, 11, 72, 73, 74,104, 85};
         return temp[level - 1];
     }
 
@@ -158,7 +150,7 @@ public class SkillUtil {
         return getTimeMonkey(level) * 2;
     }
 
-    public static long getHPMobMe(long hpMaxPlayer, int level) {
+    public static long getHPMobMe(long hpMaxPlayer, int level) { //lấy hp max của đệ trứng theo hp max player
         long[] perHPs = {30, 40, 50, 60, 70, 80, 90};
         return hpMaxPlayer * perHPs[level - 1] / 100L;
     }
@@ -170,6 +162,24 @@ public class SkillUtil {
             }
         }
         return null;
+    }
+    
+    public static int getTimeSuper(int level) {
+        switch (level) {
+            case 1:
+                return 60000;
+            case 2:
+                return 90000;
+            case 3:
+                return 120000;
+            case 4:
+                return 180000;
+            case 5:
+                return 240000;
+            case 6:
+                return 300000;
+        }
+        return 0;
     }
 
     public static boolean upSkillPet(List<Skill> skills, int index) {
@@ -239,9 +249,67 @@ public class SkillUtil {
             return Skill.TROI;
         } else if (id >= 509 && id <= 515) {
             return Skill.HUYT_SAO;
+        } else if (id >= 1346 && id <= 1351) {
+            return Skill.SUPER_BROLY;
+        }  else if (id >= 1363 && id <= 1369) {
+            return Skill.PHAN_THAN;
         } else {
             return -1;
         }
+    }
+
+    public static byte getLevelSkillByItemID(int tempId) {
+        switch (tempId) {
+            // TRÁI ĐẤT
+            case 1334:
+            case 1340:
+            case 1346:
+            case 1356:
+            case 1363:
+            case 1370:
+                return 1;
+            case 1335:
+            case 1341:
+            case 1347:
+            case 1357:
+            case 1364:
+            case 1371:
+                return 2;
+            case 1336:
+            case 1342:
+            case 1348:
+            case 1358:
+            case 1365:
+            case 1372:
+                return 3;
+            case 1337:
+            case 1343:
+            case 1349:
+            case 1359:
+            case 1366:
+            case 1373:
+                return 4;
+            case 1338:
+            case 1344:
+            case 1350:
+            case 1360:
+            case 1367:
+            case 1374:
+                return 5;
+            case 1339:
+            case 1345:
+            case 1351:
+            case 1361:
+            case 1368:
+            case 1375:
+                return 6;
+            case 1362:
+            case 1369:
+            case 1376:
+                return 7;
+
+        }
+        return -1;
     }
 
     public static Skill getSkillByItemID(Player pl, int tempId) {
@@ -289,6 +357,20 @@ public class SkillUtil {
             return getSkillbyId(pl, Skill.TROI);
         } else if (tempId >= 509 && tempId <= 515) {
             return getSkillbyId(pl, Skill.HUYT_SAO);
+        } else if (tempId == 251003) {
+            switch (pl.gender) {
+                case 0:
+                    return getSkillbyId(pl, Skill.SUPER_KAME);
+                case 1:
+                    return getSkillbyId(pl, Skill.MA_PHONG_BA);
+                case 2:
+                    return getSkillbyId(pl, Skill.LIEN_HOAN_CHUONG);
+            }
+            return null;
+        }  else if (tempId >= 1346 && tempId <= 1351) {
+            return getSkillbyId(pl, Skill.SUPER_BROLY);
+        } else if (tempId >= 1363 && tempId <= 1369) {
+            return getSkillbyId(pl, Skill.PHAN_THAN);
         } else {
             return null;
         }

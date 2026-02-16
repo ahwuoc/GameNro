@@ -38,4 +38,7 @@ pub enum TaskType {
     /// Specialized logic handled by custom code/scripts (Power, TiemNang, Clan, etc.)
     #[sea_orm(string_value = "TASK_SCRIPTS")]
     TaskScripts,
+    /// Reward reached a certain power level
+    #[sea_orm(string_value = "TASK_POWER")]
+    TaskPower,
 }

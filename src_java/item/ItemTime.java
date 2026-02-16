@@ -1,10 +1,5 @@
 package item;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
 import player.NPoint;
 import player.Player;
 import services.Service;
@@ -13,23 +8,29 @@ import services.ItemTimeService;
 
 public class ItemTime {
 
+    // id item text
     public static final byte DOANH_TRAI = 0;
     public static final byte BAN_DO_KHO_BAU = 1;
     public static final byte CON_DUONG_RAN_DOC = 2;
     public static final byte KHI_GAS_HUY_DIET = 3;
     public static final byte TIME_KEO_BUA_BAO = 4;
     public static final byte TEXT_NHAN_BUA_MIEN_PHI = 5;
-    
+    public static final byte TEXT_TAI_XIU = 8;
+
     public static final int TIME_ITEM = 600000;
     public static final int TIME_OPEN_POWER = 8640000;
     public static final int TIME_MAY_DO = 1800000;
     public static final int TIME_MAY_DO2 = 1800000;
-    
-    public static final int TIME_BUA_SANTA = 1800000;
-    public static final int TIME_EAT_MEAL = 600000;
+    public static final int TIME_EAT_MEAL = 1800000;
+    public static final int TIME_EAT_MEAL3 = 1200000;
     public static final int TIME_CMS = 3600000;
-    public static final int TIME_DK = 1800000;
+    public static final int TIME_DK = 300000;
+    public static final int TIME_RK = 3600000;
     public static final int TIME_NCD = 1800000;
+    public static final int TIME_GIANGHOA = 30000;
+    public static final int TIME_TD = 1800000;
+
+    public static final int TIME_30P = 1800000;
 
     private Player player;
 
@@ -44,11 +45,15 @@ public class ItemTime {
     public boolean isUseCuongNo2;
     public boolean isUseAnDanh2;
 
+    public boolean isUseBuax2DeTu;
+
     public long lastTimeBoHuyet;
     public long lastTimeBoKhi;
     public long lastTimeGiapXen;
     public long lastTimeCuongNo;
     public long lastTimeAnDanh;
+
+    public long lastTimeBuax2DeTu;
 
     public long lastTimeBoHuyet2;
     public long lastTimeBoKhi2;
@@ -58,10 +63,8 @@ public class ItemTime {
 
     public boolean isUseMayDo;
     public long lastTimeUseMayDo;
-    public boolean isUseKhoBauX2;
-    public long lastTimeUseKhoBauX2;
-    public boolean isUseBuaSanta;
-    public long lastTimeBuaSanta;
+    public boolean isUseMayDo2;
+    public long lastTimeUseMayDo2;
 
     public boolean isOpenPower;
     public long lastTimeOpenPower;
@@ -73,6 +76,9 @@ public class ItemTime {
     public boolean isUseRX;
     public long lastTimeUseRX;
     public int timeRX;
+
+    public boolean isUsept;
+    public long lastTimeUsept;
 
     public boolean isUseCMS;
     public long lastTimeUseCMS;
@@ -92,15 +98,78 @@ public class ItemTime {
 
     public boolean isEatMeal2;
     public long lastTimeEatMeal2;
+
+    public boolean isEatMeal3;
+    public long lastTimeEatMeal3;
+
     public int iconMeal2;
+    public int iconMeal3;
     public long lastTimeKhauTrang;
     public boolean isUseKhauTrang;
+    public long lastTimeLoX2;
+    public boolean isUseLoX2;
+    public long lastTimeLoX5;
+    public boolean isUseLoX5;
+    public long lastTimeLoX7;
+    public boolean isUseLoX7;
+    public long lastTimeLoX10;
+    public boolean isUseLoX10;
+    public long lastTimeLoX15;
+    public boolean isUseLoX15;
+    public boolean checkLoXTNSM;
 
     public ItemTime(Player player) {
         this.player = player;
     }
 
     public void update() {
+        if (isUseLoX2) {
+            if (Util.canDoWithTime(lastTimeLoX2, TIME_30P)) {
+                isUseLoX2 = false;
+                checkLoXTNSM = true;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseLoX5) {
+            if (Util.canDoWithTime(lastTimeLoX5, TIME_30P)) {
+                isUseLoX5 = false;
+                checkLoXTNSM = true;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseLoX7) {
+            if (Util.canDoWithTime(lastTimeLoX7, TIME_30P)) {
+                isUseLoX7 = false;
+                checkLoXTNSM = true;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseLoX10) {
+            if (Util.canDoWithTime(lastTimeLoX10, TIME_30P)) {
+                isUseLoX10 = false;
+                checkLoXTNSM = true;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseLoX15) {
+            if (Util.canDoWithTime(lastTimeLoX15, TIME_30P)) {
+                isUseLoX15 = false;
+                checkLoXTNSM = true;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseKhauTrang) {
+            if (Util.canDoWithTime(lastTimeKhauTrang, TIME_30P)) {
+                isUseKhauTrang = false;
+                Service.gI().point(player);
+            }
+        }
+        if (isUseBuax2DeTu) {
+            if (Util.canDoWithTime(lastTimeBuax2DeTu, TIME_30P)) {
+                isUseBuax2DeTu = false;
+                Service.gI().point(player);
+            }
+        }
         if (isEatMeal) {
             if (Util.canDoWithTime(lastTimeEatMeal, TIME_EAT_MEAL)) {
                 isEatMeal = false;
@@ -113,10 +182,17 @@ public class ItemTime {
                 Service.gI().point(player);
             }
         }
+        if (isEatMeal3) {
+            if (Util.canDoWithTime(lastTimeEatMeal3, TIME_EAT_MEAL3)) {
+                isEatMeal3 = false;
+                Service.gI().point(player);
+            }
+        }
         if (isUseBoHuyet) {
             if (Util.canDoWithTime(lastTimeBoHuyet, TIME_ITEM)) {
                 isUseBoHuyet = false;
                 Service.gI().point(player);
+                // Service.gI().Send_Info_NV(this.player);
             }
         }
 
@@ -148,6 +224,7 @@ public class ItemTime {
             if (Util.canDoWithTime(lastTimeBoHuyet2, TIME_ITEM)) {
                 isUseBoHuyet2 = false;
                 Service.gI().point(player);
+                // Service.gI().Send_Info_NV(this.player);
             }
         }
 
@@ -194,6 +271,7 @@ public class ItemTime {
                 if (player.nPoint.limitPower > NPoint.MAX_LIMIT) {
                     player.nPoint.limitPower = NPoint.MAX_LIMIT;
                 }
+                player.nPoint.initPowerLimit();
                 Service.gI().sendThongBao(player, "Giới hạn sức mạnh của bạn đã được tăng lên 1 bậc");
                 isOpenPower = false;
             }
@@ -203,14 +281,9 @@ public class ItemTime {
                 isUseMayDo = false;
             }
         }
-        if (isUseBuaSanta) {
-            if (Util.canDoWithTime(lastTimeBuaSanta, TIME_BUA_SANTA)) {
-                isUseBuaSanta = false;
-            }
-        }
-        if (isUseKhoBauX2) {
-            if (Util.canDoWithTime(lastTimeUseKhoBauX2, TIME_MAY_DO2)) {
-                isUseKhoBauX2 = false;
+        if (isUseMayDo2) {
+            if (Util.canDoWithTime(lastTimeUseMayDo2, TIME_MAY_DO2)) {
+                isUseMayDo2 = false;
             }
         }
         if (isUseTDLT) {
@@ -222,6 +295,14 @@ public class ItemTime {
         if (isUseRX) {
             if (Util.canDoWithTime(lastTimeUseRX, timeRX)) {
                 isUseRX = false;
+            }
+        }
+        if (isUsept) {
+            if (Util.canDoWithTime(lastTimeUsept, 10000)) {
+                isUsept = false;
+                if (player.clone != null) {
+                    player.clone.dispose();
+                }
             }
         }
     }

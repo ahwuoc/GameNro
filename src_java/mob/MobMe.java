@@ -1,4 +1,6 @@
 package mob;
+
+import consts.cn;
 import map.Zone;
 import player.Player;
 import utils.SkillUtil;
@@ -18,8 +20,8 @@ public final class MobMe extends Mob {
         this.id = (int) player.id;
         int level = player.playerSkill.getSkillbyId(12).point;
         this.tempId = SkillUtil.getTempMobMe(level);
-        this.point.maxHp = (int) Math.min(SkillUtil.getHPMobMe(player.nPoint.hpMax, level), 2_000_000_000);
-        this.point.dame = (int) Math.min(SkillUtil.getHPMobMe(player.nPoint.getDameAttack(false), level), 2_000_000_000);
+        this.point.maxHp = SkillUtil.getHPMobMe(Util.toIntOrLong(player.nPoint.hpMax), level);
+        this.point.dame = SkillUtil.getHPMobMe(Util.toIntOrLong(player.nPoint.getDameAttack(false)), level);
         this.point.hp = this.point.maxHp;
         this.zone = player.zone;
         this.lastTimeSpawn = System.currentTimeMillis();
@@ -39,15 +41,16 @@ public final class MobMe extends Mob {
         Message msg;
         try {
             if (pl != null) {
-                int dame = !miss ? this.point.dame : 0;
-                if ((pl.nPoint.hp > dame && pl.nPoint.hp > pl.nPoint.hpMax * 0.05) || this.player.setClothes.pikkoroDaimao == 5) {
-                    int dameHit = pl.injured(this.player, dame, true, true);
+                long dame = !miss ? this.point.dame : 0;
+                if ((pl.nPoint.hp > dame && pl.nPoint.hp > pl.nPoint.hpMax * 0.05)
+                        || this.player.setClothes.pikkoroDaimao == 5) {
+                    long dameHit = pl.injured(this.player, dame, true, true);
                     msg = new Message(-95);
                     msg.writer().writeByte(2);
                     msg.writer().writeInt(this.id);
                     msg.writer().writeInt((int) pl.id);
-                    msg.writer().writeInt(dameHit);
-                    msg.writer().writeInt(pl.nPoint.hp);
+                    msg.writeLongByDucPro(Util.toIntOrLong(dameHit), cn.readInt);
+                    msg.writeLongByDucPro(Util.toIntOrLong(pl.nPoint.hp), cn.readInt);
                     Service.gI().sendMessAllPlayerInMap(this.player, msg);
                     msg.cleanup();
                 }
@@ -60,9 +63,9 @@ public final class MobMe extends Mob {
                     msg.writer().writeByte(3);
                     msg.writer().writeInt(this.id);
                     msg.writer().writeInt((int) mob.id);
-                    mob.point.sethp(mob.point.gethp() - this.point.dame);
-                    msg.writer().writeInt(mob.point.gethp());
-                    msg.writer().writeInt(this.point.dame);
+                    mob.point.sethp((mob.point.gethp() - this.point.dame));
+                    msg.writeLongByDucPro(Util.toIntOrLong(mob.point.gethp()), cn.readInt);
+                    msg.writeLongByDucPro(Util.toIntOrLong(this.point.dame), cn.readInt);
                     Service.gI().sendMessAllPlayerInMap(this.player, msg);
                     msg.cleanup();
                     Service.gI().addSMTN(player, (byte) 2, tnsm, true);
@@ -72,15 +75,15 @@ public final class MobMe extends Mob {
         }
     }
 
-    //tạo mobme
+    // tạo mobme
     public void spawn() {
         Message msg;
         try {
             msg = new Message(-95);
-            msg.writer().writeByte(0);//type
+            msg.writer().writeByte(0);// type
             msg.writer().writeInt((int) player.id);
             msg.writer().writeShort(this.tempId);
-            msg.writer().writeInt(this.point.hp);// hp mob
+            msg.writeLongByDucPro(Util.toIntOrLong(this.point.hp), cn.readInt);// hp mob
             Service.gI().sendMessAllPlayerInMap(this.player, msg);
             msg.cleanup();
         } catch (Exception e) {
@@ -94,12 +97,12 @@ public final class MobMe extends Mob {
         }
     }
 
-    //xóa mobme khỏi map
+    // xóa mobme khỏi map
     private void removeMobInMap() {
         Message msg;
         try {
             msg = new Message(-95);
-            msg.writer().writeByte(7);//type
+            msg.writer().writeByte(7);// type
             msg.writer().writeInt((int) player.id);
             Service.gI().sendMessAllPlayerInMap(this.player, msg);
             msg.cleanup();
@@ -111,7 +114,7 @@ public final class MobMe extends Mob {
         Message msg;
         try {
             msg = new Message(-95);
-            msg.writer().writeByte(6);//type
+            msg.writer().writeByte(6);// type
             msg.writer().writeInt((int) player.id);
             Service.gI().sendMessAllPlayerInMap(this.player, msg);
             msg.cleanup();
@@ -128,12 +131,12 @@ public final class MobMe extends Mob {
             }
             point.hp -= damage;
             msg = new Message(-95);
-            msg.writer().writeByte(5);//type
+            msg.writer().writeByte(5);// type
             msg.writer().writeInt((int) plAtt.id);
             msg.writer().writeByte(plAtt.playerSkill.skillSelect.template.id); // id skill
-            msg.writer().writeInt(id); //mob id
-            msg.writer().writeInt((int) damage);
-            msg.writer().writeInt(point.hp);
+            msg.writer().writeInt(id); // mob id
+            msg.writeLongByDucPro(Util.toIntOrLong(damage), cn.readInt);
+            msg.writeLongByDucPro(Util.toIntOrLong(point.hp), cn.readInt);
             Service.gI().sendMessAllPlayerInMap(this.player, msg);
             msg.cleanup();
             if (isDie()) {

@@ -1,34 +1,67 @@
 package player;
+
 import item.Item;
+import java.io.IOException;
 import mob.Mob;
 import services.ItemService;
-import player.Service.PlayerService;
+import services.PlayerService;
 import services.Service;
-import player.Service.InventoryService;
-import map.Service.MapService;
+import services.InventoryService;
+import services.MapService;
 import utils.Util;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import lombok.Setter;
+import network.Message;
 import services.EffectSkillService;
+import services.func.UseItem;
 import skill.Skill;
 
 public class EffectSkin {
 
-    public static final String[] textOdo = new String[]{
-        "Hôi quá, tránh xa ta ra", "Biến đi", "Trời ơi đồ ở dơ",
-        "Thúi quá", "Mùi gì hôi quá"
+    private long lastSendInfoTime;
+    private boolean sendInfo;
+
+    private static final String[] textOdo = new String[] {
+            "Hôi quá, tránh xa ta ra",
+            "Biến đi",
+            "Trời ơi đồ ở dơ",
+            "Thúi quá",
+            "Mùi gì hôi quá"
     };
 
-    private static final String[] textThoBulma = new String[]{
-        "Wow, sexy quá"
+    private static final String[] textThoBulma = new String[] {
+            "Wow, sexy quá"
+    };
+    private static final String[] textDietQuy = new String[] {
+            "Đừng để căm thù điều khiển mình.",
+            "Em sẽ bảo vệ tất cả, dù trong im lặng",
+            "Ngã xuống, nhưng vẫn bảo vệ mọi người",
+            "Muốn sống sót, phải mạnh mẽ hơn!",
+            "Đối mặt nỗi sợ, mới mạnh mẽ hơn",
+            "Sức mạnh là kiểm soát cảm xúc",
+            "Chấp nhận nỗi đau để bước tiếp",
+            "Kẻ yếu không có quyền tồn tại",
+            "Cần can đảm để biết sức mạnh mình"
     };
 
-    private static final String[] textBuffSD = new String[]{
-        "Wow! Sexy quá",
+    private static final String[] textBuffSD = new String[] {
+            "Wow!", "Đẹp quá!", "Xinh quá!"
     };
 
- 
+    private static final String[] textltdb = new String[] {
+            "Lính Thủy Đánh Bạc", "Idol Vip Quá!", "Idol",
+            "Trùm Server Đây Rồi!"
+    };
+
+    private static final String[] textXinbato = new String[] {
+            "Bực bội quá",
+            "Phân tâm quá",
+            "Nực quá",
+            "Im đi ông Xinbatô ơi",
+            "Tránh ra đi Xinbatô ơi"
+    };
 
     @Setter
     private Player player;
@@ -44,9 +77,14 @@ public class EffectSkin {
     private long lastTimeOdo;
     private long lastTimeltdb;
     private long lastTimeThoBulma;
+    private long lastTimeDietQuy;
+    private long lastTimeBunmaTocMau;
+    private long lastTimeTiecbaiBien;
     private long lastTimeMaPhongBa;
+    private long lastTimeBaby;
+    private long lastTimeADR19;
     private long lastTimeXenHutHpKi;
-
+    private long lastTimepetKhungLong;
     public long lastTimeAddTimeTrainArmor;
     public long lastTimeSubTimeTrainArmor;
 
@@ -70,9 +108,11 @@ public class EffectSkin {
     private long lastTimeTokuda;
 
     public void update() {
-        updateVoHinh();
-        if (!this.player.isDie() && this.player.zone != null && !MapService.gI().isMapOffline(this.player.zone.map.mapId)) {
+
+        if (!this.player.isDie() && this.player.zone != null
+                && !MapService.gI().isMapOffline(this.player.zone.map.mapId)) {
             updateOdo();
+            updateltdb();
             updateThoBulma();
             updateMaPhongBa();
             updateXenHutXungQuanh();
@@ -80,9 +120,16 @@ public class EffectSkin {
             updateHoaDa();
             updateLamCham();
             updateXChuong();
-//            updateHalloween();
+            updateVoHinh();
+            updateCTHaiTac();
+            //// updateHalloween();
+            updateCTDietQuy();
+            updateBunmaTocMau();
+            updateTiecbaiBien();
+            updatePetKhungLong();
+
         }
-        if (!this.player.isBoss && !this.player.isPet && !player.isNewPet) {
+        if (!this.player.isBoss && !this.player.isDeTu && !player.isNewPet && this.player != null && !player.isClone) {
             updateTrainArmor();
         }
         if (xHPKI != 1 && Util.canDoWithTime(lastTimeXHPKI, 1800000)) {
@@ -93,8 +140,9 @@ public class EffectSkin {
             xDame = 1;
             Service.gI().point(player);
         }
-        updateCTHaiTac();
+
     }
+    // 1488 1489 1490
 
     private void updateCTHaiTac() {
         if (this.player.setClothes != null && this.player.setClothes.ctHaiTac != -1
@@ -131,7 +179,7 @@ public class EffectSkin {
                         }
                     }
                 }
-                if (!pl.isPet && !pl.isNewPet && Util.canDoWithTime(lastTimeUpdateCTHT, 5000)) {
+                if (!pl.isDeTu && !pl.isNewPet && Util.canDoWithTime(lastTimeUpdateCTHT, 5000)) {
                     InventoryService.gI().sendItemBody(pl);
                 }
                 pl.effectSkin.lastTimeUpdateCTHT = System.currentTimeMillis();
@@ -141,12 +189,14 @@ public class EffectSkin {
 
     private void updateXenHutXungQuanh() {
         try {
-            if (this.player.nPoint != null && (player.nPoint.hp < player.nPoint.hpMax || player.nPoint.mp < player.nPoint.mpMax)) {
+            if (this.player.nPoint != null
+                    && (player.nPoint.hp < player.nPoint.hpMax || player.nPoint.mp < player.nPoint.mpMax)) {
                 int param = this.player.nPoint.tlHutHpMpXQ;
                 if (param > 0) {
-                    if (!this.player.isDie() && Util.canDoWithTime(lastTimeXenHutHpKi, 5000)) {
-                        int hpHut = 0;
-                        int mpHut = 0;
+                    if (!this.player.isDie() && Util.canDoWithTime(lastTimeXenHutHpKi, 5000)
+                            && this.player.zone != null) {
+                        long hpHut = 0;
+                        long mpHut = 0;
                         List<Player> players = new ArrayList<>();
                         List<Player> playersMap = this.player.zone.getNotBosses();
                         for (Player pl : playersMap) {
@@ -159,7 +209,7 @@ public class EffectSkin {
                         for (Mob mob : this.player.zone.mobs) {
                             if (mob.point.gethp() > 1) {
                                 if (Util.getDistance(this.player, mob) <= 200) {
-                                    int subHp = mob.point.getHpFull() * param / 100;
+                                    long subHp = Util.toIntOrLong(mob.point.getHpFull() * param / 100);
                                     if (subHp >= mob.point.gethp()) {
                                         subHp = mob.point.gethp() - 1;
                                     }
@@ -169,8 +219,8 @@ public class EffectSkin {
                             }
                         }
                         for (Player pl : players) {
-                            int subHp = (int) ((long) pl.nPoint.hpMax * param / 100);
-                            int subMp = (int) ((long) pl.nPoint.mpMax * param / 100);
+                            long subHp = Util.toIntOrLong((long) pl.nPoint.hpMax * param / 100);
+                            long subMp = Util.toIntOrLong((long) pl.nPoint.mpMax * param / 100);
                             if (subHp >= pl.nPoint.hp) {
                                 subHp = pl.nPoint.hp - 1;
                             }
@@ -201,13 +251,13 @@ public class EffectSkin {
             if (this.player.nPoint != null) {
                 int param = this.player.nPoint.tlHpGiamODo;
                 if (param > 0) {
-                    if (Util.canDoWithTime(lastTimeOdo, 10000)) {
+                    if (Util.canDoWithTime(lastTimeOdo, 10000) && this.player.zone != null) {
                         List<Player> playersMap = this.player.zone.getNotBosses();
                         for (int i = playersMap.size() - 1; i >= 0; i--) {
                             Player pl = playersMap.get(i);
                             if (pl != null && pl.nPoint != null && !this.player.equals(pl) && !pl.isBoss && !pl.isDie()
                                     && Util.getDistance(this.player, pl) <= 200) {
-                                int subHp = (int) ((long) pl.nPoint.hpMax * param / 100);
+                                long subHp = Util.toIntOrLong((long) pl.nPoint.hpMax * param / 100);
                                 if (subHp >= pl.nPoint.hp) {
                                     subHp = pl.nPoint.hp - 1;
                                 }
@@ -227,12 +277,31 @@ public class EffectSkin {
         }
     }
 
-  
+    private void updateltdb() {
+        try {
+            if (this.player.nPoint != null && this.player.nPoint.islinhthuydanhbac) {
+                if (Util.canDoWithTime(lastTimeltdb, 10000) && this.player.zone != null) {
+                    List<Player> playersMap = this.player.zone.getNotBosses();
+                    for (int i = playersMap.size() - 1; i >= 0; i--) {
+                        Player pl = playersMap.get(i);
+                        if (pl != null && pl.nPoint != null && !this.player.equals(pl) && !pl.isBoss && !pl.isDie()
+                                && Util.getDistance(this.player, pl) <= 200) {
+                            Service.gI().chat(pl, textltdb[Util.nextInt(0, textltdb.length - 1)]);
+                        }
+
+                    }
+                    this.lastTimeltdb = System.currentTimeMillis();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     private void updateThoBulma() {
         try {
             if (this.player.nPoint != null && this.player.nPoint.tlSexyDame > 0) {
-                if (Util.canDoWithTime(lastTimeThoBulma, 10000)) {
+                if (Util.canDoWithTime(lastTimeThoBulma, 10000) && this.player.zone != null) {
 
                     List<Player> playersMap = this.player.zone.getNotBosses();
                     for (int i = playersMap.size() - 1; i >= 0; i--) {
@@ -255,6 +324,226 @@ public class EffectSkin {
         }
     }
 
+    private void updateCTDietQuy() {
+        if (this.player.setClothes != null && this.player.setClothes.ctDietQuy != -1
+                && this.player.zone != null
+                && Util.canDoWithTime(lastTimeDietQuy, 5000)) {
+            int count = 0;
+            int[] cts = new int[5];
+            cts[this.player.setClothes.ctDietQuy - 1087] = this.player.setClothes.ctDietQuy;
+            List<Player> players = new ArrayList<>();
+            players.add(player);
+            try {
+                for (Player pl : player.zone.getNotBosses()) {
+                    if (!player.equals(pl) && pl.setClothes.ctDietQuy != -1 && Util.getDistance(player, pl) <= 300) {
+                        cts[pl.setClothes.ctDietQuy - 1087] = pl.setClothes.ctDietQuy;
+                        players.add(pl);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            for (int i = 0; i < cts.length; i++) {
+                if (cts[i] != 0) {
+                    count++;
+                }
+            }
+            for (Player pl : players) {
+                Item ct = pl.inventory.itemsBody.get(5);
+                if (ct.isNotNullItem() && ct.template.id >= 1087 && ct.template.id <= 1091) {
+                    for (Item.ItemOption io : ct.itemOptions) {
+                        if (io.optionTemplate.id == 147) {
+                            io.param = Math.min(count * 3, 18);
+                        }
+                    }
+                }
+                if (!pl.isDeTu && !pl.isNewPet && Util.canDoWithTime(lastTimeDietQuy, 5000)) {
+                    InventoryService.gI().sendItemBody(pl);
+                }
+                pl.effectSkin.lastTimeDietQuy = System.currentTimeMillis();
+            }
+        }
+    }
+
+    private void updateBunmaTocMau() {
+        if (this.player.setClothes != null && this.player.setClothes.ctBunmaTocMau != -1
+                && this.player.zone != null
+                && Util.canDoWithTime(lastTimeBunmaTocMau, 5000)) {
+            int count = 0;
+            int[] cts = new int[3];
+            cts[this.player.setClothes.ctBunmaTocMau - 1208] = this.player.setClothes.ctBunmaTocMau;
+            List<Player> players = new ArrayList<>();
+            players.add(player);
+            try {
+                for (Player pl : player.zone.getNotBosses()) {
+                    if (!player.equals(pl) && pl.setClothes.ctBunmaTocMau != -1
+                            && Util.getDistance(player, pl) <= 300) {
+                        cts[pl.setClothes.ctBunmaTocMau - 1208] = pl.setClothes.ctBunmaTocMau;
+                        players.add(pl);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            for (int i = 0; i < cts.length; i++) {
+                if (cts[i] != 0) {
+                    count++;
+                }
+            }
+            for (Player pl : players) {
+                Item ct = pl.inventory.itemsBody.get(5);
+                if (ct.isNotNullItem() && ct.template.id >= 1208 && ct.template.id <= 1210) {
+                    for (Item.ItemOption io : ct.itemOptions) {
+                        if (io.optionTemplate.id == 147) {
+                            io.param = Math.min(count * 3, 10);
+                        }
+                    }
+                }
+                if (!pl.isDeTu && !pl.isNewPet && Util.canDoWithTime(lastTimeBunmaTocMau, 5000)) {
+                    InventoryService.gI().sendItemBody(pl);
+                }
+                pl.effectSkin.lastTimeBunmaTocMau = System.currentTimeMillis();
+            }
+        }
+    }
+
+    private void updateTiecbaiBien() {
+        if (this.player.setClothes == null || this.player.setClothes.ctTiecbaiBien == -1
+                || this.player.zone == null || !Util.canDoWithTime(lastTimeTiecbaiBien, 5000)) {
+            return;
+        }
+
+        int count = 1;
+        int[] cts = new int[3];
+
+        if (this.player.setClothes.ctTiecbaiBien >= 1234 && this.player.setClothes.ctTiecbaiBien <= 1236) {
+            cts[this.player.setClothes.ctTiecbaiBien - 1234] = this.player.setClothes.ctTiecbaiBien;
+        }
+
+        List<Player> players = new ArrayList<>();
+        players.add(player);
+
+        try {
+            for (Player pl : player.zone.getNotBosses()) {
+                if (pl.equals(player) || pl.setClothes.ctTiecbaiBien == -1 || Util.getDistance(player, pl) > 300) {
+                    continue; // Bỏ qua nếu là chính mình hoặc ngoài phạm vi 300
+                }
+
+                if (pl.setClothes.ctTiecbaiBien >= 1234 && pl.setClothes.ctTiecbaiBien <= 1236) {
+                    continue; // Bỏ qua người có cải trang từ 1234 đến 1236
+                }
+
+                cts[pl.setClothes.ctTiecbaiBien - 1234] = pl.setClothes.ctTiecbaiBien;
+                players.add(pl);
+                count++;
+
+                Item ct = pl.inventory.itemsBody.get(5);
+                if (ct.isNotNullItem() && ct.template.id >= 1234 && ct.template.id <= 1236) {
+                    for (Item.ItemOption io : ct.itemOptions) {
+                        if (io.optionTemplate.id == 147) {
+                            io.param = io.param - Math.min(count * 5, 15); // giảm tối đa 15%
+                        }
+                    }
+                }
+
+                // Cập nhật hiệu ứng và gửi lại trạng thái item
+                if (!pl.isDeTu && !pl.isNewPet) {
+                    InventoryService.gI().sendItemBody(pl);
+                }
+                pl.effectSkin.lastTimeTiecbaiBien = System.currentTimeMillis();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updatePetKhungLong() {
+        if (this.player.setClothes == null || this.player.setClothes.petKhungLong == -1
+                || this.player.zone == null) {
+            return;
+        }
+
+        List<Player> players = new ArrayList<>();
+        players.add(player);
+
+        try {
+            for (Player pl : player.zone.getNotBosses()) {
+                if (pl.equals(player) || pl.setClothes.petKhungLong == 1118 || Util.getDistance(player, pl) > 300) {
+                    continue; // Bỏ qua nếu là chính mình, đã có ID 1118 hoặc ngoài phạm vi 300
+                }
+
+                boolean hasItem1118 = false;
+
+                Item item = pl.inventory.itemsBody.get(7); // Lấy item ở vị trí thứ 7
+                if (item.isNotNullItem() && item.template.id == 1118) {
+                    hasItem1118 = true;
+                }
+
+                // Nếu không có item 1118 ở slot 7, giảm 5% sát thương
+                if (!hasItem1118) {
+                    pl.nPoint.dame *= 0.9; // Giảm sát thương còn 90%
+                }
+
+                // Cập nhật hiệu ứng và gửi lại trạng thái item
+                if (!pl.isDeTu && !pl.isNewPet) {
+                    InventoryService.gI().sendItemBody(pl);
+                }
+                pl.effectSkin.lastTimepetKhungLong = System.currentTimeMillis();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateBaby() {
+        try {
+
+            // Nếu là lần đầu tiên hoặc đã đủ 60 giây kể từ lần cuối
+            if (Util.canDoWithTime(lastTimeBaby, 30000)) {
+                if (player.nPoint.isBaby) {
+                    if (player.effectSkill.isMonkey) {
+                        // Chọn ngẫu nhiên trạng thái
+                        player.luachon = Util.nextInt(1, 3);
+
+                        switch (player.luachon) {
+                            case 1:
+                                Service.gI().sendTitle(player, 1024);
+                                Service.gI().chat(player,
+                                        "Đã chuyển Trạng Thái Năng Lượng Tăng 20%HP và 10% sát thương bom");
+                                break;
+                            case 2:
+                                Service.gI().sendTitle(player, 1020);
+                                Service.gI().chat(player,
+                                        "Đã chuyển Trạng Thái Năng Lượng Tăng 20%Ki và 10% sát thương laze");
+                                break;
+                            case 3:
+                                Service.gI().sendTitle(player, 1025);
+                                Service.gI().chat(player, "Đã chuyển Trạng Thái Cuồng sát Tăng 20%SĐ và 10% tốc đánh");
+                                break;
+
+                            default:
+                                Service.gI().chat(player, "Chưa vào trạng thái!!!");
+                                break;
+                        }
+                    } else {
+                        player.luachon = 0;
+                    }
+                }
+
+                // Cập nhật thời gian làm mới
+                player.effectSkin.lastTimeBaby = System.currentTimeMillis();
+            }
+
+            // Gửi lại trạng thái nếu không phải pet
+            if (!player.isDeTu && !player.isNewPet) {
+                InventoryService.gI().sendItemBody(player);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void updateTanHinh() {
         try {
             if (this.player.nPoint != null && this.player.nPoint.isTanHinh) {
@@ -271,7 +560,7 @@ public class EffectSkin {
     private void updateHoaDa() {
         try {
             if (this.player.nPoint != null && this.player.nPoint.isHoaDa) {
-                if (Util.canDoWithTime(lastTimeHoaDa, 30000)) {
+                if (Util.canDoWithTime(lastTimeHoaDa, 30000) && this.player.zone != null) {
                     List<Player> playersMap = this.player.zone.getNotBosses();
                     for (int i = playersMap.size() - 1; i >= 0; i--) {
                         Player pl = playersMap.get(i);
@@ -292,7 +581,7 @@ public class EffectSkin {
     private void updateLamCham() {
         try {
             if (this.player.nPoint != null && this.player.nPoint.isLamCham) {
-                if (Util.canDoWithTime(lastTimeLamCham, 10000)) {
+                if (Util.canDoWithTime(lastTimeLamCham, 10000) && this.player.zone != null) {
 
                     List<Player> playersMap = this.player.zone.getNotBosses();
                     for (int i = playersMap.size() - 1; i >= 0; i--) {
@@ -315,7 +604,7 @@ public class EffectSkin {
     private void updateXChuong() {
         try {
             if (this.player.nPoint != null && this.player.nPoint.xChuong != 0) {
-                if (Util.canDoWithTime(lastTimeXChuong, 60000)) {
+                if (Util.canDoWithTime(lastTimeXChuong, 60000) && this.player.zone != null) {
                     this.isXChuong = true;
                     this.lastTimeXChuong = System.currentTimeMillis();
                 }
@@ -327,10 +616,14 @@ public class EffectSkin {
 
     private void updateMaPhongBa() {
         try {
-            if (this.player.effectSkill != null && this.player.effectSkill.isBinh && this.player.effectSkill.playerUseMafuba != null) {
-                if (Util.canDoWithTime(lastTimeMaPhongBa, 500) && this.player.effectSkill.playerUseMafuba.playerSkill != null) {
-                    double param = this.player.effectSkill.playerUseMafuba.playerSkill.getSkillbyId(Skill.MA_PHONG_BA).point * (this.player.effectSkill.typeBinh == 0 ? 1 : 2);
-                    int subHp = (int) ((long) this.player.effectSkill.playerUseMafuba.nPoint.hpMax * param / 100);
+            if (this.player.effectSkill != null && this.player.effectSkill.isBinh
+                    && this.player.effectSkill.playerUseMafuba != null) {
+                if (Util.canDoWithTime(lastTimeMaPhongBa, 500)
+                        && this.player.effectSkill.playerUseMafuba.playerSkill != null) {
+                    double param = this.player.effectSkill.playerUseMafuba.playerSkill
+                            .getSkillbyId(Skill.MA_PHONG_BA).point * (this.player.effectSkill.typeBinh == 0 ? 1 : 2);
+                    long subHp = Util
+                            .toIntOrLong((long) (this.player.effectSkill.playerUseMafuba.nPoint.hpMax * param / 100));
                     if (subHp >= this.player.nPoint.hp) {
                         subHp = Math.abs(this.player.nPoint.hp - 100);
                     }
@@ -345,28 +638,29 @@ public class EffectSkin {
         }
     }
 
-    // private void updateHalloween() {
-    //     try {
-    //         if (this.player.effectSkill != null && this.player.effectSkill.isHalloween) {
-    //             if (Util.canDoWithTime(lastTimeHalloween, 10000)) {
-    //                 List<Player> playersMap = this.player.zone.getNotBosses();
-    //                 for (int i = playersMap.size() - 1; i >= 0; i--) {
-    //                     Player pl = playersMap.get(i);
-    //                     if (pl != null && pl.nPoint != null && !this.player.equals(pl) && pl.effectSkill != null && !pl.effectSkill.isHalloween && !pl.isPet && !pl.isDie()
-    //                             && Util.getDistance(this.player, pl) <= 200) {
-    //                         EffectSkillService.gI().setIsHalloween(pl, -1, 1800000);
-    //                     }
+    private void updateHalloween() {
+        try {
+            if (this.player.effectSkill != null && this.player.effectSkill.isHalloween) {
+                if (Util.canDoWithTime(lastTimeHalloween, 10000) && this.player.zone != null) {
+                    List<Player> playersMap = this.player.zone.getNotBosses();
+                    for (int i = playersMap.size() - 1; i >= 0; i--) {
+                        Player pl = playersMap.get(i);
+                        if (pl != null && pl.nPoint != null && !this.player.equals(pl) && pl.effectSkill != null
+                                && !pl.effectSkill.isHalloween && !pl.isDeTu && !pl.isDie()
+                                && Util.getDistance(this.player, pl) <= 200) {
+                            EffectSkillService.gI().setIsHalloween(pl, -1, 1800000);
+                        }
 
-    //                 }
-    //                 this.lastTimeHalloween = System.currentTimeMillis();
-    //             }
-    //         }
-    //     } catch (Exception e) {
-    //         e.printStackTrace();
-    //     }
-    // }
+                    }
+                    this.lastTimeHalloween = System.currentTimeMillis();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-    //giáp tập luyện
+    // giáp tập luyện
     private void updateTrainArmor() {
         if (Util.canDoWithTime(lastTimeAddTimeTrainArmor, 60000) && !Util.canDoWithTime(lastTimeAttack, 30000)) {
             if (this.player.nPoint.wearingTrainArmor) {
@@ -414,7 +708,7 @@ public class EffectSkin {
                 }
             }
             this.lastTimeSubTimeTrainArmor = System.currentTimeMillis();
-            InventoryService.gI().sendItemBags(player);
+            InventoryService.gI().sendItemBag(player);
             Service.gI().point(this.player);
         }
     }

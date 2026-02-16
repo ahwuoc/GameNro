@@ -136,6 +136,7 @@ impl BossManager {
                 None,
                 -1,
                 Vec::new(),
+                None,
             );
         }
     }
@@ -148,6 +149,7 @@ impl BossManager {
         group_id: Option<u64>,
         group_index: i32,
         sequence: Vec<String>,
+        attacker_player_id: Option<u64>,
     ) -> anyhow::Result<()> {
         let Some(template) = boss_template_manager::get(template_id) else {
             return Err(anyhow::anyhow!("Boss template {} not found", template_id));
@@ -265,6 +267,7 @@ impl BossManager {
                         Some(my_group_id),
                         idx as i32,
                         Vec::new(),
+                        None,
                     );
                 }
             } else if template.r#type == "sequence" {
@@ -286,7 +289,13 @@ impl BossManager {
             });
         }
 
-        let mut boss_actor = BossActor::new(player, template_id.to_string(), zone.clone(), rx);
+        let mut boss_actor = BossActor::new(
+            player,
+            template_id.to_string(),
+            zone.clone(),
+            rx,
+            attacker_player_id,
+        );
 
         PLAYER_MANAGER.add(boss_id, handle.clone());
 
@@ -317,6 +326,7 @@ impl BossManager {
         group_id: Option<u64>,
         group_index: i32,
         sequence: Vec<String>,
+        attacker_player_id: Option<u64>,
     ) {
         tokio::spawn(async move {
             if let Err(e) = Self::spawn_boss(
@@ -328,6 +338,7 @@ impl BossManager {
                 group_id,
                 group_index,
                 sequence,
+                attacker_player_id,
             )
             .await
             {

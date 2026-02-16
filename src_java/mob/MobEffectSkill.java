@@ -1,4 +1,5 @@
 package mob;
+
 import network.Message;
 import player.Player;
 import services.Service;
@@ -40,7 +41,8 @@ public class MobEffectSkill {
             if (Util.canDoWithTime(lastTimeMaPhongBa, 500) && !mob.isDie()) {
                 if (playerUseMafuba != null && playerUseMafuba.playerSkill != null) {
                     double param = playerUseMafuba.playerSkill.getSkillbyId(Skill.MA_PHONG_BA).point;
-                    int subHp = (int) ((long) playerUseMafuba.nPoint.hpMax * param * (playerUseMafuba.effectSkill.typeBinh == 0 ? 1 : 2) / 100);
+                    long subHp = Util.toIntOrLong((long) playerUseMafuba.nPoint.hpMax * param
+                            * (playerUseMafuba.effectSkill.typeBinh == 0 ? 1 : 2) / 100);
                     if (subHp >= this.mob.point.hp) {
                         subHp = this.mob.point.hp - 1;
                     }
@@ -75,6 +77,7 @@ public class MobEffectSkill {
         } catch (Exception e) {
         }
     }
+
     public boolean isThoiMien;
     public long lastTimeThoiMien;
     public int timeThoiMien;
@@ -90,10 +93,10 @@ public class MobEffectSkill {
         Message msg;
         try {
             msg = new Message(-124);
-            msg.writer().writeByte(0); //b5
-            msg.writer().writeByte(1); //b6
-            msg.writer().writeByte(41); //num6
-            msg.writer().writeByte(mob.id); //b7
+            msg.writer().writeByte(0); // b5
+            msg.writer().writeByte(1); // b6
+            msg.writer().writeByte(41); // num6
+            msg.writer().writeByte(mob.id); // b7
             Service.gI().sendMessAllPlayerInMap(mob.zone, msg);
             msg.cleanup();
         } catch (Exception e) {
@@ -140,10 +143,10 @@ public class MobEffectSkill {
         Message msg;
         try {
             msg = new Message(-124);
-            msg.writer().writeByte(0); //b4
-            msg.writer().writeByte(1);//b5
-            msg.writer().writeByte(32);//num8
-            msg.writer().writeByte(mob.id);//b6
+            msg.writer().writeByte(0); // b4
+            msg.writer().writeByte(1);// b5
+            msg.writer().writeByte(32);// num8
+            msg.writer().writeByte(mob.id);// b6
             Service.gI().sendMessAllPlayerInMap(mob.zone, msg);
             msg.cleanup();
         } catch (Exception e) {

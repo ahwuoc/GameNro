@@ -1,4 +1,5 @@
 use crate::map::models::zone::{Zone, ZoneHandle};
+use crate::services::task_utils::TaskUtils;
 use dashmap::DashMap;
 use std::sync::LazyLock;
 use tokio::sync::mpsc;
@@ -106,8 +107,8 @@ impl ZoneManager {
             zone.load_another_to_me(player_id).await?;
             zone.load_me_to_another(player_id).await?;
             let task_info = Some((
-                player.task_player.task_main.id,
-                player.task_player.task_main.index,
+                TaskUtils::get_id_task(&player),
+                TaskUtils::get_task_index(&player),
             ));
             let spaceship_id = player.spaceship_id;
             zone.map_info(

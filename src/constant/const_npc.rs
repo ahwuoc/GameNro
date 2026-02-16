@@ -11,9 +11,12 @@ pub enum NpcId {
     DauThan = 4,
     ConMeo = 5,
     KhuVuc = 6,
-    Bunma = 7,
-    Dende = 8,
-    Appule = 9,
+    // ====================================================
+    // sua lai id vi client no hardcode hien thi cho npc Bunma,Dende,Appule
+    Bunma = 60,
+    Dende = 61,
+    Appule = 62,
+    // ====================================================
     DrDrief = 10,
     Cargo = 11,
     Cui = 12,
@@ -64,9 +67,6 @@ pub enum NpcId {
     Champa = 57,
     Vados = 58,
     TrongTai2 = 59,
-    GokuSsj = 60,
-    GokuSsj2 = 61,
-    Potage = 62,
     Jaco = 63,
     DaiThienSu = 64,
     Yarirobe = 65,
@@ -92,9 +92,9 @@ impl NpcId {
             4 => Some(Self::DauThan),
             5 => Some(Self::ConMeo),
             6 => Some(Self::KhuVuc),
-            7 => Some(Self::Bunma),
-            8 => Some(Self::Dende),
-            9 => Some(Self::Appule),
+            60 => Some(Self::Bunma),
+            61 => Some(Self::Dende),
+            62 => Some(Self::Appule),
             10 => Some(Self::DrDrief),
             11 => Some(Self::Cargo),
             12 => Some(Self::Cui),
@@ -145,9 +145,6 @@ impl NpcId {
             57 => Some(Self::Champa),
             58 => Some(Self::Vados),
             59 => Some(Self::TrongTai2),
-            60 => Some(Self::GokuSsj),
-            61 => Some(Self::GokuSsj2),
-            62 => Some(Self::Potage),
             63 => Some(Self::Jaco),
             64 => Some(Self::DaiThienSu),
             65 => Some(Self::Yarirobe),
@@ -237,9 +234,6 @@ pub const WHIS: i16 = NpcId::Whis as i16;
 pub const CHAMPA: i16 = NpcId::Champa as i16;
 pub const VADOS: i16 = NpcId::Vados as i16;
 pub const TRONG_TAI_2: i16 = NpcId::TrongTai2 as i16;
-pub const GOKU_SSJ: i16 = NpcId::GokuSsj as i16;
-pub const GOKU_SSJ_2: i16 = NpcId::GokuSsj2 as i16;
-pub const POTAGE: i16 = NpcId::Potage as i16;
 pub const JACO: i16 = NpcId::Jaco as i16;
 pub const DAI_THIEN_SU: i16 = NpcId::DaiThienSu as i16;
 pub const YARIROBE: i16 = NpcId::Yarirobe as i16;

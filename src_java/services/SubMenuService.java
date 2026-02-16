@@ -1,14 +1,10 @@
 package services;
+
 import consts.ConstNpc;
 import player.Player;
 import server.Client;
 import network.Message;
-
 import java.util.ArrayList;
-import services.func.BuyBackService;
-
-import map.Service.NpcService;
-import shop.ItemShop;
 import utils.Util;
 
 public class SubMenuService {
@@ -35,23 +31,32 @@ public class SubMenuService {
     public void controller(Player player, int playerTarget, int menuId) {
         Player plTarget = Client.gI().getPlayer(playerTarget);
         switch (menuId) {
-//            case MENU:
-//                if (plTarget != null) {
-//                    String[] selects = new String[]{"Oẳn tù tì", "Cừu sát", "Bắn Bluetooth", "Hủy"};
-//                    NpcService.gI().createMenuConMeo(player, ConstNpc.SUB_MENU, -1,
-//                            "|0|Ngọc Rồng Lính Thủy Đánh Bạc\n" + plTarget.name + " (sức mạnh " + Util.numberToMoney(plTarget.nPoint.power) + ")", selects, plTarget);
-//                }
-//                break;
+            case MENU:
+                if (plTarget != null) {
+                    // ItemShop item = BuyBackService.gI().getItemBuyBack(plTarget);
+                    String[] selects;
+                    // if (item != null) {
+                    // selects = new String[]{"Oẳn tù tì", "Cừu sát", "Cải trang\n" +
+                    // Util.chiaNho((int) (item.cost * 0.95)) + " ĐSK", "Bắn Bluetooth", "Hủy"};
+                    // } else {
+                    selects = new String[] { "Oẳn tù tì", "Cừu sát", "Bắn Bluetooth", "Hủy" };
+                    // }
+                    NpcService.gI().createMenuConMeo(player, ConstNpc.SUB_MENU, -1,
+                            "|0|Đức Pro\n" + plTarget.name + " (sức mạnh " + Util.numberToMoney(plTarget.nPoint.power)
+                                    + ")",
+                            selects, plTarget);
+                }
+                break;
             case BAN:
                 if (plTarget != null) {
-                    String[] selects = new String[]{"Đồng ý", "Hủy"};
+                    String[] selects = new String[] { "Đồng ý", "Hủy" };
                     NpcService.gI().createMenuConMeo(player, ConstNpc.BAN_PLAYER, -1,
                             "Bạn có chắc chắn muốn ban " + plTarget.name, selects, plTarget);
                 }
                 break;
             case BUFF_PET:
                 if (plTarget != null) {
-                    String[] selects = new String[]{"Đồng ý", "Hủy"};
+                    String[] selects = new String[] { "Đồng ý", "Hủy" };
                     NpcService.gI().createMenuConMeo(player, ConstNpc.BUFF_PET, -1,
                             "Bạn có chắc chắn muốn phát đệ tử cho " + plTarget.name, selects, plTarget);
                 }
@@ -59,7 +64,7 @@ public class SubMenuService {
             case OTT:
                 if (plTarget != null) {
                     if (plTarget.isBoss) {
-                        String[] selects = new String[]{"Kéo", "Búa", "Bao", "Hủy"};
+                        String[] selects = new String[] { "Kéo", "Búa", "Bao", "Hủy" };
                         NpcService.gI().createMenuConMeo(player, ConstNpc.IGNORE_MENU, -1,
                                 "Chơi oẳn tù tì với " + plTarget.name + " mức cược 5tr.", selects);
                         return;
@@ -77,7 +82,7 @@ public class SubMenuService {
                     } else if (player.inventory.gold < 5000000) {
                         Service.gI().sendThongBao(player, "Bạn không có đủ 5tr vàng.");
                     } else {
-                        String[] selects = new String[]{"Kéo", "Búa", "Bao", "Hủy"};
+                        String[] selects = new String[] { "Kéo", "Búa", "Bao", "Hủy" };
                         NpcService.gI().createMenuConMeo(player, ConstNpc.OTT, -1,
                                 "Chơi oẳn tù tì với " + plTarget.name + " mức cược 5tr.", selects, plTarget);
                     }
@@ -107,34 +112,36 @@ public class SubMenuService {
                         return;
                     }
                     player.timesPerDayCuuSat--;
-//                    new CuuSat(player, plTarget);
+                    // new CuuSat(player, plTarget);
                 }
                 break;
             case BUY_BACK:
-//                ItemShop item;
-//                if ((item = BuyBackService.gI().getItemBuyBack(plTarget)) != null) {
-//                NpcService.gI().createMenuConMeo(player, ConstNpc.BUY_BACK, -1, "Bạn có muốn mua " + item.temp.name + " từ " + plTarget.name + " không?\n"
-//                        + "Giá cửa hàng " + item.cost + " ĐSK\n"
-//                        + "Giá tại đây " + (int) (item.cost * 0.95) + " ĐSK\n"
-//                        + "Bạn cũng có thể nhận được " + (int) (item.cost * 0.2) + " ĐSK\n"
-//                        + "khi người khác mua từ bạn (Cải trang của bạn sẽ không mất)", "Đồng ý", "Từ chối");
-//                }
+                // ItemShop item;
+                // if ((item = BuyBackService.gI().getItemBuyBack(plTarget)) != null) {
+                // NpcService.gI().createMenuConMeo(player, ConstNpc.BUY_BACK, -1, "Bạn có muốn
+                // mua " + item.temp.name + " từ " + plTarget.name + " không?\n"
+                // + "Giá cửa hàng " + item.cost + " ĐSK\n"
+                // + "Giá tại đây " + (int) (item.cost * 0.95) + " ĐSK\n"
+                // + "Bạn cũng có thể nhận được " + (int) (item.cost * 0.2) + " ĐSK\n"
+                // + "khi người khác mua từ bạn (Cải trang của bạn sẽ không mất)", "Đồng ý", "Từ
+                // chối");
+                // }
                 break;
         }
         Service.gI().hideWaitDialog(player);
     }
 
-//    public void showMenu(Player player) {
-//        ArrayList<SubMenu> subMenusList = new ArrayList<>();
-//        subMenusList.add(new SubMenu(MENU, "Chức năng khác", "Oẳn tù tì, cừu sát, mua skin,..."));
-//
-//        showSubMenu(player, subMenusList.toArray(SubMenu[]::new));
-//    }
+    public void showMenu(Player player) {
+        ArrayList<SubMenu> subMenusList = new ArrayList<>();
+        subMenusList.add(new SubMenu(MENU, "Chức năng khác", "Oẳn tù tì, cừu sát, mua skin,..."));
+
+        showSubMenu(player, subMenusList.toArray(SubMenu[]::new));
+    }
 
     public void showSubMenu(Player player, SubMenu... subMenus) {
         Message msg;
         try {
-            msg = Service.gI().messageSubCommand((byte) 63);
+            msg = Service.gI().messageSubCommand30((byte) 63);
             msg.writer().writeByte(subMenus.length);
             for (SubMenu subMenu : subMenus) {
                 msg.writer().writeUTF(subMenu.caption1);

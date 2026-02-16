@@ -1,17 +1,20 @@
-use std::sync::LazyLock;
 use sea_orm::{DatabaseConnection, EntityTrait};
+use std::sync::LazyLock;
 use std::sync::RwLock;
 
 use crate::entities::map_template::{self, Model as MapTemplate};
 
-pub static MAP_TEMPLATES: LazyLock<RwLock<Vec<MapTemplate>>> = LazyLock::new(|| RwLock::new(Vec::new()));
+pub static MAP_TEMPLATES: LazyLock<RwLock<Vec<MapTemplate>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub async fn load(pool: &DatabaseConnection) -> anyhow::Result<()> {
     let mut map_templates = map_template::Entity::find().all(pool).await?;
     map_templates.sort_by_key(|t| t.id);
 
     match MAP_TEMPLATES.write() {
-        Ok(mut lock) => *lock = map_templates,
+        Ok(mut lock) => {
+            *lock = map_templates;
+        }
         Err(poisoned) => *poisoned.into_inner() = map_templates,
     }
     Ok(())

@@ -1,4 +1,5 @@
 package task;
+ 
 import consts.ConstTask;
 import utils.Util;
 
@@ -78,7 +79,7 @@ public class ClanTask {
             case ConstTask.HELL:
                 return "địa ngục";
             default:
-                return "NgocRongBlackGoku";
+                return "DucPro";
         }
     }
 

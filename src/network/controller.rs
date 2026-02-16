@@ -609,8 +609,10 @@ impl AsyncController {
                         player_with_zone.location.x,
                         player_with_zone.location.y,
                         Some((
-                            player_with_zone.task_player.task_main.id,
-                            player_with_zone.task_player.task_main.index,
+                            crate::services::task_utils::TaskUtils::get_id_task(&player_with_zone),
+                            crate::services::task_utils::TaskUtils::get_task_index(
+                                &player_with_zone,
+                            ),
                         )),
                         player_with_zone.spaceship_id,
                     )

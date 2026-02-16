@@ -1,4 +1,5 @@
 package npc;
+ 
 import player.Player;
 
 public interface IAtionNpc {

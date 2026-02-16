@@ -1,11 +1,14 @@
 package npc;
+
+
+
 import consts.ConstNpc;
 import map.Map;
 import map.Zone;
 import player.Player;
 import server.Manager;
 import network.Message;
-import map.Service.MapService;
+import services.MapService;
 import services.Service;
 import utils.Logger;
 import utils.Util;
@@ -59,7 +62,7 @@ public abstract class Npc implements IAtionNpc {
     public void createOtherMenu(Player player, int indexMenu, String npcSay, String... menuSelect) {
         Message msg;
         try {
-            player.idMark.setIndexMenu(indexMenu);
+            player.iDMark.setIndexMenu(indexMenu);
             msg = new Message(32);
             msg.writer().writeShort(tempId);
             msg.writer().writeUTF(npcSay);
@@ -78,7 +81,7 @@ public abstract class Npc implements IAtionNpc {
         NpcFactory.PLAYERID_OBJECT.put(player.id, object);
         Message msg;
         try {
-            player.idMark.setIndexMenu(indexMenu);
+            player.iDMark.setIndexMenu(indexMenu);
             msg = new Message(32);
             msg.writer().writeShort(tempId);
             msg.writer().writeUTF(npcSay);
@@ -96,7 +99,7 @@ public abstract class Npc implements IAtionNpc {
     @Override
     public void openBaseMenu(Player player) {
         if (canOpenNpc(player)) {
-            player.idMark.setIndexMenu(ConstNpc.BASE_MENU);
+            player.iDMark.setIndexMenu(ConstNpc.BASE_MENU);
             try {
                 if (baseMenu != null) {
                     baseMenu.openMenu(player);
@@ -156,6 +159,7 @@ public abstract class Npc implements IAtionNpc {
             Logger.logException(Service.class, e);
         }
     }
+ 
 
     public boolean canOpenNpc(Player player) {
         if (this.tempId == ConstNpc.DAU_THAN) {
@@ -171,7 +175,7 @@ public abstract class Npc implements IAtionNpc {
         }
         if (player.zone.map.mapId == this.mapId
                 && (Util.getDistance(this.cx, this.cy, player.location.x, player.location.y) <= 60 || !MapService.gI().isMapBlackBallWar(mapId))) {
-            player.idMark.setNpcChose(this);
+            player.iDMark.setNpcChose(this);
             return true;
         } else if (this.tempId == ConstNpc.LY_TIEU_NUONG) {
             return true;

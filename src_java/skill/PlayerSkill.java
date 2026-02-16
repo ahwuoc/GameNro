@@ -1,10 +1,5 @@
 package skill;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
 import java.util.ArrayList;
 import java.util.List;
 import player.Player;
@@ -36,13 +31,13 @@ public class PlayerSkill {
     public void sendSkillShortCut() {
         Message msg;
         try {
-            msg = Service.gI().messageSubCommand((byte) 61);
+            msg = Service.gI().messageSubCommand30((byte) 61);
             msg.writer().writeUTF("KSkill");
             msg.writer().writeInt(skillShortCut.length);
             msg.writer().write(skillShortCut);
             player.sendMessage(msg);
             msg.cleanup();
-            msg = Service.gI().messageSubCommand((byte) 61);
+            msg = Service.gI().messageSubCommand30((byte) 61);
             msg.writer().writeUTF("OSkill");
             msg.writer().writeInt(skillShortCut.length);
             msg.writer().write(skillShortCut);
@@ -72,12 +67,35 @@ public class PlayerSkill {
             case Skill.ANTOMIC:
             case Skill.MASENKO:
                 return 2;
-            case Skill.LIEN_HOAN_CHUONG:
-            case Skill.SUPER_KAME:
-            case Skill.MA_PHONG_BA:
-                return 4;
-            default:
+            case Skill.THAI_DUONG_HA_SAN:
+            case Skill.TAI_TAO_NANG_LUONG:
+            case Skill.TRI_THUONG:
                 return 3;
+            case Skill.DE_TRUNG:
+            case Skill.BIEN_KHI:
+                return 4;
+            case Skill.TU_SAT:
+            case Skill.QUA_CAU_KENH_KHI:
+            case Skill.MAKANKOSAPPO:
+                return 5;
+            case Skill.KHIEN_NANG_LUONG:
+                return 6;
+            case Skill.THOI_MIEN:
+            case Skill.TROI:
+            case Skill.SOCOLA:
+                return 7;
+            case Skill.HUYT_SAO:
+            case Skill.DICH_CHUYEN_TUC_THOI:
+                return 8;
+            case Skill.MA_PHONG_BA:
+            case Skill.SUPER_KAME:
+            case Skill.LIEN_HOAN_CHUONG:
+                return 9;
+            case Skill.SUPER_BROLY:
+
+                return 10;
+            default:
+                return 10;
         }
     }
 

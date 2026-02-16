@@ -1,13 +1,8 @@
 package clan;
-
-/*
- * YouTube Channel: Nguyễn Đức Vũ Entertainment
- * Zalo: 0838.494.182
- * Contacts: https://contacts.TanTaivip.pro
- */
-import data.BlackGokuManager;
-import dungeon.RedRibbonHQ;
-import player.Service.ClanService;
+ 
+import jdbc.DBConnecter;
+import models.RedRibbonHQ.RedRibbonHQ;
+import services.ClanService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,19 +11,18 @@ import player.Player;
 import server.Client;
 import services.Service;
 import network.Message;
-import database.NTTSqlFetcher;
+import jdbc.daos.NDVSqlFetcher;
 import utils.Logger;
 import utils.Util;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import dungeon.TreasureUnderSea;
-import dungeon.SnakeWay;
-import dungeon.DestronGas;
+import models.TreasureUnderSea.TreasureUnderSea;
+import models.SnakeWay.SnakeWay;
+import models.DestronGas.DestronGas;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import services.TaskService;
 import utils.TimeUtil;
 
 public class Clan {
@@ -53,12 +47,12 @@ public class Clan {
     public int level;
     public boolean active;
     public int capsuleClan;
-
+    public boolean checkin;
     public long lastTimeOpenDoanhTrai;
     public boolean haveGoneDoanhTrai;
     public RedRibbonHQ doanhTrai;
     public Player playerOpenDoanhTrai;
-
+    public int Point;
     public final List<ClanMember> members;
     public final List<Player> membersInGame;
 
@@ -136,19 +130,12 @@ public class Clan {
         }
         return false;
     }
-//
 
     public void addSMTNClan(Player plOri, long param) {
         for (int i = this.membersInGame.size() - 1; i >= 0; i--) {
             Player pl = this.membersInGame.get(i);
-
-            // Kiểm tra các điều kiện
-            if (pl != null && !plOri.equals(pl) && pl.zone != null && plOri.zone.equals(pl.zone)) {
-                int levelOri = Service.gI().getCurrLevel(plOri); // Cấp độ người khởi xướng
-                int levelTarget = Service.gI().getCurrLevel(pl); // Cấp độ mục tiêu
-                int levelDiff = Math.abs(levelTarget - levelOri); // Chênh lệch cấp độ
-                long tnsm = param / (levelDiff == 0 ? 1 : levelDiff);
-                // Thêm SMTN cho người nhận
+            if (!plOri.equals(pl) && pl != null && pl.zone != null && plOri.zone.equals(pl.zone)) {
+                long tnsm =  (param / (Math.abs(Service.gI().getCurrLevel(pl) - Service.gI().getCurrLevel(plOri)) + 1));
                 Service.gI().addSMTN(pl, (byte) 1, tnsm, false);
             }
         }
@@ -255,7 +242,7 @@ public class Clan {
             }
         }
 
-        Player playeroffline = NTTSqlFetcher.loadById(playerId);
+        Player playeroffline = NDVSqlFetcher.loadById(playerId);
         if (playeroffline != null) {
             return playeroffline;
         }
@@ -334,9 +321,9 @@ public class Clan {
         String top = dataArray.toJSONString();
 
         PreparedStatement ps = null;
-        try (Connection con = BlackGokuManager.getConnection();) {
-            ps = con.prepareStatement("insert into clan (id, name, name_2, slogan, img_id, power_point, max_member, clan_point, level, members, tops) "
-                    + "values (?,?,?,?,?,?,?,?,?,?,?)");
+        try (Connection con = DBConnecter.getConnectionServer();) {
+            ps = con.prepareStatement("insert into clan (id, name, name_2, slogan, img_id, power_point, max_member, clan_point, level, members, tops,Point) "
+                    + "values (?,?,?,?,?,?,?,?,?,?,?,?)");
             ps.setInt(1, this.id);
             ps.setString(2, this.name);
             ps.setString(3, this.name2);
@@ -348,6 +335,8 @@ public class Clan {
             ps.setInt(9, this.level);
             ps.setString(10, member);
             ps.setString(11, top);
+            ps.setInt(12, this.Point);
+            System.out.println("INSERT Point: " + this.Point);
             ps.executeUpdate();
             ps.close();
         } catch (Exception e) {
@@ -377,6 +366,7 @@ public class Clan {
             dataObject.put("clan_point", cm.clanPoint);
             dataObject.put("join_time", cm.joinTime);
             dataObject.put("ask_pea_time", cm.timeAskPea);
+            dataObject.put("Point", cm.Point);
             dataObject.put("power", cm.powerPoint);
             dataArray.add(dataObject.toJSONString());
             dataObject.clear();
@@ -387,9 +377,9 @@ public class Clan {
         dataArray.clear();
 
         PreparedStatement ps = null;
-        try (Connection con = BlackGokuManager.getConnection();) {
+        try (Connection con = DBConnecter.getConnectionServer();) {
             ps = con.prepareStatement("update clan set slogan = ?, img_id = ?, power_point = ?, max_member = ?, clan_point = ?, "
-                    + "level = ?, members = ?, name_2 = ?, tops = ? where id = ? limit 1");
+                    + "level = ?, members = ?, name_2 = ?, tops = ?,Point = ? where id = ? limit 1");
             ps.setString(1, this.slogan);
             ps.setInt(2, this.imgId);
             ps.setLong(3, this.powerPoint);
@@ -399,7 +389,9 @@ public class Clan {
             ps.setString(7, member);
             ps.setString(8, this.name2);
             ps.setString(9, "cc");
-            ps.setInt(10, this.id);
+            ps.setInt(10, this.Point);
+            ps.setInt(11, this.id);
+            
             ps.executeUpdate();
             ps.close();
         } catch (Exception e) {
@@ -414,7 +406,7 @@ public class Clan {
 
     public void deleteDB(int id) {
         PreparedStatement ps;
-        try (Connection con = BlackGokuManager.getConnection();) {
+        try (Connection con = DBConnecter.getConnectionServer();) {
             ps = con.prepareStatement("delete from clan where id = ?");
             ps.setInt(1, id);
             ps.executeUpdate();

@@ -1,11 +1,12 @@
 package server;
-import java.io.IOException;
-import java.util.Objects;
 
+ 
+
+import java.io.IOException;
 import consts.ConstNpc;
 import npc.Npc;
-import map.Service.NpcManager;
-import network.MySession;
+import npc.NpcManager;
+import server.io.MySession;
 import player.Player;
 import services.Service;
 import services.func.TransactionService;
@@ -28,6 +29,8 @@ public class MenuController {
             npc = NpcManager.getNpc(ConstNpc.CALICK);
         } else if (idnpc == ConstNpc.LY_TIEU_NUONG) {
             npc = NpcManager.getNpc(ConstNpc.LY_TIEU_NUONG);
+        }  else if (idnpc == ConstNpc.HOA_HONG) {
+            npc = NpcManager.getNpc(ConstNpc.HOA_HONG);
         } else {
             npc = player.zone.map.getNpc(player, idnpc);
         }
@@ -42,14 +45,19 @@ public class MenuController {
         TransactionService.gI().cancelTrade(player);
         switch (npcId) {
             case ConstNpc.RONG_THIENG, ConstNpc.CON_MEO ->
-                Objects.requireNonNull(NpcManager.getNpc((byte) npcId)).confirmMenu(player, select);
+                NpcManager.getNpc((byte) npcId).confirmMenu(player, select);
             default -> {
                 Npc npc = null;
                 if (npcId == ConstNpc.CALICK && player.zone.map.mapId != 102) {
                     npc = NpcManager.getNpc(ConstNpc.CALICK);
                 } else if (npcId == ConstNpc.LY_TIEU_NUONG) {
                     npc = NpcManager.getNpc(ConstNpc.LY_TIEU_NUONG);
-                } else if (player.zone != null) {
+                }else if (npcId == ConstNpc.HOA_HONG) {
+                    npc = NpcManager.getNpc(ConstNpc.HOA_HONG);
+                }else if(npcId == ConstNpc.KY_NGO){
+                    npc = NpcManager.getNpc(ConstNpc.KY_NGO);
+                }
+                else if (player.zone != null) {
                     npc = player.zone.map.getNpc(player, npcId);
                 }
                 if (npc != null) {

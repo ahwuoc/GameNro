@@ -17,8 +17,8 @@ use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::services::{player_info_service, ServiceHandles};
-use crate::templates::pet_template_manager;
 use crate::templates::power_manager;
+use crate::templates::{fusion_template_manager, pet_template_manager};
 use crate::utils::{skill_util, time, Location};
 use serde_json::Value;
 
@@ -32,6 +32,7 @@ pub struct Player {
     pub clan_id: i32,
     pub name: String,
     pub gender: i8,
+
     pub head: i16,
     pub body: i16,
     pub leg: i16,
@@ -49,6 +50,10 @@ pub struct Player {
     pub dead_flag: bool,
     pub is_new_member: bool,
     pub before_dispose: bool,
+
+    pub level_luyentap: i32,
+    pub dang_ky_tap_tu_dong: bool,
+    pub map_id_dang_tap_tu_dong: i32,
 
     pub is_train: bool,
     pub type_train: u8,
@@ -115,6 +120,9 @@ impl Player {
             pet_id: None,
             is_new_member: true,
             before_dispose: false,
+            level_luyentap: 0,
+            dang_ky_tap_tu_dong: false,
+            map_id_dang_tap_tu_dong: -1,
             is_train: false,
             type_train: 0,
             time_off: 0,
@@ -182,9 +190,7 @@ impl Player {
 
         // ========Handle Fusion=========
         if self.fusion.type_fusion != 0 {
-            if let Some(template) =
-                crate::templates::fusion_template_manager::get(self.fusion.template_id)
-            {
+            if let Some(template) = fusion_template_manager::get(self.fusion.template_id) {
                 let data = match self.gender {
                     1 => template.data_1.as_ref(), // Namek
                     2 => template.data_2.as_ref(), // Xayda

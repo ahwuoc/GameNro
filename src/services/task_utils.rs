@@ -1,7 +1,9 @@
 use crate::constant::task_type::TaskType;
 use crate::entities::task_sub_template;
+use crate::features::OptionCard;
 use crate::map::managers::map_manager::MAP_MANAGER;
 use crate::player::Player;
+use crate::templates::mob_template_manager;
 
 /// Các hàm tiện ích dùng chung cho Task System.
 pub struct TaskUtils;
@@ -16,11 +18,25 @@ impl TaskUtils {
             _ => 0,
         }
     }
+    pub fn get_id_task(player: &Player) -> i32 {
+        player.task_player.task_main.id
+    }
+    pub fn get_task_index(player: &Player) -> i32 {
+        player.task_player.task_main.index
+    }
 
-    pub fn transform_name(player: &Player, text: &str) -> String {
+    pub fn transform_name(player: &Player, text: &str, target_id: Option<i32>) -> String {
         let mut result = text.to_string();
         let gender = player.gender;
 
+        // {master} / %10: NPC Master (Quy Lão)
+        let master = match gender {
+            0 => "Quy lão Kame",
+            1 => "Trưởng lão Guru",
+            2 => "Vua Vegeta",
+            _ => "Quy lão Kame",
+        };
+        result = result.replace("{master}", master).replace("%10", master);
         // {village} / %1: Làng
         let village = match gender {
             0 => "Làng Aru",
@@ -97,15 +113,6 @@ impl TaskUtils {
             .replace("{village_shop}", village_shop)
             .replace("%8", village_shop);
 
-        // {mob_1} / %9: Quái bay 1
-        let mob_1 = match gender {
-            0 => "thằn lằn bay",
-            1 => "phi long",
-            2 => "quỷ bay",
-            _ => "thằn lằn bay",
-        };
-        result = result.replace("{mob_1}", mob_1).replace("%9", mob_1);
-
         // {master} / %10: NPC Tổng quản (Quy Lão)
         let master = match gender {
             0 => "Quy Lão Kame",
@@ -144,16 +151,18 @@ impl TaskUtils {
         };
         result = result.replace("{map_3}", map_3).replace("%13", map_3);
 
-        // {mob_mother} / %14: Quái mẹ sơ cấp
-        let mob_mother = match gender {
-            0 => "phi long mẹ",
-            1 => "quỷ bay mẹ",
-            2 => "thằn lằn mẹ",
-            _ => "phi long mẹ",
-        };
+        let mob_mother = target_id
+            .and_then(|id| {
+                if id == -1 {
+                    return None;
+                }
+                mob_template_manager::get(id as i8)
+            })
+            .map(|mob| mob.name.clone())
+            .unwrap_or_else(|| "Quái mẹ".to_string());
         result = result
-            .replace("{mob_mother}", mob_mother)
-            .replace("%14", mob_mother);
+            .replace("{mob_mother}", &mob_mother)
+            .replace("%14", &mob_mother);
 
         // {station_npc_map}: Bản đồ Trạm tàu vũ trụ
         let station_npc_map = match gender {

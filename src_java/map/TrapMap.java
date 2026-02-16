@@ -1,6 +1,7 @@
 package map;
+
 import player.Player;
-import player.Service.PlayerService;
+import services.PlayerService;
 import services.func.EffectMapService;
 import utils.Util;
 
@@ -14,12 +15,16 @@ public class TrapMap {
     public long dame;
 
     public void doPlayer(Player player) {
-        if (this.effectId == 49) {
-            if (!player.isDie() && Util.canDoWithTime(player.idMark.getLastTimeAnXienTrapBDKB(), 1000)) {
-                player.injured(null, dame + (Util.nextLong(-10L, 10L) * dame / 100L), false, false);
-                PlayerService.gI().sendInfoHp(player);
-                EffectMapService.gI().sendEffectMapToAllInMap(player.zone, effectId, 2, 1, player.location.x - 32, 1040, 1);
-                player.idMark.setLastTimeAnXienTrapBDKB(System.currentTimeMillis());
+        switch (this.effectId) {
+            case 49 -> {
+                if (!player.isDie() && Util.canDoWithTime(player.iDMark.getLastTimeAnXienTrapBDKB(), 1000)) {
+                    player.injured(null, Util.toIntOrLong(dame + (Util.nextLong(-10L, 10L) * dame / 100L)), false,
+                            false);
+                    PlayerService.gI().sendInfoHp(player);
+                    EffectMapService.gI().sendEffectMapToAllInMap(player.zone, effectId, 2, 1, player.location.x - 32,
+                            1040, 1);
+                    player.iDMark.setLastTimeAnXienTrapBDKB(System.currentTimeMillis());
+                }
             }
         }
     }

@@ -1,4 +1,10 @@
 package boss;
+
+/*
+ *
+ *
+ * 
+ */
 public class BossID {
 
     //========================DOANH TRAI========================
@@ -18,7 +24,9 @@ public class BossID {
     public static final int CADICH = -15;
     public static final int NADIC = -16;
     public static final int SAIBAMEN = -17;
-
+    public static final int ZAMASU = -615;
+    public static final int GOKUBLACK = -614;
+    
     public static final int KUKU = -20;
     public static final int MAP_DAU_DINH = -21;
     public static final int RAMBO = -22;
@@ -63,12 +71,8 @@ public class BossID {
     public static final int DR_LYCHEE = -208;
 
     public static final int BROLY = -1;
-    public static final int SUPER_BROLY = -2;
-
-    //================MINIBOSSS=============
-    public static final int SOI_HEC_QUYN1 = -77;
-    public static final int O_DO1 = -78;
-    public static final int Virut = -79;
+    public static final int SUPERBUVIP = -2;
+     public static final int BROLYSUPERVIP = -3;
 
     //========================BOSS 12H========================
     public static final int DRABURA = -233;
@@ -80,24 +84,30 @@ public class BossID {
     public static final int GOKU = -341;
     public static final int CADIC = -342;
     public static final int DRABURA_3 = -343;
-
+  
     public static final int BLACK_GOKU = -203;
 
     public static final int TAU_PAY_PAY_DONG_NAM_KARIN = -308;
-    public static final int TAUPAYPAY = -309;
+
     public static final int SO_4_NM = -311;
     public static final int SO_3_NM = -312;
     public static final int SO_2_NM = -313;
     public static final int SO_1_NM = -314;
     public static final int TIEU_DOI_TRUONG_NM = -315;
-
+  
     public static final int BUJIN = -316;
     public static final int KOGU = -317;
     public static final int ZANGYA = -318;
     public static final int BIDO = -319;
     public static final int BOJACK = -320;
     public static final int SUPER_BOJACK = -321;
-
+//========================NGOAI TRUYEN========================
+    public static final int DOREMON= -500;
+    public static final int NOBITA = -501;
+    public static final int SIZUKA= -503;
+    public static final int CHAIEN= -504;
+    public static final int XEKO = -505;
+    public static final int BACONSOi = -109;
     //========================YARDART========================
     public static final int TAP_SU_0 = -322;
     public static final int TAP_SU_1 = -323;
@@ -118,6 +128,12 @@ public class BossID {
     public static final int CHIEN_BINH_4 = -338;
     public static final int DOI_TRUONG_5 = -339;
 
+
+  //  =========================BOSS THE GIOI=============================
+    public static final int BOSS_THE_GIOI_1 = -34339;
+    public static final int BOSS_THE_GIOI_2 = -34340;
+
+
     //========================SIEU THANH THUY========================
     public static final int POCOLO = -340;
 
@@ -137,7 +153,7 @@ public class BossID {
     public static final int THIEN_XIN_HANG_CLONE1 = -89;
     public static final int THIEN_XIN_HANG_CLONE2 = -90;
     public static final int THIEN_XIN_HANG_CLONE3 = -91;
-    public static final int PO_CO_LO = -92;
+
     //========================VO DAI BA HAT MIT========================
     public static final int DRACULA = -93;
     public static final int NGUOI_VO_HINH = -94;
@@ -187,7 +203,17 @@ public class BossID {
     public static final int THAN_VU_TRU = -362;
     public static final int TO_SU_KAIO = -363;
     public static final int WHIS = -364;
-    //========================LINH TINH========================
-    public static final int AN_TROM = -365;
-    public static final int TAU_PAIPAI = -385;
+    public static final int TAUPAYPAY = -365;
+
+    //======================HANH TINH NGUC TU========================
+    public static final int CUMBER = -366;
+
+    public static final int AN_TROM = -367;
+    public static final int AN_TROM_TV = -368;
+     public static final int O_DO1= -369;
+      public static final int SOI_HEC_QUEN= -370;
+        public static final int XINBATO1= -372;
+      public static final int BILL= -373;
+        public static final int WHISS= -374;
+
 }

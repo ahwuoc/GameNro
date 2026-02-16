@@ -1,4 +1,5 @@
 package task;
+ 
 public class SideTaskTemplate {
 
     public int id;

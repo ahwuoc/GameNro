@@ -1,3 +1,4 @@
+use crate::constant::const_npc::NpcId;
 use crate::network::session::SessionArc;
 use crate::player::player_actor::PlayerHandle;
 use crate::services::player_info_service::sub_command_i30;
@@ -22,7 +23,13 @@ impl ServiceHandles {
         Self::send_mess_all_player_in_map(pl, msg)?;
         Ok(())
     }
-
+    pub fn send_hidden_npc(pl: &Player, npc_id: NpcId, is_hidden: bool) -> Result<()> {
+        let mut msg = Message::new(-73);
+        msg.write_byte(npc_id as i8)?; // npcId trước
+        msg.write_byte(if is_hidden { 0 } else { 1 })?; // 0=ẩn, 1=hiện (giống Java)
+        pl.send_to_client(msg)?;
+        Ok(())
+    }
     pub fn send_item_time(pl: &Player, item_id: i16, time_seconds: i16) -> Result<()> {
         let mut msg = Message::new(-106);
         msg.write_short(item_id)?;
@@ -84,7 +91,7 @@ impl ServiceHandles {
         msg.write_int(pl.n_point.hp_current)?;
         msg.write_int(damage)?;
         msg.write_bool(is_crit)?;
-        msg.write_byte(effect_id as i8)?;
+        msg.write_byte(-1)?;
         Self::send_mess_all_player_in_map(pl, msg)?;
         Ok(())
     }
@@ -108,6 +115,11 @@ impl ServiceHandles {
         response.write_utf(text)?;
         player.send_to_client(response)?;
         Ok(())
+    }
+    pub fn build_thong_bao(text: &str) -> Message {
+        let mut msg = Message::new(cmd::THONG_BAO);
+        let _ = msg.write_utf(text);
+        msg
     }
     pub fn send_message_alert_session(session: &SessionArc, text: &str) -> Result<()> {
         let mut response = Message::new(cmd::SEND_ALTER_MESSAGE);

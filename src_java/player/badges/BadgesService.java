@@ -9,6 +9,7 @@ public class BadgesService {
             for (BadgesData data : player.dataBadges) {
                 if (data.idBadGes == id) {
                     data.isUse = true;
+               
                 } else {
                     data.isUse = false;
                 }

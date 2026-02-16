@@ -13,5 +13,6 @@ public class ConstTaskBadges {
     public static final byte ONG_THAN_VE_CHAI = 9;
     public static final byte BI_MOC_SACH_TUI = 10;
     public static final byte O_DO = 11;
-
+   
+    
 }

@@ -1,19 +1,25 @@
 package matches;
+ 
+import matches.pvp.TraThu;
+import matches.pvp.ThachDau;
 import consts.ConstNpc;
+import consts.ConstTranhNgocNamek;
 import map.Zone;
 import player.Player;
 import network.Message;
 import server.Client;
-import map.Service.NpcService;
+import services.NpcService;
 import services.Service;
-import map.Service.ChangeMapService;
+import services.func.ChangeMapService;
 import utils.Util;
 import java.io.IOException;
+import matches.pvp.LuyenTap;
 
 public class PVPService {
 
     private static final int[] GOLD_CHALLENGE = {1000000, 10000000, 100000000};
-    private final String[] optionsGoldChallenge;
+    private String[] optionsGoldChallenge;
+    //cmd controller
     private static final byte OPEN_GOLD_SELECT = 0;
     private static final byte ACCEPT_PVP = 1;
 
@@ -91,7 +97,7 @@ public class PVPService {
             Service.gI().sendThongBao(pl, "Đang giao đấu không thể mời.");
             return;
         }
-        pl.idMark.setIdPlayThachDau(plMap.id);
+        pl.iDMark.setIdPlayThachDau(plMap.id);
         NpcService.gI().createMenuConMeo(pl, ConstNpc.MAKE_MATCH_PVP,
                 -1, plMap.name + " (sức mạnh " + Util.numberToMoney(plMap.nPoint.power)
                 + ")\nBạn muốn cược bao nhiêu vàng?",
@@ -103,10 +109,10 @@ public class PVPService {
             return;
         }
         // Chưa thể thách đấu hoặc tập luyện lúc này
-        Player plMap = pl.zone.getPlayerInMap(pl.idMark.getIdPlayThachDau());
+        Player plMap = pl.zone.getPlayerInMap(pl.iDMark.getIdPlayThachDau());
         if (plMap == null) {
             Service.gI().hideWaitDialog(pl);
-            if (Client.gI().getPlayer(pl.idMark.getIdPlayThachDau()) == null) {
+            if (Client.gI().getPlayer(pl.iDMark.getIdPlayThachDau()) == null) {
                 Service.gI().sendThongBao(pl, "Đối thủ đã thoát game");
                 return;
             }
@@ -127,8 +133,8 @@ public class PVPService {
             return;
         }
 
-        plMap.idMark.setIdPlayThachDau(pl.id);
-        plMap.idMark.setGoldThachDau(goldThachDau);
+        plMap.iDMark.setIdPlayThachDau(pl.id);
+        plMap.iDMark.setGoldThachDau(goldThachDau);
 
         //Gửi message
         Message msg = null;
@@ -161,7 +167,7 @@ public class PVPService {
             Service.gI().sendThongBao(pl, "Luyện tập cùng đối thủ ở cấp " + Service.gI().getCurrStrLevel(pl) + " để đạt hiệu quả tốt nhất");
         }
 
-        plMap.idMark.setIdPlayThachDau(pl.id);
+        plMap.iDMark.setIdPlayThachDau(pl.id);
 
         //Gửi message
         Message msg = null;
@@ -181,11 +187,11 @@ public class PVPService {
         if (pl == null) {
             return;
         }
-        Player plMap = pl.zone.getPlayerInMap(pl.idMark.getIdPlayThachDau());
+        Player plMap = pl.zone.getPlayerInMap(pl.iDMark.getIdPlayThachDau());
 
         if (plMap == null) {
             Service.gI().hideWaitDialog(pl);
-            if (Client.gI().getPlayer(pl.idMark.getIdPlayThachDau()) == null) {
+            if (Client.gI().getPlayer(pl.iDMark.getIdPlayThachDau()) == null) {
                 Service.gI().sendThongBao(pl, "Đối thủ đã thoát game");
                 return;
             }
@@ -197,7 +203,7 @@ public class PVPService {
             Service.gI().sendThongBao(pl, "Đang giao đấu không thể mời.");
             return;
         }
-        int goldThachDau = pl.idMark.getGoldThachDau();
+        int goldThachDau = pl.iDMark.getGoldThachDau();
 
         if (pl.inventory.gold < goldThachDau) {
             Service.gI().hideWaitDialog(pl);
@@ -216,7 +222,7 @@ public class PVPService {
         if (pl == null) {
             return;
         }
-        Player plMap = pl.zone.getPlayerInMap(pl.idMark.getIdPlayThachDau());
+        Player plMap = pl.zone.getPlayerInMap(pl.iDMark.getIdPlayThachDau());
         if (plMap == null) {
             Service.gI().hideWaitDialog(pl);
             Service.gI().sendThongBao(pl, "Đối thủ đã rời map");
@@ -239,8 +245,8 @@ public class PVPService {
             return;
         }
 
-        pl.idMark.setIdEnemy(idEnemy);
-        if (!Util.canDoWithTime(pl.idMark.getLastTimeRevenge(), 300000)) {
+        pl.iDMark.setIdEnemy(idEnemy);
+        if (!Util.canDoWithTime(pl.iDMark.getLastTimeRevenge(), 300000)) {
             acceptRevenge(pl);
             return;
         }
@@ -249,19 +255,23 @@ public class PVPService {
     }
 
     public void acceptRevenge(Player pl) {
-        if (Util.canDoWithTime(pl.idMark.getLastTimeRevenge(), 300000)) {
-            if (pl.inventory.getGem() < 1) {
+        if (Util.canDoWithTime(pl.iDMark.getLastTimeRevenge(), 300000)) {
+            if (pl.inventory.getGemAndRuby() < 0) {
                 Service.gI().sendThongBao(pl, "Bạn không đủ ngọc, còn thiếu 1 ngọc nữa");
                 return;
             }
-            pl.idMark.setLastTimeRevenge(System.currentTimeMillis());
-            pl.inventory.subGem(1);
+            pl.iDMark.setLastTimeRevenge(System.currentTimeMillis());
+            pl.inventory.subGemAndRuby(1);
             Service.gI().sendMoney(pl);
         }
-        Player enemy = Client.gI().getPlayer(pl.idMark.getIdEnemy());
+        Player enemy = Client.gI().getPlayer(pl.iDMark.getIdEnemy());
         if (enemy == null) {
             Service.gI().hideWaitDialog(pl);
             Service.gI().sendThongBao(pl, "Đang offline");
+            return;
+        }
+        if (pl.zone.map.mapId == ConstTranhNgocNamek.MAP_ID) {
+            Service.gI().sendPopUpMultiLine(pl, 0, 7184, "Không thể thực hiện");
             return;
         }
         if (pl.pvp != null || enemy.pvp != null) {
@@ -270,6 +280,10 @@ public class PVPService {
             return;
         }
         Zone mapGo = enemy.zone;
+        if (enemy.zone.map.mapId == ConstTranhNgocNamek.MAP_ID) {
+            Service.gI().sendPopUpMultiLine(enemy, 0, 7184, "Không thể thực hiện");
+            return;
+        }
         if ((mapGo = ChangeMapService.gI().checkMapCanJoin(pl, mapGo)) == null || mapGo.isFullPlayer()) {
             Service.gI().hideWaitDialog(pl);
             Service.gI().sendThongBao(pl, "Chưa thể đến lúc này, vui lòng thử lại sau ít phút");

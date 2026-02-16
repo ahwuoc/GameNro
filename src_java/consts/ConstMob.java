@@ -92,6 +92,8 @@ public class ConstMob {
     public static final byte QUY_DO = 88;
     public static final byte QUY_XANH = 89;
 
+    public static final byte KONG = 92;
+    public static final byte GOZILLA = 93;
     public static final byte TOPPO = 94;
     public static final byte THO_CON = 95;
     public static final byte JANEMBA = 96;
@@ -108,5 +110,6 @@ public class ConstMob {
     public static final byte DEINONYCHUS = 107;
     public static final byte SNAKE = 108;
     public static final byte BLIZZARD_BIRD = 109;
+    public static final byte MAY_TEST_DAME = 117;
 
 }

@@ -1,4 +1,5 @@
 package clan;
+ 
 import player.Player;
 import utils.TimeUtil;
 import java.util.Date;
@@ -34,12 +35,13 @@ public class ClanMember {
      * Capsule cho bang
      */
     public int clanPoint;
-
+    public int Point;
     public int lastRequest;
 
     public int joinTime;
 
     public long timeAskPea;
+    
 
     public ClanMember() {
     }
@@ -58,6 +60,8 @@ public class ClanMember {
         this.memberPoint = 0;
         this.clanPoint = 0;
         this.lastRequest = 0;
+        this.Point = 0;
+       
         this.joinTime = (int) (System.currentTimeMillis() / 1000);
     }
 

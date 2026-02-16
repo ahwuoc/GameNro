@@ -1,6 +1,6 @@
-use crate::constant;
 use crate::constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG};
 use crate::constant::task_type::TaskType;
+use crate::constant::{self, const_mob};
 use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
 use crate::map::item_map::ItemMap;
@@ -14,10 +14,11 @@ use crate::player::player::Player;
 use crate::player::player_actor::message::PlayerMessage;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::player_tnsm_services::TypeTNSM;
+use crate::services::task_utils::TaskUtils;
 use crate::services::ServiceHandles;
 use crate::templates::item_template_manager;
-use crate::utils::random::{is_true, next_int};
 use crate::utils::{time, MapUtils};
+use rand::{rng, Rng};
 use tracing::{debug, info};
 
 pub async fn attack_mob(
@@ -145,15 +146,44 @@ async fn drop_item_on_mob_death_actor(
     }
 
     let mut task_id = -1;
+    let mut task_index = -1;
     if let Some(handle) = zone.players.get(&player_id) {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = handle.send(PlayerMessage::GetSnapshot(tx)).await;
         if let Ok(player) = rx.await {
-            task_id = player.task_player.task_main.id;
+            task_id = TaskUtils::get_id_task(&player);
+            task_index = TaskUtils::get_task_index(&player);
         }
     }
 
-    let items = get_mob_rewards(map_id, mob_template_id, task_id);
+    let items = get_mob_rewards(map_id, mob_template_id, task_id, task_index);
+
+    if items.is_empty()
+        && task_id == constant::task_id::TASK_6
+        && task_index == 1
+        && (mob_template_id == const_mob::THAN_LAN_ME as i16
+            || mob_template_id == const_mob::PHI_LONG_ME as i16
+            || mob_template_id == const_mob::QUY_BAY_ME as i16)
+    {
+        if let Some(handle) = zone.players.get(&player_id) {
+            let _ = handle.send_forget(PlayerMessage::SendPacket(ServiceHandles::build_thong_bao(
+                "Con thằn lằn mẹ này không giữ ngọc, hãy tìm con thằn lằn mẹ khác",
+            )));
+        }
+    } else if !items.is_empty()
+        && task_id == constant::task_id::TASK_6
+        && task_index == 1
+        && (mob_template_id == constant::const_mob::THAN_LAN_ME as i16
+            || mob_template_id == constant::const_mob::PHI_LONG_ME as i16
+            || mob_template_id == constant::const_mob::QUY_BAY_ME as i16)
+    {
+        if let Some(handle) = zone.players.get(&player_id) {
+            handle.send_forget(PlayerMessage::TaskAction(
+                TaskType::TaskScripts,
+                mob_template_id.to_string(),
+            ));
+        }
+    }
 
     for item in items {
         if item.template.is_none() {
@@ -169,14 +199,12 @@ async fn drop_item_on_mob_death_actor(
         zone.active_items.push(item_map.clone());
         let msg = ItemMapService::build_item_appear_message(&item_map);
         for handle in zone.players.values() {
-            handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
-                msg.clone(),
-            ));
+            handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
         }
     }
 }
 
-fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32) -> Vec<Item> {
+fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32, task_index: i32) -> Vec<Item> {
     let mut drops: Vec<Item> = Vec::new();
 
     if is_map_tanthu(map_id) && task_id == constant::task_id::TASK_2 {
@@ -184,8 +212,21 @@ fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32) -> Vec<Item>
             drops.push(dui_ga);
         }
     }
+
+    if task_id == constant::task_id::TASK_6
+        && task_index == 1
+        && (mob_template_id == constant::const_mob::THAN_LAN_ME as i16
+            || mob_template_id == constant::const_mob::PHI_LONG_ME as i16
+            || mob_template_id == constant::const_mob::QUY_BAY_ME as i16)
+    {
+        if rng().random_ratio(10, 100) {
+            if let Some(item) = ItemService::create_new_item(20) {
+                drops.push(item);
+            }
+        }
+    }
     if map_service::is_map_black_ball_war(map_id) {
-        let vang_quantity = next_int(500, 3000);
+        let vang_quantity = rng().random_range(500..=3000);
         let gold_id = if vang_quantity < 1000 {
             76
         } else if vang_quantity < 2000 {
@@ -197,13 +238,6 @@ fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32) -> Vec<Item>
             drops.push(item);
         }
     }
-    if is_true(1, 1) {
-        if let Some(mut item) = ItemService::create_new_item(14) {
-            item.add_option_param(30, 100);
-            drops.push(item);
-        }
-    }
-
     drops
 }
 
@@ -430,11 +464,9 @@ async fn find_target_accurate_actor(
     temporary_enemies: &[u64],
     template_id: i8,
 ) -> Option<(u64, bool, crate::utils::location::Location, f64, i32)> {
-    // Check retaliation targets first (temporary enemies)
     for &player_id in temporary_enemies {
         if let Some(handle) = zone.players.get(&player_id) {
-            // Skip bosses and pets
-            if handle.is_pet || handle.boss_info.is_some() {
+            if handle.boss_info.is_some() {
                 continue;
             }
             let (tx, rx) = tokio::sync::oneshot::channel();
@@ -461,10 +493,8 @@ async fn find_target_accurate_actor(
     if template_id > 18 || is_boss {
         let mut closest_info = None;
         let mut min_dist = if is_boss { f64::MAX } else { 100.0 };
-
         for handle in zone.players.values() {
-            // Skip bosses and pets - mobs should not attack them
-            if handle.is_pet || handle.boss_info.is_some() {
+            if handle.boss_info.is_some() {
                 continue;
             }
             let (tx, rx) = tokio::sync::oneshot::channel();

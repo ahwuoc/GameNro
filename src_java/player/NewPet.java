@@ -1,8 +1,10 @@
 package player;
-import map.Service.MapService;
-import player.Service.PlayerService;
+
+
+import services.MapService;
+import services.PlayerService;
 import services.Service;
-import map.Service.ChangeMapService;
+import services.func.ChangeMapService;
 import utils.Util;
 
 public class NewPet extends Player {
@@ -82,7 +84,7 @@ public class NewPet extends Player {
     }
 
     public void followMaster() {
-        followMaster(50);
+        followMaster(100);
     }
 
     private void followMaster(int dis) {
@@ -102,10 +104,8 @@ public class NewPet extends Player {
 
     @Override
     public void dispose() {
-        if (zone !=null) {
-            ChangeMapService.gI().exitMap(this);
-        }
         this.master = null;
+        ChangeMapService.gI().exitMap(this);
         super.dispose();
     }
 }

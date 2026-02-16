@@ -1,4 +1,5 @@
 package player;
+ 
 import java.util.ArrayList;
 import java.util.List;
 import item.Item;
@@ -6,8 +7,8 @@ import item.Item.ItemOption;
 
 public class Inventory {
 
-    public static final long LIMIT_GOLD = 200_000_000_000L;
-    public static final int MAX_ITEMS_BAG = 80;
+    public static final long LIMIT_GOLD = 900_000_000_000L;
+    public static final int MAX_ITEMS_BAG = 100;
     public static final int MAX_ITEMS_BOX = 100;
     public Item trainArmor;
     public List<String> giftCode;
@@ -15,6 +16,7 @@ public class Inventory {
     public List<Item> itemsBag;
     public List<Item> itemsBox;
 
+    public List<Item> itemsMailBox;
     public List<Item> itemsBoxCrackBall;
     public List<Item> itemsDaBan;
 
@@ -29,12 +31,13 @@ public class Inventory {
         itemsBag = new ArrayList<>();
         itemsBox = new ArrayList<>();
         itemsBoxCrackBall = new ArrayList<>();
+        itemsMailBox = new ArrayList<>();
         itemsDaBan = new ArrayList<>();
         giftCode = new ArrayList<>();
     }
 
-    public int getGem() {
-        return this.gem;
+    public int getGemAndRuby() {
+        return this.gem + this.ruby;
     }
 
     public int getParam(Item it, int id) {
@@ -45,6 +48,7 @@ public class Inventory {
         }
         return 0;
     }
+
     public boolean haveOption(List<Item> l, int index, int id) {
         Item it = l.get(index);
         if (it != null && it.isNotNullItem()) {
@@ -52,13 +56,15 @@ public class Inventory {
         }
         return false;
     }
-    
-    public void subGem(int num) {
-        this.gem -= num;
+
+    public void subGemAndRuby(int num) {
+        this.ruby -= num;
+        if (this.ruby < 0) {
+            this.gem += this.ruby;
+            this.ruby = 0;
+        }
     }
-     public void subGold(int num) {
-        this.gold -= num;
-    }
+
     public void addGold(int gold) {
         this.gold += gold;
         if (this.gold > LIMIT_GOLD) {
@@ -95,6 +101,12 @@ public class Inventory {
             }
             this.itemsBoxCrackBall.clear();
         }
+        if (this.itemsMailBox != null) {
+            for (Item it : this.itemsMailBox) {
+                it.dispose();
+            }
+            this.itemsMailBox.clear();
+        }
         if (this.itemsDaBan != null) {
             for (Item it : this.itemsDaBan) {
                 it.dispose();
@@ -105,9 +117,8 @@ public class Inventory {
         this.itemsBag = null;
         this.itemsBox = null;
         this.itemsBoxCrackBall = null;
+        this.itemsMailBox = null;
         this.itemsDaBan = null;
     }
-
-    
 
 }

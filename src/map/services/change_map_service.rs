@@ -27,7 +27,7 @@ use crate::{
         player_actor::{message::PlayerMessage, PlayerHandle},
         player_manager::PLAYER_MANAGER,
     },
-    services::{task_service::TaskService, ServiceHandles},
+    services::{task_service::TaskService, task_utils::TaskUtils, ServiceHandles},
     utils,
 };
 
@@ -111,8 +111,8 @@ impl ChangeMapService {
         Self::go_to_map(player, zone, session).await?;
         if let Some(sess) = session {
             let task_info = Some((
-                player.task_player.task_main.id,
-                player.task_player.task_main.index,
+                TaskUtils::get_id_task(player),
+                TaskUtils::get_task_index(player),
             ));
             let spaceship_id = player.spaceship_id;
             zone.map_info(

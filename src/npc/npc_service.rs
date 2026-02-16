@@ -21,6 +21,7 @@ pub mod npc_service {
     use crate::npc::handlers::cargo::CargoHandler;
     use crate::npc::handlers::cui::CuiHandler;
     use crate::npc::handlers::dr_drief::DrDriefHandler;
+    use crate::npc::handlers::than_meo::ThanMeoKarinHandler;
     use crate::services::task_service::TaskService;
     use crate::utils::MapUtils;
 
@@ -157,6 +158,9 @@ pub mod npc_service {
             NpcId::OngGohan | NpcId::OngMoori | NpcId::OngParagus => Some(Box::new(NpcHomeHandler)),
             NpcId::DrDrief => Some(Box::new(DrDriefHandler)),
             NpcId::Cargo => Some(Box::new(CargoHandler)),
+            NpcId::ThanMeoKarin => Some(Box::new(ThanMeoKarinHandler)),
+
+            // =================Handle Shop Dynamic===============
             NpcId::Bunma => Some(Box::new(DynamicShopHandler::new(
                 MenuId::BunmaMenu,
                 "Chào bạn! Tôi là Bunma, bạn cần gì?",

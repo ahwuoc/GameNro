@@ -353,8 +353,41 @@ impl PetActor {
                         0
                     };
 
-                    if let Some(skill) = self.pet.player.player_skill.skills.get(skill_index) {
-                        self.pet.player.player_skill.skill_select = Some(skill.clone());
+                    // let need_select = match &self.pet.player.player_skill.skill_select {
+                    //     Some(current) => {
+                    //         if let Some(target) =
+                    //             self.pet.player.player_skill.skills.get(skill_index)
+                    //         {
+                    //             current.template_id != target.template_id
+                    //         } else {
+                    //             false
+                    //         }
+                    //     }
+                    //     None => true,
+                    // };
+                    let need_select = match &self.pet.player.player_skill.skill_select {
+                        Some(current) => {
+                            if let Some(target) =
+                                self.pet.player.player_skill.skills.get(skill_index)
+                            {
+                                current.template_id != target.template_id
+                            } else {
+                                false
+                            }
+                        }
+                        None => true,
+                    };
+                    if need_select {
+                        if let Some(skill) = self.pet.player.player_skill.skills.get(skill_index) {
+                            self.pet.player.player_skill.skill_select = Some(skill.clone());
+                        }
+                    }
+
+                    if !self.pet.player.is_skill_ready() || !self.pet.player.has_enough_mana() {
+                        if dist > 200.0 {
+                            self.move_to(mob.location.x + 100, mob.location.y).await;
+                        }
+                        return;
                     }
 
                     if skill_index == 0 && dist > 60.0 {
@@ -388,15 +421,14 @@ impl PetActor {
         self.pet.player.location.x = x;
         self.pet.player.location.y = y;
 
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
+        let zone_opt = ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id);
 
         if let Some(zone) = zone_opt {
             let mut msg = Message::new(-7);
             let _ = msg.write_int(self.pet.player.id as i32);
             let _ = msg.write_short(self.pet.player.location.x);
             let _ = msg.write_short(self.pet.player.location.y);
-            let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
+            let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
         }
     }
 

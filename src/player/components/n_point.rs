@@ -2,7 +2,7 @@ use rand::Rng;
 
 use crate::player::components::PointType;
 use crate::templates::power_manager;
-
+// @Author:ahwuocdz use chatgpt nhe
 #[derive(Debug, Clone)]
 pub struct NPoint {
     // ==========================================

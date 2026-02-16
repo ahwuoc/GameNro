@@ -1,43 +1,21 @@
 package utils;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
-import dungeon.BlackBallWar;
-import services.dungeon.MajinBuuService;
+import models.BlackBallWar.BlackBallWar;
+import models.MajinBuu.MajinBuuService;
 
 public class TimeUtil {
-public static String convertMillisecondToMinute(long time) {
-        long minutes = TimeUnit.MILLISECONDS.toMinutes(time);
-        return String.format("%02d phút", minutes);
-    }
 
-    public static String convertMillisecondToHour(long time) {
-        long hours = TimeUnit.MILLISECONDS.toHours(time);
-        return String.format("%02d giờ", hours);
-    }
-
-    public static String convertMillisecondToDay(long time) {
-        long days = TimeUnit.MILLISECONDS.toDays(time);
-        return String.format("%02d ngày", days);
-    }
     public static final byte SECOND = 1;
     public static final byte MINUTE = 2;
     public static final byte HOUR = 3;
@@ -46,13 +24,6 @@ public static String convertMillisecondToMinute(long time) {
     public static final byte MONTH = 6;
     public static final byte YEAR = 7;
 
-    /**
-     *
-     * @param d1 thời gian bắt đầu
-     * @param d2 thời gian kết thúc
-     * @param type loại
-     * @return khoảng cách thời gian theo loại
-     */
     public static long diffDate(Date d1, Date d2, byte type) {
         long timeDiff = Math.abs(d1.getTime() - d2.getTime());
         switch (type) {
@@ -136,7 +107,9 @@ public static String convertMillisecondToMinute(long time) {
 
     public static String getTimeLeft(long lastTime) {
         int secondPassed = (int) ((System.currentTimeMillis() - lastTime) / 1000);
-        return secondPassed > 86400 ? (secondPassed / 86400) + "n trước" : secondPassed > 3600 ? (secondPassed / 3600) + "g trước" : secondPassed > 60 ? (secondPassed / 60) + "p trước" : secondPassed + "gi trước";
+        return secondPassed > 86400 ? (secondPassed / 86400) + "n trước"
+                : secondPassed > 3600 ? (secondPassed / 3600) + "g trước"
+                        : secondPassed > 60 ? (secondPassed / 60) + "p trước" : secondPassed + "gi trước";
     }
 
     public static int getMinLeft(long lastTime, int secondTarget) {
@@ -188,24 +161,7 @@ public static String convertMillisecondToMinute(long time) {
             throw new Exception("Thời gian không hợp lệ");
         }
     }
-public static String getTime(long time) {
-    long seconds = time / 1000;
-    long minutes = seconds / 60;
-    long hours = minutes / 60;
-    long days = hours / 24;
 
-    if (seconds <= 0) {
-        seconds = 0;
-    }
-
-    if (hours <= 0) {
-        return String.format("%d phút %d giây", minutes % 60, seconds % 60);
-    } else if (days <= 0) {
-        return String.format("%d giờ %d phút", hours % 24, minutes % 60);
-    } else {
-        return String.format("%d ngày %d giờ", days, hours % 24);
-    }
-}
     public static String getTimeNow(String format) {
         SimpleDateFormat fm = new SimpleDateFormat(format);
         return fm.format(new Date());
@@ -237,23 +193,20 @@ public static String getTime(long time) {
                 return true;
             }
             case Calendar.FRIDAY -> {
-                // Nếu là thứ sáu, kiểm tra thời gian từ 18:00 - 19:00
                 MajinBuuService.HOUR_OPEN_MAP_MABU = 18;
                 return (hour >= 18 && hour < 19);
             }
             default -> {
-                // Nếu không phải thứ sáu, kiểm tra thời gian từ 12:00 - 13:00
                 MajinBuuService.HOUR_OPEN_MAP_MABU = 12;
                 return (hour >= 12 && hour < 13);
             }
-
         }
     }
 
     public static boolean isMabu14HOpen() {
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        return (hour >= 14 && hour < 16);
+        return (hour >= 14 && hour < 15);
     }
 
     public static boolean is21H() {
@@ -261,39 +214,73 @@ public static String getTime(long time) {
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
         return (hour >= 21 && hour < 22);
     }
-    public static long getStartTimeBlackBallWar() {
-        LocalTime startTime = LocalTime.of(BlackBallWar.HOUR_OPEN, BlackBallWar.MIN_OPEN, BlackBallWar.SECOND_OPEN);
-        LocalDateTime startDateTime = LocalDateTime.of(LocalDate.now(), startTime);
-        Instant startInstant = startDateTime.toInstant(ZoneOffset.UTC);
 
-        return startInstant.toEpochMilli();
+    public static long getStartTimeBlackBallWar() {
+        LocalTime currentTime = LocalTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        for (BlackBallWar.TimeFrame frame : BlackBallWar.TIME_CONFIGS) {
+            LocalTime startTime = LocalTime.of(frame.hourOpen, frame.minOpen, frame.secondOpen);
+            if (currentTime.isBefore(startTime)) {
+                LocalDateTime startDateTime = LocalDateTime.of(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")), startTime);
+                return startDateTime.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant().toEpochMilli();
+            }
+        }
+        if (!BlackBallWar.TIME_CONFIGS.isEmpty()) {
+            BlackBallWar.TimeFrame firstFrame = BlackBallWar.TIME_CONFIGS.get(0);
+            LocalTime startTime = LocalTime.of(firstFrame.hourOpen, firstFrame.minOpen, firstFrame.secondOpen);
+            LocalDateTime startDateTime = LocalDateTime.of(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(1),
+                    startTime);
+            return startDateTime.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant().toEpochMilli();
+        }
+        return 0;
     }
 
     public static boolean isBlackBallWarOpen() {
-        LocalTime currentTime = LocalTime.now();
-        LocalTime startTime = LocalTime.of(BlackBallWar.HOUR_OPEN, BlackBallWar.MIN_OPEN, BlackBallWar.SECOND_OPEN);
-        LocalTime endTime = LocalTime.of(BlackBallWar.HOUR_CLOSE, BlackBallWar.MIN_CLOSE, BlackBallWar.SECOND_CLOSE);
-
-        return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
+        LocalTime currentTime = LocalTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        for (BlackBallWar.TimeFrame frame : BlackBallWar.TIME_CONFIGS) {
+            LocalTime startTime = LocalTime.of(frame.hourOpen, frame.minOpen, frame.secondOpen);
+            LocalTime endTime = LocalTime.of(frame.hourClose, frame.minClose, frame.secondClose);
+            if (currentTime.isAfter(startTime) && currentTime.isBefore(endTime)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean isBlackBallWarCanPick() {
-        LocalTime currentTime = LocalTime.now();
-        LocalTime startTime = LocalTime.of(BlackBallWar.HOUR_CAN_PICK_DB, BlackBallWar.MIN_CAN_PICK_DB, BlackBallWar.SECOND_CAN_PICK_DB);
-
-        return currentTime.isAfter(startTime) && isBlackBallWarOpen();
+        LocalTime currentTime = LocalTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        for (BlackBallWar.TimeFrame frame : BlackBallWar.TIME_CONFIGS) {
+            LocalTime pickTime = LocalTime.of(frame.hourPick, frame.minPick, frame.secondPick);
+            LocalTime endTime = LocalTime.of(frame.hourClose, frame.minClose, frame.secondClose);
+            if (currentTime.isAfter(pickTime) && currentTime.isBefore(endTime)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static long getSecondsUntilCanPick() {
-        LocalTime currentTime = LocalTime.now();
-        LocalTime startTime = LocalTime.of(BlackBallWar.HOUR_CAN_PICK_DB, BlackBallWar.MIN_CAN_PICK_DB, BlackBallWar.SECOND_CAN_PICK_DB);
+        LocalTime currentTime = LocalTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        for (BlackBallWar.TimeFrame frame : BlackBallWar.TIME_CONFIGS) {
+            LocalTime startTime = LocalTime.of(frame.hourOpen, frame.minOpen, frame.secondOpen);
+            LocalTime endTime = LocalTime.of(frame.hourClose, frame.minClose, frame.secondClose);
 
-        if (currentTime.isBefore(startTime)) {
-            Duration duration = Duration.between(currentTime, startTime);
-            return duration.getSeconds();
-        } else {
-            return 0;
+            // If current time is within an open frame
+            if (currentTime.isAfter(startTime) && currentTime.isBefore(endTime)) {
+                LocalTime pickTime = LocalTime.of(frame.hourPick, frame.minPick, frame.secondPick);
+                if (currentTime.isBefore(pickTime)) {
+                    return Duration.between(currentTime, pickTime).getSeconds();
+                }
+                return 0; // Already can pick
+            }
         }
+        return 0;
+    }
+
+    public static long currentTimeMillisPlus11() {
+        ZoneId zoneIdPlus3 = ZoneId.of("UTC+11");
+        ZonedDateTime currentTimeInPlus3Zone = ZonedDateTime.now(zoneIdPlus3);
+        long currentTimeMillisPlus3 = currentTimeInPlus3Zone.toInstant().toEpochMilli();
+        return currentTimeMillisPlus3;
     }
 
     public static boolean checkTime(long time) {

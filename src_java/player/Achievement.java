@@ -1,10 +1,13 @@
 package player;
+
 import consts.ConstAchievement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.Getter;
-import player.system.Template.AchievementQuest;
-import player.system.Template.AchievementTemplate;
+import models.Template.AchievementQuest;
+import models.Template.AchievementTemplate;
 import server.Manager;
 
 public class Achievement {
@@ -13,6 +16,9 @@ public class Achievement {
 
     @Getter
     private List<AchievementQuest> achievementList;
+
+    @Getter
+    private Set<Integer> receivedTieuTienMilestones = new HashSet<>();
 
     public Achievement(Player player) {
         this.player = player;
@@ -85,7 +91,48 @@ public class Achievement {
             achievementList.clear();
             achievementList = null;
         }
+        if (receivedTieuTienMilestones != null) {
+            receivedTieuTienMilestones.clear();
+            receivedTieuTienMilestones = null;
+        }
         player = null;
+    }
+
+    public boolean isRecieveTieuTienMilestone(int amount) {
+        return receivedTieuTienMilestones.contains(amount);
+    }
+
+    public void receiveTieuTienMilestone(int amount) {
+        receivedTieuTienMilestones.add(amount);
+        if (player != null) {
+            player.achievementTieuTien = getTieuTienMilestonesData();
+        }
+    }
+
+    public String getTieuTienMilestonesData() {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Integer m : receivedTieuTienMilestones) {
+            if (!first)
+                sb.append(",");
+            sb.append(m);
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    public void loadTieuTienMilestonesData(String data) {
+        receivedTieuTienMilestones.clear();
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        String[] milestones = data.split(",");
+        for (String m : milestones) {
+            try {
+                receivedTieuTienMilestones.add(Integer.parseInt(m.trim()));
+            } catch (NumberFormatException e) {
+            }
+        }
     }
 
 }

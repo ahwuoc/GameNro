@@ -1,6 +1,9 @@
+use crate::boss::boss_id::BOSS_TAU_PAY_PAY;
 use crate::constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE};
+use crate::constant::task_id;
 use crate::item::item_controller::ItemController;
 use crate::item::{InventoryService, Item};
+use crate::map::services::training_services;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::{item_map_service, ChangeMapService, ItemMapService, SpaceShipType};
 use crate::network::message::Message;
@@ -16,6 +19,7 @@ use crate::services::command::CommandService;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::player_tnsm_services::{tiemnang_sucmanh_add, TypeTNSM};
 use crate::services::task_service::TaskService;
+use crate::services::task_utils::TaskUtils;
 use crate::services::{player_info_service, player_service, player_tnsm_services, ServiceHandles};
 use crate::templates::fusion_template_manager;
 use std::time::{Duration, Instant};
@@ -88,8 +92,8 @@ impl PlayerActor {
         match msg {
             PlayerMessage::TaskAction(task_type, target_id) => {
                 let old_task = (
-                    self.player.task_player.task_main.id,
-                    self.player.task_player.task_main.index,
+                    TaskUtils::get_id_task(&self.player),
+                    TaskUtils::get_task_index(&self.player),
                 );
                 TaskService::check_done_task(&mut self.player, task_type, &target_id);
                 self.handle_task_advance(old_task).await;
@@ -246,18 +250,18 @@ impl PlayerActor {
                 point,
             } => {
                 let old_task = (
-                    self.player.task_player.task_main.id,
-                    self.player.task_player.task_main.index,
+                    TaskUtils::get_id_task(&self.player),
+                    TaskUtils::get_task_index(&self.player),
                 );
                 self.player.n_point.increase_point(type_increment, point);
                 self.player.n_point.cal_point();
                 player_info_service::send_point_info_sync(&self.player);
 
-                let _ = crate::services::task_service::TaskService::check_done_task_scripts(
+                let _ = TaskService::check_done_task_scripts(
                     &mut self.player,
                     "2", // UseTiemNang
                 );
-                let _ = crate::services::task_service::TaskService::check_done_task_scripts(
+                let _ = TaskService::check_done_task_scripts(
                     &mut self.player,
                     "1", // PowerReach
                 );
@@ -299,6 +303,18 @@ impl PlayerActor {
                 TaskService::send_info_current_task(&self.player);
                 TaskService::send_tutorial_task_0_0_0(&self.player, "GameNro Server");
                 TaskService::check_auto_skip_task_home(&mut self.player);
+
+                if self.player.map_id == 47 {
+                    let task_id = TaskUtils::get_id_task(&self.player);
+                    let task_index = TaskUtils::get_task_index(&self.player);
+                    if task_id >= task_id::TASK_7 && task_index > 0 {
+                        training_services::call_boss_by_id(
+                            &mut self.player,
+                            BOSS_TAU_PAY_PAY,
+                            false,
+                        );
+                    }
+                }
 
                 tracing::info!(
                     "EXITING: PlayerMessage::FinishLoadMap (player: {})",
@@ -519,13 +535,26 @@ impl PlayerActor {
                     );
                 }
             }
+            PlayerMessage::CallTrainingBoss {
+                boss_id,
+                is_thachdau,
+            } => {
+                if let Err(e) =
+                    training_services::call_boss_by_id(&mut self.player, &boss_id, is_thachdau)
+                {
+                    error!(
+                        "Error calling training boss for player {}: {:?}",
+                        self.player.id, e
+                    );
+                }
+            }
         }
     }
 
     async fn handle_task_advance(&mut self, old_task: (i32, i32)) {
         let new_task = (
-            self.player.task_player.task_main.id,
-            self.player.task_player.task_main.index,
+            TaskUtils::get_id_task(&self.player),
+            TaskUtils::get_task_index(&self.player),
         );
         if old_task != new_task {
             if let Some(zone) = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id) {
@@ -658,6 +687,10 @@ impl PlayerActor {
             return;
         }
 
+        if self.player.n_point.hp_current <= 0 && !self.player.dead_flag {
+            self.player.set_die();
+        };
+
         if self.player.fusion.is_timed_fusion() {
             let now = crate::utils::time::current_time_millis();
             if self.player.fusion.is_fusion_expired(now) {
@@ -782,8 +815,7 @@ impl PlayerActor {
         if self.player.effect_skill.use_troi {
             self.release_hold();
         }
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.player.map_id, self.player.zone_id);
+        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
 
         if let Some(zone) = zone_opt {
             if let Ok(mobs) = zone.get_all_mobs().await {

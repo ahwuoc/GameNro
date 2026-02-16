@@ -1,4 +1,5 @@
 package task;
+ 
 public class ClanTaskTemplate {
 
     public int id;

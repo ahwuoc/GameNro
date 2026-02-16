@@ -122,4 +122,8 @@ pub enum PlayerMessage {
     ChangeMapBlackBall(i8),
     SendInfoTo(PlayerHandle),
     SendInfoToAll(Vec<PlayerHandle>),
+    CallTrainingBoss {
+        boss_id: String,
+        is_thachdau: bool,
+    },
 }

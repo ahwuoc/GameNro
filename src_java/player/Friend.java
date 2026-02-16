@@ -1,4 +1,5 @@
 package player;
+ 
 public class Friend {
 
     public int id;

@@ -1,17 +1,13 @@
 package item;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-import player.system.Template;
-import player.system.Template.ItemTemplate;
+import models.Template;
+import models.Template.ItemTemplate;
 import services.ItemService;
 import utils.Util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
+import models.Combine.CombineUtil;
 
 public class Item {
 
@@ -28,13 +24,12 @@ public class Item {
     public List<ItemOption> itemOptions;
 
     public long createTime;
-    public int id;
 
     public boolean isNotNullItem() {
         return this.template != null;
     }
-    public String getName() {
-    return template.name;
+    public boolean isNullItem() {
+        return this.template == null;
     }
 
     public Item() {
@@ -73,6 +68,17 @@ public class Item {
         this.itemOptions = null;
     }
 
+    public boolean isBUg() {
+        for (ItemOption itemOption : itemOptions) {
+            if ((itemOption.optionTemplate.id != 249 && (itemOption.optionTemplate.id == 50 || itemOption.optionTemplate.id == 77 || itemOption.optionTemplate.id == 103 || itemOption.optionTemplate.id == 5))
+                    && itemOption.param > 35) {
+
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static class ItemOption {
 
         public int param;
@@ -101,6 +107,11 @@ public class Item {
             return Util.replace(this.optionTemplate.name, "#", String.valueOf(this.param));
         }
 
+        public boolean isOptionCanUpgrade() {
+            int opId = this.optionTemplate.id;
+            return opId == 0 || opId == 6 || opId == 7 || opId == 14 || opId == 22 || opId == 23 || opId == 27 || opId == 28 || opId == 47;
+        }
+
         public void dispose() {
             this.optionTemplate = null;
         }
@@ -113,18 +124,6 @@ public class Item {
                     + n + "param" + n + ":" + n + param + n
                     + "}";
         }
-
-        public String getOptionString(int chisogoc) {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-        }
-    }
-
-    public short getId() {
-        return template.id;
-    }
-
-    public byte getType() {
-        return template.type;
     }
 
     public boolean isSKH() {
@@ -135,53 +134,162 @@ public class Item {
         }
         return false;
     }
-public boolean isVaiTho() {
-        if (this.template.id >= 0 && this.template.id <= 65) {
-            return true;
-        }
-        return false;
-    }
+
     public boolean isDTS() {
-        if (this.template.id >= 1048 && this.template.id <= 1062) {
-            return true;
-        }
-        return false;
+        return this.template.level == 15;
     }
 
     public boolean isDTL() {
-        if (this.template.id >= 555 && this.template.id <= 567) {
-            return true;
-        }
-        return false;
+        return this.template.level == 13;
     }
 
     public boolean isDHD() {
-        if (this.template.id >= 650 && this.template.id <= 662) {
-            return true;
-        }
-        return false;
+        return this.template.level == 14;
     }
 
-    public boolean isManhTS() {
-        if (this.template.id >= 1066 && this.template.id <= 1070) {
-            return true;
-        }
-        return false;
+    public boolean isManhThienSu() {
+        return this.template.id >= 1066 && this.template.id <= 1070;
     }
 
-    public boolean isGiayMau() {
-        if (this.template.id == 1505) {
-            return true;
-        }
-        return false;
+    public boolean isDaMayMan() {
+        return this.template.id >= 1079 && this.template.id <= 1083;
+    }
+
+    public boolean isDaNangCapTS() {
+        return this.template.id >= 1074 && this.template.id <= 1078;
+    }
+
+    public boolean isCongThuc() {
+        return this.template.id >= 1071 && this.template.id <= 1073;
+    }
+
+    public boolean isCongThucVip() {
+        return this.template.id >= 1084 && this.template.id <= 1086;
     }
 
     public boolean isDaNangCap() {
-        if (this.template.id >= 1074 && this.template.id <= 1078) {
+        return this.template.type == 14;
+    }
+
+    public String typeName() {
+        return switch (this.template.type) {
+            case 0 ->
+                "Áo";
+            case 1 ->
+                "Quần";
+            case 2 ->
+                "Găng";
+            case 3 ->
+                "Giày";
+            case 4 ->
+                "Rada";
+            default ->
+                "";
+        };
+    }
+
+    public String getGenderName() {
+        return template.gender == 0 ? "Trái Đất" : template.gender == 1 ? "Namếc" : "Xay da";
+    }
+
+    public byte typeManh() {
+        return switch (this.template.id) {
+            case 1066 ->
+                0;
+            case 1067 ->
+                1;
+            case 1070 ->
+                2;
+            case 1068 ->
+                3;
+            case 1069 ->
+                4;
+            default ->
+                -1;
+        };
+    }
+
+    public boolean isSachTuyetKy() {
+        return template.id == 1044 || template.id == 1211 || template.id == 1212;
+    }
+
+    public boolean isSachTuyetKy2() {
+        return template.id >= 1278 && template.id <= 1280;
+    }
+
+    public boolean canNangCapWithNDC(Item daNangCap) {
+        if (this.template.type == 0 && daNangCap.template.id == 223) {
             return true;
-        } else if (this.template.id == -1) {
+        } else if (this.template.type == 1 && daNangCap.template.id == 222) {
+            return true;
+        } else if (this.template.type == 2 && daNangCap.template.id == 224) {
+            return true;
+        } else if (this.template.type == 3 && daNangCap.template.id == 221) {
+            return true;
+        } else {
+            return this.template.type == 4 && daNangCap.template.id == 220;
+        }
+    }
+
+    public boolean isDaPhaLeEpSao() {
+        return template != null && (template.type == 30 || (template.id >= 14 && template.id <= 20));
+    }
+
+    public boolean isDaPhaLeC1() {
+        return template != null && template.id >= 411 && template.id <= 447;
+    }
+
+   
+
+    
+    public boolean isDaPhaLeCu() {
+        return template != null && template.id >= 441 && template.id <= 447;
+    }
+
+    public boolean isTypeBody() {
+        return template != null && (0 <= template.type && template.type < 6) || template.type == 32 || template.type == 35 || template.type == 11 || template.type == 23;
+    }
+
+    public boolean isHaveOption(int id) {
+        for (int i = 0; i < this.itemOptions.size(); i++) {
+            ItemOption itemOption = this.itemOptions.get(i);
+            if (itemOption != null && itemOption.optionTemplate.id == id) {
+                return true;
+            }
         }
         return false;
+    }
+
+    public int getPercentOption() {
+        int percent = 0;
+        switch (this.template.type) {
+            case 0 -> {
+                int paramZin = ItemService.gI().getOptionParamItemShop(this.template.id, 47);
+                int param = CombineUtil.reversePoint(getOptionParam(47), getOptionParam(72));
+                percent = (param * 100) / paramZin;
+            }
+            case 1 -> {
+                int paramZin = ItemService.gI().getOptionParamItemShop(this.template.id, 6);
+                int param = CombineUtil.reversePoint(getOptionParam(6), getOptionParam(72));
+                percent = (param * 100) / paramZin;
+            }
+            case 2 -> {
+                int paramZin = ItemService.gI().getOptionParamItemShop(this.template.id, 0);
+                int param = CombineUtil.reversePoint(getOptionParam(0), getOptionParam(72));
+                percent = (param * 100) / paramZin;
+            }
+            case 3 -> {
+                int paramZin = ItemService.gI().getOptionParamItemShop(this.template.id, 7);
+                int param = CombineUtil.reversePoint(getOptionParam(7), getOptionParam(72));
+                percent = (param * 100) / paramZin;
+            }
+            case 4 -> {
+                int paramZin = ItemService.gI().getOptionParamItemShop(this.template.id, 14);
+                int param = CombineUtil.reversePoint(getOptionParam(14), getOptionParam(72));
+                percent = (param * 100) / paramZin;
+            }
+        }
+        return percent;
     }
 
     public int getOptionParam(int id) {
@@ -205,6 +313,39 @@ public boolean isVaiTho() {
         this.itemOptions.add(new ItemOption(id, param));
     }
 
+    public void subOptionParam(int id, int param) {
+        for (int i = 0; i < this.itemOptions.size(); i++) {
+            ItemOption itemOption = this.itemOptions.get(i);
+            if (itemOption != null && itemOption.optionTemplate.id == id) {
+                itemOption.param -= param;
+                return;
+            }
+        }
+    }
+
+    public void subOptionParamAndRemoveIfZero(int id, int param) {
+        for (int i = 0; i < this.itemOptions.size(); i++) {
+            ItemOption itemOption = this.itemOptions.get(i);
+            if (itemOption != null && itemOption.optionTemplate.id == id) {
+                itemOption.param -= param;
+                if (param <= 0) {
+                    this.itemOptions.remove(i);
+                }
+                break;
+            }
+        }
+    }
+
+    public void removeOption(int id) {
+        for (int i = 0; i < this.itemOptions.size(); i++) {
+            ItemOption itemOption = this.itemOptions.get(i);
+            if (itemOption != null && itemOption.optionTemplate.id == id) {
+                this.itemOptions.remove(i);
+                break;
+            }
+        }
+    }
+
     public ItemOption getOptionDaPhaLe() {
         return switch (template.id) {
             case 20 ->
@@ -224,6 +365,8 @@ public boolean isVaiTho() {
 
             case 441 ->
                 new ItemOption(95, 5);
+            case 1422 ->
+                new ItemOption(190, 3);
             case 442 ->
                 new ItemOption(96, 5);
             case 443 ->
@@ -237,20 +380,7 @@ public boolean isVaiTho() {
             case 447 ->
                 new ItemOption(101, 5);
 
-            case 1416 ->
-                new ItemOption(95, 5);
-            case 1417 ->
-                new ItemOption(96, 5);
-            case 1418 ->
-                new ItemOption(97, 5);
-            case 1419 ->
-                new ItemOption(98, 5);
-            case 1420 ->
-                new ItemOption(99, 5);
-            case 1421 ->
-                new ItemOption(100, 5);
-            case 1422 ->
-                new ItemOption(101, 5);
+         
 
             case 1426 ->
                 new ItemOption(95, 5);
@@ -275,45 +405,6 @@ public boolean isVaiTho() {
         };
     }
 
-    public boolean canPhaLeHoa() {
-        return this.template != null && (this.template.type < 5 || this.template.type == 32);
-    }
-
-    public Item cloneItem() {
-        Item item = new Item();
-        item.itemOptions = new ArrayList<>();
-        item.template = this.template;
-        item.info = this.info;
-        item.content = this.content;
-        item.quantity = this.quantity;
-        item.createTime = this.createTime;
-        for (Item.ItemOption io : this.itemOptions) {
-            item.itemOptions.add(new Item.ItemOption(io));
-        }
-        return item;
-    }
-
-    public String getOptionInfo() {
-        StringJoiner optionInfo = new StringJoiner("\n");
-        for (ItemOption io : this.itemOptions) {
-            if (io.optionTemplate.id != 72 && io.optionTemplate.id != 73 && io.optionTemplate.id != 102 && io.optionTemplate.id != 107 && io.optionTemplate.id != 218) {
-                optionInfo.add(io.getOptionString());
-            }
-        }
-        return optionInfo.toString();
-    }
-public boolean isThanLinh() {
-        if (this.template.id >= 555 && this.template.id <= 567) {
-            return true;
-        }
-        return false;
-    }
-public boolean isThucAn() {
-        if (this.template.id >= 663 && this.template.id <= 667) {
-            return true;
-        }
-        return false;
-    }
     public String getOptionInfo(Item item) {
         boolean haveOption = false;
         StringJoiner optionInfo = new StringJoiner("\n");
@@ -349,162 +440,117 @@ public boolean isThucAn() {
         return optionInfo.toString();
     }
 
-    public void subOptionParam(int id, int param) {
-        for (int i = 0; i < this.itemOptions.size(); i++) {
-            ItemOption itemOption = this.itemOptions.get(i);
-            if (itemOption != null && itemOption.optionTemplate.id == id) {
-                itemOption.param -= param;
-                return;
+    public String getOptionInfoChuyenHoa(Item item, int level) {
+        StringJoiner optionInfo = new StringJoiner("\n");
+        Item itC = this.cloneItem();
+        int percent = item.getPercentOption();
+        for (ItemOption io : itC.itemOptions) {
+            if (io.isOptionCanUpgrade()) {
+                io.param = CombineUtil.pointUp(io.param * percent / 100, level);
+            }
+            if (io.optionTemplate.id != 72 && io.optionTemplate.id != 73 && io.optionTemplate.id != 102 && io.optionTemplate.id != 107 && io.optionTemplate.id != 218) {
+                optionInfo.add(io.getOptionString());
             }
         }
+        for (ItemOption io : item.itemOptions) {
+            if (!io.isOptionCanUpgrade() && io.optionTemplate.id != 72 && io.optionTemplate.id != 73 && io.optionTemplate.id != 102 && io.optionTemplate.id != 107 && io.optionTemplate.id != 218) {
+                optionInfo.add(io.getOptionString());
+            }
+        }
+        itC.dispose();
+        return optionInfo.toString();
     }
 
-    public boolean isDaNangCap1() {
-        if (this.template.id >= 1074 && this.template.id <= 1078) {
-            return true;
-        } else if (this.template.id == -1) {
+    public String getOptionInfo() {
+        StringJoiner optionInfo = new StringJoiner("\n");
+        for (ItemOption io : this.itemOptions) {
+            if (io.optionTemplate.id != 72 && io.optionTemplate.id != 73 && io.optionTemplate.id != 102 && io.optionTemplate.id != 107 && io.optionTemplate.id != 218) {
+                optionInfo.add(io.getOptionString());
+            }
+        }
+        return optionInfo.toString();
+    }
+
+    public String getOptionInfoUpgrade() {
+        StringJoiner optionInfo = new StringJoiner("\n");
+        for (ItemOption io : this.itemOptions) {
+            if (io.isOptionCanUpgrade() || io.optionTemplate.id == 21 || io.param == 30 && io.optionTemplate.id != 218) {
+                optionInfo.add(io.getOptionString());
+            }
+        }
+        return optionInfo.toString();
+    }
+
+    public boolean haveOption(int idOption) {
+        if (this != null && this.isNotNullItem()) {
+            return this.itemOptions.stream().anyMatch(op -> op != null && op.optionTemplate.id == idOption);
         }
         return false;
     }
 
-    public String typeName() {
-        switch (this.template.type) {
-            case 0:
-                return "Áo";
-            case 1:
-                return "Quần";
-            case 2:
-                return "Găng";
-            case 3:
-                return "Giày";
-            case 4:
-                return "Rada";
-            default:
-                return "";
+    public boolean isTrangBiPSH() {
+        if (this.template.type == 23 || this.template.type == 11 || this.template.type == 5 || this.template.type == 72) {
+            return true;
         }
-    }
-   public String typeHanhTinh() {
-        switch (this.template.id) {
-            case 1071:
-                return "Trái đất";
-            case 1084:
-                return "Trái đất";
-            case 1072:
-                return "Namếc";
-            case 1085:
-                return "Namếc";
-            case 1073:
-                return "Xayda";
-            case 1086:
-                return "Xayda";
-            default:
-                return "";
-        }
+
+        return false;
     }
 
-    public byte typeIdManh() {
-        if (!isManhTS()) return -1;
-        switch (this.template.id) {
-            case 1066:
-                return 0;
-            case 1067:
-                return 1;
-            case 1070:
-                return 2;
-            case 1068:
-                return 3;
-            case 1069:
-                return 4;
-            default:
-                return -1;
-        }
-    }
-
-    public String typeNameManh() {
-        switch (this.template.id) {
-            case 1066:
-                return "Áo";
-            case 1067:
-                return "Quần";
-            case 1070:
-                return "Găng";
-            case 1068:
-                return "Giày";
-            case 1069:
-                return "Nhẫn";
-            default:
-                return "";
-        }
-    }
-   public String typeDanangcap() {
-        switch (this.template.id) {
-            case 1074:
-                return "cấp 1";
-            case 1075:
-                return "cấp 2";
-            case 1076:
-                return "cấp 3";
-            case 1077:
-                return "cấp 4";
-            case 1078:
-                return "cấp 5";
-            default:
-                return "";
-        }
-    }
-    
-    public String typeDaMayman() {
-        switch (this.template.id) {
-            case 1079:
-                return "cấp 1";
-            case 1080:
-                return "cấp 2";
-            case 1081:
-                return "cấp 3";
-            case 1082:
-                return "cấp 4";
-            case 1083:
-                return "cấp 5";
-            default:
-                return "";
-        }
-    
-    }
-    public boolean isDaMayMan() {
-        return this.template.id >= 1079 && this.template.id <= 1083;
-    }
-
-    public boolean isCongThucVip() {
-        return (this.template.id >= 1071 && this.template.id <= 1073) || (this.template.id >= 1084 && this.template.id <= 1086);
-    }
-
-    public boolean isDoKyGui() {
-        return this.template != null && (this.itemOptions.stream().anyMatch(op -> op.optionTemplate.id == 86) || this.itemOptions.stream().anyMatch(op -> op.optionTemplate.id == 87) || this.template.type == 14 || this.template.type == 15 || this.template.type == 6 || this.template.id >= 14 && this.template.id <= 20);
-    }
-
-    public String getInfoItem() {
-        String strInfo = "|1|" + template.name + "\n|0|";
+    public boolean isTrangBiHSD() {
         for (ItemOption itemOption : itemOptions) {
-            strInfo += itemOption.getOptionString() + "\n";
-        }
-        strInfo += "|2|" + template.description;
-        return strInfo;
-    }
-    public boolean isHaveOption(int id) {
-        for (int i = 0; i < this.itemOptions.size(); i++) {
-            ItemOption itemOption = this.itemOptions.get(i);
-            if (itemOption != null && itemOption.optionTemplate.id == id) {
+            if (itemOption.optionTemplate.id == 93 && itemOption.param >= 0) {
+
                 return true;
             }
         }
         return false;
     }
-    public boolean isSachTuyetKy() {
-        return template.id == 1044 || template.id == 1211 || template.id == 1212;
+
+    public boolean isTrangBiKhoaGd() {
+        if (this.template.type == 11 || this.template.id == 457 || this.template.type == 30 || this.template.type == 12 || this.template.type == 21 || this.template.type == 27 || this.template.type == 72||this.template.type == 0||this.template.type == 1||this.template.type == 2||this.template.type == 3||this.template.type == 4) {
+            return true;
+        }
+
+        return false;
     }
 
-    public boolean isSachTuyetKy2() {
-        return template.id >= 1278 && template.id <= 1280;
+    public boolean isTrangBiHacHoa() {
+        if (this.template.type <= 5 || this.template.type == 32 || this.template.type == 21 || this.template.type == 23 || this.template.type == 23 || this.template.type == 11 || this.template.type == 72) {
+            return true;
+        }
+
+        return false;
     }
 
+    public String getOptionInfoUpgradeFinal() {
+        StringJoiner optionInfo = new StringJoiner("\n");
+        Item clone = this.cloneItem();
+        for (ItemOption io : clone.itemOptions) {
+            if (io.isOptionCanUpgrade()) {
+                io.param = CombineUtil.pointUp(io.param, 1);
+            }
+            if (io.isOptionCanUpgrade() || io.param == 30) {
+                optionInfo.add(io.getOptionString());
+            }
+        }
+        return optionInfo.toString();
+    }
+
+    public boolean canPhaLeHoa() {
+        return this.template != null && (this.template.type <11 || this.template.type == 32);
+    }
+
+    public Item cloneItem() {
+        Item item = new Item();
+        item.itemOptions = new ArrayList<>();
+        item.template = this.template;
+        item.info = this.info;
+        item.content = this.content;
+        item.quantity = this.quantity;
+        item.createTime = this.createTime;
+        for (Item.ItemOption io : this.itemOptions) {
+            item.itemOptions.add(new Item.ItemOption(io));
+        }
+        return item;
+    }
 }

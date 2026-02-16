@@ -1,6 +1,7 @@
 package player;
-import services.dungeon.MajinBuuService;
-import map.Service.MapService;
+ 
+import models.MajinBuu.MajinBuuService;
+import services.MapService;
 import services.Service;
 import utils.Util;
 

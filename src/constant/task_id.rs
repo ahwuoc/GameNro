@@ -7,6 +7,8 @@ pub const TASK_2: i32 = 2; // Nhiệm vụ tìm thức ăn
 pub const TASK_3: i32 = 3; // Nhiệm vụ sao băng
 pub const TASK_7: i32 = 7; // Nhiệm vụ giải cứu (Kiểm tra sức mạnh)
 pub const TASK_8: i32 = 8; // Nhiệm vụ tìm ngọc (Kiểm tra sức mạnh)
+pub const TASK_6: i32 = 6; // Nhiệm vụ tìm ngọc (Kiểm tra sức mạnh)
+
 pub const TASK_9: i32 = 9; // Nhiệm vụ bái sư
 pub const TASK_10: i32 = 10; // Nhiệm vụ thử sức (Kiểm tra sức mạnh)
 pub const TASK_11: i32 = 11; // Nhiệm vụ gia tăng sức mạnh (Kiểm tra mốc sức mạnh)

@@ -1,5 +1,6 @@
 package server;
-import java.util.concurrent.Executors;
+ 
+import DucPro.Functions;
 import services.Service;
 import utils.Logger;
 
@@ -25,7 +26,7 @@ public class Maintenance extends Thread {
     public void start(int min) {
         if (!isRunning) {
             isRunning = true;
-            this.time = 2;
+            this.time = min;
             this.start();
         }
     }
@@ -34,7 +35,7 @@ public class Maintenance extends Thread {
         if (!isRunning) {
             isRunning = true;
             this.time = min;
-            Executors.newSingleThreadExecutor().submit(Maintenance.gI(), "Thread Bảo Trì");
+            new Thread(Maintenance.gI(), "Thread Bảo Trì").start();
         }
     }
 
@@ -52,15 +53,15 @@ public class Maintenance extends Thread {
             if (this.time == 60) {
                 Service.gI().sendThongBaoAllPlayer("Hệ thống sẽ bảo trì sau 1 phút nữa hãy thoát game ngay để tránh mất mát vật phẩm.");
                 try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
+                    Functions.sleep(1000);
+                } catch (Exception e) {
                 }
                 this.time--;
             } else if (time < 60) {
                 Service.gI().sendThongBaoAllPlayer("Hệ thống sẽ bảo trì sau " + time + " giây nữa");
                 try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
+                    Functions.sleep(1000);
+                } catch (Exception e) {
                 }
                 this.time--;
             } else {
@@ -83,8 +84,8 @@ public class Maintenance extends Thread {
                 }
                 this.time -= sec;
                 try {
-                    Thread.sleep(sec * 1000);
-                } catch (InterruptedException e) {
+                    Functions.sleep(sec * 1000);
+                } catch (Exception e) {
                 }
             }
         }

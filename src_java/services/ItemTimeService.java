@@ -1,16 +1,20 @@
 package services;
+ 
 import consts.ConstPlayer;
 import item.Item;
+
 import static item.ItemTime.*;
+
 import player.Fusion;
 import player.Player;
 import network.Message;
+
 import java.io.IOException;
-import dungeon.TreasureUnderSea;
-import dungeon.SnakeWay;
-import dungeon.DestronGas;
-import dungeon.RedRibbonHQ;
-import player.Service.InventoryService;
+
+import models.TreasureUnderSea.TreasureUnderSea;
+import models.SnakeWay.SnakeWay;
+import models.DestronGas.DestronGas;
+import models.RedRibbonHQ.RedRibbonHQ;
 import utils.Logger;
 
 public class ItemTimeService {
@@ -24,15 +28,51 @@ public class ItemTimeService {
         return i;
     }
 
+    //gửi cho client
     public void sendAllItemTime(Player player) {
         ItemTimeService.gI().sendTextBanDoKhoBau(player);
         ItemTimeService.gI().sendTextDoanhTrai(player);
         ItemTimeService.gI().sendTextConDuongRanDoc(player);
         ItemTimeService.gI().sendTextKhiGasHuyDiet(player);
         ItemTimeService.gI().sendTextTimePickDoanhTrai(player);
+        if (player.effectSkill.isSuper) {
+            switch (player.gender) {
+                case 0:
+                    sendItemTime(player, 30006 + (player.playerSkill.getSkillbyId(27).point - player.numUseSkill - 1), (int) ((player.effectSkill.lastTimeUpSuper + player.effectSkill.timeSuper) - System.currentTimeMillis()) / 1000);
+                    break;
+                case 1:
+                    sendItemTime(player, 30012 + (player.playerSkill.getSkillbyId(28).point - player.numUseSkill - 1), (int) ((player.effectSkill.lastTimeUpSuper + player.effectSkill.timeSuper) - System.currentTimeMillis()) / 1000);
+                    break;
+                case 2:
+                    sendItemTime(player, 30000 + (player.playerSkill.getSkillbyId(29).point - player.numUseSkill - 1), (int) ((player.effectSkill.lastTimeUpSuper + player.effectSkill.timeSuper) - System.currentTimeMillis()) / 1000);
+                    break;
+            }
+        }
         if (player.fusion.typeFusion == ConstPlayer.LUONG_LONG_NHAT_THE) {
             sendItemTime(player, player.gender == ConstPlayer.NAMEC ? 3901 : 3790,
                     (int) ((Fusion.TIME_FUSION - (System.currentTimeMillis() - player.fusion.lastTimeFusion)) / 1000));
+        }
+        if (player.itemTime.isUseLoX2) {
+            sendItemTime(player, 21881, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeLoX2)) / 1000));
+        }
+        if (player.itemTime.isUseLoX5) {
+            sendItemTime(player, 21878, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeLoX5)) / 1000));
+        }
+        if (player.itemTime.isUseLoX7) {
+            sendItemTime(player, 21879, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeLoX7)) / 1000));
+        }
+        if (player.itemTime.isUseLoX10) {
+            sendItemTime(player, 21880, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeLoX10)) / 1000));
+        }
+        if (player.itemTime.isUseLoX15) {
+            sendItemTime(player, 21876, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeLoX15)) / 1000));
+        }
+      
+        if (player.itemTime.isUseBuax2DeTu) {
+            sendItemTime(player, 13540, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeBuax2DeTu)) / 1000));
+        }
+        if (player.itemTime.isUseKhauTrang) {
+            sendItemTime(player, 7149, (int) ((TIME_30P- (System.currentTimeMillis() - player.itemTime.lastTimeKhauTrang)) / 1000));
         }
         if (player.itemTime.isUseBoHuyet) {
             sendItemTime(player, 2755, (int) ((TIME_ITEM - (System.currentTimeMillis() - player.itemTime.lastTimeBoHuyet)) / 1000));
@@ -84,11 +124,8 @@ public class ItemTimeService {
         if (player.itemTime.isUseMayDo) {
             sendItemTime(player, 2758, (int) ((TIME_MAY_DO - (System.currentTimeMillis() - player.itemTime.lastTimeUseMayDo)) / 1000));
         }
-        if (player.itemTime.isUseKhoBauX2) {
-            sendItemTime(player, 12834, (int) ((TIME_MAY_DO - (System.currentTimeMillis() - player.itemTime.lastTimeUseKhoBauX2)) / 1000));
-        }
-           if (player.itemTime.isUseBuaSanta) {
-            sendItemTime(player, 13540, (int) ((TIME_BUA_SANTA - (System.currentTimeMillis() - player.itemTime.lastTimeBuaSanta)) / 1000));
+        if (player.itemTime.isUseMayDo2) {
+            sendItemTime(player, 2758, (int) ((TIME_MAY_DO - (System.currentTimeMillis() - player.itemTime.lastTimeUseMayDo2)) / 1000));
         }
         if (player.itemTime.isEatMeal) {
             sendItemTime(player, player.itemTime.iconMeal, (int) ((TIME_EAT_MEAL - (System.currentTimeMillis() - player.itemTime.lastTimeEatMeal)) / 1000));
@@ -96,11 +133,14 @@ public class ItemTimeService {
         if (player.itemTime.isEatMeal2) {
             sendItemTime(player, player.itemTime.iconMeal2, (int) ((TIME_EAT_MEAL - (System.currentTimeMillis() - player.itemTime.lastTimeEatMeal2)) / 1000));
         }
+        if (player.itemTime.isEatMeal3) {
+            sendItemTime(player, player.itemTime.iconMeal3, (int) ((TIME_EAT_MEAL3 - (System.currentTimeMillis() - player.itemTime.lastTimeEatMeal3)) / 1000));
+        }
         if (player.itemTime.isUseTDLT) {
             sendItemTime(player, 4387, player.itemTime.timeTDLT / 1000);
         }
         if (player.itemTime.isUseRX) {
-            sendItemTime(player, 8579, player.itemTime.timeRX / 1000);
+            sendItemTime(player, 6581, player.itemTime.timeRX / 1000);
         }
     }
 
@@ -110,7 +150,7 @@ public class ItemTimeService {
         for (Item.ItemOption io : item.itemOptions) {
             if (io.optionTemplate.id == 1) {
                 min = io.param;
-                minleft = Math.max((min * 60 - 30000) / 60, 0);
+                minleft = (min * 60 - 32767) / 60;
                 io.param = minleft > 0 ? minleft : 0;
                 break;
             }
@@ -120,7 +160,7 @@ public class ItemTimeService {
 
         int timeTDLTInMinutes = min - minleft;
         int timeTDLTInSeconds = timeTDLTInMinutes * 60;
-        int maxTimeInSeconds = 30000;
+        int maxTimeInSeconds = 32767;
         int timeTDLTInSecondsLimited = Math.min(timeTDLTInSeconds, maxTimeInSeconds);
 
         player.itemTime.timeTDLT = timeTDLTInSecondsLimited * 1000;
@@ -128,7 +168,7 @@ public class ItemTimeService {
         player.itemTime.lastTimeUseTDLT = System.currentTimeMillis();
         sendCanAutoPlay(player);
         sendItemTime(player, 4387, timeTDLTInSecondsLimited);
-        InventoryService.gI().sendItemBags(player);
+        InventoryService.gI().sendItemBag(player);
     }
 
     public void turnOffTDLT(Player player, Item item) {
@@ -141,7 +181,21 @@ public class ItemTimeService {
         }
         sendCanAutoPlay(player);
         removeItemTime(player, 4387);
-        InventoryService.gI().sendItemBags(player);
+        InventoryService.gI().sendItemBag(player);
+    }
+    
+    public void removeTextTimeSuperNew(Player player) {
+        switch (player.gender) {
+            case 0:
+                sendItemTime(player, 9749 + (player.playerSkill.getSkillbyId(27).point - player.numUseSkill - 1), 5);
+                break;
+            case 1:
+                sendItemTime(player, 9749 + (player.playerSkill.getSkillbyId(28).point - player.numUseSkill - 1), 5);
+                break;
+            case 2:
+                sendItemTime(player, 9749 + (player.playerSkill.getSkillbyId(29).point - player.numUseSkill - 1), 5);
+                break;
+        }
     }
 
     public void sendCanAutoPlay(Player player) {
@@ -217,9 +271,11 @@ public class ItemTimeService {
             sendTextTime(player, KHI_GAS_HUY_DIET, "Khí gas hủy diệt:", secondsLeft);
         }
     }
+
     public void sendTextTimeKeoBuaBao(Player player, int time) {
         sendTextTime(player, TIME_KEO_BUA_BAO, "Thời gian : ", time);
     }
+
     public void removeTextDoanhTrai(Player player) {
         removeTextTime(player, DOANH_TRAI);
     }
@@ -252,6 +308,7 @@ public class ItemTimeService {
         } catch (IOException e) {
         }
     }
+
     public void sendItemTime(Player player, int itemId, int time) {
         Message msg;
         try {

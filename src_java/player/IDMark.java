@@ -1,4 +1,5 @@
 package player;
+ 
 import consts.ConstNpc;
 import npc.Npc;
 import shop.Shop;
@@ -8,6 +9,7 @@ import map.Zone;
 @Data
 public class IDMark {
 
+    private byte isTranhNgoc = -1;
     private int idItemUpTop;
     private int typeChangeMap; //capsule, ngọc rồng đen...
     private int indexMenu; //menu npc
@@ -97,18 +99,8 @@ public class IDMark {
     private byte loaiThe; //loại thẻ nạp
 
     private boolean acpTrade;
-    
-    private boolean isGemCSMM;
-    
-    private int damePST;
 
-    private int moneyKeoBuaBao;
-    
-    private long timePlayKeoBuaBao;
-
-    private byte keoBuaBaoPlayer;
-    
-    private byte keoBuaBaoServer;
+    private long damePST;
 
     private long lastTimeRevenge;
 
@@ -122,8 +114,24 @@ public class IDMark {
 
     private long lastTimeCombine;
 
+    private int moneyKeoBuaBao;
+    private long timePlayKeoBuaBao;
+
+    private byte keoBuaBaoPlayer;
+    private byte keoBuaBaoServer;
+
+    private boolean isGemCSMM;
+
     public boolean isBaseMenu() {
         return this.indexMenu == ConstNpc.BASE_MENU;
+    }
+
+    public byte getTranhNgoc() {
+        return isTranhNgoc;
+    }
+
+    public void setTranhNgoc(byte tn) {
+        this.isTranhNgoc = tn;
     }
 
     public void dispose() {

@@ -1,15 +1,11 @@
 package shop;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
+import player.Player;
+import shop.TabShopDanhHieu.TabShopDanhHieu;
+import shop.TabShopDanhHieu.TabShopSoHuu;
+
 import java.util.ArrayList;
 import java.util.List;
-import player.Player;
-import shop.TabShopHocKynang;
-import shop.TabShopSoHuu;
 
 public class Shop {
 
@@ -34,23 +30,14 @@ public class Shop {
         this.tagName = shop.tagName;
         this.typeShop = shop.typeShop;
         for (TabShop tabShop : shop.tabShops) {
-            if (tabShop.id >= 10 && tabShop.id <= 12) {
+            if (tabShop.id == 13) {
                 this.tabShops.add(new TabShopUron(tabShop, player));
-            } else if (tabShop.id == 17) {
-                this.tabShops.add(new TabShopSanta(tabShop, player));
-            } else if (tabShop.id == 19) {
-                    this.tabShops.add(new TabShopMuaAvatar(tabShop, player));
-            } else if (tabShop.id == 13) {
-               
-                this.tabShops.add(new TabShopHangDoc(tabShop, player));
-            } else if (tabShop.id == 44) {
+            } else if (tabShop.id == 28) {
                 this.tabShops.add(new TabShopDanhHieu(tabShop, player));
-            } else if (tabShop.id == 45) {
+            } else if (tabShop.id == 29) {
                 this.tabShops.add(new TabShopSoHuu(tabShop, player));
-            } else if (tabShop.id >= 41 && tabShop.id <= 43) {
-                this.tabShops.add(new TabShopHocKynang(tabShop, player));
             } else {
-                this.tabShops.add(new TabShop(tabShop));
+                this.tabShops.add(new TabShop(tabShop, player.gender));
             }
         }
     }

@@ -1,22 +1,17 @@
 package data;
-
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-import player.system.Template.ArrHead2Frames;
-import player.system.Template.ItemOptionTemplate;
+ 
+import models.Template;
+import models.Template.ArrHead2Frames;
+import models.Template.ItemOptionTemplate;
 import server.Manager;
 import network.Message;
-import network.MySession;
-import player.system.Template;
+import server.io.MySession;
 
 public class ItemData {
 
     public static void updateItem(MySession session) {
         updateItemOptionItemplate(session);
-        updateItemArrHead2FTemplate(session);
+        updateItemArrHead2FItemplate(session);
         updateItemTemplate(session, 750);
         updateItemTemplate(session, 750, Manager.ITEM_TEMPLATES.size());
     }
@@ -97,16 +92,16 @@ public class ItemData {
         }
     }
 
-    private static void updateItemArrHead2FTemplate(MySession session) {
+    private static void updateItemArrHead2FItemplate(MySession session) {
         Message msg;
         try {
             msg = new Message(-28);
             msg.writer().writeByte(8);
             msg.writer().writeByte(DataGame.vsItem); //vcitem
-            msg.writer().writeByte(100);
+            msg.writer().writeByte(100); //update ArrHead2F
             msg.writer().writeShort(Manager.ARR_HEAD_2_FRAMES.size());
             for (ArrHead2Frames io : Manager.ARR_HEAD_2_FRAMES) {
-                msg.writer().writeByte(io.frames.size());
+                msg.writeByte(io.frames.size());
                 for (int i : io.frames) {
                     msg.writer().writeShort(i);
                 }

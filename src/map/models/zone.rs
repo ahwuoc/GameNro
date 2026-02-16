@@ -12,6 +12,7 @@ use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::player_service;
 use crate::services::player_tnsm_services::TypeTNSM;
+use crate::services::task_utils::TaskUtils;
 use crate::templates::item_template_manager;
 use crate::{
     constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG, ITEM_EM_BE},
@@ -599,10 +600,7 @@ impl Zone {
                 (0i8, 0i8, 0i8, 0i8, 0i8, format!("Map {}", self.map_id))
             }
         };
-
-        // Spawn special item task
         self.spawn_special_item_task(player_task_info);
-
         let mut msg = Message::new(-24);
         msg.write_byte((self.map_id as u8) as i8)?;
         msg.write_byte(planet_id)?;
@@ -720,7 +718,7 @@ impl Zone {
             handle
                 .get_snapshot()
                 .await
-                .map(|p| (p.task_player.task_main.id, p.task_player.task_main.index))
+                .map(|p| (TaskUtils::get_id_task(&p), TaskUtils::get_task_index(&p)))
         } else {
             None
         };

@@ -1,26 +1,27 @@
 package server;
+ 
+
+import DucPro.Functions;
 import player.Player;
 import network.Message;
 import services.Service;
 import utils.Util;
 import java.util.ArrayList;
 import java.util.List;
-import utils.Functions;
 
 public class ServerNotify extends Thread {
 
-    private byte[] gk = new byte[]{67, 104, -61, -96, 111, 32, 109, -31, -69, -85,
-        110, 103, 32, 98, -31, -70, -95, 110, 32, -60, -111, -61, -93, 32, 116, -31,
-        -69, -101, 105, 32, 118, -31, -69, -101, 105, 32, 109, -61, -95, 121, 32,
-        99, 104, -31, -69, -89, 32, 71, 105, 114, 108, 107, 117, 110, 55, 53, 46,
-        32, 67, 104, -61, -70, 99, 32, 99, -61, -95, 99, 32, 98, -31, -70, -95,
-        110, 32, 99, 104, -58, -95, 105, 32, 103, 97, 109, 101, 32, 118, 117,
-        105, 32, 118, -31, -70, -69, 46, 46};
-    private long lastTimeGK;
+    private long lastNotifyTime;
 
     private final List<String> notifies;
 
-    private static ServerNotify i;
+    private int indexNotify;
+
+    private final String notify[] = {"Dành cho người chơi trên 18 tuổi. Chơi quá 180 phút một ngày sẽ ảnh hưởng đến sức khỏe."
+            , "Trò chơi không có bản quyền chính thức, hãy cân nhắc kỹ trước khi tham gia."
+            , "Ngọc Rồng DUCPRO "};
+
+    private static ServerNotify instance;
 
     private ServerNotify() {
         this.notifies = new ArrayList<>();
@@ -28,34 +29,40 @@ public class ServerNotify extends Thread {
     }
 
     public static ServerNotify gI() {
-        if (i == null) {
-            i = new ServerNotify();
+        if (instance == null) {
+            instance = new ServerNotify();
         }
-        return i;
+        return instance;
     }
 
     @Override
     public void run() {
         while (!Maintenance.isRunning) {
             try {
-                while (!notifies.isEmpty()) {
-                    TaiThongBao(notifies.remove(0));
+//                while (!notifies.isEmpty()) {
+//                    sendThongBaoBenDuoi(notifies.remove(0));
+//                }
+                if (!notifies.isEmpty()) {
+                    sendChatVip(notifies.remove(0));
                 }
-                if (Util.canDoWithTime(this.lastTimeGK, 20000)) {
-                    TaiThongBao("Chào mừng bạn đã đến server Ngọc Rồng Black Goku");
-                    this.lastTimeGK = System.currentTimeMillis();
-                }
+//                if (Util.canDoWithTime(this.lastNotifyTime, 360000)) {
+//                    sendChatVip(notify[indexNotify]);
+//                    this.lastNotifyTime = System.currentTimeMillis();
+//                    indexNotify++;
+//                    if (indexNotify >= notify.length) {
+//                        indexNotify = 0;
+//                    }
+//                }
             } catch (Exception ignored) {
-
             }
             try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ignored) {
+                Functions.sleep(1500);
+            } catch (Exception ignored) {
             }
         }
     }
 
-    private void TaiThongBao(String text) {
+    private void sendChatVip(String text) {
         Message msg;
         try {
             msg = new Message(93);
@@ -70,7 +77,7 @@ public class ServerNotify extends Thread {
         this.notifies.add(text);
     }
 
-     public void sendNotifyTab(Player player) {
+    public void sendNotifyTab(Player player) {
         Message msg;
         try {
             msg = new Message(50);
@@ -80,6 +87,25 @@ public class ServerNotify extends Thread {
                 msg.writer().writeShort(i);
                 msg.writer().writeUTF(arr[0]);
                 msg.writer().writeUTF(arr[1]);
+            }
+            if (player.pet != null) {
+                if (player.pet.pet != null) {
+                    Player pet = player.pet.pet;
+                    msg.writer().writeShort(Manager.NOTIFY.size());
+                    msg.writer().writeUTF(pet.name);
+                    msg.writer().writeUTF(pet.name
+                            + "\nSM: " + Util.chiaNho(pet.nPoint.power)
+                            + "\nTN: " + Util.chiaNho(pet.nPoint.tiemNang)
+                            + "\nHP: " + Util.chiaNho(pet.nPoint.hp) + "/" + Util.chiaNho(pet.nPoint.hpMax)
+                            + "\nMP: " + Util.chiaNho(pet.nPoint.mp) + "/" + Util.chiaNho(pet.nPoint.mpMax)
+                            + "\nSD: " + Util.chiaNho(pet.nPoint.dame)
+                            + "\n--------------------"
+                            + "\nHPG: " + Util.chiaNho(pet.nPoint.hpg)
+                            + "\nMPG: " + Util.chiaNho(pet.nPoint.mpg)
+                            + "\nSDG: " + Util.chiaNho(pet.nPoint.dameg)
+                            + "\nDEF: " + Util.chiaNho(pet.nPoint.defg)
+                            + "\nCRIT: " + Util.chiaNho(pet.nPoint.critg));
+                }
             }
             player.sendMessage(msg);
             msg.cleanup();

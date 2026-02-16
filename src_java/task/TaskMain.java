@@ -1,6 +1,9 @@
 package task;
+ 
+
 import java.util.ArrayList;
 import java.util.List;
+import server.Manager;
 
 public class TaskMain {
 
@@ -30,5 +33,4 @@ public class TaskMain {
             this.subTasks.add(new SubTaskMain(stm));
         }
     }
-
 }

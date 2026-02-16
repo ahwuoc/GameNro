@@ -1,6 +1,3 @@
-/*
- * Copyrightby Nguyễn tấn tài
- */
 
 package player.badges;
 

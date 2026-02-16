@@ -1,4 +1,5 @@
 package map;
+ 
 public class WayPoint {
 
     public short minX;

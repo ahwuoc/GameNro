@@ -1,30 +1,24 @@
 package services.func;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-import database.HistoryTransactionDAO;
+import jdbc.daos.HistoryTransactionDAO;
 import item.Item;
 import player.Inventory;
 import player.Player;
 import network.Message;
 import services.ItemService;
-import player.Service.PlayerService;
+import services.PlayerService;
 import services.Service;
-import player.Service.InventoryService;
+import services.InventoryService;
 import utils.Logger;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
-import server.ServerManager;
 
 public class Trade {
 
     public static final int TIME_TRADE = 180000;
-    public static final int QUANLITY_MAX = 2_000_000_000;
+    public static final int QUANLITY_MAX = 2_000;
 
     private Player player1;
     private Player player2;
@@ -63,8 +57,8 @@ public class Trade {
     }
 
     public void openTabTrade() {
-        player1.idMark.setAcpTrade(true);
-        player2.idMark.setAcpTrade(true);
+        player1.iDMark.setAcpTrade(true);
+        player2.iDMark.setAcpTrade(true);
         this.lastTimeStart = System.currentTimeMillis();
         this.start = true;
         Message msg = null;
@@ -87,73 +81,87 @@ public class Trade {
     }
 
     public void addItemTrade(Player pl, byte index, int quantity) {
+
         if (pl.getSession().actived) {
-            if (index == -1) {
-                if (pl.equals(this.player1)) {
-                    goldTrade1 = quantity;
-                } else {
-                    goldTrade2 = quantity;
-                }
-            } else {
-                Item item = null;
-                if (pl.equals(this.player1)) {
-                    item = itemsBag1.get(index);
-                } else {
-                    item = itemsBag2.get(index);
-                }
-                if (item.template.id == 570) {
-                   Service.gI().sendThongBao(pl, "Không thể giao dịch Rương Gỗ");
-                    }
-                if (quantity > item.quantity || quantity < 0) {
-                    return;
-                }
-                if (isItemCannotTran(item)) {
-                    removeItemTrade(pl, index);
-                } else {
-                    if (quantity > 99) {
-                        int n = quantity / 99;
-                        int left = quantity % 99;
-                        for (int i = 0; i < n; i++) {
-                            Item itemTrade = ItemService.gI().copyItem(item);
-                            itemTrade.quantity = 99;
-                            itemTrade.quantityGD = itemTrade.quantity;
-                            if (pl.equals(this.player1)) {
-                                InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
-                                itemsTrade1.add(itemTrade);
-                            } else {
-                                InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
-                                itemsTrade2.add(itemTrade);
-                            }
-                        }
-                        if (left > 0) {
-                            Item itemTrade = ItemService.gI().copyItem(item);
-                            itemTrade.quantity = left;
-                            itemTrade.quantityGD = itemTrade.quantity;
-                            if (pl.equals(this.player1)) {
-                                InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
-                                itemsTrade1.add(itemTrade);
-                            } else {
-                                InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
-                                itemsTrade2.add(itemTrade);
-                            }
+            if (true) {
+                if (index == -1) {
+                    if (pl.equals(this.player1)) {
+                        goldTrade1 = quantity;
+                        if (goldTrade1 < 0) {
+                            goldTrade1 = 0;
                         }
                     } else {
-                        Item itemTrade = ItemService.gI().copyItem(item);
-                        itemTrade.quantity = quantity != 0 ? quantity : 1;
-                        itemTrade.quantityGD = itemTrade.quantity;
-                        if (pl.equals(this.player1)) {
-                            InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
-                            itemsTrade1.add(itemTrade);
+                        goldTrade2 = quantity;
+                        if (goldTrade2 < 0) {
+                            goldTrade2 = 0;
+                        }
+                    }
+                } else {
+                    Item item = null;
+                    if (pl.equals(this.player1)) {
+                        item = itemsBag1.get(index);
+                    } else {
+                        item = itemsBag2.get(index);
+                    }
+                    if (item.template.id == 570) {
+                        Service.gI().sendThongBao(pl, "Không thể giao dịch Rương Gỗ");
+                        return;
+                    }
+                    if (quantity > item.quantity || quantity < 0) {
+                        return;
+                    }
+                    if (isItemCannotTran(item)) {
+                        removeItemTrade(pl, index);
+                    } else {
+                        if (quantity > 99) {
+                            int n = quantity / 99;
+                            int left = quantity % 99;
+                            for (int i = 0; i < n; i++) {
+                                Item itemTrade = ItemService.gI().copyItem(item);
+                                itemTrade.quantity = 99;
+                                itemTrade.quantityGD = itemTrade.quantity;
+                                if (pl.equals(this.player1)) {
+                                    InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
+                                    itemsTrade1.add(itemTrade);
+                                } else {
+                                    InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
+                                    itemsTrade2.add(itemTrade);
+                                }
+                            }
+                            if (left > 0) {
+                                Item itemTrade = ItemService.gI().copyItem(item);
+                                itemTrade.quantity = left;
+                                itemTrade.quantityGD = itemTrade.quantity;
+                                if (pl.equals(this.player1)) {
+                                    InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
+                                    itemsTrade1.add(itemTrade);
+                                } else {
+                                    InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
+                                    itemsTrade2.add(itemTrade);
+                                }
+                            }
                         } else {
-                            InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
-                            itemsTrade2.add(itemTrade);
+                            Item itemTrade = ItemService.gI().copyItem(item);
+                            itemTrade.quantity = quantity != 0 ? quantity : 1;
+                            itemTrade.quantityGD = itemTrade.quantity;
+                            if (pl.equals(this.player1)) {
+                                InventoryService.gI().subQuantityItem(itemsBag1, item, itemTrade.quantity);
+                                itemsTrade1.add(itemTrade);
+                            } else {
+                                InventoryService.gI().subQuantityItem(itemsBag2, item, itemTrade.quantity);
+                                itemsTrade2.add(itemTrade);
+                            }
                         }
                     }
                 }
+            } else {
+                Service.gI().sendThongBaoFromAdmin(pl,
+                        "|5|VUI LÒNG KÍCH HOẠT TÀI KHOẢN TẠI\n|7|Liên Hệ Admin\n|5|ĐỂ MỞ KHÓA TÍNH NĂNG GIAO DỊCH");
+                removeItemTrade(pl, index);
             }
         } else {
             Service.gI().sendThongBaoFromAdmin(pl,
-            "|5|VUI LÒNG KÍCH HOẠT TÀI KHOẢN TẠI\n|7|Liên Hệ Admin\n|5 ĐỂ MỞ KtemTrade(pl, index);ỊCH");
+                    "|5|VUI LÒNG KÍCH HOẠT TÀI KHOẢN TẠI\n|7|Liên Hệ Admin\n|5|ĐỂ MỞ KHÓA TÍNH NĂNG GIAO DỊCH");
             removeItemTrade(pl, index);
         }
     }
@@ -198,27 +206,29 @@ public class Trade {
         switch (item.template.id) {
             case 454:
             case 921:
+            case 1604:
+            case 1605:
                 return true;
         }
         switch (item.template.type) {
             case 27: //
-            if (item.template.id == 590) {
-            return true;
-            } else {
-            return false;
-            }
-            case 5: //cải trang
-            case 6: //đậu thần
-            case 7: //sách skill
-            case 8: //vật phẩm nhiệm vụ
-            case 11: //flag bag
-            case 13: //bùa
-            case 22: //vệ tinh
-            case 23: //ván bay
-            case 24: //ván bay vip
-            case 28: //cờ
-            case 31: //bánh trung thu, bánh tết
-            case 32: //giáp tập luyện
+                if (item.template.id != 457 && item.template.id == 590) {
+                    return true;
+                } else {
+                    return false;
+                }
+            case 5: // cải trang
+            case 6: // đậu thần
+            case 7: // sách skill
+            case 8: // vật phẩm nhiệm vụ
+            case 11: // flag bag
+            case 13: // bùa
+            case 22: // vệ tinh
+            case 23: // ván bay
+            case 24: // ván bay vip
+            case 28: // cờ
+            case 31: // bánh trung thu, bánh tết
+            case 32: // giáp tập luyện
                 return true;
             default:
                 return false;
@@ -249,8 +259,8 @@ public class Trade {
     }
 
     public void dispose() {
-        player1.idMark.setPlayerTradeId(-1);
-        player2.idMark.setPlayerTradeId(-1);
+        player1.iDMark.setPlayerTradeId(-1);
+        player2.iDMark.setPlayerTradeId(-1);
         TransactionService.PLAYER_TRADE.remove(player1);
         TransactionService.PLAYER_TRADE.remove(player2);
         this.player1 = null;
@@ -350,8 +360,8 @@ public class Trade {
                     player1.inventory.itemsBag = itemsBag1;
                     player2.inventory.itemsBag = itemsBag2;
 
-                    InventoryService.gI().sendItemBags(player1);
-                    InventoryService.gI().sendItemBags(player2);
+                    InventoryService.gI().sendItemBag(player1);
+                    InventoryService.gI().sendItemBag(player2);
                     PlayerService.gI().sendInfoHpMpMoney(player1);
                     PlayerService.gI().sendInfoHpMpMoney(player2);
 
@@ -362,6 +372,7 @@ public class Trade {
                 sendNotifyTrade(tradeStatus);
             }
         }
+        closeTab();
 
     }
 
@@ -370,11 +381,10 @@ public class Trade {
     private static final byte FAIL_MAX_GOLD_PLAYER2 = 2;
     private static final byte FAIL_NOT_ENOUGH_BAG_P1 = 3;
     private static final byte FAIL_NOT_ENOUGH_BAG_P2 = 4;
-    private static final byte FAIL_ACTVIE = 5;
 
     private void sendNotifyTrade(byte status) {
-        player1.idMark.setLastTimeTrade(System.currentTimeMillis());
-        player2.idMark.setLastTimeTrade(System.currentTimeMillis());
+        player1.iDMark.setLastTimeTrade(System.currentTimeMillis());
+        player2.iDMark.setLastTimeTrade(System.currentTimeMillis());
         switch (status) {
             case SUCCESS:
                 Service.gI().sendThongBao(player1, "Giao dịch thành công");
@@ -382,11 +392,13 @@ public class Trade {
                 break;
             case FAIL_MAX_GOLD_PLAYER1:
                 Service.gI().sendThongBao(player1, "Giao dịch thất bại do số lượng vàng sau giao dịch vượt tối đa");
-                Service.gI().sendThongBao(player2, "Giao dịch thất bại do số lượng vàng " + player1.name + " sau giao dịch vượt tối đa");
+                Service.gI().sendThongBao(player2,
+                        "Giao dịch thất bại do số lượng vàng " + player1.name + " sau giao dịch vượt tối đa");
                 break;
             case FAIL_MAX_GOLD_PLAYER2:
                 Service.gI().sendThongBao(player2, "Giao dịch thất bại do số lượng vàng sau giao dịch vượt tối đa");
-                Service.gI().sendThongBao(player1, "Giao dịch thất bại do số lượng vàng " + player2.name + " sau giao dịch vượt tối đa");
+                Service.gI().sendThongBao(player1,
+                        "Giao dịch thất bại do số lượng vàng " + player2.name + " sau giao dịch vượt tối đa");
                 break;
             case FAIL_NOT_ENOUGH_BAG_P1:
                 Service.gI().sendThongBao(player1, "Giao dịch thất bại vì " + player1.name + " không đủ chỗ chứa");
@@ -395,12 +407,6 @@ public class Trade {
             case FAIL_NOT_ENOUGH_BAG_P2:
                 Service.gI().sendThongBao(player1, "Giao dịch thất bại vì " + player2.name + " không đủ chỗ chứa");
                 Service.gI().sendThongBao(player2, "Giao dịch thất bại vì " + player2.name + " không đủ chỗ chứa");
-                break;
-            case FAIL_ACTVIE:
-                Service.gI().sendThongBao(player1,
-                        "Truy Cập: " + ServerManager.DOMAIN + "\n Để Mở Thành Viên");
-                Service.gI().sendThongBao(player2,
-                        "Truy Cập: " + ServerManager.DOMAIN + "\n Để Mở Thành Viên");
                 break;
         }
     }

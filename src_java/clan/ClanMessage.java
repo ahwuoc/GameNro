@@ -1,4 +1,5 @@
 package clan;
+ 
 public class ClanMessage {
 
     public static final byte BLACK = 0;

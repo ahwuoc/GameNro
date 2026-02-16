@@ -1,103 +1,47 @@
 package npc;
 
-/*
- * @Author Coder: Nguyễn Tấn Tài
- * @Description: Ngọc Rồng Kiwi - Máy Chủ Chuẩn Teamobi 2025
- * @Group Zalo: https://zalo.me/g/toiyeuvietnam2025
- */
-import npc.list.Whis;
-import npc.list.LinhCanh;
-import npc.list.Bulma;
-import npc.list.Cargo;
-import npc.list.ThanVuTru;
-import npc.list.Tapion;
-import npc.list.DocNhan;
-import npc.list.TruongLaoGuru;
-import npc.list.Rong5Sao;
-import npc.list.Santa;
-import npc.list.Cui;
-import npc.list.ToSuKaio;
-import npc.list.Kibit;
-import npc.list.Appule;
-import npc.list.QuaTrung;
-import npc.list.KyGui;
-import npc.list.Rong7Sao;
-import npc.list.Potage;
-import npc.list.Babiday;
-import npc.list.OngGohan;
-import npc.list.DrDrief;
-import npc.list.Karin;
-import npc.list.LyTieuNuong;
-import npc.list.Rong1Sao;
-import npc.list.MrPoPo;
-import npc.list.Bill;
-import npc.list.Rong6Sao;
-import npc.list.Bardock;
-import npc.list.Uron;
-import npc.list.VuaVegeta;
-import npc.list.GokuSSJ;
-import npc.list.RongOmega;
-import npc.list.BulmaTuongLai;
-import npc.list.GhiDanh;
-import npc.list.QuyLaoKame;
-import npc.list.Calick;
-import npc.list.Rong2Sao;
-import npc.list.BaHatMit;
-import npc.list.RuongDo;
-import npc.list.ThuongDe;
-import npc.list.OngParagus;
-import npc.list.GiuMaDauBo;
-import npc.list.Vados;
-import npc.list.TrongTai;
-import npc.list.Rong4Sao;
-import npc.list.Rong3Sao;
-import npc.list.BoMong;
-import npc.list.Dende;
-import npc.list.Jaco;
-import npc.list.QuocVuong;
-import npc.list.Osin;
-import npc.list.DauThan;
-import npc.list.OngMoori;
-import npc.list.DaiThienSu;
-import npc.list.GokuSSJ2;
-import services.ConsignShopService;
-import player.Service.ClanService;
+import boss.BossID;
+import models.Consign.ConsignShopService;
+import services.ClanService;
 import services.Service;
 import services.ItemService;
-import services.dungeon.NgocRongNamecService;
-import player.Service.IntrinsicService;
-import player.Service.InventoryService;
-import map.Service.NpcService;
+import services.NgocRongNamecService;
+import services.IntrinsicService;
+import services.InventoryService;
+import services.NpcService;
 import services.PetService;
-import player.Service.PlayerService;
-import player.Service.FriendAndEnemyService;
+import services.PlayerService;
+import services.FriendAndEnemyService;
 import consts.ConstNpc;
-import boss.BossManager.BossManager;
+import boss.BossManager;
 import clan.Clan;
 
 import java.util.HashMap;
+import java.util.Random;
 
-import map.Service.ChangeMapService;
+import services.func.ChangeMapService;
+import services.func.SummonDragon;
+
+import static services.func.SummonDragon.SHENRON_1_STAR_WISHES_1;
+import static services.func.SummonDragon.SHENRON_1_STAR_WISHES_2;
+import static services.func.SummonDragon.SHENRON_SAY;
 
 import player.Player;
 import item.Item;
+import jdbc.daos.NDVSqlFetcher;
 import matches.PVPService;
 import server.Client;
+import server.Command;
 import server.Maintenance;
 import server.Manager;
 import services.func.Input;
 import utils.Logger;
 import utils.Util;
-import services.dungeon.SuperDivineWaterService;
-import services.SubMenuService;
-import services.shenron.Shenron_Service;
-import java.util.List;
-import npc.list.ToriBot;
-import services.shenron.SummonDragon;
-import static services.shenron.SummonDragon.SHENRON_1_STAR_WISHES_1;
-import static services.shenron.SummonDragon.SHENRON_1_STAR_WISHES_2;
-import static services.shenron.SummonDragon.SHENRON_SAY;
-import services.shenron.SummonDragonNamek;
+import models.SuperDivineWater.SuperDivineWaterService;
+import models.ShenronEvent.ShenronEventService;
+import npc.npc_manifest.*;
+import npc.specialnpc.NoiBanhChung;
+import services.func.SummonDragonNamek;
 
 public class NpcFactory {
 
@@ -107,6 +51,10 @@ public class NpcFactory {
         int avatar = Manager.NPC_TEMPLATES.get(tempId).avatar;
         try {
             return switch (tempId) {
+                case ConstNpc.NAUBANHCHUNG ->
+                    new NauBanh(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.NPC_BUNMA_THANHLICH ->
+                    new BulmaThanhLich(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.GHI_DANH ->
                     new GhiDanh(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.TRONG_TAI ->
@@ -165,8 +113,6 @@ public class NpcFactory {
                     new Kibit(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.OSIN ->
                     new Osin(mapId, status, cx, cy, tempId, avatar);
-                case ConstNpc.TORIBOT ->
-                    new ToriBot(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.BABIDAY ->
                     new Babiday(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.LY_TIEU_NUONG ->
@@ -177,6 +123,8 @@ public class NpcFactory {
                     new QuaTrung(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.QUOC_VUONG ->
                     new QuocVuong(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.QUOC_VUONG_TRANH_NGOC ->
+                    new QuocVuongTranhNgoc(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.BUNMA_TL ->
                     new BulmaTuongLai(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.RONG_OMEGA ->
@@ -218,7 +166,42 @@ public class NpcFactory {
                 case ConstNpc.TO_SU_KAIO ->
                     new ToSuKaio(mapId, status, cx, cy, tempId, avatar);
                 case ConstNpc.BARDOCK ->
+                    new Napa(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.DUONG_TANG ->
+                    new DuongTang(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.BERUS_NHI ->
+                    new BerusNhi(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.JOYBOY, ConstNpc.CHOPPER ->
+                    new JoyBoy(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.BUMATH ->
+                    new BumaTH(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.TORI_BOT ->
+                    new ToriBot(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.FIDE ->
+                    new Fide(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.HOA_HONG ->
+                    new HoaHong(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.EGG_HAC_HOA, ConstNpc.MORO ->
+                    new EggHacHoa(mapId, status, cx, cy, tempId, avatar);
+                // case ConstNpc.KY_NGO ->
+                // new KyNgo(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.GOKU_ROSE ->
+                    new GokuRose(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.BULMA_THO ->
+                    new BulmaTho(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.SO_SU_MENH ->
+                    new SoSuMenh(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.VegetaSSJ2 ->
+                    new VegetaSSJ2(mapId, status, cx, cy, tempId, avatar);
+
+                case ConstNpc.Batgioi ->
+                    new Batgioi(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.NANG_DE ->
+                    new NangDe(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.BARD_DOCK ->
                     new Bardock(mapId, status, cx, cy, tempId, avatar);
+                case ConstNpc.ghost_rider_nhi ->
+                    new ghost_rider_nhi(mapId, status, cx, cy, tempId, avatar);
                 default ->
                     new Npc(mapId, status, cx, cy, tempId, avatar) {
                         @Override
@@ -246,17 +229,17 @@ public class NpcFactory {
         new Npc(-1, -1, -1, -1, ConstNpc.RONG_THIENG, -1) {
             @Override
             public void confirmMenu(Player player, int select) {
-                switch (player.idMark.getIndexMenu()) {
+                switch (player.iDMark.getIndexMenu()) {
                     case ConstNpc.IGNORE_MENU:
                         break;
                     case ConstNpc.SHOW_SHENRON_NAMEK_CONFIRM:
-                        SummonDragonNamek.gI().showConfirmShenron(player, player.idMark.getIndexMenu(), (byte) select);
+                        SummonDragonNamek.gI().showConfirmShenron(player, player.iDMark.getIndexMenu(), (byte) select);
                         break;
                     case ConstNpc.SHENRON_NAMEK_CONFIRM:
                         if (select == 0) {
                             SummonDragonNamek.gI().confirmWish();
                         } else if (select == 1) {
-                            SummonDragonNamek.gI().sendBlackGokuhesNamec(player);
+                            SummonDragonNamek.gI().sendWhishesNamec(player);
                         }
                         break;
                     case ConstNpc.SHOW_SHENRON_EVENT_CONFIRM:
@@ -269,7 +252,7 @@ public class NpcFactory {
                             if (select == 0) {
                                 player.shenronEvent.confirmWish();
                             } else if (select == 1) {
-                                player.shenronEvent.sendBlackGokuhesShenron();
+                                player.shenronEvent.sendWhishesShenron();
                             }
                         }
                         break;
@@ -281,22 +264,21 @@ public class NpcFactory {
                         }
                         break;
                     case ConstNpc.SHENRON_1_1:
-                        if (player.idMark.getIndexMenu() == ConstNpc.SHENRON_1_1 && select == SHENRON_1_STAR_WISHES_1.length - 1) {
-                            NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_1_2, SHENRON_SAY, SHENRON_1_STAR_WISHES_2);
+                        if (player.iDMark.getIndexMenu() == ConstNpc.SHENRON_1_1
+                                && select == SHENRON_1_STAR_WISHES_1.length - 1) {
+                            NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_1_2, SHENRON_SAY,
+                                    SHENRON_1_STAR_WISHES_2);
                             break;
                         }
                     case ConstNpc.SHENRON_1_2:
-                        if (player.idMark.getIndexMenu() == ConstNpc.SHENRON_1_2 && select == SHENRON_1_STAR_WISHES_2.length - 1) {
-                            NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_1_1, SHENRON_SAY, SHENRON_1_STAR_WISHES_1);
-                            break;
-                        }
-                    case ConstNpc.SHENRON_1_3:
-                        if (player.idMark.getIndexMenu() == ConstNpc.SHENRON_1_2 && select == SHENRON_1_STAR_WISHES_2.length - 1) {
-                            NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_1_1, SHENRON_SAY, SHENRON_1_STAR_WISHES_1);
+                        if (player.iDMark.getIndexMenu() == ConstNpc.SHENRON_1_2
+                                && select == SHENRON_1_STAR_WISHES_2.length - 1) {
+                            NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_1_1, SHENRON_SAY,
+                                    SHENRON_1_STAR_WISHES_1);
                             break;
                         }
                     default:
-                        SummonDragon.gI().showConfirmShenron(player, player.idMark.getIndexMenu(), (byte) select);
+                        SummonDragon.gI().showConfirmShenron(player, player.iDMark.getIndexMenu(), (byte) select);
                         break;
                 }
             }
@@ -307,17 +289,272 @@ public class NpcFactory {
         new Npc(-1, -1, -1, -1, ConstNpc.CON_MEO, 351) {
             @Override
             public void confirmMenu(Player player, int select) {
-                switch (player.idMark.getIndexMenu()) {
-                    case ConstNpc.IGNORE_MENU -> {
-                        // Không làm gì
-                    }
-
-                    case ConstNpc.SUMMON_SHENRON_EVENT -> {
+                switch (player.iDMark.getIndexMenu()) {
+                    case ConstNpc.MENU_OPTION_USE_ITEM1703 -> {
                         if (select == 0) {
-                            Shenron_Service.gI().summonShenron(player);
+                            IntrinsicService.gI().settltd(player);
+                        } else if (select == 1) {
+                            IntrinsicService.gI().settlnm(player);
+                        } else if (select == 2) {
+                            IntrinsicService.gI().settlxd(player);
                         }
                     }
 
+                    case ConstNpc.MENU_OPTION_USE_ITEM1704 -> {
+                        if (select == 0) {
+                            IntrinsicService.gI().sethdtd(player);
+                        } else if (select == 1) {
+                            IntrinsicService.gI().sethdnm(player);
+                        } else if (select == 2) {
+                            IntrinsicService.gI().sethdxd(player);
+                        }
+                    }
+                    case ConstNpc.SET_TD -> {
+                        switch (select) {
+                            case 0:
+                                ItemService.gI().setkaio(player);
+                                break;
+                            case 1:
+
+                                ItemService.gI().setgenki(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().setson(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_NM -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().setpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().setoctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().setpiko(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_XD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().setgalick(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().setcadick(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().setnappa(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.MENU_OPTION_USE_ITEM1536 -> {
+                        if (select == 0) {
+                            IntrinsicService.gI().settd(player);
+                        } else if (select == 1) {
+                            IntrinsicService.gI().setnm(player);
+                        } else if (select == 2) {
+                            IntrinsicService.gI().setxd(player);
+                        }
+                    }
+                    case ConstNpc.SET_TLTD -> {
+                        switch (select) {
+                            case 0:
+                                ItemService.gI().settlkaio(player);
+                                break;
+                            case 1:
+
+                                ItemService.gI().settlgenki(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlson(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_TLNM -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().settlpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().settloctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlpiko(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_TLXD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().settlgalick(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().settlcadick(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlnappa(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.SET_KHNM -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().setkhpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().settloctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlpiko(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.SET_KHTD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().settlpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().settloctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlpiko(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.SET_KHXD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().settlpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().settloctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().settlpiko(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.SET_HDTD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().sethdkaio(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().sethdgenki(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().sethdson(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_HDNM -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().sethdpico(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().sethdoctieu(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().sethdpiko(player);
+
+                                break;
+                        }
+                    }
+
+                    case ConstNpc.SET_HDXD -> {
+                        switch (select) {
+                            case 0:
+
+                                ItemService.gI().sethdcadick(player);
+
+                                break;
+                            case 1:
+
+                                ItemService.gI().sethdcadic(player);
+
+                                break;
+                            case 2:
+
+                                ItemService.gI().sethdnappa(player);
+
+                                break;
+                        }
+                    }
+                    case ConstNpc.IGNORE_MENU -> {
+                    }
+                    case ConstNpc.SUMMON_SHENRON_EVENT -> {
+                        if (select == 0) {
+                            ShenronEventService.gI().summonShenron(player);
+                        }
+                    }
                     case ConstNpc.MAKE_MATCH_PVP -> {
                         if (Maintenance.isRunning) {
                         }
@@ -340,7 +577,6 @@ public class NpcFactory {
                             PVPService.gI().acceptRevenge(player);
                         }
                     }
-
                     case ConstNpc.TUTORIAL_SUMMON_DRAGON -> {
                         if (select == 0) {
                             NpcService.gI().createTutorial(player, -1, SummonDragon.SUMMON_SHENRON_TUTORIAL);
@@ -353,7 +589,6 @@ public class NpcFactory {
                             SummonDragon.gI().summonShenron(player);
                         }
                     }
-
                     case ConstNpc.MENU_OPTION_USE_ITEM726 -> {
                         if (select == 0) {
                             SuperDivineWaterService.gI().joinMapThanhThuy(player);
@@ -366,7 +601,8 @@ public class NpcFactory {
                     }
                     case ConstNpc.TAP_TU_DONG_CONFIRM -> {
                         if (select == 0) {
-                            ChangeMapService.gI().changeMapBySpaceShip(player, player.lastMapOffline, player.lastZoneOffline, player.lastXOffline);
+                            ChangeMapService.gI().changeMapBySpaceShip(player, player.lastMapOffline,
+                                    player.lastZoneOffline, player.lastXOffline);
                         }
                     }
                     case ConstNpc.INTRINSIC -> {
@@ -405,7 +641,8 @@ public class NpcFactory {
                     case ConstNpc.BAN_PLAYER -> {
                         if (select == 0) {
                             PlayerService.gI().banPlayer((Player) PLAYERID_OBJECT.get(player.id));
-                            Service.gI().sendThongBao(player, "Ban người chơi " + ((Player) PLAYERID_OBJECT.get(player.id)).name + " thành công");
+                            Service.gI().sendThongBao(player,
+                                    "Ban người chơi " + ((Player) PLAYERID_OBJECT.get(player.id)).name + " thành công");
                         }
                     }
                     case ConstNpc.BUFF_PET -> {
@@ -413,15 +650,16 @@ public class NpcFactory {
                             Player pl = (Player) PLAYERID_OBJECT.get(player.id);
                             if (pl.pet == null) {
                                 PetService.gI().createNormalPet(pl);
-                                Service.gI().sendThongBao(player, "Phát đệ tử cho " + ((Player) PLAYERID_OBJECT.get(player.id)).name + " thành công");
+                                Service.gI().sendThongBao(player, "Phát đệ tử cho "
+                                        + ((Player) PLAYERID_OBJECT.get(player.id)).name + " thành công");
                             }
                         }
                     }
                     case ConstNpc.OTT -> {
                         if (select < 3) {
                             Player pl = (Player) PLAYERID_OBJECT.get(player.id);
-                            player.idMark.setOtt(select);
-                            String[] selects = new String[]{"Kéo", "Búa", "Bao", "Hủy"};
+                            player.iDMark.setOtt(select);
+                            String[] selects = new String[] { "Kéo", "Búa", "Bao", "Hủy" };
                             NpcService.gI().createMenuConMeo(pl, ConstNpc.OTT_ACCEPT, -1,
                                     player.name + " muốn chơi oẳn tù tì với bạn mức cược 5tr.", selects, player);
                         }
@@ -429,13 +667,13 @@ public class NpcFactory {
                     case ConstNpc.OTT_ACCEPT -> {
                         if (select < 3) {
                             Player pl = (Player) PLAYERID_OBJECT.get(player.id);
-                            int slp1 = pl.idMark.getOtt();
+                            int slp1 = pl.iDMark.getOtt();
                             int slp2 = select;
                             if (slp1 == -1 || slp2 == -1) {
                                 return;
                             }
-                            pl.idMark.setOtt(-1);
-                            String[] selects = new String[]{"Kéo", "Búa", "Bao"};
+                            pl.iDMark.setOtt(-1);
+                            String[] selects = new String[] { "Kéo", "Búa", "Bao" };
                             Service.gI().chat(pl, selects[slp1]);
                             Service.gI().chat(player, selects[slp2]);
                             Service.gI().sendEffAllPlayer(pl, 1000 + slp1, 1, 2, 1);
@@ -459,24 +697,6 @@ public class NpcFactory {
                                 Service.gI().sendMoney(player);
                             }
                         }
-
-                    }
-                    case ConstNpc.SUB_MENU -> {
-                        Player pl = (Player) PLAYERID_OBJECT.get(player.id);
-                        switch (select) {
-                            case 0 ->
-                                SubMenuService.gI().controller(player, (int) pl.id, SubMenuService.OTT);
-                            case 1 ->
-                                SubMenuService.gI().controller(player, (int) pl.id, SubMenuService.CUU_SAT);
-
-                        }
-                    }
-
-                    case ConstNpc.BUY_BACK -> {
-//                        if (select == 0) {
-//                            Player pl = (Player) PLAYERID_OBJECT.get(player.id);
-//                            BuyBackService.gI().buyItem(player, pl);
-//                        }
                     }
                     case ConstNpc.MENU_ADMIN -> {
                         switch (select) {
@@ -485,10 +705,10 @@ public class NpcFactory {
                                     Item item = ItemService.gI().createNewItem((short) i);
                                     InventoryService.gI().addItemBag(player, item);
                                 }
-                                InventoryService.gI().sendItemBags(player);
+                                InventoryService.gI().sendItemBag(player);
                             }
                             case 1 -> {
-                                PetService.gI().createNormalPet(player, null);
+                                PetService.gI().createNormalPet(player, player.gender);
                             }
                             case 2 -> {
                                 if (player.isAdmin()) {
@@ -500,7 +720,20 @@ public class NpcFactory {
                                 Input.gI().createFormFindPlayer(player);
                             case 4 ->
                                 BossManager.gI().showListBoss(player);
+                            case 5 ->
+                                BossManager.gI().createBoss(BossID.SUPERBUVIP);
+                            case 6 ->
+                                BossManager.gI().createBoss(BossID.BROLYSUPERVIP);
+                            case 7 ->
+                                Input.gI().createFormBuffVND(player);
+                            case 8 ->
+                                Input.gI().createFromMailBox(player);
+                            case 9 ->
+                                Command.gI().showBotManagerMenu(player);
                         }
+                    }
+                    case ConstNpc.MENU_BOT_MANAGER -> {
+                        Command.gI().handleBotManagerMenu(player, select);
                     }
                     case ConstNpc.CONFIRM_DISSOLUTION_CLAN -> {
                         switch (select) {
@@ -514,99 +747,7 @@ public class NpcFactory {
                                 ClanService.gI().sendClanId(player);
                                 Service.gI().sendThongBao(player, "Đã giải tán bang hội.");
                             }
-
-
                         }
-                    }
-                    case 671 -> {
-                        switch (select) {
-                            case 0 -> {
-                                long[] time = new long[]{900000, 1800000, 3600000, 86400000, 259200000, 604800000, 1296000000};
-                                var bb = ItemService.gI().getTemplate(player.LearnSkill.ItemTemplateSkillId);
-                                String[] subName = bb.name.split("");
-                                byte level = Byte.parseByte(subName[subName.length - 1]);
-                                player.LearnSkill.Time = time[level - 1] + System.currentTimeMillis();
-                                player.nPoint.tiemNang -= player.LearnSkill.Potential;
-                                Service.gI().point(player);
-                                Service.gI().ClosePanel(player);
-                                NpcService.gI().createTutorial(player, NpcService.gI().getAvatar(13 + player.gender), "Con đã học thành công, hãy cố gắng chờ đợi nha");
-                                break;
-                            }
-                            case 1 -> {
-
-                                break;
-                            }
-                        }
-                    }
-                    case ConstNpc.event3 -> {
-                        Item gm = InventoryService.gI().findItemBag(player, 1505);
-                        int giayMauCount = (gm != null) ? gm.quantity : 0;
-
-                        if (giayMauCount < 99) {
-                            Service.gI().sendThongBaoOK(player, "Bạn chưa có đủ 99 Giấy Màu");
-                            break;
-                        }
-
-                        InventoryService.gI().subQuantityItemsBag(player, gm, 99);
-
-                        Item tv = ItemService.gI().createNewItem((short) 1506, 1);
-                        InventoryService.gI().addItemBag(player, tv);
-                        InventoryService.gI().sendItemBags(player);
-
-                        break;
-                    }
-                    case ConstNpc.event3_1 -> {
-                        Item socola = InventoryService.gI().findItemBag(player, 1507);
-                        Item hoahonggiay = InventoryService.gI().findItemBag(player, 1508);
-                        Item notrangtri = InventoryService.gI().findItemBag(player, 1509);
-                        Item hopdungqua = InventoryService.gI().findItemBag(player, 1506);
-
-                        if (socola == null || socola.quantity < 5) {
-                            Service.gI().sendThongBaoOK(player, "Bạn chưa đủ 5 Socola.");
-                            break;
-                        }
-
-                        if (hoahonggiay == null || hoahonggiay.quantity < 30) {
-                            Service.gI().sendThongBaoOK(player, "Bạn chưa đủ 30 Hoa Hồng Giấy.");
-                            break;
-                        }
-
-                        if (notrangtri == null || notrangtri.quantity < 1) {
-                            Service.gI().sendThongBaoOK(player, "Bạn chưa đủ 1 Nơ Trang Trí.");
-                            break;
-                        }
-
-                        if (hopdungqua == null || hopdungqua.quantity < 1) {
-                            Service.gI().sendThongBaoOK(player, "Bạn chưa đủ 1 Hộp Đựng Quà.");
-                            break;
-                        }
-
-                        switch (select) {
-                            case 0 -> {
-                                Item hopqua_01 = ItemService.gI().createNewItem((short) 1510, 1);
-                                InventoryService.gI().subQuantityItemsBag(player, socola, 5);
-                                InventoryService.gI().subQuantityItemsBag(player, hoahonggiay, 30);
-                                InventoryService.gI().subQuantityItemsBag(player, hopdungqua, 1);
-                                InventoryService.gI().addItemBag(player, hopqua_01);
-                                InventoryService.gI().sendItemBags(player);
-
-                                Service.gI().sendThongBaoOK(player, "Bạn nhận được quà");
-                            }
-                            case 1 -> {
-                                Item hopqua_02 = ItemService.gI().createNewItem((short) 1511, 1);
-                                InventoryService.gI().subQuantityItemsBag(player, socola, 5);
-                                InventoryService.gI().subQuantityItemsBag(player, hoahonggiay, 30);
-                                InventoryService.gI().subQuantityItemsBag(player, hopdungqua, 1);
-                                InventoryService.gI().subQuantityItemsBag(player, notrangtri, 1);
-                                InventoryService.gI().addItemBag(player, hopqua_02);
-                                InventoryService.gI().sendItemBags(player);
-
-                                Service.gI().sendThongBaoOK(player, "Bạn nhận được quà");
-                            }
-
-                        }
-
-                        break;
                     }
 
                     case ConstNpc.CONFIRM_REMOVE_ALL_ITEM_LUCKY_ROUND -> {
@@ -618,25 +759,37 @@ public class NpcFactory {
                             Service.gI().sendThongBao(player, "Đã xóa hết vật phẩm trong rương");
                         }
                     }
-
+                    case ConstNpc.CONFIRM_REMOVE_ALL_ITEM_MAIL_BOX -> {
+                        if (select == 0) {
+                            for (int i = 0; i < player.inventory.itemsMailBox.size(); i++) {
+                                player.inventory.itemsMailBox.set(i, ItemService.gI().createItemNull());
+                            }
+                            player.inventory.itemsMailBox.clear();
+                            if (NDVSqlFetcher.updateMailBox(player)) {
+                                Service.gI().sendThongBao(player, "Xóa hết vật phẩm hòm thư thành công");
+                            }
+                        }
+                    }
                     case ConstNpc.MENU_FIND_PLAYER -> {
                         Player p = (Player) PLAYERID_OBJECT.get(player.id);
                         if (p != null) {
                             switch (select) {
                                 case 0 -> {
                                     if (p.zone != null) {
-                                        ChangeMapService.gI().changeMapYardrat(player, p.zone, p.location.x, p.location.y);
+                                        ChangeMapService.gI().changeMapYardrat(player, p.zone, p.location.x,
+                                                p.location.y);
                                     }
                                 }
                                 case 1 -> {
                                     if (p.zone != null) {
-                                        ChangeMapService.gI().changeMap(p, player.zone, player.location.x, player.location.y);
+                                        ChangeMapService.gI().changeMap(p, player.zone, player.location.x,
+                                                player.location.y);
                                     }
                                 }
                                 case 2 ->
                                     Input.gI().createFormChangeName(player, p);
                                 case 3 -> {
-                                    String[] selects = new String[]{"Đồng ý", "Hủy"};
+                                    String[] selects = new String[] { "Đồng ý", "Hủy" };
                                     NpcService.gI().createMenuConMeo(player, ConstNpc.BAN_PLAYER, -1,
                                             "Bạn có chắc chắn muốn ban " + p.name, selects, p);
                                 }
@@ -651,21 +804,23 @@ public class NpcFactory {
                     case ConstNpc.CONFIRM_TELE_NAMEC -> {
                         if (select == 0) {
                             NgocRongNamecService.gI().teleportToNrNamec(player);
-                            player.inventory.subGem(10);
+                            player.inventory.subGemAndRuby(50);
                             Service.gI().sendMoney(player);
                         }
                     }
                     case ConstNpc.MA_BAO_VE -> {
                         if (select == 0) {
                             if (player.mbv == 0) {
-                                if (player.inventory.gold >= 500_000) {
-                                    player.inventory.gold -= 500_000;
+                                if (player.inventory.gold >= 30000) {
+                                    player.inventory.gold -= 30000;
                                     Service.gI().sendMoney(player);
-                                    player.mbv = player.idMark.getMbv();
+                                    player.mbv = player.iDMark.getMbv();
                                     player.baovetaikhoan = true;
-                                    Service.gI().sendThongBao(player, "Kích hoạt thành công, tài khoản đang được bảo vệ");
+                                    Service.gI().sendThongBao(player,
+                                            "Kích hoạt thành công, tài khoản đang được bảo vệ");
                                 } else {
-                                    Service.gI().sendThongBao(player, "Bạn không đủ tiền để kích hoạt bảo vệ tài khoản");
+                                    Service.gI().sendThongBao(player,
+                                            "Bạn không đủ tiền để kích hoạt bảo vệ tài khoản");
                                 }
                             } else {
                                 if (player.baovetaikhoan) {
@@ -686,7 +841,7 @@ public class NpcFactory {
                             }
                             player.inventory.gold -= 5000000;
                             Service.gI().sendMoney(player);
-                            int iditem = player.idMark.getIdItemUpTop();
+                            int iditem = player.iDMark.getIdItemUpTop();
                             ConsignShopService.gI().getItemBuy(player, iditem).lasttime = System.currentTimeMillis();
                             Service.gI().sendThongBao(player, "Up top thành công!");
                             ConsignShopService.gI().openShopKyGui(player);
@@ -694,7 +849,10 @@ public class NpcFactory {
                     }
                     case ConstNpc.RUONG_GO -> {
                         int i = player.indexWoodChest;
-                        if (i < 0) {
+                        if (i < 0 || player.itemsWoodChest.isEmpty()) {
+                            return;
+                        }
+                        if (i >= player.itemsWoodChest.size()) {
                             return;
                         }
                         Item itemWoodChest = player.itemsWoodChest.get(i);
@@ -708,18 +866,155 @@ public class NpcFactory {
                                 }
                             }
                         }
-                        info = (info2.length() > "\n|2|".length() ? (info + info2).trim() : info.trim()) + "\n|0|" + itemWoodChest.template.description;
+                        info = (info2.length() > "\n|2|".length() ? (info + info2).trim() : info.trim()) + "\n|0|"
+                                + itemWoodChest.template.description;
                         NpcService.gI().createMenuConMeo(player, ConstNpc.RUONG_GO, -1, "Bạn nhận được\n"
                                 + info.trim(), "OK" + (i > 0 ? " [" + i + "]" : ""));
                     }
+
+                    case ConstNpc.HOP_QUA_THAN_LINH -> {
+                        Item aotl_td = ItemService.gI().createNewItem((short) 555);
+                        Item aotl_nm = ItemService.gI().createNewItem((short) 557);
+                        Item aotl_xd = ItemService.gI().createNewItem((short) 559);
+
+                        aotl_td.itemOptions.add(new Item.ItemOption(47, 800 + new Random().nextInt(200)));
+
+                        aotl_nm.itemOptions.add(new Item.ItemOption(47, 900 + new Random().nextInt(100)));
+
+                        aotl_xd.itemOptions.add(new Item.ItemOption(47, 950 + new Random().nextInt(200)));
+
+                        aotl_td.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        aotl_nm.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        aotl_xd.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+
+                        // aotl_td.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // aotl_nm.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // aotl_xd.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+
+                        Item quantl_td = ItemService.gI().createNewItem((short) 556);
+                        Item quantl_nm = ItemService.gI().createNewItem((short) 558);
+                        Item quantl_xd = ItemService.gI().createNewItem((short) 560);
+
+                        quantl_td.itemOptions.add(new Item.ItemOption(22, 47 + new Random().nextInt(5)));
+                        quantl_td.itemOptions
+                                .add(new Item.ItemOption(27, (47 + new Random().nextInt(5)) * 1000 * 15 / 100));
+
+                        quantl_nm.itemOptions.add(new Item.ItemOption(22, 45 + new Random().nextInt(5)));
+                        quantl_nm.itemOptions
+                                .add(new Item.ItemOption(27, (45 + new Random().nextInt(5)) * 1000 * 15 / 100));
+
+                        quantl_xd.itemOptions.add(new Item.ItemOption(22, 42 + new Random().nextInt(8)));
+                        quantl_xd.itemOptions
+                                .add(new Item.ItemOption(27, (42 + new Random().nextInt(8)) * 1000 * 15 / 100));
+
+                        quantl_td.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        quantl_nm.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        quantl_xd.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+
+                        // quantl_td.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // quantl_nm.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // quantl_xd.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+
+                        Item gangtl_td = ItemService.gI().createNewItem((short) 562);
+                        Item gangtl_nm = ItemService.gI().createNewItem((short) 564);
+                        Item gangtl_xd = ItemService.gI().createNewItem((short) 566);
+
+                        gangtl_td.itemOptions.add(new Item.ItemOption(0, 3500 + new Random().nextInt(1200)));
+                        gangtl_nm.itemOptions.add(new Item.ItemOption(0, 3300 + new Random().nextInt(1100)));
+                        gangtl_xd.itemOptions.add(new Item.ItemOption(0, 3500 + new Random().nextInt(1400)));
+
+                        gangtl_td.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        gangtl_nm.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        gangtl_xd.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+
+                        // gangtl_td.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // gangtl_nm.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // gangtl_xd.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+
+                        Item giaytl_td = ItemService.gI().createNewItem((short) 563);
+                        Item giaytl_nm = ItemService.gI().createNewItem((short) 565);
+                        Item giaytl_xd = ItemService.gI().createNewItem((short) 567);
+
+                        giaytl_td.itemOptions.add(new Item.ItemOption(23, 42 + new Random().nextInt(5)));
+                        giaytl_nm.itemOptions.add(new Item.ItemOption(23, 47 + new Random().nextInt(5)));
+                        giaytl_xd.itemOptions.add(new Item.ItemOption(23, 45 + new Random().nextInt(4)));
+
+                        giaytl_td.itemOptions
+                                .add(new Item.ItemOption(28, (42 + new Random().nextInt(5)) * 1000 * 15 / 100));
+                        giaytl_nm.itemOptions
+                                .add(new Item.ItemOption(28, (47 + new Random().nextInt(5)) * 1000 * 15 / 100));
+                        giaytl_xd.itemOptions
+                                .add(new Item.ItemOption(28, (45 + new Random().nextInt(4)) * 1000 * 15 / 100));
+
+                        giaytl_td.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        giaytl_nm.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+                        giaytl_xd.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+
+                        // giaytl_td.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // giaytl_nm.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        // giaytl_xd.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+
+                        Item nhan = ItemService.gI().createNewItem((short) 561);
+
+                        nhan.itemOptions.add(new Item.ItemOption(14, 14 + new Random().nextInt(4)));
+                        nhan.itemOptions.add(new Item.ItemOption(21, 18)); // ycsm 18 tỉ
+
+                        // nhan.itemOptions.add(new Item.ItemOption(30, 1)); // ycsm 18 tỉ
+                        Item HopQuaThanLinh = InventoryService.gI().findItemBag(player, 1228);
+                        switch (select) {
+                            case 0:
+                                if (InventoryService.gI().getCountEmptyBag(player) < 5) {
+                                    Service.gI().sendThongBao(player, "Cần 5 ô hành trang mới có thể mở!!!");
+                                    return;
+                                }
+                                InventoryService.gI().addItemBag(player, aotl_td);
+                                InventoryService.gI().addItemBag(player, quantl_td);
+                                InventoryService.gI().addItemBag(player, gangtl_td);
+                                InventoryService.gI().addItemBag(player, giaytl_td);
+                                InventoryService.gI().addItemBag(player, nhan);
+                                InventoryService.gI().subQuantityItemsBag(player, HopQuaThanLinh, 1);
+                                InventoryService.gI().sendItemBag(player);
+                                Service.gI().sendThongBao(player, "Bạn nhận được 1 set thần linh trái đất");
+                                break;
+                            case 1:
+                                if (InventoryService.gI().getCountEmptyBag(player) < 5) {
+                                    Service.gI().sendThongBao(player, "Cần 5 ô hành trang mới có thể mở!!!");
+                                    return;
+                                }
+                                InventoryService.gI().addItemBag(player, aotl_nm);
+                                InventoryService.gI().addItemBag(player, quantl_nm);
+                                InventoryService.gI().addItemBag(player, gangtl_nm);
+                                InventoryService.gI().addItemBag(player, giaytl_nm);
+                                InventoryService.gI().addItemBag(player, nhan);
+                                InventoryService.gI().subQuantityItemsBag(player, HopQuaThanLinh, 1);
+                                Service.gI().sendThongBao(player, "Bạn nhận được 1 set thần linh namek");
+                                InventoryService.gI().sendItemBag(player);
+                                break;
+                            case 2:
+                                if (InventoryService.gI().getCountEmptyBag(player) < 5) {
+                                    Service.gI().sendThongBao(player, "Cần 5 ô hành trang mới có thể mở!!!");
+                                    return;
+                                }
+                                InventoryService.gI().addItemBag(player, aotl_xd);
+                                InventoryService.gI().addItemBag(player, quantl_xd);
+                                InventoryService.gI().addItemBag(player, gangtl_xd);
+                                InventoryService.gI().addItemBag(player, giaytl_xd);
+                                InventoryService.gI().addItemBag(player, nhan);
+                                InventoryService.gI().subQuantityItemsBag(player, HopQuaThanLinh, 1);
+                                InventoryService.gI().sendItemBag(player);
+
+                                Service.gI().sendThongBao(player, "Bạn nhận được 1 set thần linh xayda");
+                                break;
+                        }
+                    }
                     case ConstNpc.MENU_XUONG_TANG_DUOI -> {
                         if (player.fightMabu.pointMabu >= player.fightMabu.POINT_MAX && player.zone.map.mapId != 120) {
-                            ChangeMapService.gI().changeMap(player, player.zone.map.mapIdNextMabu((short) player.zone.map.mapId), -1, -1, 100);
+                            ChangeMapService.gI().changeMap(player,
+                                    player.zone.map.mapIdNextMabu((short) player.zone.map.mapId), -1, -1, 100);
                         }
                     }
                 }
             }
         };
     }
-
 }
