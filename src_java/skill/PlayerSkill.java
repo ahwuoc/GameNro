@@ -1,9 +1,16 @@
 package skill;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import java.util.ArrayList;
 import java.util.List;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import network.Message;
 
 public class PlayerSkill {
@@ -11,6 +18,14 @@ public class PlayerSkill {
     private Player player;
     public List<Skill> skills;
     public Skill skillSelect;
+    public long Time;
+    public short ItemTemplateSkillId;
+    public int Potential;
+    public PlayerSkill() {
+        Time = -1;
+        ItemTemplateSkillId = -1;
+        Potential = 0;
+    }
 
     public PlayerSkill(Player player) {
         this.player = player;
@@ -26,18 +41,18 @@ public class PlayerSkill {
         return null;
     }
 
-    public byte[] skillShortCut = new byte[10];
+    public byte[] skillShortCut = new byte[12];
 
     public void sendSkillShortCut() {
         Message msg;
         try {
-            msg = Service.gI().messageSubCommand30((byte) 61);
+            msg = Service.gI().messageSubCommand((byte) 61);
             msg.writer().writeUTF("KSkill");
             msg.writer().writeInt(skillShortCut.length);
             msg.writer().write(skillShortCut);
             player.sendMessage(msg);
             msg.cleanup();
-            msg = Service.gI().messageSubCommand30((byte) 61);
+            msg = Service.gI().messageSubCommand((byte) 61);
             msg.writer().writeUTF("OSkill");
             msg.writer().writeInt(skillShortCut.length);
             msg.writer().write(skillShortCut);
@@ -91,11 +106,12 @@ public class PlayerSkill {
             case Skill.SUPER_KAME:
             case Skill.LIEN_HOAN_CHUONG:
                 return 9;
-            case Skill.SUPER_BROLY:
-
+            case Skill.BIEN_HINH:
                 return 10;
+            case Skill.PHAN_THAN:
+                return 11;
             default:
-                return 10;
+                return 11;
         }
     }
 

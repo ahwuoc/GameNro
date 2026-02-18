@@ -1,16 +1,22 @@
 package boss.boss_manifest.Training;
 
+/*
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
 import consts.ConstPlayer;
 import consts.ConstTask;
 import network.Message;
-import player.Player;
-import services.EffectSkillService;
-import services.MapService;
-import services.Service;
-import services.TaskService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.MapService;
+import nro.services.Service;
+import nro.services.TaskService;
 import services.func.ChangeMapService;
 import utils.Logger;
 import utils.Util;

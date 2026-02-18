@@ -1,8 +1,8 @@
 package task.Badges;
 
-import player.Player;
+import nro.player.Player;
 import player.badges.BadgesData;
-import server.Manager;
+import nro.server.Manager;
 
 public class BadgesTaskService {
 

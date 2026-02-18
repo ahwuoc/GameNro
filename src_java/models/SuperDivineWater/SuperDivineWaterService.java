@@ -1,17 +1,24 @@
 package models.SuperDivineWater;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import boss.boss_manifest.SuperDivineWater.Pocolo;
 import consts.ConstNpc;
 import java.util.ArrayList;
 import java.util.List;
 import map.Zone;
 import mob.Mob;
-import player.Player;
-import services.EffectSkillService;
-import services.MapService;
-import services.NpcService;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.MapService;
+import nro.services.NpcService;
+import nro.services.PlayerService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -72,16 +79,16 @@ public class SuperDivineWaterService {
         for (Mob mob : zone.mobs) {
             switch (mob.tempId) {
                 case 26:
-                    mob.point.dame = Util.toIntOrLong((totalHp * 150 / 100));
-                    mob.point.maxHp = Util.toIntOrLong((totalDamage * 150 / 100));
+                    mob.point.dame = Util.maxIntValue((totalHp * 150 / 100));
+                    mob.point.maxHp = Util.maxIntValue((totalDamage * 150 / 100));
                     break;
                 case 25:
-                    mob.point.dame = Util.toIntOrLong((totalHp * 2));
-                    mob.point.maxHp = Util.toIntOrLong((totalDamage * 2));
+                    mob.point.dame = Util.maxIntValue((totalHp * 2));
+                    mob.point.maxHp = Util.maxIntValue((totalDamage * 2));
                     break;
                 default:
-                    mob.point.dame = Util.toIntOrLong((totalHp));
-                    mob.point.maxHp = Util.toIntOrLong((totalDamage));
+                    mob.point.dame = Util.maxIntValue((totalHp));
+                    mob.point.maxHp = Util.maxIntValue((totalDamage));
                     break;
             }
             mob.lvMob = 0;
@@ -92,8 +99,7 @@ public class SuperDivineWaterService {
 
     public void update(Player player) {
         try {
-            if (player.isPl() && MapService.gI().isMapSieuThanhThuy(player.zone.map.mapId)
-                    && player.zone == player.zoneSieuThanhThuy) {
+            if (player.isPl() && MapService.gI().isMapSieuThanhThuy(player.zone.map.mapId) && player.zone == player.zoneSieuThanhThuy) {
                 if (!player.callBossPocolo) {
                     boolean allCharactersDead = true;
                     for (Mob mob : player.zone.mobs) {
@@ -104,13 +110,14 @@ public class SuperDivineWaterService {
                     }
                     if (allCharactersDead) {
                         try {
-                            long bossDamage = Util.toIntOrLong(player.nPoint.dame);
-                            long bossMaxHealth = Util.toIntOrLong(player.nPoint.hpMax * 5);
+                            long bossDamage = Util.maxIntValue (player.nPoint.dame);
+                            long bossMaxHealth = Util.maxIntValue( player.nPoint.hpMax * 5);
                             new Pocolo(
                                     player.zone,
                                     player,
                                     bossDamage,
-                                    bossMaxHealth);
+                                     bossMaxHealth
+                            );
                         } catch (Exception e) {
                         }
                         player.callBossPocolo = true;
@@ -124,8 +131,7 @@ public class SuperDivineWaterService {
                         if (player.isDie()) {
                             Service.gI().hsChar(player, player.nPoint.hpMax, player.nPoint.hpMax);
                         }
-                        NpcService.gI().createMenuConMeo(player, ConstNpc.MENU_SIEU_THAN_THUY, 2119,
-                                "Để tôi đưa cậu về", "Đồng ý", "Từ chối");
+                        NpcService.gI().createMenuConMeo(player, ConstNpc.MENU_SIEU_THAN_THUY, 2119, "Để tôi đưa cậu về", "Đồng ý", "Từ chối");
                         player.lastTimeUpdateSTT = System.currentTimeMillis();
                     }
                 }

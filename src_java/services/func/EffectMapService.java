@@ -1,9 +1,20 @@
 package services.func;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import map.EffectEventManager;
+import map.EffectEventTemplate;
 import map.Zone;
-import player.Player;
+import nro.player.Player;
 import network.Message;
-import services.Service;
+import nro.server.Manager;
+import nro.services.Service;
 
 public class EffectMapService {
 
@@ -11,6 +22,23 @@ public class EffectMapService {
 
     private EffectMapService() {
 
+    }
+
+    public void sendEffEvent(Player pl) {
+        int plmapid = pl.zone.map.mapId;
+        for (EffectEventTemplate eff : EffectEventManager.gI().getList()) {
+            if (Manager.ACTIVE_EVENTS.contains(eff.getEventId())) {
+                if (plmapid == eff.getMapId()) {
+                    EffectMapService.gI().sendEffectMapToPlayer(pl,
+                            eff.getEffId(),
+                            eff.getLayer(),
+                            eff.getLoop(),
+                            eff.getX(),
+                            eff.getY(),
+                            eff.getDelay());
+                }
+            }
+        }
     }
 
     public static EffectMapService gI() {

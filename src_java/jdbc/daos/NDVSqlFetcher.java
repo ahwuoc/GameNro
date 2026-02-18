@@ -1,5 +1,12 @@
 package jdbc.daos;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import models.Card.OptionCard;
 import models.Card.Card;
 import jdbc.DBConnecter;
@@ -16,16 +23,15 @@ import item.Item;
 import item.ItemTime;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import npc.specialnpc.MabuEgg;
 import npc.specialnpc.MagicTree;
-import npc.specialnpc.NoiBanhChung;
-import player.Enemy;
-import player.Friend;
-import player.Fusion;
-import player.Pet;
-import player.Player;
+import nro.player.Enemy;
+import nro.player.Friend;
+import nro.player.Fusion;
+import nro.player.Pet;
+import nro.player.Player;
 import player.badges.BadgesData;
 import player.dailyGift.DailyGiftData;
 import player.dailyGift.DailyGiftService;
@@ -33,16 +39,16 @@ import skill.Skill;
 import task.Badges.BadgesTask;
 import task.Badges.BadgesTaskService;
 import task.TaskMain;
-import server.Client;
-import server.Manager;
-import server.io.MySession;
+import nro.server.Client;
+import nro.server.Manager;
+import nro.server.io.MySession;
 import models.AntiLogin;
-import services.ClanService;
-import services.IntrinsicService;
-import services.ItemService;
-import services.MapService;
-import services.Service;
-import services.TaskService;
+import nro.services.ClanService;
+import nro.services.IntrinsicService;
+import nro.services.ItemService;
+import nro.services.MapService;
+import nro.services.Service;
+import nro.services.TaskService;
 import utils.Logger;
 import utils.SkillUtil;
 import utils.TimeUtil;
@@ -50,30 +56,32 @@ import utils.TimeUtil;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import models.Template.AchievementQuest;
+import nro.player.KOLProgressData;
 
 import utils.Util;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
-import services.PlayerService;
-import sosumenh.SoSuMenhManager;
-import sosumenh.SoSuMenhTaskMain;
-import sosumenh.SoSuMenhTaskTemplate;
+import nro.services.PlayerService;
+import services.top.TopAutoService;
 
 public class NDVSqlFetcher {
 
     public static Player login(MySession session, AntiLogin al) {
+        if (TopAutoService.gI().checkTopRunning()) {
+            Service.gI().sendThongBaoOK(session, "Đang tiến hành trao quà TOP vui lòng quay lại sau!");
+        }
         Player player = null;
         NDVResultSet rs = null;
         Player plInGame;
         try {
-            rs = DBConnecter.executeQuery("select * from account where username = ? and password = ?", session.uu,
-                    session.pp);
+            rs = DBConnecter.executeQuery("select * from account where username = ? and password = ?", session.uu, session.pp);
             if (rs.next()) {
                 session.userId = rs.getInt("account.id");
                 session.isAdmin = rs.getBoolean("is_admin");
@@ -85,23 +93,41 @@ public class NDVSqlFetcher {
                 session.eventPoint = rs.getInt("account.event_point");
                 session.bdPlayer = rs.getDouble("account.bd_player");
                 session.cash = rs.getInt("cash");
+                session.diemdanh = rs.getInt("DiemDanh");
                 session.danap = rs.getInt("danap");
+                session.diemboss = rs.getInt("diemboss");
+                session.bongmaster = rs.getInt("bong_master");
+                session.hopquathang9vip = rs.getInt("hopquathang9vip");
+                session.hopquathang9 = rs.getInt("hopquathang9");
+                session.hopquatrungthuvip = rs.getInt("hopquatrungthuvip");
+                session.longdentreo = rs.getInt("longdentreo");
+                session.hoptrahoacuc = rs.getInt("hoptrahoacuc");
+                session.hopkeomaquy = rs.getInt("hopkeomaquy");
+                session.capsuvip = rs.getInt("capsuvip");
+                session.thiepchucvip = rs.getInt("thiepchucvip");
+                session.hopqua2010 = rs.getInt("hopqua2010");
+                session.halloween_master = rs.getInt("halloween_master");
+                session.keo_halloween = rs.getInt("keo_halloween");
+                session.thiep_halloween = rs.getInt("thiep_halloween");
+                session.diemnoel = rs.getInt("diemnoel");
+                session.hopdiem = rs.getInt("hopdiem");
+                session.vongquayvang = rs.getInt("vongquayvang");
+                session.vongquaydacbiet = rs.getInt("vongquaydacbiet");
+                session.phaobong = rs.getInt("phaobong");
+                session.lixi = rs.getInt("lixi");
                 session.vip = rs.getInt("vip");
                 long lastTimeLogin = rs.getTimestamp("last_time_login").getTime();
                 int secondsPass1 = (int) ((System.currentTimeMillis() - lastTimeLogin) / 1000);
-                if (secondsPass1 < 0) {
-                    secondsPass1 = Manager.SECOND_WAIT_LOGIN + 1;
-                }
                 long lastTimeLogout = rs.getTimestamp("last_time_logout").getTime();
                 int secondsPass = (int) ((System.currentTimeMillis() - lastTimeLogout) / 1000);
-                if (secondsPass < 0) {
-                    secondsPass = Manager.SECOND_WAIT_LOGIN + 1;
-                }
                 long createTime = rs.getTimestamp("create_time").getTime();
                 int deltaTime = (int) ((System.currentTimeMillis() - createTime) / 1000);
+//                if (!session.isAdmin) {
+////                    Service.gI().sendThongBaoOK(session, "ADMIN đang sửa lỗi Sever 1 đề nghị ae chọn Sever 2 hoặc\n đi xem sẽ cho đỡ buồn!");
+//                    Service.gI().sendThongBaoOK(session, "Sever chỉ dành cho admin, vui lòng chọn sever khác");
+//                } else
                 if (rs.getBoolean("ban")) {
-                    Service.gI().sendThongBaoOK(session,
-                            "Tài khoản này đang bị khóa. Liên hệ Admin để biết thêm thông tin");
+                    Service.gI().sendThongBaoOK(session, "Tài khoản này đang bị khóa. Liên hệ Admin để biết thêm thông tin");
                 } else if (secondsPass1 < Manager.SECOND_WAIT_LOGIN) {
                     if (secondsPass < secondsPass1) {
                         Service.gI().sendWaitToLogin(session, Manager.SECOND_WAIT_LOGIN - secondsPass);
@@ -109,8 +135,7 @@ public class NDVSqlFetcher {
                     }
                     Service.gI().sendWaitToLogin(session, Manager.SECOND_WAIT_LOGIN - secondsPass1);
                     return null;
-                } else if (rs.getTimestamp("last_time_login").getTime() > session.lastTimeLogout
-                        && (plInGame = Client.gI().getPlayerByUser(session.userId)) != null) {
+                } else if (rs.getTimestamp("last_time_login").getTime() > session.lastTimeLogout && (plInGame = Client.gI().getPlayerByUser(session.userId)) != null) {
                     Client.gI().kickSession(plInGame.getSession());
                     Client.gI().kickSession(session);
                     Service.gI().sendLoginFail(session, true);
@@ -118,12 +143,11 @@ public class NDVSqlFetcher {
                     if (secondsPass < Manager.SECOND_WAIT_LOGIN) {
                         Service.gI().sendWaitToLogin(session, Manager.SECOND_WAIT_LOGIN - secondsPass);
                     } else {
-                        rs = DBConnecter.executeQuery("select * from player where account_id = ? limit 1",
-                                session.userId);
+                        rs = DBConnecter.executeQuery("select * from player where account_id = ? limit 1", session.userId);
                         if (!rs.next()) {
-                            // -28 -4 version data game
+                            //-28 -4 version data game
                             DataGame.sendVersionGame(session);
-                            // -31 data item background
+                            //-31 data item background
                             DataGame.sendDataItemBG(session);
                             Service.gI().switchToCreateChar(session);
                         } else {
@@ -134,10 +158,11 @@ public class NDVSqlFetcher {
                             if ((player = loadPlayer(rs, false)) != null) {
                                 player.isPlayer = true;
                                 player.deltaTime = deltaTime;
+                                player.thachdauwhis = rs.getInt("thachdauwhis");
+                                player.point_maydam = rs.getInt("point_maydam");
+                                player.total_damage_maydam = rs.getLong("total_damage_maydam");
                                 player.isNewMember = !Util.isTimeDifferenceGreaterThanNDays(createTime, 45);
-                                DBConnecter.executeUpdate("update account set last_time_login = '"
-                                        + new Timestamp(System.currentTimeMillis()) + "', ip_address = '"
-                                        + session.ipAddress + "' where id = " + session.userId);
+                                DBConnecter.executeUpdate("update account set last_time_login = '" + new Timestamp(System.currentTimeMillis()) + "', ip_address = '" + session.ipAddress + "' where id = " + session.userId);
                             }
                         }
                     }
@@ -167,7 +192,6 @@ public class NDVSqlFetcher {
         Player player = null;
         NDVResultSet rs = null;
         try {
-
             rs = DBConnecter.executeQuery("select * from player where id = ? limit 1", id);
             if (rs.next() && (player = loadPlayer(rs, true)) != null) {
                 player.isOffline = true;
@@ -196,7 +220,7 @@ public class NDVSqlFetcher {
 
             player = new Player();
 
-            // base info
+            //base info
             player.id = rs.getInt("id");
             player.name = rs.getString("name");
             player.head = rs.getShort("head");
@@ -231,87 +255,17 @@ public class NDVSqlFetcher {
                     player.clan = null;
                 }
             }
-
-            player.pointtet = rs.getInt("pointtet");
-            player.pointboss = rs.getInt("san_boss_points");
-            player.rewardbossday = rs.getBoolean("received_boss_reward"); // Đọc dữ liệu từ DB
-            player.checkin = rs.getBoolean("check_in");
-            player.hpbang = rs.getInt("hpbang");
-            player.mpbang = rs.getInt("mpbang");
-            player.damebang = rs.getInt("damebang");
-            player.critbang = rs.getInt("critbang");
-            player.optde = rs.getInt("option");
-            player.choice = rs.getInt("choice");
-            player.vip = rs.getInt("vip");
-            player.point_lucky_dapdo = rs.getInt("mayman");
-            player.lucchien = rs.getLong("luchien");
-            player.tieutien = rs.getInt("tieutien");
-            player.achievementTieuTien = rs.getString("achievement_tieutien");
-            if (player.achievement != null && player.achievementTieuTien != null) {
-                player.achievement.loadTieuTienMilestonesData(player.achievementTieuTien);
-            }
-            JSONObject jsonobject = (JSONObject) JSONValue.parse(rs.getString("so_su_menh"));
-            player.sosumenhplayer.ssmTaskMain = new ArrayList<>();
-            if (!String.valueOf(jsonobject).equals("{}")) {
-                player.sosumenhplayer.setLevel(Integer.parseInt(String.valueOf(jsonobject.get("level"))));
-                player.sosumenhplayer.setPoint(Integer.parseInt(String.valueOf(jsonobject.get("point"))));
-                player.sosumenhplayer.setCoutday(Integer.parseInt(String.valueOf(jsonobject.get("coutday"))));
-                player.sosumenhplayer.setVip(Boolean.parseBoolean(String.valueOf(jsonobject.get("vip"))));
-
-                player.sosumenhplayer.reward = new boolean[20];
-                JSONArray jA = (JSONArray) JSONValue.parse(String.valueOf(jsonobject.get("reward")));
-                for (int i = 0; i < jA.size(); i++) {
-                    if (jA.get(i) != null) {
-                        player.sosumenhplayer.reward[i] = Boolean.parseBoolean(jA.get(i).toString());
-                    }
-                }
-
-                player.sosumenhplayer.rewardVip = new boolean[20];
-                jA = (JSONArray) JSONValue.parse(String.valueOf(jsonobject.get("rewardVip")));
-                for (int i = 0; i < jA.size(); i++) {
-                    if (jA.get(i) != null) {
-                        player.sosumenhplayer.rewardVip[i] = Boolean.parseBoolean(jA.get(i).toString());
-                    }
-                }
-                jA = (JSONArray) JSONValue.parse(String.valueOf(jsonobject.get("ssmTaskMain")));
-                for (int i = 0; i < jA.size(); i++) {
-                    if (jA.get(i) != null) {
-                        JSONArray taskArray = (JSONArray) JSONValue.parse(jA.get(i).toString());
-                        if (taskArray.size() >= 3) {
-                            SoSuMenhTaskMain smm = new SoSuMenhTaskMain();
-                            smm.idTask = Integer.parseInt(taskArray.get(0).toString());
-                            smm.countTask = Integer.parseInt(taskArray.get(1).toString());
-                            smm.finish = Boolean.parseBoolean(taskArray.get(2).toString());
-                            player.sosumenhplayer.ssmTaskMain.add(smm);
-                        }
-                    }
-                }
-
-                if (player.sosumenhplayer.ssmTaskMain == null || player.sosumenhplayer.ssmTaskMain.isEmpty()) {
-                    player.sosumenhplayer.ssmTaskMain = new ArrayList<>();
-                    for (SoSuMenhTaskTemplate template : SoSuMenhManager.getInstance().list) {
-                        SoSuMenhTaskMain smm = new SoSuMenhTaskMain();
-                        smm.idTask = template.getId();
-                        smm.countTask = 0;
-                        smm.finish = false;
-                        player.sosumenhplayer.ssmTaskMain.add(smm);
-                    }
-                }
-
-                jA.clear();
-                jsonobject.clear();
-            }
-
             player.event.setEventPoint(rs.getInt("event_point"));
             player.event.setEventPointBHM(rs.getInt("event_point_boss"));
             player.event.setEventPointNHS(rs.getInt("event_point_nhs"));
             player.event.setEventPointQuai(rs.getInt("event_point_quai"));
             player.event.setEventPointQuyLao(rs.getInt("diem_quy_lao"));
+            player.event.setEventPointPhaoBong(rs.getInt("phaobong"));
 
             player.pointfusion.setHpFusion(rs.getInt("hp_point_fusion"));
             player.pointfusion.setMpFusion(rs.getInt("mp_point_fusion"));
             player.pointfusion.setDameFusion(rs.getInt("dame_point_fusion"));
-            // data kim lượng
+            //data kim lượng
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_inventory"));
             player.inventory.gold = Long.parseLong(String.valueOf(dataArray.get(0)));
             player.inventory.gem = Integer.parseInt(String.valueOf(dataArray.get(1)));
@@ -328,33 +282,44 @@ public class NDVSqlFetcher {
                 player.inventory.event = 0;
             }
             dataArray.clear();
-            // petTask
-            dataArray = (JSONArray) JSONValue.parse(rs.getString("PetTask"));
+            
+            // data điểm danh
+            try {
+                Object parsed = JSONValue.parse(rs.getString("checkNhanQua"));
+                int luotNhan = 1;
+                int capsuleBang = 1;
+                LocalDateTime lastCheckIn = null;
 
-            if (dataArray != null && dataArray.size() >= 3) {
-                // Gán giá trị cho các thuộc tính của petTask
-                player.PetTask.id = Integer.parseInt(String.valueOf(dataArray.get(0))); // Gán id
-                player.PetTask.count = Integer.parseInt(String.valueOf(dataArray.get(1))); // Gán count
-                player.PetTask.countMax = Integer.parseInt(String.valueOf(dataArray.get(2))); // Gán MaxCount
-            } else {
-                // Nếu không có đủ dữ liệu hoặc gặp vấn đề, thiết lập giá trị mặc định
-                player.PetTask.id = -1;
-                player.PetTask.count = 0;
-                player.PetTask.countMax = 0;
+                if (parsed instanceof JSONArray arr) {
+                    if (arr.size() > 0) {
+                        luotNhan = Integer.parseInt(String.valueOf(arr.get(0)));
+                    }
+                    if (arr.size() > 1) {
+                        capsuleBang = Integer.parseInt(String.valueOf(arr.get(1)));
+                    }
+                    if (arr.size() > 2 && arr.get(2) != null) {
+                        lastCheckIn = LocalDateTime.parse(String.valueOf(arr.get(2)));
+                    }
+                }
+
+                player.event.luotNhanNgocMienPhi = luotNhan;
+                player.event.luotNhanCapsuleBang = capsuleBang;
+                player.lastCheckIn = lastCheckIn;
+            } catch (Exception e) {
+                player.event.luotNhanNgocMienPhi = 1;
+                player.event.luotNhanCapsuleBang = 1;
+                player.lastCheckIn = null;
+                System.err.println("Lỗi đọc checkNhanQua: " + e.getMessage());
             }
 
-            // Xoá dữ liệu trong dataArray
-            if (dataArray != null)
-                dataArray.clear();
-            // data tọa độ
+            //data tọa độ
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_location"));
                 int mapId = Integer.parseInt(String.valueOf(dataArray.get(0)));
                 player.location.x = Integer.parseInt(String.valueOf(dataArray.get(1)));
                 player.location.y = Integer.parseInt(String.valueOf(dataArray.get(2)));
                 player.location.lastTimeplayerMove = System.currentTimeMillis();
-                if (mapId == 51 || MapService.gI().isMapDoanhTrai(mapId) || MapService.gI().isMapBlackBallWar(mapId)
-                        || MapService.gI().isMapSieuThanhThuy(mapId) || MapService.gI().isMapMabu2H(mapId)) {
+                if (mapId == 51 || MapService.gI().isMapDoanhTrai(mapId) || MapService.gI().isMapMiNuong(mapId) || MapService.gI().isMapBlackBallWar(mapId) || MapService.gI().isMapSieuThanhThuy(mapId) || MapService.gI().isMapMabu2H(mapId)) {
                     mapId = player.gender + 21;
                     player.location.x = 300;
                     player.location.y = 336;
@@ -383,7 +348,7 @@ public class NDVSqlFetcher {
             }
             dataArray.clear();
 
-            // data chỉ số
+            //data chỉ số
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_point"));
             player.nPoint.limitPower = Byte.parseByte(String.valueOf(dataArray.get(0)));
             player.nPoint.power = Long.parseLong(String.valueOf(dataArray.get(1)));
@@ -395,12 +360,12 @@ public class NDVSqlFetcher {
             player.nPoint.dameg = Long.parseLong(String.valueOf(dataArray.get(7)));
             player.nPoint.defg = Integer.parseInt(String.valueOf(dataArray.get(8)));
             player.nPoint.critg = Byte.parseByte(String.valueOf(dataArray.get(9)));
-            dataArray.get(10); // ** Năng động
+            dataArray.get(10); //** Năng động
             plHp = Long.parseLong(String.valueOf(dataArray.get(11)));
             plMp = Long.parseLong(String.valueOf(dataArray.get(12)));
             dataArray.clear();
 
-            // data đậu thần
+            //data đậu thần
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_magic_tree"));
             byte level = Byte.parseByte(String.valueOf(dataArray.get(0)));
             byte currPea = Byte.parseByte(String.valueOf(dataArray.get(1)));
@@ -410,7 +375,14 @@ public class NDVSqlFetcher {
             player.magicTree = new MagicTree(player, level, currPea, lastTimeHarvest, isUpgrade, lastTimeUpgrade);
             dataArray.clear();
 
-            // data phần thưởng sao đen
+            try {
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("loadtimetop"));
+                player.lasttimeTD = Long.parseLong(String.valueOf(dataArray.get(0)));
+                player.diemmaydam = Long.parseLong(String.valueOf(dataArray.get(1)));
+            } catch (Exception e) {
+            }
+
+            //data phần thưởng sao đen
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_black_ball"));
             JSONArray dataBlackBall;
             for (int i = 0; i < dataArray.size(); i++) {
@@ -418,18 +390,15 @@ public class NDVSqlFetcher {
                 player.rewardBlackBall.timeOutOfDateReward[i] = Long.parseLong(String.valueOf(dataBlackBall.get(0)));
                 player.rewardBlackBall.lastTimeGetReward[i] = Long.parseLong(String.valueOf(dataBlackBall.get(1)));
                 try {
-                    player.rewardBlackBall.quantilyBlackBall[i] = dataBlackBall.get(2) != null
-                            ? Integer.parseInt(String.valueOf(dataBlackBall.get(2)))
-                            : 0;
+                    player.rewardBlackBall.quantilyBlackBall[i] = dataBlackBall.get(2) != null ? Integer.parseInt(String.valueOf(dataBlackBall.get(2))) : 0;
                 } catch (NumberFormatException e) {
-                    player.rewardBlackBall.quantilyBlackBall[i] = player.rewardBlackBall.timeOutOfDateReward[i] != 0 ? 1
-                            : 0;
+                    player.rewardBlackBall.quantilyBlackBall[i] = player.rewardBlackBall.timeOutOfDateReward[i] != 0 ? 1 : 0;
                 }
                 dataBlackBall.clear();
             }
             dataArray.clear();
 
-            // data body
+            //data body
             dataArray = (JSONArray) JSONValue.parse(rs.getString("items_body"));
             for (int i = 0; i < dataArray.size(); i++) {
                 Item item;
@@ -437,12 +406,10 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                     }
                     item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
                     if (ItemService.gI().isOutOfDateTime(item)) {
@@ -459,15 +426,15 @@ public class NDVSqlFetcher {
             if (player.inventory.itemsBody.size() == 11) {
                 player.inventory.itemsBody.add(ItemService.gI().createItemNull());
             }
-            if (player.inventory.itemsBody.size() == 12) {
-                player.inventory.itemsBody.add(ItemService.gI().createItemNull());
-            }
-            if (player.inventory.itemsBody.size() == 13) {
-                player.inventory.itemsBody.add(ItemService.gI().createItemNull());
-            }
+//            if (player.inventory.itemsBody.size() == 12) {
+//                player.inventory.itemsBody.add(ItemService.gI().createItemNull());
+//            }
+//            if (player.inventory.itemsBody.size() == 13) {
+//                player.inventory.itemsBody.add(ItemService.gI().createItemNull());
+//            }
             dataArray.clear();
 
-            // data bag
+            //data bag
             dataArray = (JSONArray) JSONValue.parse(rs.getString("items_bag"));
             for (int i = 0; i < dataArray.size(); i++) {
                 Item item;
@@ -475,12 +442,10 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                     }
                     item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
                     if (ItemService.gI().isOutOfDateTime(item)) {
@@ -493,7 +458,7 @@ public class NDVSqlFetcher {
             }
             dataArray.clear();
 
-            // data box
+            //data box
             dataArray = (JSONArray) JSONValue.parse(rs.getString("items_box"));
             for (int i = 0; i < dataArray.size(); i++) {
                 Item item;
@@ -501,12 +466,10 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                     }
                     item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
                     if (item.template.id == 2132) {
@@ -532,8 +495,32 @@ public class NDVSqlFetcher {
                 player.inventory.itemsBox.add(item);
             }
             dataArray.clear();
+            
+            //data box collection
+            dataArray = (JSONArray) JSONValue.parse(rs.getString("items_box_collection"));
+            for (int i = 0; i < dataArray.size(); i++) {
+                Item item;
+                JSONArray dataItem = (JSONArray) JSONValue.parse(dataArray.get(i).toString());
+                short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
+                if (tempId != -1) {
+                    item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    for (int j = 0; j < options.size(); j++) {
+                        JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
+                    }
+                    item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
+                    if (ItemService.gI().isOutOfDateTime(item)) {
+                        item = ItemService.gI().createItemNull();
+                    }
+                } else {
+                    item = ItemService.gI().createItemNull();
+                }
+                player.inventory.itemsBoxCollection.add(item);
+            }
+            dataArray.clear();
 
-            // data box lucky round
+            //data box lucky round
             dataArray = (JSONArray) JSONValue.parse(rs.getString("items_box_lucky_round"));
             for (int i = 0; i < dataArray.size(); i++) {
                 Item item;
@@ -541,19 +528,20 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
+                    }
+                    if (dataItem.size() == 5) {
+                        item.message = dataItem.get(4).toString();
                     }
                     player.inventory.itemsBoxCrackBall.add(item);
                 }
             }
             dataArray.clear();
 
-            // data box hòm thư
+            //data box hòm thư
             dataArray = (JSONArray) JSONValue.parse(rs.getString("item_mails_box"));
             for (int i = 0; i < dataArray.size(); i++) {
                 Item item = null;
@@ -561,18 +549,34 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                     }
                     player.inventory.itemsMailBox.add(item);
                 }
             }
             dataArray.clear();
-            // data item da ban
+            try {
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("HocSkill"));
+                player.HocSkill.Time = Long.parseLong(String.valueOf(dataArray.get(0)));
+                player.HocSkill.ItemTemplateSkillId = Short.parseShort(String.valueOf(dataArray.get(1)));
+                player.HocSkill.Potential = Integer.parseInt(String.valueOf(dataArray.get(2)));
+
+            } catch (Exception e) {
+            }
+
+            try {
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("CheckHocSkill"));
+                for (Object idSkill : dataArray) {
+                    player.CheckHocSkill.add(((Long) idSkill).intValue());
+                }
+                dataArray.clear();
+            } catch (Exception e) {
+                Logger.log(e.toString());
+            }
+            //data item da ban
             dataArray = (JSONArray) JSONValue.parse(rs.getString("items_daban"));
             for (int i = 0; i < dataArray.size() && i < 20; i++) {
                 Item item;
@@ -580,12 +584,10 @@ public class NDVSqlFetcher {
                 short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                 if (tempId != -1) {
                     item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
-                    JSONArray options = (JSONArray) JSONValue
-                            .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                    JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                     for (int j = 0; j < options.size(); j++) {
                         JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                Integer.parseInt(String.valueOf(opt.get(1)))));
+                        item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                     }
                     // 26/06/2023 - Giảm Ngày Trong Shop
                     item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
@@ -606,12 +608,12 @@ public class NDVSqlFetcher {
                     if (!ItemService.gI().isOutOfDateTime(item)) {
                         player.inventory.itemsDaBan.add(item);
                     }
-                    // player.inventory.itemsDaBan.add(item);
+                    //player.inventory.itemsDaBan.add(item);
                 }
             }
             dataArray.clear();
 
-            // data friends
+            //data friends
             dataArray = (JSONArray) JSONValue.parse(rs.getString("friends"));
             if (dataArray != null) {
                 for (int i = 0; i < dataArray.size(); i++) {
@@ -630,7 +632,7 @@ public class NDVSqlFetcher {
                 dataArray.clear();
             }
 
-            // data enemies
+            //data enemies
             dataArray = (JSONArray) JSONValue.parse(rs.getString("enemies"));
             if (dataArray != null) {
                 for (int i = 0; i < dataArray.size(); i++) {
@@ -649,7 +651,7 @@ public class NDVSqlFetcher {
                 dataArray.clear();
             }
 
-            // data nội tại
+            //data nội tại
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_intrinsic"));
             byte intrinsicId = Byte.parseByte(String.valueOf(dataArray.get(0)));
             player.playerIntrinsic.intrinsic = IntrinsicService.gI().getIntrinsicById(intrinsicId);
@@ -667,12 +669,13 @@ public class NDVSqlFetcher {
             }
             dataArray.clear();
 
-            // data item time
+            //data item time
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_item_time"));
             int timeUseTDLT = 0;
             int timeOpenPower = 0;
             int timeMayDo = 0;
             int timeMayDo2 = 0;
+            int duoikhi = 0;
             int timeMeal = 0;
             int iconMeal = 0;
             int timeUseCMS = 0;
@@ -683,9 +686,26 @@ public class NDVSqlFetcher {
             int iconMeal2 = 0;
             int timeMeal3 = 0;
             int iconMeal3 = 0;
+            int timeCoBonLa = 0;
+            int timeBanh1Trung = 0;
+            int timeBanh2Trung = 0;
+            int timeBanhDb = 0;
+            int timeBanhHop = 0;
             int timeUseNCD = 0;
             int timeUseBuax2DeTu = 0;
             int timeUseKhauTrang = 0;
+            int timeUsevevang = 0;
+            long timeKilis = 0;
+            long timeMaTroi = 0;
+            long timeDoiNhi = 0;
+            long timeBoXuong = 0;
+            long timeBiMa = 0;
+            int timepho1 = 0;
+            int timepho2 = 0;
+            int timepho3 = 0;
+            long timecarot = 0;
+            int timeUseRB = 0;
+            int timechuotmap = 0;
             int timeBoHuyet = Integer.parseInt(String.valueOf(dataArray.get(0)));
             int timeBoHuyet2 = Integer.parseInt(String.valueOf(dataArray.get(1)));
             int timeBoKhi = Integer.parseInt(String.valueOf(dataArray.get(2)));
@@ -706,7 +726,7 @@ public class NDVSqlFetcher {
                 timeMayDo2 = Integer.parseInt(String.valueOf(dataArray.get(12)));
             }
             if (dataArray.size() > 13) {
-
+                duoikhi = Integer.parseInt(String.valueOf(dataArray.get(13)));
             }
             if (dataArray.size() > 14) {
                 timeMeal = Integer.parseInt(String.valueOf(dataArray.get(14)));
@@ -736,6 +756,11 @@ public class NDVSqlFetcher {
                 iconMeal2 = Integer.parseInt(String.valueOf(dataArray.get(22)));
             }
             if (dataArray.size() > 23) {
+                timeCoBonLa = Integer.parseInt(dataArray.get(23).toString());
+            }
+            if (timeCoBonLa != 0) {
+                player.itemTime.lastTimeCoBonLa
+                        = System.currentTimeMillis() - (ItemTime.TIME_CO_BON_LA - timeCoBonLa);
             }
             if (dataArray.size() > 24) {
                 timeUseNCD = Integer.parseInt(String.valueOf(dataArray.get(24)));
@@ -747,12 +772,63 @@ public class NDVSqlFetcher {
                 timeUseKhauTrang = Integer.parseInt(String.valueOf(dataArray.get(26)));
             }
             if (dataArray.size() > 27) {
-                timeMeal3 = Integer.parseInt(String.valueOf(dataArray.get(27)));
+                timeUsevevang = Integer.parseInt(String.valueOf(dataArray.get(27)));
             }
             if (dataArray.size() > 28) {
-                iconMeal3 = Integer.parseInt(String.valueOf(dataArray.get(28)));
+                timeMeal3 = Integer.parseInt(String.valueOf(dataArray.get(28)));
             }
-
+            if (dataArray.size() > 29) {
+                iconMeal3 = Integer.parseInt(String.valueOf(dataArray.get(29)));
+            }
+            if (dataArray.size() > 30) {
+                timeBanh1Trung = Integer.parseInt(dataArray.get(30).toString());
+            }
+            if (dataArray.size() > 31) {
+                timeBanh2Trung = Integer.parseInt(dataArray.get(31).toString());
+            }
+            if (dataArray.size() > 32) {
+                timeBanhDb = Integer.parseInt(String.valueOf(dataArray.get(32)));
+            }
+            if (dataArray.size() > 33) {
+                timeBanhHop = Integer.parseInt(String.valueOf(dataArray.get(33)));
+            }
+            if (dataArray.size() > 34) {
+                timeKilis = (int) Long.parseLong(String.valueOf(dataArray.get(34)));
+            }
+            if (dataArray.size() > 35) {
+                timeMaTroi = Integer.parseInt(String.valueOf(dataArray.get(35)));
+            }
+            if (dataArray.size() > 36) {
+                timeDoiNhi = Integer.parseInt(String.valueOf(dataArray.get(36)));
+            }
+            if (dataArray.size() > 37) {
+                timeBoXuong = Integer.parseInt(String.valueOf(dataArray.get(37)));
+            }
+            if (dataArray.size() > 38) {
+                timeBiMa = Integer.parseInt(String.valueOf(dataArray.get(38)));
+            }
+            if (dataArray.size() > 39) {
+                timepho1 = Integer.parseInt(dataArray.get(39).toString());
+            }
+            if (dataArray.size() > 40) {
+                timepho2 = Integer.parseInt(dataArray.get(40).toString());
+            }
+            if (dataArray.size() > 41) {
+                timepho3 = Integer.parseInt(dataArray.get(41).toString());
+            }
+            if (dataArray.size() > 42) {
+                timecarot = Integer.parseInt(String.valueOf(dataArray.get(42)));
+            }
+            if (dataArray.size() > 43) {
+                timeUseRB = Integer.parseInt(String.valueOf(dataArray.get(43)));
+            }
+            if (dataArray.size() > 44) {
+                timechuotmap = Integer.parseInt(dataArray.get(44).toString());
+            }
+            if (timechuotmap != 0) {
+                player.itemTime.lastTimechuotmap
+                        = System.currentTimeMillis() - (ItemTime.TIME_CHUOT_MAP - timechuotmap);
+            }
             player.itemTime.lastTimeBoHuyet = System.currentTimeMillis() - (ItemTime.TIME_ITEM - timeBoHuyet);
             player.itemTime.lastTimeBoKhi = System.currentTimeMillis() - (ItemTime.TIME_ITEM - timeBoKhi);
             player.itemTime.lastTimeGiapXen = System.currentTimeMillis() - (ItemTime.TIME_ITEM - timeGiapXen);
@@ -775,10 +851,30 @@ public class NDVSqlFetcher {
             player.itemTime.timeRX = timeUseRX * 60 * 1000;
             player.itemTime.lastTimeUseRX = System.currentTimeMillis();
             player.itemTime.lastTimeEatMeal2 = System.currentTimeMillis() - (ItemTime.TIME_EAT_MEAL - timeMeal2);
+            player.itemTime.lastTimeCoBonLa = System.currentTimeMillis() - (ItemTime.TIME_CO_BON_LA - timeCoBonLa);
             player.itemTime.lastTimeUseNCD = System.currentTimeMillis() - (ItemTime.TIME_NCD - timeUseNCD);
             player.itemTime.lastTimeBuax2DeTu = System.currentTimeMillis() - (ItemTime.TIME_30P - timeUseBuax2DeTu);
             player.itemTime.lastTimeKhauTrang = System.currentTimeMillis() - (ItemTime.TIME_30P - timeUseKhauTrang);
+            player.itemTime.lastTimevevang = System.currentTimeMillis() - (ItemTime.TIME_VE_VANG - timeUsevevang);
             player.itemTime.lastTimeEatMeal3 = System.currentTimeMillis() - (ItemTime.TIME_EAT_MEAL3 - timeMeal3);
+            player.itemTime.lastTimeBanhTrungThu1Trung = System.currentTimeMillis() - (ItemTime.TIME_30P - timeBanh1Trung);
+            player.itemTime.lastTimeBanhTrungThu2Trung = System.currentTimeMillis() - (ItemTime.TIME_30P - timeBanh2Trung);
+            player.itemTime.lastTimeBanhTrungThuDb = System.currentTimeMillis() - (ItemTime.TIME_30P - timeBanhDb);
+            player.itemTime.lastTimeBanhTrungThuHop = System.currentTimeMillis() - (ItemTime.TIME_30P - timeBanhHop);
+            player.itemTime.lastTimeUseKilis = System.currentTimeMillis() - (ItemTime.TIME_KILIS - timeKilis);
+            player.itemTime.lastTimeMaTroi = System.currentTimeMillis() - (ItemTime.TIME_ITEM_X2_DT - timeMaTroi);
+            player.itemTime.lastTimeDoiNhi = System.currentTimeMillis() - (ItemTime.TIME_ITEM_X2_DT - timeDoiNhi);
+            player.itemTime.lastTimeBoXuong = System.currentTimeMillis() - (ItemTime.TIME_ITEM_X2_DT - timeBoXuong);
+            player.itemTime.lastTimeBiMa = System.currentTimeMillis() - (ItemTime.TIME_ITEM_X2_DT - timeBiMa);
+            player.itemTime.lastTimepho1 = System.currentTimeMillis() - (ItemTime.TIME_EAT_MEAL3 - timepho1);
+            player.itemTime.lastTimepho2 = System.currentTimeMillis() - (ItemTime.TIME_EAT_MEAL3 - timepho2);
+            player.itemTime.lastTimepho3 = System.currentTimeMillis() - (ItemTime.TIME_EAT_MEAL3 - timepho3);
+            player.itemTime.lastTimecarot = System.currentTimeMillis() - (ItemTime.TIME_CAROT - timecarot);
+            player.itemTime.timeRB = timeUseRB * 60 * 1000;
+            player.itemTime.lastTimeUseRB = System.currentTimeMillis();
+            player.itemTime.lastTimechuotmap = System.currentTimeMillis() - (ItemTime.TIME_CHUOT_MAP - timechuotmap);
+
+
             player.itemTime.iconMeal = iconMeal;
             player.itemTime.isEatMeal = timeMeal != 0;
             player.itemTime.isUseBoHuyet = timeBoHuyet != 0;
@@ -805,14 +901,31 @@ public class NDVSqlFetcher {
             player.itemTime.isUseNCD = timeUseNCD != 0;
             player.itemTime.isUseBuax2DeTu = timeUseBuax2DeTu != 0;
             player.itemTime.isUseKhauTrang = timeUseKhauTrang != 0;
+            player.itemTime.isUsevevang = timeUsevevang != 0;
             player.itemTime.iconMeal3 = iconMeal3;
             player.itemTime.isEatMeal3 = timeMeal3 != 0;
+            player.itemTime.isCoBonLa = timeCoBonLa != 0;
+            player.itemTime.isBanhTrungThu1Trung = timeBanh1Trung != 0;
+            player.itemTime.isBanhTrungThu2Trung = timeBanh2Trung != 0;
+            player.itemTime.isBanhTrungThuDb = timeBanhDb != 0;
+            player.itemTime.isBanhTrungHop = timeBanhHop != 0;
+            player.itemTime.isUseKilis = timeKilis != 0;
+            player.itemTime.isMaTroi = timeMaTroi != 0;
+            player.itemTime.isDoiNhi = timeDoiNhi != 0;
+            player.itemTime.isBoXuong = timeBoXuong != 0;
+            player.itemTime.isBiMa = timeBiMa != 0;
+            player.itemTime.ispho1 = timepho1 != 0;
+            player.itemTime.ispho2 = timepho2 != 0;
+            player.itemTime.ispho3 = timepho3 != 0;
+            player.itemTime.iscarot = timecarot != 0;
+            player.itemTime.isUseRB = timeUseRB != 0;
+            player.itemTime.ischuotmap = timechuotmap != 0;
+
             dataArray.clear();
 
-            // data nhiệm vụ
+            //data nhiệm vụ
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_task"));
-            TaskMain taskMain = TaskService.gI().getTaskMainById(player,
-                    Byte.parseByte(String.valueOf(dataArray.get(0))));
+            TaskMain taskMain = TaskService.gI().getTaskMainById(player, Byte.parseByte(String.valueOf(dataArray.get(0))));
             taskMain.index = Byte.parseByte(String.valueOf(dataArray.get(1)));
             taskMain.subTasks.get(taskMain.index).count = Short.parseShort(String.valueOf(dataArray.get(2)));
             if (dataArray.size() > 3) {
@@ -823,31 +936,42 @@ public class NDVSqlFetcher {
             player.playerTask.taskMain = taskMain;
             dataArray.clear();
 
-            // data nhiệm vụ hàng ngày
+            //data nhiệm vụ hàng ngày
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_side_task"));
             String format = "dd-MM-yyyy";
             long receivedTime = Long.parseLong(String.valueOf(dataArray.get(1)));
             Date date = new Date(receivedTime);
             if (TimeUtil.formatTime(date, format).equals(TimeUtil.formatTime(new Date(), format))) {
-                player.playerTask.sideTask.template = TaskService.gI()
-                        .getSideTaskTemplateById(Integer.parseInt(String.valueOf(dataArray.get(0))));
+                player.playerTask.sideTask.template = TaskService.gI().getSideTaskTemplateById(Integer.parseInt(String.valueOf(dataArray.get(0))));
                 player.playerTask.sideTask.count = Integer.parseInt(String.valueOf(dataArray.get(2)));
                 player.playerTask.sideTask.maxCount = Integer.parseInt(String.valueOf(dataArray.get(3)));
                 player.playerTask.sideTask.leftTask = Integer.parseInt(String.valueOf(dataArray.get(4)));
                 player.playerTask.sideTask.level = Integer.parseInt(String.valueOf(dataArray.get(5)));
                 player.playerTask.sideTask.receivedTime = receivedTime;
             }
-            // data nhiệm vụ pet
+            
+            //data nhiệm vụ kol
+            dataArray = (JSONArray) JSONValue.parse(rs.getString("data_kol_task"));
+            player.playerTask.kolTask.template = TaskService.gI().getKolTaskTemplateById(Integer.parseInt(dataArray.get(0).toString()));
+            player.playerTask.kolTask.count = Integer.parseInt(dataArray.get(1).toString());
+            dataArray.clear();
+            
+            // data nhận ngọc hàng ngày
+            dataArray.add(player.event.luotNhanNgocMienPhi);
+            dataArray.add(player.event.luotNhanCapsuleBang);
+            dataArray.add(player.lastCheckIn != null ? player.lastCheckIn.toString() : null);
 
-            // data trứng bư
+            String checkNhanQua = dataArray.toJSONString();
+            dataArray.clear();
+
+            //data trứng bư
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_mabu_egg"));
             if (!dataArray.isEmpty()) {
-                player.mabuEgg = new MabuEgg(player, Long.parseLong(String.valueOf(dataArray.get(0))),
-                        Long.parseLong(String.valueOf(dataArray.get(1))));
+                player.mabuEgg = new MabuEgg(player, Long.parseLong(String.valueOf(dataArray.get(0))), Long.parseLong(String.valueOf(dataArray.get(1))));
             }
             dataArray.clear();
 
-            // data bùa
+            //data bùa
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_charm"));
             player.charms.tdTriTue = Long.parseLong(String.valueOf(dataArray.get(0)));
             player.charms.tdManhMe = Long.parseLong(String.valueOf(dataArray.get(1)));
@@ -861,7 +985,7 @@ public class NDVSqlFetcher {
             player.charms.tdTriTue4 = Long.parseLong(String.valueOf(dataArray.get(9)));
             dataArray.clear();
 
-            // data skill
+            //data skill
             dataArray = (JSONArray) JSONValue.parse(rs.getString("skills"));
             for (int i = 0; i < dataArray.size(); i++) {
                 JSONArray dataSkill = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(i)));
@@ -877,17 +1001,11 @@ public class NDVSqlFetcher {
                 if (dataSkill.size() > 3) {
                     skill.currLevel = Short.parseShort(String.valueOf(dataSkill.get(3)));
                 }
-                if (skill.lastTimeUseThisSkill > System.currentTimeMillis() + 100000) {
-                    skill.lastTimeUseThisSkill = 0;
-                }
-                if (skill.lastTimeUseThisSkill > System.currentTimeMillis() + 100000) {
-                    skill.lastTimeUseThisSkill = 0;
-                }
                 player.playerSkill.skills.add(skill);
             }
             dataArray.clear();
 
-            // data skill shortcut
+            //data skill shortcut
             dataArray = (JSONArray) JSONValue.parse(rs.getString("skills_shortcut"));
             for (int i = 0; i < dataArray.size(); i++) {
                 player.playerSkill.skillShortCut[i] = Byte.parseByte(String.valueOf(dataArray.get(i)));
@@ -900,16 +1018,14 @@ public class NDVSqlFetcher {
                 }
             }
             if (player.playerSkill.skillSelect == null) {
-                player.playerSkill.skillSelect = player.playerSkill
-                        .getSkillbyId(player.gender == ConstPlayer.TRAI_DAT ? Skill.DRAGON
-                                : (player.gender == ConstPlayer.NAMEC ? Skill.DEMON : Skill.GALICK));
+                player.playerSkill.skillSelect = player.playerSkill.getSkillbyId(player.gender == ConstPlayer.TRAI_DAT ? Skill.DRAGON : (player.gender == ConstPlayer.NAMEC ? Skill.DEMON : Skill.GALICK));
             }
             dataArray.clear();
 
-            // notify
+            //notify
             player.notify = rs.getString("notify");
 
-            // data pet
+            //data pet
             JSONArray petData = (JSONArray) JSONValue.parse(rs.getString("pet"));
             if (!petData.isEmpty()) {
                 dataArray = (JSONArray) JSONValue.parse(String.valueOf(petData.get(0)));
@@ -919,13 +1035,10 @@ public class NDVSqlFetcher {
                 pet.gender = Byte.parseByte(String.valueOf(dataArray.get(1)));
                 pet.name = String.valueOf(dataArray.get(2));
                 player.fusion.typeFusion = Byte.parseByte(String.valueOf(dataArray.get(3)));
-                player.fusion.lastTimeFusion = System.currentTimeMillis()
-                        - (Fusion.TIME_FUSION - Integer.parseInt(String.valueOf(dataArray.get(4))));
+                player.fusion.lastTimeFusion = System.currentTimeMillis() - (Fusion.TIME_FUSION - Integer.parseInt(String.valueOf(dataArray.get(4))));
                 pet.status = Byte.parseByte(String.valueOf(dataArray.get(5)));
-                try {
-                    pet.level = Integer.parseInt(String.valueOf(dataArray.get(6)));
-                } catch (Exception e) {
-                }
+
+                //data chỉ số
                 dataArray = (JSONArray) JSONValue.parse(String.valueOf(petData.get(1)));
                 pet.nPoint.limitPower = Byte.parseByte(String.valueOf(dataArray.get(0)));
                 pet.nPoint.power = Long.parseLong(String.valueOf(dataArray.get(1)));
@@ -940,21 +1053,18 @@ public class NDVSqlFetcher {
                 long hp = Long.parseLong(String.valueOf(dataArray.get(10)));
                 long mp = Long.parseLong(String.valueOf(dataArray.get(11)));
 
-                // data body
+                //data body
                 dataArray = (JSONArray) JSONValue.parse(String.valueOf(petData.get(2)));
                 for (int i = 0; i < dataArray.size(); i++) {
                     Item item;
                     JSONArray dataItem = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(i)));
                     short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                     if (tempId != -1) {
-                        item = ItemService.gI().createNewItem(tempId,
-                                Integer.parseInt(String.valueOf(dataItem.get(1))));
-                        JSONArray options = (JSONArray) JSONValue
-                                .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                        item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                         for (int j = 0; j < options.size(); j++) {
                             JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
-                            item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
-                                    Integer.parseInt(String.valueOf(opt.get(1)))));
+                            item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))), Integer.parseInt(String.valueOf(opt.get(1)))));
                         }
                         item.createTime = Long.parseLong(String.valueOf(dataItem.get(3)));
                         if (item.template.id == 2132) {
@@ -979,11 +1089,8 @@ public class NDVSqlFetcher {
                     }
                     pet.inventory.itemsBody.add(item);
                 }
-                while (pet.inventory.itemsBody.size() < 9) {
-                    pet.inventory.itemsBody.add(ItemService.gI().createItemNull());
-                }
 
-                // data skills
+                //data skills
                 dataArray = (JSONArray) JSONValue.parse(String.valueOf(petData.get(3)));
                 for (int i = 0; i < dataArray.size(); i++) {
                     JSONArray skillTemp = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(i)));
@@ -1001,9 +1108,6 @@ public class NDVSqlFetcher {
                     if (skillTemp.size() > 3) {
                         skill.currLevel = Short.parseShort(String.valueOf(skillTemp.get(3)));
                     }
-                    if (skill.lastTimeUseThisSkill > System.currentTimeMillis() + 100000) {
-                        skill.lastTimeUseThisSkill = 0;
-                    }
                     switch (skill.template.id) {
                         case Skill.KAMEJOKO, Skill.MASENKO, Skill.ANTOMIC ->
                             skill.coolDown = 1000;
@@ -1015,7 +1119,7 @@ public class NDVSqlFetcher {
                 player.pet = pet;
             }
 
-            // Data bảo vệ tài khoản
+            //Data bảo vệ tài khoản
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("baovetaikhoan"));
                 player.mbv = Integer.parseInt(dataArray.get(0).toString());
@@ -1031,18 +1135,14 @@ public class NDVSqlFetcher {
             dataArray = (JSONArray) JSONValue.parse(rs.getString("data_card"));
             for (int i = 0; i < dataArray.size(); i++) {
                 JSONObject obj = (JSONObject) dataArray.get(i);
-                player.Cards.add(new Card(Short.parseShort(obj.get("id").toString()),
-                        Byte.parseByte(obj.get("amount").toString()), Byte.parseByte(obj.get("max").toString()),
-                        Byte.parseByte(obj.get("level").toString()),
-                        loadOptionCard((JSONArray) JSONValue.parse(obj.get("option").toString())),
-                        Byte.parseByte(obj.get("used").toString())));
+                player.Cards.add(new Card(Short.parseShort(obj.get("id").toString()), Byte.parseByte(obj.get("amount").toString()), Byte.parseByte(obj.get("max").toString()), Byte.parseByte(obj.get("level").toString()), loadOptionCard((JSONArray) JSONValue.parse(obj.get("option").toString())), Byte.parseByte(obj.get("used").toString())));
             }
             dataArray.clear();
 
-            // data PK Commeson
+            //data PK Commeson
             player.lastPkCommesonTime = rs.getLong("lasttimepkcommeson");
 
-            // Data BDKB
+            //Data BDKB
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("bandokhobau"));
                 player.timesPerDayBDKB = Integer.parseInt(dataArray.get(0).toString());
@@ -1052,18 +1152,17 @@ public class NDVSqlFetcher {
                 player.lastTimeJoinBDKB = System.currentTimeMillis();
             }
 
-            // Data doanh trại
+            //Data doanh trại
             player.lastTimeJoinDT = rs.getLong("doanhtrai");
 
-            // Data CDRD
+            //Data CDRD
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("conduongrandoc"));
                 player.joinCDRD = Boolean.parseBoolean(dataArray.get(0).toString());
                 player.lastTimeJoinCDRD = Long.parseLong(dataArray.get(1).toString());
                 player.talkToThuongDe = Boolean.parseBoolean(dataArray.get(2).toString());
                 player.talkToThanMeo = Boolean.parseBoolean(dataArray.get(2).toString());
-                if (player.clan.ConDuongRanDoc == null
-                        || player.lastTimeJoinCDRD != player.clan.lastTimeOpenConDuongRanDoc) {
+                if (player.clan.ConDuongRanDoc == null || player.lastTimeJoinCDRD != player.clan.lastTimeOpenConDuongRanDoc) {
                     player.joinCDRD = false;
                     player.talkToThuongDe = false;
                     player.talkToThanMeo = false;
@@ -1077,15 +1176,14 @@ public class NDVSqlFetcher {
 
             // Sư phụ không tấn công
             try {
-                // player.doesNotAttack = rs.getBoolean("masterDoesAttack"); // Cột không tồn
-                // tại
+                player.doesNotAttack = rs.getBoolean("masterDoesAttack");
                 player.lastTimePlayerNotAttack = System.currentTimeMillis();
             } catch (Exception e) {
                 player.doesNotAttack = false;
                 player.lastTimePlayerNotAttack = System.currentTimeMillis();
             }
 
-            // data Nhận Thỏi Vàng
+            //data Nhận Thỏi Vàng
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("nhanthoivang"));
                 player.danhanthoivang = Boolean.parseBoolean(dataArray.get(0).toString());
@@ -1095,7 +1193,7 @@ public class NDVSqlFetcher {
                 player.lastRewardGoldBarTime = 0;
             }
 
-            // data Rương gỗ
+            //data Rương gỗ
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("ruonggo"));
                 player.levelWoodChest = Integer.parseInt(dataArray.get(0).toString());
@@ -1111,7 +1209,7 @@ public class NDVSqlFetcher {
                 player.lastTimePKDHVT23 = 0;
             }
 
-            // data Siêu Thần Thủy
+            //data Siêu Thần Thủy
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("sieuthanthuy"));
                 player.winSTT = Boolean.parseBoolean(dataArray.get(0).toString());
@@ -1120,7 +1218,7 @@ public class NDVSqlFetcher {
             } catch (Exception e) {
             }
 
-            // data Võ đài sinh tử
+            //data Võ đài sinh tử
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("vodaisinhtu"));
                 player.haveRewardVDST = Boolean.parseBoolean(dataArray.get(0).toString());
@@ -1130,10 +1228,10 @@ public class NDVSqlFetcher {
             } catch (Exception e) {
             }
 
-            // Thời gian gọi rồng
+            //Thời gian gọi rồng
             player.lastTimeShenronAppeared = rs.getLong("rongxuong");
 
-            // data item event
+            //data item event
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_item_event"));
                 player.itemEvent.remainingTVGSCount = Integer.parseInt(dataArray.get(0).toString());
@@ -1142,22 +1240,6 @@ public class NDVSqlFetcher {
                 player.itemEvent.lastHHTime = Long.parseLong(dataArray.get(3).toString());
                 player.itemEvent.remainingBNCount = Integer.parseInt(dataArray.get(4).toString());
                 player.itemEvent.lastBNTime = Long.parseLong(dataArray.get(5).toString());
-                if (dataArray.size() >= 10) {
-                    long lastTimeCreate = Long.parseLong(dataArray.get(6).toString());
-                    long timeDone = Long.parseLong(dataArray.get(7).toString());
-                    int type = Integer.parseInt(dataArray.get(8).toString());
-                    int quantity = Integer.parseInt(dataArray.get(9).toString());
-                    if (lastTimeCreate != 0) {
-                        player.noibanhchung = new NoiBanhChung(player, lastTimeCreate, timeDone, type, quantity);
-                    }
-                } else if (dataArray.size() == 9) {
-                    long lastTimeCreate = Long.parseLong(dataArray.get(6).toString());
-                    long timeDone = Long.parseLong(dataArray.get(7).toString());
-                    int type = Integer.parseInt(dataArray.get(8).toString());
-                    if (lastTimeCreate != 0) {
-                        player.noibanhchung = new NoiBanhChung(player, lastTimeCreate, timeDone, type, 1);
-                    }
-                }
             } catch (Exception e) {
                 player.itemEvent.remainingTVGSCount = 0;
                 player.itemEvent.lastTVGSTime = 0;
@@ -1167,7 +1249,7 @@ public class NDVSqlFetcher {
                 player.itemEvent.lastBNTime = 0;
             }
 
-            // data luyện tập
+            //data luyện tập
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_luyentap"));
                 player.levelLuyenTap = Integer.parseInt(dataArray.get(0).toString());
@@ -1190,15 +1272,14 @@ public class NDVSqlFetcher {
                 player.lastTimeOffline = System.currentTimeMillis();
             }
 
-            // data nhiệm vụ bang hàng ngày
+            //data nhiệm vụ bang hàng ngày
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_clan_task"));
                 format = "dd-MM-yyyy";
                 receivedTime = Long.parseLong(String.valueOf(dataArray.get(1)));
                 date = new Date(receivedTime);
                 if (TimeUtil.formatTime(date, format).equals(TimeUtil.formatTime(new Date(), format))) {
-                    player.playerTask.clanTask.template = TaskService.gI()
-                            .getClanTaskTemplateById(Integer.parseInt(String.valueOf(dataArray.get(0))));
+                    player.playerTask.clanTask.template = TaskService.gI().getClanTaskTemplateById(Integer.parseInt(String.valueOf(dataArray.get(0))));
                     player.playerTask.clanTask.count = Integer.parseInt(String.valueOf(dataArray.get(2)));
                     player.playerTask.clanTask.maxCount = Integer.parseInt(String.valueOf(dataArray.get(3)));
                     player.playerTask.clanTask.leftTask = Integer.parseInt(String.valueOf(dataArray.get(4)));
@@ -1208,7 +1289,7 @@ public class NDVSqlFetcher {
             } catch (Exception e) {
             }
 
-            // data vip
+            //data vip
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_vip"));
                 player.timesPerDayCuuSat = Integer.parseInt(String.valueOf(dataArray.get(0)));
@@ -1221,7 +1302,7 @@ public class NDVSqlFetcher {
             } catch (Exception e) {
             }
 
-            // data super rank
+            //data super rank
             player.superRank.rank = Integer.parseInt(rs.getString("rank"));
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_super_rank"));
@@ -1239,8 +1320,15 @@ public class NDVSqlFetcher {
                 }
             } catch (Exception e) {
             }
-            // data super rank
+            try {
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("LearnSkill"));
+                player.LearnSkill.Time = Long.parseLong(String.valueOf(dataArray.get(0)));
+                player.LearnSkill.ItemTemplateSkillId = Short.parseShort(String.valueOf(dataArray.get(1)));
+                player.LearnSkill.Potential = Integer.parseInt(String.valueOf(dataArray.get(2)));
 
+            } catch (Exception e) {
+            }
+            //data super rank 
             if (Util.isAfterMidnight(player.superRank.lastTimePK)) {
                 if (player.superRank.ticket < 3) {
                     player.superRank.ticket++;
@@ -1248,15 +1336,14 @@ public class NDVSqlFetcher {
                 player.superRank.lastTimePK = System.currentTimeMillis();
             }
 
-            // data achievement
+            //data achievement
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("data_achievement"));
                 for (int i = 0; i < Manager.ACHIEVEMENT_TEMPLATE.size(); i++) {
                     AchievementQuest aq;
                     if (i < dataArray.size()) {
                         JSONArray data = (JSONArray) JSONValue.parse(dataArray.get(i).toString());
-                        aq = new AchievementQuest(Long.parseLong(data.get(0).toString()),
-                                Boolean.parseBoolean(data.get(1).toString()));
+                        aq = new AchievementQuest(Long.parseLong(data.get(0).toString()), Boolean.parseBoolean(data.get(1).toString()));
                     } else {
                         aq = new AchievementQuest(0, false);
                     }
@@ -1266,7 +1353,7 @@ public class NDVSqlFetcher {
             } catch (Exception e) {
             }
 
-            // Giftcode
+            //Giftcode
             try {
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("giftcode"));
                 for (Object code : dataArray) {
@@ -1274,6 +1361,16 @@ public class NDVSqlFetcher {
                 }
                 dataArray.clear();
             } catch (Exception e) {
+            }
+            
+            try {
+                dataArray = (JSONArray) JSONValue.parse(rs.getString("BoughtSkill"));
+                for (Object idSkill : dataArray) {
+                    player.BoughtSkill.add(((Long) idSkill).intValue());
+                }
+                dataArray.clear();
+            } catch (Exception e) {
+                Logger.log(e.toString());
             }
 
             try {
@@ -1327,8 +1424,40 @@ public class NDVSqlFetcher {
             } catch (Exception ex) {
                 DailyGiftService.addAndReset(player);
             }
+            
+             // Data KOL
+            try {
+                String kolJson = rs.getString("nhiem_vu_kol");
+                if (kolJson != null && !kolJson.isEmpty()) {
+                    KOLProgressData kolData = new Gson().fromJson(kolJson, KOLProgressData.class);
+                    if (kolData != null) {
+                        player.kolQuestStage = kolData.kolQuestStage;
+                        player.kolVIPQuestStage = kolData.kolVIPQuestStage;
+                        player.destronGas70CompletionCount = kolData.destronGas70CompletionCount;
+                        player.martialArtsTournamentWins = kolData.martialArtsTournamentWins;
+                        player.dailySuperHardQuestCompletionCount = kolData.dailySuperHardQuestCompletionCount;
+                        player.bossBabyDefeatParticipationCount = kolData.bossBabyDefeatParticipationCount;
+                        player.monsterKillCountAutoTrain = (int) kolData.monsterKillCountAutoTrain;
+                    } else {
+                        throw new Exception("kolData null");
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Lỗi khi đọc dữ liệu KOL từ database cho player: " + e.getMessage());
+                e.printStackTrace();
+                player.kolQuestStage = 1;
+                player.kolVIPQuestStage = 1;
+                player.destronGas70CompletionCount = 0;
+                player.martialArtsTournamentWins = 0;
+                player.dailySuperHardQuestCompletionCount = 0;
+                player.bossBabyDefeatParticipationCount = 0;
+                player.monsterKillCountAutoTrain = 0;
+            }
 
             PlayerService.gI().dailyLogin(player);// RESET DATA KHI QUA 12H ĐÊM
+            if (player.nPoint.power >= 100_010_000_000L) {
+                player.nPoint.power = 100_010_000_000L;
+            }
             if (player.getSession() != null && player.getSession().actived && player.getSession().cash < 0) {
                 player.getSession().actived = false;
                 player.getSession().cash = 0;
@@ -1361,23 +1490,21 @@ public class NDVSqlFetcher {
 
                     player = new Player();
 
-                    // base info
+                    //base info
                     player.id = rs.getInt("id");
                     player.name = rs.getString("name");
                     player.head = rs.getShort("head");
                     player.gender = rs.getByte("gender");
                     player.haveTennisSpaceShip = rs.getBoolean("have_tennis_space_ship");
-                    // data box hòm thư
+                    //data box hòm thư
                     dataArray = (JSONArray) JSONValue.parse(rs.getString("item_mails_box"));
                     for (int i = 0; i < dataArray.size(); i++) {
                         Item item = null;
                         JSONArray dataItem = (JSONArray) JSONValue.parse(dataArray.get(i).toString());
                         short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                         if (tempId != -1) {
-                            item = ItemService.gI().createNewItem(tempId,
-                                    Integer.parseInt(String.valueOf(dataItem.get(1))));
-                            JSONArray options = (JSONArray) JSONValue
-                                    .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                            item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
+                            JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                             for (int j = 0; j < options.size(); j++) {
                                 JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
                                 item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
@@ -1434,24 +1561,22 @@ public class NDVSqlFetcher {
 
                 player = new Player();
 
-                // base info
+                //base info
                 player.id = rs.getInt("id");
                 player.name = rs.getString("name");
                 player.head = rs.getShort("head");
                 player.gender = rs.getByte("gender");
                 player.haveTennisSpaceShip = rs.getBoolean("have_tennis_space_ship");
 
-                // data body
+                //data body
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("item_mails_box"));
                 for (int i = 0; i < dataArray.size(); i++) {
                     Item item = null;
                     JSONArray dataItem = (JSONArray) JSONValue.parse(dataArray.get(i).toString());
                     short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                     if (tempId != -1) {
-                        item = ItemService.gI().createNewItem(tempId,
-                                Integer.parseInt(String.valueOf(dataItem.get(1))));
-                        JSONArray options = (JSONArray) JSONValue
-                                .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                        item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                         for (int j = 0; j < options.size(); j++) {
                             JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
                             item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
@@ -1467,24 +1592,6 @@ public class NDVSqlFetcher {
                     player.inventory.itemsMailBox.add(item);
                 }
                 dataArray.clear();
-
-                // data badges
-                try {
-                    if (rs.getString("dataBadges") != null) {
-                        dataArray = (JSONArray) JSONValue.parse(rs.getString("dataBadges"));
-                        for (int i = 0; i < dataArray.size(); i++) {
-                            JSONObject dataBadge = (JSONObject) JSONValue.parse(dataArray.get(i).toString());
-                            int idBadge = Integer.parseInt(String.valueOf(dataBadge.get("idBadGes")));
-                            long timeBadge = Long.parseLong(String.valueOf(dataBadge.get("timeofUseBadges")));
-                            boolean isUse = Boolean.parseBoolean(String.valueOf(dataBadge.get("isUse")));
-                            player.dataBadges.add(new BadgesData(idBadge, timeBadge, isUse));
-                        }
-                        dataArray.clear();
-                    }
-                } catch (Exception e) {
-                    Logger.error("Lỗi load badges: " + e.getMessage());
-                }
-
                 player.nPoint.hp = plHp;
                 player.nPoint.mp = plMp;
                 player.iDMark.setLoadedAllDataPlayer(true);
@@ -1520,24 +1627,22 @@ public class NDVSqlFetcher {
 
                 player = new Player();
 
-                // base info
+                //base info
                 player.id = rs.getInt("id");
                 player.name = rs.getString("name");
                 player.head = rs.getShort("head");
                 player.gender = rs.getByte("gender");
                 player.haveTennisSpaceShip = rs.getBoolean("have_tennis_space_ship");
 
-                // data body
+                //data body
                 dataArray = (JSONArray) JSONValue.parse(rs.getString("item_mails_box"));
                 for (int i = 0; i < dataArray.size(); i++) {
                     Item item = null;
                     JSONArray dataItem = (JSONArray) JSONValue.parse(dataArray.get(i).toString());
                     short tempId = Short.parseShort(String.valueOf(dataItem.get(0)));
                     if (tempId != -1) {
-                        item = ItemService.gI().createNewItem(tempId,
-                                Integer.parseInt(String.valueOf(dataItem.get(1))));
-                        JSONArray options = (JSONArray) JSONValue
-                                .parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
+                        item = ItemService.gI().createNewItem(tempId, Integer.parseInt(String.valueOf(dataItem.get(1))));
+                        JSONArray options = (JSONArray) JSONValue.parse(String.valueOf(dataItem.get(2)).replaceAll("\"", ""));
                         for (int j = 0; j < options.size(); j++) {
                             JSONArray opt = (JSONArray) JSONValue.parse(String.valueOf(options.get(j)));
                             item.itemOptions.add(new Item.ItemOption(Integer.parseInt(String.valueOf(opt.get(0))),
@@ -1599,9 +1704,7 @@ public class NDVSqlFetcher {
             }
             String itemsBox = dataArray.toJSONString();
             dataArray.clear();
-            try (Connection con = DBConnecter.getConnectionServer();
-                    PreparedStatement ps = con
-                            .prepareStatement("update `player` set item_mails_box = ? where id = ?")) {
+            try ( Connection con = DBConnecter.getConnectionServer();  PreparedStatement ps = con.prepareStatement("update `player` set item_mails_box = ? where id = ?")) {
                 ps.setString(1, itemsBox);
                 ps.setLong(2, player.id);
                 ps.executeUpdate();
@@ -1624,8 +1727,7 @@ public class NDVSqlFetcher {
             for (int i = 0; i < json.size(); i++) {
                 JSONObject ob = (JSONObject) json.get(i);
                 if (ob != null) {
-                    ops.add(new OptionCard(Integer.parseInt(ob.get("id").toString()),
-                            Integer.parseInt(ob.get("param").toString()), Byte.parseByte(ob.get("active").toString())));
+                    ops.add(new OptionCard(Integer.parseInt(ob.get("id").toString()), Integer.parseInt(ob.get("param").toString()), Byte.parseByte(ob.get("active").toString())));
                 }
             }
         } catch (NumberFormatException e) {

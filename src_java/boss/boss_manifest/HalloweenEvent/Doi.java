@@ -1,12 +1,24 @@
 package boss.boss_manifest.HalloweenEvent;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.*;
 import static boss.BossType.HALLOWEEN_EVENT;
 import consts.ConstPlayer;
+import item.Item;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.InventoryService;
+import nro.services.ItemTimeService;
+import nro.services.Service;
+import nro.services.SkillService;
 import utils.SkillUtil;
 import utils.Util;
 
@@ -18,14 +30,28 @@ public class Doi extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        ItemMap it = new ItemMap(this.zone, 585, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
-                this.location.y - 24), plKill.id);
-        Service.gI().dropItemMap(this.zone, it);
-    }
+        try {
+            // 🧺 Kiểm tra người chơi có giỏ đựng (ID 1348) không
+            Item gioDung = InventoryService.gI().findItemBag(plKill, 1348);
 
-    public void halloween(Player player) {
-        if (player.effectSkill != null && !player.effectSkill.isHalloween) {
-            EffectSkillService.gI().setIsHalloween(player, 3, 1800000);
+            if (gioDung != null && gioDung.quantity > 0) {
+                // ✅ Có giỏ đựng → cho phép nhận item 585
+                ItemMap it = new ItemMap(this.zone, 585, 1, this.location.x,
+                        this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
+                Service.gI().dropItemMap(this.zone, it);
+
+                // 🔻 Trừ 1 giỏ đựng
+                InventoryService.gI().subQuantityItemsBag(plKill, gioDung, 1);
+                InventoryService.gI().sendItemBag(plKill);
+
+                Service.gI().sendThongBao(plKill, "Bạn đã nhặt được vật phẩm bí ngô!");
+            } else {
+                // ❌ Không có giỏ đựng → không thể nhặt
+                Service.gI().sendThongBao(plKill, "Bạn cần có Giỏ đựng ngọc bí để nhận vật phẩm!");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -78,8 +104,31 @@ public class Doi extends Boss {
                                     Util.nextInt(10) % 2 == 0 ? pl.location.y : pl.location.y - Util.nextInt(0, 50));
                         }
                     }
-                    halloween(pl);
                     SkillService.gI().useSkill(this, pl, null, -1, null);
+                    if (pl.isPl() || pl.isPet) {
+                        // ❌ Nếu đang đeo khẩu trang thì KHÔNG bị biến thành Dơi Nhí
+                        if (pl.itemTime != null && pl.itemTime.isUseKhauTrang) {
+                            Service.gI().chat(pl, "Khẩu trang đã giúp ta tránh khỏi lời nguyền Dơi Nhí!");
+                            return;
+                        }
+
+                        // ✅ Chỉ biến thành Dơi Nhí nếu chưa bị và không thuộc dạng khác
+                        if (!pl.itemTime.isDoiNhi
+                                && !pl.itemTime.isMaTroi
+                                && !pl.itemTime.isBoXuong
+                                && !pl.itemTime.isBiMa) {
+
+                            pl.itemTime.isDoiNhi = true;
+                            pl.itemTime.lastTimeDoiNhi = System.currentTimeMillis();
+
+                            // Gửi thông báo và cập nhật hình dạng
+                            Service.gI().chat(pl, "Bay lên nào! Ta đã hóa thành Dơi Nhí!");
+                            Service.gI().point(pl);
+                            ItemTimeService.gI().sendAllItemTime(pl);
+                            Service.gI().Send_Caitrang(pl);
+                        }
+                    }
+
                     checkPlayerDie(pl);
                 } else {
                     if (Util.isTrue(1, 2)) {

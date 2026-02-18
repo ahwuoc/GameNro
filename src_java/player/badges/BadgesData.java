@@ -1,6 +1,6 @@
 package player.badges;
 
-import player.Player;
+import nro.player.Player;
 
 public class BadgesData {
 

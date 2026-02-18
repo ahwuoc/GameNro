@@ -3,10 +3,15 @@ package boss.boss_manifest.Cell;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
-import DucPro.Functions;
-import DucPro.Functions;
+import nro.services.Service;
+import nro.services.TaskService;
+import nro.services.PlayerService;
+import nro.services.EffectSkillService;
+import utils.Functions;
 import consts.ConstPlayer;
 import boss.Boss;
 import boss.BossID;
@@ -15,9 +20,8 @@ import boss.BossStatus;
 import boss.BossesData;
 import consts.ConstTaskBadges;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.*;
+import nro.player.Player;
+import nro.server.Manager;
 import utils.Util;
 
 import java.util.Random;
@@ -48,20 +52,17 @@ public class SieuBoHung extends Boss {
     }
 
     public void callCellCon() {
-        new Thread(() -> {
+        Thread.startVirtualThread(() -> {
             try {
                 this.changeStatus(BossStatus.AFK);
                 this.changeToTypeNonPK();
                 this.recoverHP();
                 this.callCellCon = true;
                 this.chat("Hãy đấu với 7 đứa con của ta, chúng đều là siêu cao thủ");
-                //Thread.sleep(2000);
                 Functions.sleep(2000);
                 this.chat("Cứ chưởng tiếp đi haha");
-                //Thread.sleep(2000);
                 Functions.sleep(2000);
                 this.chat("Liệu mà giữ mạng đấy");
-                //Thread.sleep(2000);
                 Functions.sleep(2000);
                 for (Boss boss : this.bossAppearTogether[this.currentLevel]) {
                     switch ((int) boss.id) {
@@ -83,7 +84,7 @@ public class SieuBoHung extends Boss {
                 }
             } catch (Exception e) {
             }
-        }).start();
+        });
     }
 
     public void recoverHP() {
@@ -92,17 +93,10 @@ public class SieuBoHung extends Boss {
 
     @Override
     public void reward(Player plKill) {
-    // Có 30% xác suất rơi item 15
-    if (Util.isTrue(5, 100)) {
-        ItemMap it = new ItemMap(this.zone, 15, 1, this.location.x,
-                this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24),
-                plKill.id);
-        Service.gI().dropItemMap(this.zone, it);
-            }
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
-//        BadgesTaskService.updateCountBagesTask(plKill, ConstTaskBadges.TRUM_SAN_BOSS, 1);
-        if (Util.isTrue(5, 100)) {
-            for (int i = 0; i < Util.nextInt(5, 10); i++) {
+        BadgesTaskService.updateCountBagesTask(plKill, ConstTaskBadges.TRUM_SAN_BOSS, 1);
+        if (Util.isTrue(5, 50)) {
+            for (int i = 0; i < Util.nextInt(25, 50); i++) {
                 ItemMap it = new ItemMap(this.zone, 1229, 1, this.location.x + Util.nextInt(-15, 15), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
                 Service.gI().dropItemMap(this.zone, it);
             }
@@ -122,14 +116,13 @@ public class SieuBoHung extends Boss {
         if (prepareBom) {
             return 0;
         }
-
         if (!this.callCellCon && damage >= this.nPoint.hp) {
-//            if (Util.isTrue(1, 3)) {
+            if (Util.isTrue(1, 3)) {
             this.callCellCon();
             return 0;
-//            } else {
-//                this.callCellCon = true;
-//            }
+            } else {
+                this.callCellCon = true;
+            }
         }
         if (!this.isDie()) {
             if (!piercing && Util.isTrue(this.nPoint.tlNeDon, 1000)) {

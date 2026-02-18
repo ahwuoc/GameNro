@@ -1,7 +1,7 @@
 package models.SuperRank;
 
 
-import DucPro.Functions;
+import utils.Functions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,9 +10,9 @@ import java.util.Map;
 import lombok.NonNull;
 import map.Zone;
 import models.Template.WaitSuperRank;
-import player.Player;
-import server.Client;
-import server.Maintenance;
+import nro.player.Player;
+import nro.server.Client;
+import nro.server.Maintenance;
 
 public class SuperRankManager implements Runnable {
 

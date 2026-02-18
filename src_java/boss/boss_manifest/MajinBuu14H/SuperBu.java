@@ -1,4 +1,18 @@
 package boss.boss_manifest.MajinBuu14H;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import nro.services.Service;
+import nro.services.TaskService;
+import nro.services.ItemService;
+import nro.services.SkillService;
+import nro.services.EffectSkillService;
 import boss.Boss;
 import boss.FinalBossManager;
 import boss.BossID;
@@ -8,13 +22,12 @@ import static boss.BossType.FINAL;
 import java.util.ArrayList;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.*;
+import nro.player.Player;
+import nro.server.Manager;
 import utils.Util;
 
 import java.util.Random;
-import server.ServerNotify;
+import nro.server.ServerNotify;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 
@@ -74,15 +87,12 @@ public class SuperBu extends Boss {
 
     @Override
     public void reward(Player plKill) {
-                 plKill.pointboss+=10;
-
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
-        if (Util.isTrue(20, 100)) {
+        if (Util.isTrue(15, 100)) {
             ItemMap it = ItemService.gI().randDoTL(this.zone, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
                     this.location.y - 24), -1);
             Service.gI().dropItemMap(this.zone, it);
         }
-        
     }
 
     @Override

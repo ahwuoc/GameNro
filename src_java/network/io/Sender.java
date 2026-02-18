@@ -1,125 +1,91 @@
-/*    */
 package network.io;
 
-/*    */
+import java.io.DataOutputStream;
+import java.net.Socket;
+import java.util.ArrayList;
 
-/*    */ import java.io.DataOutputStream;
-/*    */ import java.net.Socket;
-/*    */ import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import network.handler.IMessageSendCollect;
 import network.session.ISession;
 
-/*    */
-/*    */
-/*    */
-/*    */
-/*    */
-/*    */
-/*    */
-/*    */
-/*    */ public class Sender
-        /*    */ implements Runnable /*    */ {
+public class Sender implements Runnable {
 
-    /*    */ private ISession session;
-    /*    */ private Queue<Message> messages;
-    /*    */ private DataOutputStream dos;
-    /*    */ private IMessageSendCollect sendCollect;
+    private ISession session;
+    private ArrayList<Message> messages;
+    private DataOutputStream dos;
+    private IMessageSendCollect sendCollect;
 
-    /*    */
-    /*    */ public Sender(ISession session, Socket socket) {
-        /*    */ try {
-            /* 26 */ this.session = session;
-            /* 27 */ this.messages = new ConcurrentLinkedQueue<>();
-            /* 28 */ setSocket(socket);
-            /* 29 */ } catch (Exception exception) {
+    public Sender(ISession session, Socket socket) {
+        try {
+            this.session = session;
+            this.messages = new ArrayList<>();
+            setSocket(socket);
+        } catch (Exception ignored) {
         }
-        /*    */ }
+    }
 
-    /*    */
-    /*    */
-    /*    */ public Sender setSocket(Socket socket) {
-        /*    */ try {
-            /* 35 */ this.dos = new DataOutputStream(socket.getOutputStream());
-            /* 36 */ } catch (Exception exception) {
+    public Sender setSocket(Socket socket) {
+        try {
+            this.dos = new DataOutputStream(socket.getOutputStream());
+        } catch (Exception ignored) {
         }
-        /*    */
-        /* 38 */ return this;
-        /*    */ }
+        return this;
+    }
 
-    /*    */
-    /*    */
-    /*    */
-    /*    */
+    @Override
     public void run() {
-        /* 44 */ while (this.session != null && this.session.isConnected()) {
-            /*    */ try {
-                /* 46 */ while (this.messages != null && !this.messages.isEmpty()) {
-                    /* 47 */ Message message = this.messages.poll();
-                    /* 48 */ if (message != null) {
-                        /* 49 */ doSendMessage(message);
-                        /*    */ }
-                    /* 51 */ message = null;
-                    /*    */ }
-                /* 53 */ Thread.sleep(1L);
-                /* 54 */ } catch (Exception e) {
-                /* 55 */ e.printStackTrace();
-                /*    */ }
-            /*    */ }
-        /*    */ }
-
-    /*    */
-    /*    */ public void doSendMessage(Message message) throws Exception {
-        /* 61 */ this.sendCollect.doSendMessage(this.session, this.dos, message);
-        /*    */ }
-
-    /*    */
-    /*    */ public void sendMessage(Message msg) {
-        /* 65 */ if (this.session != null && this.session.isConnected()) {
-            /* 66 */ this.messages.add(msg);
-            /*    */ }
-        /*    */ }
-
-    /*    */
-    /*    */ public void setSend(IMessageSendCollect sendCollect) {
-        /* 71 */ this.sendCollect = sendCollect;
-        /*    */ }
-
-    /*    */
-    /*    */ public int getNumMessages() {
-        /* 75 */ if (this.messages != null) {
-            /* 76 */ return this.messages.size();
-            /*    */ }
-        /* 78 */ return -1;
-        /*    */ }
-
-    /*    */
-    /*    */ public void close() {
-        /* 82 */ if (this.messages != null) {
-            /* 83 */ this.messages.clear();
-            /*    */ }
-        /* 85 */ if (this.dos != null) {
-            /*    */ try {
-                /* 87 */ this.dos.close();
-                /* 88 */ } catch (Exception exception) {
+        while (this.session != null && this.session.isConnected()) {
+            try {
+                while (this.session != null && this.messages != null && !this.messages.isEmpty()) {
+                    Message message = this.messages.remove(0);
+                    if (message != null) {
+                        doSendMessage(message);
+                    }
+                    message = null;
+                }
+                Thread.sleep(1L);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            /*    */ }
-        /*    */ }
+        }
+    }
 
-    /*    */
-    /*    */
-    /*    */ public void dispose() {
-        /* 94 */ this.session = null;
-        /* 95 */ this.messages = null;
-        /* 96 */ this.sendCollect = null;
-        /* 97 */ this.dos = null;
-        /*    */ }
-    /*    */ }
+    public synchronized void doSendMessage(Message message) throws Exception {
+        this.sendCollect.doSendMessage(this.session, this.dos, message);
+    }
 
-/*
- * Location:
- * C:\Users\VoHoangKiet\Downloads\TEA_V5\lib\GirlkunNetwork.jar!\com\girlkun\
- * network\io\Sender.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version: 1.1.3
- */
+    public synchronized void sendMessage(Message msg) {
+        if (this.session != null && this.session.isConnected()) {
+            this.messages.add(msg);
+        }
+    }
+
+    public void setSend(IMessageSendCollect sendCollect) {
+        this.sendCollect = sendCollect;
+    }
+
+    public int getNumMessages() {
+        if (this.messages != null) {
+            return this.messages.size();
+        }
+        return -1;
+    }
+
+    public void close() {
+        if (this.messages != null) {
+            this.messages.clear();
+        }
+        if (this.dos != null) {
+            try {
+                this.dos.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public void dispose() {
+        this.session = null;
+        this.messages = null;
+        this.sendCollect = null;
+        this.dos = null;
+    }
+}

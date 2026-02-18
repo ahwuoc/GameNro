@@ -6,11 +6,11 @@ import java.util.List;
 import map.ItemMap;
 import map.Zone;
 import network.Message;
-import player.Player;
-import services.InventoryService;
-import services.ItemMapService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemMapService;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 public class TranhNgocService {

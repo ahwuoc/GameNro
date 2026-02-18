@@ -1,13 +1,20 @@
 package models.DestronGas;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
 import clan.Clan;
 import clan.ClanMember;
 import java.util.ArrayList;
 import java.util.List;
 import map.Zone;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class DestronGasService {
@@ -39,9 +46,11 @@ public class DestronGasService {
         if (clan != null) {
             ClanMember cm = clan.getClanMember((int) player.id);
             if (cm != null) {
-//                if (player.clanMember.getNumDateFromJoinTimeToToday() < 1) {
-//                    return;
-//                }
+                
+                if (player.clanMember.getNumDateFromJoinTimeToToday() < 1) {
+                    return;
+                }
+                
                 if (clan.members.size() < DestronGas.N_PLAYER_CLAN) {
                     return;
                 }

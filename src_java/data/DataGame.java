@@ -1,28 +1,26 @@
 package data;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import encrypt.IconEncrypt;
 import encrypt.ImageUtil;
 import static encrypt.ImageUtil.encryptImage;
 import static encrypt.ImageUtil.encryptString;
 import static encrypt.ImageUtil.generateRandomKey;
+import event.EventManager;
 import models.Template.HeadAvatar;
 import models.Template.MapTemplate;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import javax.imageio.ImageIO;
-
-import consts.cn;
 import utils.FileIO;
-import services.Service;
 import skill.NClass;
 import skill.Skill;
 import models.Template.MobTemplate;
@@ -33,15 +31,18 @@ import network.Message;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
-import server.Manager;
-import server.io.MySession;
 import utils.Logger;
 
 import models.Template.BgItem;
+import nro.server.Manager;
+import nro.server.io.MySession;
+import nro.services.Service;
 import power.Caption;
 import power.CaptionManager;
 import utils.Util;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DataGame {
 
@@ -52,11 +53,9 @@ public class DataGame {
     public static int vsRes = 4;
     public static short maxSmallVersion = 32767;
 
-    public static String LINK_IP_PORT = "LOCAL:local.ducvuvip.pro:14445:0";
+    public static String LINK_IP_PORT = "LOCAL:local.barcoll.pro:14445:0";
     public static Map MAP_MOUNT_NUM = new HashMap();
-    public static int ICON_SCALE_MODE = 2;
-    public static final Map<String, byte[]> iconCache = new ConcurrentHashMap<>();
-    public static final Map<String, byte[]> imageByNameCache = new ConcurrentHashMap<>();
+    private static final Map<String, byte[]> IMAGE_CACHE = new ConcurrentHashMap<>();
 
     public static void sendVersionGame(MySession session) {
         Message msg;
@@ -78,7 +77,7 @@ public class DataGame {
         }
     }
 
-    // vData
+    //vData
     public static void updateData(MySession session) {
         final byte[] dart = FileIO.readFile("data/update_data/dart");
         final byte[] arrow = FileIO.readFile("data/update_data/arrow");
@@ -110,7 +109,7 @@ public class DataGame {
         }
     }
 
-    // vMap
+    //vMap
     public static void updateMap(MySession session) {
         Message msg;
         try {
@@ -132,7 +131,7 @@ public class DataGame {
             for (MobTemplate temp : Manager.MOB_TEMPLATES) {
                 msg.writer().writeByte(temp.type);
                 msg.writer().writeUTF(temp.name);
-                msg.writeLongByDucPro(Util.toIntOrLong(temp.hp), cn.readInt);
+                msg.writer().writeInt(temp.hp);
                 msg.writer().writeByte(temp.rangeMove);
                 msg.writer().writeByte(temp.speed);
                 msg.writer().writeByte(temp.dartType);
@@ -144,7 +143,7 @@ public class DataGame {
         }
     }
 
-    // vSkill
+    //vSkill
     public static void updateSkill(MySession session) {
         Message msg;
         try {
@@ -152,7 +151,7 @@ public class DataGame {
 
             msg.writer().writeByte(7);
             msg.writer().writeByte(vsSkill);
-            msg.writer().writeByte(0); // count skill option
+            msg.writer().writeByte(0); //count skill option
 
             msg.writer().writeByte(Manager.NCLASS.size());
             for (NClass nClass : Manager.NCLASS) {
@@ -167,7 +166,7 @@ public class DataGame {
                     msg.writer().writeByte(skillTemp.type);
                     msg.writer().writeShort(skillTemp.iconId);
                     msg.writer().writeUTF(skillTemp.damInfo);
-                    msg.writer().writeUTF("DucPro");
+                    msg.writer().writeUTF(skillTemp.description);
                     if (skillTemp.id != 0) {
                         msg.writer().writeByte(skillTemp.skillss.size());
                         for (Skill skill : skillTemp.skillss) {
@@ -184,7 +183,7 @@ public class DataGame {
                             msg.writer().writeUTF(skill.moreInfo);
                         }
                     } else {
-                        // Thêm 2 skill trống 105, 106
+                        //Thêm 2 skill trống 105, 106
                         msg.writer().writeByte(skillTemp.skillss.size() + 2);
                         for (Skill skill : skillTemp.skillss) {
                             msg.writer().writeShort(skill.skillId);
@@ -225,16 +224,16 @@ public class DataGame {
     public static void sendDataImageVersion(MySession session) {
         Message msg;
         try {
-            // msg = new Message(-111);
-            // msg.writer().writeShort(0);
-            // msg.writer().writeUTF("NguyenLuongTaiDuc");
-            // msg.writer().writeByte(0);
-            // msg.writer().writeUTF("DUcPro");
-            // msg.writer().writeByte(1);
-            // msg.writer().writeUTF("DucProHiHi");
-            // msg.writer().writeByte(2);
-            // session.doSendMessage(msg);
-            // msg.cleanup();
+//            msg = new Message(-111);
+//            msg.writer().writeShort(0);
+//            msg.writer().writeUTF("NguyenDucVuEntertainment");
+//            msg.writer().writeByte(0);
+//            msg.writer().writeUTF("DucVuPro");
+//            msg.writer().writeByte(1);
+//            msg.writer().writeUTF("VuDangCapVaiLonRaMaBanDeoBietThoiDitMeBan");
+//            msg.writer().writeByte(2);
+//            session.doSendMessage(msg);
+//            msg.cleanup();
         } catch (Exception e) {
             Logger.logException(DataGame.class, e);
         }
@@ -282,23 +281,54 @@ public class DataGame {
         }
     }
 
+    public static void clearImageCache() {
+        IMAGE_CACHE.clear();
+        System.out.println(">> Đã xóa Cache Item Background Template");
+    }
+
     public static void sendItemBGTemplate(MySession session, int id) {
-        Message msg;
+        Message msg = null;
         try {
-            final byte[] bg_temp = FileIO.readFile("data/item_bg_temp/x" + session.zoomLevel + "/" + id + ".png");
-            if (bg_temp == null) {
-                return;
+            boolean isChristmas = EventManager.CHRISTMAS;
+            String cacheKey = id + "_" + session.zoomLevel + "_" + (isChristmas ? "YES" : "NO");
+
+            byte[] finalData = IMAGE_CACHE.get(cacheKey);
+
+            if (finalData == null) {
+                String folder = isChristmas
+                        ? "data/item_bg_temp_noel/x" + session.zoomLevel + "/"
+                        : "data/item_bg_temp/x" + session.zoomLevel + "/";
+
+                byte[] data = FileIO.readFile(folder + id + ".png");
+
+                if (data == null) {
+                    return;
+                }
+
+                byte[] noise = new byte[]{0x00, 0x11, 0x22, 0x33};
+                finalData = new byte[data.length + noise.length];
+
+                System.arraycopy(data, 0, finalData, 0, data.length);
+                System.arraycopy(noise, 0, finalData, data.length, noise.length);
+
+                IMAGE_CACHE.put(cacheKey, finalData);
             }
+
             msg = new Message(-32);
             msg.writer().writeShort(id);
-            msg.writer().writeInt(bg_temp.length);
-            msg.writer().write(bg_temp);
+            msg.writer().writeInt(finalData.length);
+            msg.writer().write(finalData);
+
             session.sendMessage(msg);
-            msg.cleanup();
         } catch (Exception e) {
-            Logger.logException(DataGame.class, e);
+            e.printStackTrace();
+        } finally {
+            if (msg != null) {
+                msg.cleanup();
+            }
         }
     }
+
 
     public static void sendDataItemBG(MySession session) {
         Message msg;
@@ -321,61 +351,13 @@ public class DataGame {
     public static void sendIcon(MySession session, int id) {
         Message msg;
         try {
-            String key = id + "_" + session.zoomLevel;
-            byte[] icon = iconCache.get(key);
-            if (icon == null) {
-                if (ICON_SCALE_MODE == 2) {
-                    try {
-                        final byte[] data = FileIO.readFile("data/icon/x4/" + id + ".png");
-                        if (data != null) {
-                            if (session.zoomLevel == 4) {
-                                icon = data;
-                            } else {
-                                ByteArrayInputStream bais = new ByteArrayInputStream(data);
-                                BufferedImage src = ImageIO.read(bais);
-                                if (src != null) {
-                                    int newW = (src.getWidth() * session.zoomLevel) / 4;
-                                    int newH = (src.getHeight() * session.zoomLevel) / 4;
-                                    if (newW < 1) {
-                                        newW = 1;
-                                    }
-                                    if (newH < 1) {
-                                        newH = 1;
-                                    }
-                                    BufferedImage scaled = new BufferedImage(newW, newH, 2);
-                                    Graphics2D g = scaled.createGraphics();
-                                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                                            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                                    g.setRenderingHint(RenderingHints.KEY_RENDERING,
-                                            RenderingHints.VALUE_RENDER_QUALITY);
-                                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                                            RenderingHints.VALUE_ANTIALIAS_ON);
-                                    g.drawImage(src, 0, 0, newW, newH, null);
-                                    g.dispose();
-                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                                    ImageIO.write(scaled, "png", baos);
-                                    icon = baos.toByteArray();
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                    }
-                }
-                if (icon == null) {
-                    icon = FileIO.readFile("data/icon/x" + session.zoomLevel + "/" + id + ".png");
-                }
-                if (icon != null) {
-                    iconCache.put(key, icon);
-                }
-            }
-            if (icon != null) {
-                msg = new Message(-67);
-                msg.writer().writeInt(id);
-                msg.writer().writeInt(icon.length);
-                msg.writer().write(icon);
-                session.sendMessage(msg);
-                msg.cleanup();
-            }
+            final byte[] icon = FileIO.readFile("data/icon/x" + session.zoomLevel + "/" + id + ".png");
+            msg = new Message(-67);
+            msg.writer().writeInt(id);
+            msg.writer().writeInt(icon.length);
+            msg.writer().write(icon);
+            session.sendMessage(msg);
+            msg.cleanup();
         } catch (Exception e) {
         }
     }
@@ -391,6 +373,58 @@ public class DataGame {
         } catch (Exception e) {
         }
     }
+//    public static void sendIcon(MySession session, int id) {
+//        Message msg;
+//        try {
+//            byte zoomLevel = session.zoomLevel;
+//            IconEncrypt icon = ImageUtil.ICON_IMAGE.get(zoomLevel).getOrDefault(id, null);
+//            if (icon == null) {
+//                String key = generateRandomKey(15);
+//                //byte[] encrypt = encryptImage(new File(String.format("data/girlkun/icon/x%s/%s.png", zoomLevel, id)), key);
+////                File imageFile = new File(String.format("data/icon/x%s/%s.png", zoomLevel, id));       
+//                File imageFile = new File(String.format("data/icon/x%s/%s.png", zoomLevel, id));
+//                if (!imageFile.exists()) {
+//                    System.err.println("Image file does not exist: " + imageFile.getPath());
+//                    return;
+//                }
+//                byte[] encrypt = encryptImage(imageFile, key);
+//                if (encrypt == null) {
+//                    System.err.println("Failed to encrypt image: " + imageFile.getPath());
+//                    return;
+//                }
+//                icon = new IconEncrypt();
+//                icon.dataImageEncrypt = encrypt;
+//                icon.keyDecryptImage = encryptString(key);
+//                icon.keyOrigin = key;
+//                ImageUtil.ICON_IMAGE.get(zoomLevel).put(id, icon);
+////                Manager.SMALL_VERSION_DATA[session.zoomLevel - 1][id] = (byte) (encrypt.length % 127);
+//            }
+//            msg = new Message(-67);
+//            msg.writer().writeInt(id);
+//            msg.writer().writeUTF(icon.keyDecryptImage);
+//            msg.writer().writeInt(icon.dataImageEncrypt.length);
+//            msg.writer().write(icon.dataImageEncrypt);
+//            session.sendMessage(msg);
+//            msg.cleanup();
+//        } catch (Exception e) {
+////            e.printStackTrace();
+//        }
+//    }
+//    //download data res --------------------------------------------------------
+//
+//    public static void sendVersionRes(ISession session) {
+//        Message msg;
+//        try {
+//            msg = new Message(-74);
+//            msg.writer().writeByte(0);
+//            msg.writer().writeInt(vsRes);
+//            msg.writer().writeUTF(ImageUtil.key);
+//            session.sendMessage(msg);
+//            msg.cleanup();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     public static void sendSmallVersion(MySession session) {
         Message msg;
@@ -431,7 +465,7 @@ public class DataGame {
         }
     }
 
-    // data vẽ map
+    //data vẽ map
     public static void sendMapTemp(MySession session, int id) {
         Message msg;
         try {
@@ -449,7 +483,7 @@ public class DataGame {
         }
     }
 
-    // head-avatar
+    //head-avatar
     public static void sendHeadAvatar(Message msg) {
         try {
             msg.writer().writeShort(Manager.HEAD_AVATARS.size());
@@ -464,78 +498,15 @@ public class DataGame {
     public static void sendImageByName(MySession session, String imgName) {
         Message msg;
         try {
-            String key = imgName + "_" + session.zoomLevel;
-            byte[] imageData = imageByNameCache.get(key);
-            if (imageData != null) {
-                Logger.log(Logger.GREEN, "[ImageByName] Cache HIT: " + key + "\n");
-            } else {
-                Logger.log(Logger.YELLOW, "[ImageByName] Cache MISS: " + key + "\n");
-                if (ICON_SCALE_MODE == 2) {
-                    try {
-                        final byte[] data = FileIO.readFile("data/img_by_name/x4/" + imgName + ".png");
-                        if (data != null) {
-                            Logger.log(Logger.GREEN,
-                                    "[ImageByName] Found x4: " + imgName + " (" + data.length + " bytes)\n");
-                            if (session.zoomLevel == 4) {
-                                imageData = data;
-                                Logger.log(Logger.GREEN, "[ImageByName] Using x4 directly\n");
-                            } else {
-                                ByteArrayInputStream bais = new ByteArrayInputStream(data);
-                                BufferedImage src = ImageIO.read(bais);
-                                if (src != null) {
-                                    int newW = (src.getWidth() * session.zoomLevel) / 4;
-                                    int newH = (src.getHeight() * session.zoomLevel) / 4;
-                                    if (newW < 1) {
-                                        newW = 1;
-                                    }
-                                    if (newH < 1) {
-                                        newH = 1;
-                                    }
-                                    Logger.log(Logger.GREEN,
-                                            "[ImageByName] Scaling " + imgName + " from " + src.getWidth() + "x"
-                                                    + src.getHeight() + " to " + newW + "x" + newH + "\n");
-                                    BufferedImage scaled = new BufferedImage(newW, newH, 2);
-                                    Graphics2D g = scaled.createGraphics();
-                                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                                            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                                    g.setRenderingHint(RenderingHints.KEY_RENDERING,
-                                            RenderingHints.VALUE_RENDER_QUALITY);
-                                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                                            RenderingHints.VALUE_ANTIALIAS_ON);
-                                    g.drawImage(src, 0, 0, newW, newH, null);
-                                    g.dispose();
-                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                                    ImageIO.write(scaled, "png", baos);
-                                    imageData = baos.toByteArray();
-                                    Logger.log(Logger.GREEN,
-                                            "[ImageByName] Scaled OK (" + imageData.length + " bytes)\n");
-                                }
-                            }
-                        } else {
-                            Logger.log(Logger.YELLOW, "[ImageByName] x4 not found: " + imgName + "\n");
-                        }
-                    } catch (Exception e) {
-                        Logger.log(Logger.RED, "[ImageByName] Scale error: " + e.getMessage() + "\n");
-                    }
-                }
-                if (imageData != null) {
-                    imageByNameCache.put(key, imageData);
-                    Logger.log(Logger.GREEN, "[ImageByName] Cached: " + key + "\n");
-                } else {
-                    Logger.log(Logger.RED, "[ImageByName] Not found: " + imgName + "\n");
-                }
-            }
-            if (imageData != null) {
-                msg = new Message(66);
-                msg.writer().writeUTF(imgName);
-                msg.writer().writeByte(Manager.getNFrameImageByName(imgName));
-                msg.writer().writeInt(imageData.length);
-                msg.writer().write(imageData);
-                session.sendMessage(msg);
-                msg.cleanup();
-            }
+            msg = new Message(66);
+            msg.writer().writeUTF(imgName);
+            msg.writer().writeByte(Manager.getNFrameImageByName(imgName));
+            final byte[] data = FileIO.readFile("data/img_by_name/x" + session.zoomLevel + "/" + imgName + ".png");
+            msg.writer().writeInt(data.length);
+            msg.writer().write(data);
+            session.sendMessage(msg);
+            msg.cleanup();
         } catch (Exception e) {
-            Logger.log(Logger.RED, "[ImageByName] Error: " + e.getMessage() + "\n");
         }
     }
 

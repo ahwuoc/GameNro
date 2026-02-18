@@ -1,4 +1,13 @@
 package consts;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 public class ConstMob {
 
     public static final byte MOC_NHAN = 0;
@@ -92,8 +101,8 @@ public class ConstMob {
     public static final byte QUY_DO = 88;
     public static final byte QUY_XANH = 89;
 
-    public static final byte KONG = 92;
-    public static final byte GOZILLA = 93;
+    public static final byte KONG = 93;
+    public static final byte GOZILLA = 92;
     public static final byte TOPPO = 94;
     public static final byte THO_CON = 95;
     public static final byte JANEMBA = 96;
@@ -109,7 +118,8 @@ public class ConstMob {
     public static final byte SNOWY_TANGERINE = 106;
     public static final byte DEINONYCHUS = 107;
     public static final byte SNAKE = 108;
-    public static final byte BLIZZARD_BIRD = 109;
-    public static final byte MAY_TEST_DAME = 117;
+//    public static final byte BLIZZARD_BIRD = 109;
+    public static final byte MOC_NHAN_BOT = 110;
+    public static final byte MAY_DO_SUC_MANH = 109;
 
 }

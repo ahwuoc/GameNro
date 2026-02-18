@@ -1,5 +1,13 @@
 package task;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstTask;
 import utils.Util;
 
@@ -79,7 +87,7 @@ public class ClanTask {
             case ConstTask.HELL:
                 return "địa ngục";
             default:
-                return "DucPro";
+                return "BARCOLLxENZEEFXNRO";
         }
     }
 

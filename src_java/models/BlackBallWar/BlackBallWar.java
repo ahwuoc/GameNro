@@ -1,19 +1,27 @@
 package models.BlackBallWar;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import utils.Functions;
 import jdbc.daos.NDVSqlFetcher;
 import jdbc.daos.PlayerDAO;
-import player.Player;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 import utils.Util;
 
 import lombok.Data;
 import map.Zone;
-import server.Client;
-import server.Maintenance;
+import nro.server.Client;
+import nro.server.Maintenance;
 
 @Data
 public class BlackBallWar implements Runnable {
@@ -28,39 +36,17 @@ public class BlackBallWar implements Runnable {
     public static final int COST_X5 = 300000000;
     public static final int COST_X7 = 500000000;
 
-    public static class TimeFrame {
-        public int hourOpen;
-        public int minOpen;
-        public int secondOpen;
+    public static final byte HOUR_OPEN = 20;
+    public static final byte MIN_OPEN = 0;
+    public static final byte SECOND_OPEN = 0;
 
-        public int hourPick;
-        public int minPick;
-        public int secondPick;
+    public static final byte HOUR_CAN_PICK_DB = 20;
+    public static final byte MIN_CAN_PICK_DB = 30;
+    public static final byte SECOND_CAN_PICK_DB = 0;
 
-        public int hourClose;
-        public int minClose;
-        public int secondClose;
-
-        public TimeFrame(int hourOpen, int minOpen, int secondOpen,
-                int hourPick, int minPick, int secondPick,
-                int hourClose, int minClose, int secondClose) {
-            this.hourOpen = hourOpen;
-            this.minOpen = minOpen;
-            this.secondOpen = secondOpen;
-            this.hourPick = hourPick;
-            this.minPick = minPick;
-            this.secondPick = secondPick;
-            this.hourClose = hourClose;
-            this.minClose = minClose;
-            this.secondClose = secondClose;
-        }
-    }
-
-    public static final java.util.List<TimeFrame> TIME_CONFIGS = new java.util.ArrayList<>();
-
-    static {
-        TIME_CONFIGS.add(new TimeFrame(20, 0, 0, 20, 30, 0, 22, 0, 0));
-    }
+    public static final byte HOUR_CLOSE = 21;
+    public static final byte MIN_CLOSE = 0;
+    public static final byte SECOND_CLOSE = 0;
 
     public static final int AVAILABLE = 5;
     private static final int TIME_WIN = 300000;
@@ -73,7 +59,9 @@ public class BlackBallWar implements Runnable {
     }
 
     private void start() {
-        new Thread(this, "Update Black Ball War Map " + zone.map.mapName + " Zone " + zone.zoneId).start();
+        Thread.ofVirtual()
+                .name("Update Black Ball War Map " + zone.map.mapName + " Zone " + zone.zoneId)
+                .start(this);
     }
 
     @Override

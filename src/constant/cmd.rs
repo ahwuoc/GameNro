@@ -88,4 +88,7 @@ pub mod cmd {
     pub const CLAN_INVITE: i8 = -57;
     pub const CLAN_JOIN: i8 = -48;
     pub const RADAR: i8 = 127;
+
+    // ===== PVP =====
+    pub const PVP_CMD: i8 = -59;
 }

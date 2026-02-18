@@ -1,12 +1,19 @@
 package matches.pvp;
- 
-import DucPro.Functions;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import matches.PVP;
 import matches.TYPE_LOSE_PVP;
 import matches.TYPE_PVP;
-import player.Enemy;
-import player.Player;
-import services.Service;
+import nro.player.Enemy;
+import nro.player.Player;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -18,21 +25,29 @@ public class TraThu extends PVP {
 
     @Override
     public void start() {
-//        if (!p1.zone.equals(p2.zone)) {
-//            p1.changeMapVIP = true;
-//            ChangeMapService.gI().changeMap(p1,
-//                    p2.zone,
-//                    p2.location.x + Util.nextInt(-5, 5), p2.location.y);
-//        }
-//        Service.gI().sendThongBao(p2, "Có người đang đến tìm bạn để trả thù");
-        Service.gI().chat(p1, "Anh đức tắt chức năng này rồi em");
-//        new Thread(() -> {
-//            try {
-//               Functions.sleep(3000);
-//            } catch (Exception e) {
-//            }
-//            super.start();
-//        }).start();
+        if (!p1.zone.equals(p2.zone)) {
+            p1.changeMapVIP = true;
+            ChangeMapService.gI().changeMap(
+                    p1,
+                    p2.zone,
+                    p2.location.x + Util.nextInt(-5, 5),
+                    p2.location.y
+            );
+        }
+
+        Service.gI().sendThongBao(p2, "Có người đang đến tìm bạn để trả thù");
+        Service.gI().chat(p1, "Mày tới số rồi con ạ!");
+
+        Thread.ofVirtual().name("PVP-Start").start(() -> {
+            try {
+                Thread.sleep(3000);
+                super.start();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override

@@ -1,12 +1,20 @@
 package models.ShenronEvent;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstNpc;
 import item.Item;
-import player.Player;
-import services.InventoryService;
-import services.ItemService;
-import services.NpcService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.NpcService;
+import nro.services.Service;
 import utils.Util;
 
 public class ShenronEventService {

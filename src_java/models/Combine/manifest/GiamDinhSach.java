@@ -4,9 +4,9 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 public class GiamDinhSach {
@@ -18,7 +18,6 @@ public class GiamDinhSach {
         }
         Item sachTuyetKy = null;
         Item buaGiamDinh = null;
-        
         for (Item item : player.combine.itemsCombine) {
             if (item.isSachTuyetKy() || item.isSachTuyetKy2()) {
                 sachTuyetKy = item;
@@ -27,7 +26,7 @@ public class GiamDinhSach {
             }
         }
         if (sachTuyetKy == null || buaGiamDinh == null) {
-            Service.gI().sendDialogMessage(player, "Cần Sách Tuyệt Kỹ Lever 2 và bùa giám định.");
+            Service.gI().sendDialogMessage(player, "Cần Sách Tuyệt Kỹ và bùa giám định.");
             return;
         }
         StringBuilder text = new StringBuilder();
@@ -43,7 +42,7 @@ public class GiamDinhSach {
         Item sachTuyetKy = null;
         Item buaGiamDinh = null;
         for (Item item : player.combine.itemsCombine) {
-            if (item.isSachTuyetKy2()) {
+            if (item.isSachTuyetKy() || item.isSachTuyetKy2()) {
                 sachTuyetKy = item;
             } else if (item.template.id == 1284) {
                 buaGiamDinh = item;
@@ -56,11 +55,11 @@ public class GiamDinhSach {
             Service.gI().sendServerMessage(player, "Còn cái nịt mà giám");
             return;
         }
-        int[] options = {77, 103, 50, 108, 94, 14, 80, 81, 5, 156, 157,158};
+        int[] options = {77, 103, 50, 108, 94, 14, 80, 81, 175, 5, 214, 216};
         for (int i = 0; i < sachTuyetKy.itemOptions.size(); i++) {
             Item.ItemOption io = sachTuyetKy.itemOptions.get(i);
             if (io.optionTemplate.id == 217) {
-                sachTuyetKy.itemOptions.set(i, new Item.ItemOption(options[Util.nextInt(options.length)-1], Util.nextInt(1, 15)));
+                sachTuyetKy.itemOptions.set(i, new Item.ItemOption(options[Util.nextInt(options.length)], Util.nextInt(1, 15 / Util.nextInt(1, 3))));
             }
         }
         CombineService.gI().sendEffectSuccessCombine(player);

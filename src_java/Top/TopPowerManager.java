@@ -1,5 +1,6 @@
 package Top;
 
+import consts.ConstDataEventSM;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,9 +11,9 @@ import jdbc.DBConnecter;
 import lombok.Getter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONValue;
-import player.Player;
 import item.Item;
-import services.ItemService;
+import nro.player.Player;
+import nro.services.ItemService;
 
 /**
  *
@@ -31,7 +32,12 @@ public class TopPowerManager {
     public void load() {
         list.clear();
         try (Connection con = DBConnecter.getConnectionServer(); PreparedStatement ps = con.prepareStatement(
-                "SELECT * FROM player ORDER BY power DESC LIMIT 100"); ResultSet rs = ps.executeQuery()) {
+                "SELECT * FROM player "
+                + "WHERE create_time > '2025-" + ConstDataEventSM.MONTH_OPEN + "-" + ConstDataEventSM.DATE_OPEN + " "
+                + ConstDataEventSM.HOUR_OPEN + ":" + ConstDataEventSM.MIN_OPEN + ":00' "
+                + "ORDER BY power DESC LIMIT 100");
+            ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 Player player = processPlayerResultSet(rs);
                 list.add(player);
@@ -47,6 +53,7 @@ public class TopPowerManager {
         player.name = rs.getString("name");
         player.head = rs.getShort("head");
         player.gender = rs.getByte("gender");
+        player.firstTimeLogin = rs.getTimestamp("firstTimeLogin");
         player.nPoint.power = rs.getLong("power");
         extractDataPoint(rs.getString("data_point"), player);
         extractItemsBody(rs.getString("items_body"), player);
@@ -56,7 +63,7 @@ public class TopPowerManager {
     private void extractDataPoint(String dataPoint, Player player) {
         JSONValue jv = new JSONValue();
         JSONArray dataArray = (JSONArray) jv.parse(dataPoint);
-        player.nPoint.power = Long.parseLong(dataArray.get(11).toString());
+        player.nPoint.power = Long.parseLong(dataArray.get(1).toString());
         dataArray.clear();
     }
 

@@ -1,8 +1,16 @@
 package models.RedRibbonHQ;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import map.Zone;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,9 +49,9 @@ public class RedRibbonHQService {
             Service.gI().sendThongBao(pl, "Vui lòng chờ đến ngày mai");
             return;
         }
-//        if (pl.clanMember.getNumDateFromJoinTimeToToday() < 1) {
-//            return;
-//        }
+        if (pl.clanMember.getNumDateFromJoinTimeToToday() < 1) {
+            return;
+        }
         if (pl.clan.doanhTrai != null) {
             pl.lastTimeJoinDT = System.currentTimeMillis();
             pl.clan.doanhTrai.updateHPDame();

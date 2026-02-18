@@ -3,7 +3,9 @@ package boss.boss_manifest.Commeson;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 
 import boss.Boss;
@@ -11,18 +13,16 @@ import boss.BossData;
 import boss.BossManager;
 import boss.BossStatus;
 import consts.ConstPlayer;
-import lombok.Getter;
-import player.Player;
-import server.ServerNotify;
-import services.PlayerService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.server.ServerNotify;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.Util;
 
 public class PhanThan extends Boss {
 
-    @Getter
     private Player playerAtt;
     private long timeJoinMap;
     protected long timeOutMap;
@@ -46,7 +46,6 @@ public class PhanThan extends Boss {
     public void update() {
         super.update();
         followMaster(60);
-        attack();
         PlayerService.gI().changeAndSendTypePK(this, ConstPlayer.NON_PK);
         if (timeJoinMap > 0) {
             if (Util.canDoWithTime(timeJoinMap, timeOutMap)) {
@@ -54,7 +53,7 @@ public class PhanThan extends Boss {
             }
         }
         if (super.zone != null && super.zone.findPlayerByID(playerAtt.id) == null) {
-            joinMap();
+            leaveMap();
         }
     }
     
@@ -118,6 +117,6 @@ public class PhanThan extends Boss {
         this.lastTimeRest = System.currentTimeMillis();
         this.changeStatus(BossStatus.REST);
         BossManager.gI().removeBoss(this);
-//        this.dispose();
+        this.dispose();
     }
 }

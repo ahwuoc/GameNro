@@ -7,9 +7,9 @@ package models.Combine.manifest;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 
 /**
  *
@@ -19,8 +19,8 @@ public class TinhAnTrangBi {
 
     private static boolean isTrangBiAn(Item item) {
         if (item != null && item.isNotNullItem()) {
-            if (item.template.type <= 5) {
-//            if (item.template.id >= 650 && item.template.id <= 662) {
+//            if (item.template.type <= 5) {
+            if (item.template.id >= 650 && item.template.id <= 662) {
                 return true;
             } else {
                 return false;
@@ -36,14 +36,14 @@ public class TinhAnTrangBi {
                 Item item = player.combine.itemsCombine.get(0);
                 Item dangusac = player.combine.itemsCombine.get(1);
                 if (isTrangBiAn(item)) {
-                    if (item != null && item.isNotNullItem() && dangusac != null && dangusac.isNotNullItem() && (dangusac.template.id == 1724 || dangusac.template.id == 1725 || dangusac.template.id == 1726) && dangusac.quantity >= 5) {
+                    if (item != null && item.isNotNullItem() && dangusac != null && dangusac.isNotNullItem() && (dangusac.template.id == 1724 || dangusac.template.id == 1725 || dangusac.template.id == 1726) && dangusac.quantity >= 99) {
                         String npcSay = item.template.name + "\n|2|";
                         for (Item.ItemOption io : item.itemOptions) {
                             npcSay += io.getOptionString() + "\n";
                         }
-                        npcSay += "|1|Con có muốn biến trang bị " + item.template.name + " thành\n"
+                        npcSay += "|1|Con có muốn biến trang bị hủy diệt " + item.template.name + " thành\n"
                                 + "trang bị Ấn không?\b|4|Đục là lên\n"
-                                + "|7|Cần 5 " + dangusac.template.name;
+                                + "|7|Cần 99 " + dangusac.template.name;
                         CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.MENU_START_COMBINE, npcSay, "Làm phép", "Từ chối");
                     } else {
                         CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Bạn chưa bỏ đủ vật phẩm !!!", "Đóng");
@@ -75,7 +75,7 @@ public class TinhAnTrangBi {
                         }
                     }
                 }
-                if (item != null && item.isNotNullItem() && dangusac != null && dangusac.isNotNullItem() && (dangusac.template.id == 1724 || dangusac.template.id == 1725 || dangusac.template.id == 1726) && dangusac.quantity >= 5) {
+                if (item != null && item.isNotNullItem() && dangusac != null && dangusac.isNotNullItem() && (dangusac.template.id == 1724 || dangusac.template.id == 1725 || dangusac.template.id == 1726) && dangusac.quantity >= 99) {
                     if (optionStar == null) {
                         if (dangusac.template.id == 1724) {
                             item.itemOptions.add(new Item.ItemOption(34, 1));
@@ -88,7 +88,7 @@ public class TinhAnTrangBi {
                             CombineService.gI().sendEffectSuccessCombine(player);
                         }
 //                    InventoryService.gI().addItemBag(player, item);
-                        InventoryService.gI().subQuantityItemsBag(player, dangusac, 5);
+                        InventoryService.gI().subQuantityItemsBag(player, dangusac, 99);
                         InventoryService.gI().sendItemBag(player);
                         CombineService.gI().reOpenItemCombine(player);
 //                    sendEffectCombineDB(player, item.template.iconID);

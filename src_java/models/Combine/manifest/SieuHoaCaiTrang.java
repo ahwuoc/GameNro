@@ -6,16 +6,16 @@ package models.Combine.manifest;
 
 import java.util.Arrays;
 import java.util.List;
-import player.Player;
+import nro.player.Player;
 
 import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 /**
  *
@@ -40,32 +40,32 @@ public class SieuHoaCaiTrang {
                 return 22;
             case 7:
                 return 24;
-//            case 8:
-//                return 26;
-//            case 9:
-//                return 28;
-//            case 10:
-//                return 30;
-//            case 11:
-//                return 32;
-//            case 12:
-//                return 34;
-//            case 13:
-//                return 36;
-//            case 14:
-//                return 38;
-//            case 15:
-//                return 40;
-//            case 16:
-//                return 42;
-//            case 17:
-//                return 44;
-//            case 18:
-//                return 46;
-//            case 19:
-//                return 48;
-//            case 20:
-//                return 50;
+            case 8:
+                return 26;
+            case 9:
+                return 28;
+            case 10:
+                return 30;
+            case 11:
+                return 32;
+            case 12:
+                return 34;
+            case 13:
+                return 36;
+            case 14:
+                return 38;
+            case 15:
+                return 40;
+            case 16:
+                return 42;
+            case 17:
+                return 44;
+            case 18:
+                return 46;
+            case 19:
+                return 48;
+            case 20:
+                return 50;
         }
         return 0;
     }
@@ -88,32 +88,32 @@ public class SieuHoaCaiTrang {
                 return 22;
             case 7:
                 return 24;
-//            case 8:
-//                return 26;
-//            case 9:
-//                return 28;
-//            case 10:
-//                return 30;
-//            case 11:
-//                return 32;
-//            case 12:
-//                return 34;
-//            case 13:
-//                return 36;
-//            case 14:
-//                return 38;
-//            case 15:
-//                return 40;
-//            case 16:
-//                return 42;
-//            case 17:
-//                return 44;
-//            case 18:
-//                return 46;
-//            case 19:
-//                return 48;
-//            case 20:
-//                return 50;
+            case 8:
+                return 26;
+            case 9:
+                return 28;
+            case 10:
+                return 30;
+            case 11:
+                return 32;
+            case 12:
+                return 34;
+            case 13:
+                return 36;
+            case 14:
+                return 38;
+            case 15:
+                return 40;
+            case 16:
+                return 42;
+            case 17:
+                return 44;
+            case 18:
+                return 46;
+            case 19:
+                return 48;
+            case 20:
+                return 50;
         }
         return 0;
     }
@@ -136,32 +136,32 @@ public class SieuHoaCaiTrang {
                 return 3f;
             case 7:
                 return 2f;
-//            case 8:
-//                return 40f;
-//            case 9:
-//                return 35f;
-//            case 10:
-//                return 30f;
-//            case 11:
-//                return 29f;
-//            case 12:
-//                return 28f;
-//            case 13:
-//                return 25f;
-//            case 14:
-//                return 22f;
-//            case 15:
-//                return 18f;
-//            case 16:
-//                return 16f;
-//            case 17:
-//                return 12f;
-//            case 18:
-//                return 10f;
-//            case 19:
-//                return 9f;
-//            case 20:
-//                return 8f;
+            case 8:
+                return 40f;
+            case 9:
+                return 35f;
+            case 10:
+                return 30f;
+            case 11:
+                return 29f;
+            case 12:
+                return 28f;
+            case 13:
+                return 25f;
+            case 14:
+                return 22f;
+            case 15:
+                return 18f;
+            case 16:
+                return 16f;
+            case 17:
+                return 12f;
+            case 18:
+                return 10f;
+            case 19:
+                return 9f;
+            case 20:
+                return 8f;
         }
         return 0;
     }
@@ -261,7 +261,6 @@ public class SieuHoaCaiTrang {
             if (caiTrang != null && manhCaiTrang != null && manhCaiTrang.quantity > player.combine.DaNangcap && star < CombineService.MAX_LEVEL_ITEM) {
                 player.inventory.gold -= gold;
                 player.inventory.gem -= gem;
-                
                 player.event.subEventPointNHS(diem);
 
                 InventoryService.gI().subQuantityItemsBag(player, manhCaiTrang, player.combine.DaNangcap);

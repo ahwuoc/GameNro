@@ -1,10 +1,18 @@
 package models.The23rdMartialArtCongress;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import map.Zone;
-import player.Player;
+import nro.player.Player;
 import network.Message;
-import services.MapService;
-import services.Service;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 
 public class The23rdMartialArtCongressService {
@@ -44,19 +52,19 @@ public class The23rdMartialArtCongressService {
     }
 
     public static void setTimeout(Runnable runnable, int delay) {
-        new Thread(() -> {
+        Thread.startVirtualThread(() -> {
             try {
                 Thread.sleep(delay);
                 runnable.run();
-            } catch (Exception e) {
+            } catch (InterruptedException ignored) {
             }
-        }).start();
+        });
     }
 
     public void sendTypePK(Player player, Player boss) {
         Message msg;
         try {
-            msg = Service.gI().messageSubCommand30((byte) 35);
+            msg = Service.gI().messageSubCommand((byte) 35);
             msg.writer().writeInt((int) boss.id);
             msg.writer().writeByte(3);
             player.sendMessage(msg);

@@ -1,14 +1,21 @@
 package services.func;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import jdbc.daos.HistoryTransactionDAO;
 import item.Item;
-import player.Inventory;
-import player.Player;
+import nro.player.Inventory;
+import nro.player.Player;
 import network.Message;
-import services.ItemService;
-import services.PlayerService;
-import services.Service;
-import services.InventoryService;
+import nro.services.ItemService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.InventoryService;
 import utils.Logger;
 import utils.Util;
 
@@ -87,14 +94,8 @@ public class Trade {
                 if (index == -1) {
                     if (pl.equals(this.player1)) {
                         goldTrade1 = quantity;
-                        if (goldTrade1 < 0) {
-                            goldTrade1 = 0;
-                        }
                     } else {
                         goldTrade2 = quantity;
-                        if (goldTrade2 < 0) {
-                            goldTrade2 = 0;
-                        }
                     }
                 } else {
                     Item item = null;
@@ -196,6 +197,10 @@ public class Trade {
             }
         }
     }
+    
+    public void addItemBot(Item it) {
+        itemsTrade2.add(it);
+    }
 
     private boolean isItemCannotTran(Item item) {
         for (Item.ItemOption io : item.itemOptions) {
@@ -206,8 +211,7 @@ public class Trade {
         switch (item.template.id) {
             case 454:
             case 921:
-            case 1604:
-            case 1605:
+            case 1810:    
                 return true;
         }
         switch (item.template.type) {
@@ -217,18 +221,18 @@ public class Trade {
                 } else {
                     return false;
                 }
-            case 5: // cải trang
-            case 6: // đậu thần
-            case 7: // sách skill
-            case 8: // vật phẩm nhiệm vụ
-            case 11: // flag bag
-            case 13: // bùa
-            case 22: // vệ tinh
-            case 23: // ván bay
-            case 24: // ván bay vip
-            case 28: // cờ
-            case 31: // bánh trung thu, bánh tết
-            case 32: // giáp tập luyện
+            case 5: //cải trang
+            case 6: //đậu thần
+            case 7: //sách skill
+            case 8: //vật phẩm nhiệm vụ
+            case 11: //flag bag
+            case 13: //bùa
+            case 22: //vệ tinh
+            case 23: //ván bay
+            case 24: //ván bay vip
+            case 28: //cờ
+            case 31: //bánh trung thu, bánh tết
+            case 32: //giáp tập luyện
                 return true;
             default:
                 return false;
@@ -281,11 +285,11 @@ public class Trade {
                 msg.writer().writeByte(itemsTrade1.size());
                 for (Item item : itemsTrade1) {
                     msg.writer().writeShort(item.template.id);
-                    if (player1.getSession().version < 222) {
-                        msg.writer().writeByte(item.quantity > Byte.MAX_VALUE ? Byte.MAX_VALUE : item.quantity);
-                    } else {
-                        msg.writer().writeInt(item.quantity);
-                    }
+//                    if (player1.getSession().version < 222) {
+//                        msg.writer().writeByte(item.quantity > Byte.MAX_VALUE ? Byte.MAX_VALUE : item.quantity);
+//                    } else {
+                    msg.writer().writeInt(item.quantity);
+//                    }
                     msg.writer().writeByte(item.itemOptions.size());
                     for (Item.ItemOption io : item.itemOptions) {
                         msg.writer().writeByte(io.optionTemplate.id);
@@ -298,11 +302,11 @@ public class Trade {
                 msg.writer().writeByte(itemsTrade2.size());
                 for (Item item : itemsTrade2) {
                     msg.writer().writeShort(item.template.id);
-                    if (player2.getSession().version < 222) {
-                        msg.writer().writeByte(item.quantity > Byte.MAX_VALUE ? Byte.MAX_VALUE : item.quantity);
-                    } else {
-                        msg.writer().writeInt(item.quantity);
-                    }
+//                    if (player2.getSession().version < 222) {
+//                        msg.writer().writeByte(item.quantity > Byte.MAX_VALUE ? Byte.MAX_VALUE : item.quantity);
+//                    } else {
+                    msg.writer().writeInt(item.quantity);
+//                    }
                     msg.writer().writeByte(item.itemOptions.size());
                     for (Item.ItemOption io : item.itemOptions) {
                         msg.writer().writeByte(io.optionTemplate.id);
@@ -372,7 +376,6 @@ public class Trade {
                 sendNotifyTrade(tradeStatus);
             }
         }
-        closeTab();
 
     }
 
@@ -392,13 +395,11 @@ public class Trade {
                 break;
             case FAIL_MAX_GOLD_PLAYER1:
                 Service.gI().sendThongBao(player1, "Giao dịch thất bại do số lượng vàng sau giao dịch vượt tối đa");
-                Service.gI().sendThongBao(player2,
-                        "Giao dịch thất bại do số lượng vàng " + player1.name + " sau giao dịch vượt tối đa");
+                Service.gI().sendThongBao(player2, "Giao dịch thất bại do số lượng vàng " + player1.name + " sau giao dịch vượt tối đa");
                 break;
             case FAIL_MAX_GOLD_PLAYER2:
                 Service.gI().sendThongBao(player2, "Giao dịch thất bại do số lượng vàng sau giao dịch vượt tối đa");
-                Service.gI().sendThongBao(player1,
-                        "Giao dịch thất bại do số lượng vàng " + player2.name + " sau giao dịch vượt tối đa");
+                Service.gI().sendThongBao(player1, "Giao dịch thất bại do số lượng vàng " + player2.name + " sau giao dịch vượt tối đa");
                 break;
             case FAIL_NOT_ENOUGH_BAG_P1:
                 Service.gI().sendThongBao(player1, "Giao dịch thất bại vì " + player1.name + " không đủ chỗ chứa");

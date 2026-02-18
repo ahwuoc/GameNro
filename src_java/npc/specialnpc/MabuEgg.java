@@ -1,16 +1,25 @@
 package npc.specialnpc;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import data.DataGame;
 import services.func.ChangeMapService;
-import services.PetService;
-import player.Player;
+import nro.services.PetService;
+import nro.player.Player;
 import utils.Util;
 import network.Message;
-import services.Service;
+import nro.services.Service;
 import utils.Logger;
 
 public class MabuEgg {
 
+//    private static final long DEFAULT_TIME_DONE = 7776000000L;
     private static final long DEFAULT_TIME_DONE = 86400000L;
 
     private Player player;
@@ -52,22 +61,33 @@ public class MabuEgg {
     }
 
     public void openEgg(int gender) {
-        if (this.player.pet != null) {
+        if (this.player.pet == null) {
+            Service.gI().sendThongBao(player, "Yêu cầu phải có đệ tử");
+            return;
+        }
+
+        Thread.startVirtualThread(() -> {
             try {
                 destroyEgg();
                 Thread.sleep(4000);
+
                 if (this.player.pet == null) {
                     PetService.gI().createMabuPet(this.player, gender);
                 } else {
                     PetService.gI().changeMabuPet(this.player, gender);
                 }
-                ChangeMapService.gI().changeMapInYard(this.player, this.player.gender * 7, -1, Util.nextInt(300, 500));
+
+                ChangeMapService.gI().changeMapInYard(
+                        this.player,
+                        this.player.gender * 7,
+                        -1,
+                        Util.nextInt(300, 500)
+                );
                 player.mabuEgg = null;
             } catch (Exception e) {
+                e.printStackTrace();
             }
-        } else {
-            Service.gI().sendThongBao(player, "Yêu cầu phải có đệ tử");
-        }
+        });
     }
 
     public void destroyEgg() {

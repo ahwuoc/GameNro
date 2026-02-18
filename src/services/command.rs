@@ -198,6 +198,117 @@ impl CommandService {
                 }
                 return Ok(true);
             }
+            // ── DHVT Test Commands ──
+            else if text.starts_with("dhvt") {
+                let sub = text.strip_prefix("dhvt").unwrap_or("").trim();
+                match sub {
+                    "info" | "i" => {
+                        // Hiện thông tin DHVT hiện tại
+                        let dhvt = crate::matches::dhvt::manager::get_dhvt_handle();
+                        let info = dhvt.get_info(player.id as i64).await;
+                        let msg = format!(
+                            "[DHVT Info]\n\
+                             Tournament: {} ({})\n\
+                             Can register: {}\n\
+                             Round: {}\n\
+                             Registered: {} players\n\
+                             You registered: {}\n\
+                             You in wait list: {}\n\
+                             Hour: {}",
+                            info.cup_name,
+                            info.tournament,
+                            info.can_reg,
+                            info.round,
+                            info.reg_count,
+                            info.is_registered,
+                            info.is_in_wait_list,
+                            info.hour,
+                        );
+                        ServiceHandles::send_message_alert(player, &msg)?;
+                    }
+                    "reg" | "r" => {
+                        // Force đăng ký (miễn phí)
+                        let dhvt = crate::matches::dhvt::manager::get_dhvt_handle();
+                        dhvt.register(player.id as i64);
+                        ServiceHandles::send_message_alert(
+                            player,
+                            "DHVT: Đã đăng ký thành công (admin bypass)",
+                        )?;
+                    }
+                    "unreg" | "u" => {
+                        // Hủy đăng ký
+                        let dhvt = crate::matches::dhvt::manager::get_dhvt_handle();
+                        dhvt.unregister(player.id as i64);
+                        ServiceHandles::send_message_alert(player, "DHVT: Đã hủy đăng ký")?;
+                    }
+                    "start" | "s" => {
+                        // Force bắt đầu ghép cặp (gửi Tick liên tục)
+                        let dhvt = crate::matches::dhvt::manager::get_dhvt_handle();
+                        dhvt.force_start();
+                        ServiceHandles::send_message_alert(
+                            player,
+                            "DHVT: Force start - ghép cặp ngay!",
+                        )?;
+                    }
+                    "tp" => {
+                        // Teleport đến map 52 (phòng chờ)
+                        if let Some(zone) = ChangeMapService::get_available_zone(52) {
+                            ChangeMapService::change_map_to_zone(
+                                player,
+                                &zone,
+                                -1,
+                                336,
+                                SpaceShipType::TeleportYardrat,
+                                Some(session),
+                            )
+                            .await?;
+                        }
+                        ServiceHandles::send_message_alert(player, "DHVT: Teleport đến map 52")?;
+                    }
+                    "tp129" => {
+                        // Teleport đến map 129 (DHVT23)
+                        if let Some(zone) = ChangeMapService::get_available_zone(129) {
+                            ChangeMapService::change_map_to_zone(
+                                player,
+                                &zone,
+                                -1,
+                                360,
+                                SpaceShipType::TeleportYardrat,
+                                Some(session),
+                            )
+                            .await?;
+                        }
+                        ServiceHandles::send_message_alert(player, "DHVT: Teleport đến map 129")?;
+                    }
+                    "check" | "c" => {
+                        // Check player có đang trong list_wait/list_reg
+                        let dhvt = crate::matches::dhvt::manager::get_dhvt_handle();
+                        let in_list = dhvt.check_player(player.id as i64).await;
+                        let is_reg = dhvt.is_registered(player.id as i64).await;
+                        ServiceHandles::send_message_alert(
+                            player,
+                            &format!(
+                                "DHVT Check:\nRegistered: {}\nIn wait/reg list: {}",
+                                is_reg, in_list
+                            ),
+                        )?;
+                    }
+                    _ => {
+                        ServiceHandles::send_message_alert(
+                            player,
+                            "DHVT Commands:\n\
+                             dhvt info - Thông tin\n\
+                             dhvt reg - Đăng ký (free)\n\
+                             dhvt unreg - Hủy\n\
+                             dhvt start - Force start\n\
+                             dhvt tp - Đến map 52\n\
+                             dhvt tp129 - Đến map 129\n\
+                             dhvt check - Check status",
+                        )?;
+                    }
+                }
+                return Ok(true);
+            }
         }
 
         match text {

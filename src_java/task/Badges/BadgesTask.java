@@ -1,7 +1,7 @@
 package task.Badges;
 
-import player.Player;
-import server.Manager;
+import nro.player.Player;
+import nro.server.Manager;
 import task.ClanTaskTemplate;
 
 public class BadgesTask {

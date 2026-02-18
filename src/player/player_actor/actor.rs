@@ -6,6 +6,7 @@ use crate::item::{InventoryService, Item};
 use crate::map::services::training_services;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::{item_map_service, ChangeMapService, ItemMapService, SpaceShipType};
+use crate::matches::{pvp_manager, TypeLosePvp};
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
@@ -383,8 +384,10 @@ impl PlayerActor {
                 y,
                 space_type,
             } => {
-                if let Some(zone) = crate::map::zone_manager::ZONE_MANAGER.get_zone(map_id, zone_id)
-                {
+                if let Some(zone) = ZONE_MANAGER.get_zone(map_id, zone_id) {
+                    let pvp_handle = pvp_manager::get_pvp_handle();
+                    pvp_handle.player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
+
                     self.sync_pet_map().await;
 
                     ChangeMapService::change_map_to_zone(
@@ -642,7 +645,7 @@ impl PlayerActor {
                         self.player.fusion.last_time_fusion =
                             crate::utils::time::current_time_millis();
                         let icon_id: i16 = if self.player.gender == 1 { 3901 } else { 3790 };
-                        let _ = crate::services::ServiceHandles::send_item_time(
+                        let _ = crate::services::ServiceHandles::send_item_time_client(
                             &self.player,
                             icon_id,
                             600,
@@ -714,6 +717,9 @@ impl PlayerActor {
             }
             crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT
             | crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT_ALT => {
+                // PVP: đổi map = bỏ chạy
+                pvp_manager::get_pvp_handle()
+                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
                 crate::map::ChangeMapService::change_map_waypoint_handler(
                     &mut self.player,
                     &self.session,
@@ -722,12 +728,16 @@ impl PlayerActor {
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::GO_HOME => {
+                pvp_manager::get_pvp_handle()
+                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
                 crate::map::ChangeMapService::go_home_handler(&mut self.player, &self.session)
                     .await?;
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::CHANGE_ZONE => {
                 let zone_id = msg.read_byte()? as i32;
+                pvp_manager::get_pvp_handle()
+                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
                 crate::map::services::change_map_service::ChangeMapService::open_zone_ui(
                     &mut self.player,
                 )
@@ -798,16 +808,16 @@ impl PlayerActor {
     }
 
     async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
+        let was_alive = !self.player.is_die();
         let real_damage = self.player.injured(damage, piercing);
         if !from_mob {
-            let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
-            let _ = crate::services::ServiceHandles::send_player_injured(
-                &self.player,
-                real_damage as i32,
-                false,
-                255,
-            );
+            player_info_service::send_info_hp_mp_money(&self.player);
+            ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 255);
             let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
+        }
+        if was_alive && self.player.is_die() {
+            let pvp_handle = crate::matches::pvp_manager::get_pvp_handle();
+            pvp_handle.player_lose(self.player.id as i64, crate::matches::TypeLosePvp::Dead);
         }
     }
 
@@ -1095,6 +1105,7 @@ impl PlayerActor {
             "PlayerActor disposing for {} (ID: {})",
             self.player.name, self.player.id
         );
+        pvp_manager::get_pvp_handle().player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
         if let Some(ref pet_handle) = self.pet_handle {
             let (tx, rx) = tokio::sync::oneshot::channel();
             if let Ok(_) = pet_handle.send(PetMessage::GetSnapshot(tx)).await {

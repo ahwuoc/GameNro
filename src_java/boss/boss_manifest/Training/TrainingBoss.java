@@ -1,5 +1,13 @@
 package boss.boss_manifest.Training;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstRatio;
 import boss.Boss;
 import boss.BossData;
@@ -10,12 +18,12 @@ import network.Message;
 import consts.ConstPlayer;
 import java.io.IOException;
 import models.Training.TrainingService;
-import player.Player;
-import services.EffectSkillService;
-import services.MapService;
-import services.PlayerService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.MapService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.Logger;
 import utils.SkillUtil;
@@ -32,8 +40,8 @@ public abstract class TrainingBoss extends Boss {
     protected boolean isPlayerDie;
     public long lastTimeBuff;
 
-    public TrainingBoss(BossType ducpro, int id, BossData data) throws Exception {
-        super(ducpro, id, data);
+    public TrainingBoss(BossType ducvupro, int id, BossData data) throws Exception {
+        super(ducvupro, id, data);
         this.bossStatus = BossStatus.RESPAWN;
     }
 

@@ -8,7 +8,13 @@ import java.util.List;
 
 import jdbc.DBConnecter;
 import lombok.Getter;
- 
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
 public class PowerLimitManager {
 

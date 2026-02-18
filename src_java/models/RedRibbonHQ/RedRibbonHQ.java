@@ -1,6 +1,13 @@
 package models.RedRibbonHQ;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import boss.Boss;
 import boss.boss_manifest.RedRibbonHQ.NinjaAoTim;
 import boss.boss_manifest.RedRibbonHQ.RobotVeSi;
@@ -10,25 +17,25 @@ import boss.boss_manifest.RedRibbonHQ.TrungUyXanhLo;
 import clan.Clan;
 import map.Zone;
 import mob.Mob;
-import player.Player;
+import nro.player.Player;
 import services.func.ChangeMapService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import map.ItemMap;
-import server.Maintenance;
-import services.ItemMapService;
-import services.ItemTimeService;
-import services.MapService;
-import services.Service;
+import nro.server.Maintenance;
+import nro.services.ItemMapService;
+import nro.services.ItemTimeService;
+import nro.services.MapService;
+import nro.services.Service;
 import utils.Util;
 
 @Data
 public class RedRibbonHQ implements Runnable {
 
-    // bang hội đủ số người mới đc mở
+    //bang hội đủ số người mới đc mở
     public static final int N_PLAYER_CLAN = 0;
-    // số người đứng cùng khu
+    //số người đứng cùng khu
     public static final int N_PLAYER_MAP = 1;
     public static final int AVAILABLE = 50;
     public static final int TIME_DOANH_TRAI = 1800000;
@@ -89,7 +96,7 @@ public class RedRibbonHQ implements Runnable {
             player.clan.lastTimeOpenDoanhTrai = this.lastTimeOpen;
             player.clan.haveGoneDoanhTrai = false;
             sendTextDoanhTrai();
-            // Khởi tạo quái, boss
+            //Khởi tạo quái, boss
             this.isOpened = true;
             this.init();
         } catch (Exception e) {
@@ -100,7 +107,7 @@ public class RedRibbonHQ implements Runnable {
             return;
         }
         List<Player> plJoinDT = new ArrayList();
-        // Đưa thành viên vào doanh trại
+        //Đưa thành viên vào doanh trại
         for (Player pl : player.zone.getPlayers()) {
             if (pl != null && !pl.equals(player) && pl.clan != null
                     && pl.clan.equals(player.clan) && pl.location.x >= 1285
@@ -123,6 +130,7 @@ public class RedRibbonHQ implements Runnable {
         long totalDamage = 0;
         long totalHp = 0;
 
+        // Tính tổng dame và HP của thành viên bang
         for (Player player : this.clan.membersInGame) {
             if (player != null && player.nPoint != null) {
                 totalDamage += player.nPoint.dame;
@@ -130,88 +138,70 @@ public class RedRibbonHQ implements Runnable {
             }
         }
 
-        // Hồi sinh quái
+        // Hồi sinh quái & setup boss cho từng zone
         for (Zone zone : this.zones) {
+            // --- Mob ---
             for (Mob mob : zone.mobs) {
                 long mobTempId = mob.tempId;
-                mob.point.dame = Util.toIntOrLong((mobTempId != 0) ? totalHp / mobTempId : 0);
-                mob.point.maxHp = Util.toIntOrLong((mobTempId != 0) ? totalDamage * mobTempId : 0);
+                mob.point.dame = Util.maxIntValue(mobTempId != 0 ? totalHp / mobTempId : 0);
+                mob.point.maxHp = Util.maxIntValue(mobTempId != 0 ? totalDamage * mobTempId : 0);
                 mob.lvMob = 0;
                 mob.hoiSinh();
                 mob.hoiSinhMobPhoBan();
             }
 
+            // --- Boss ---
             long dame = totalHp / 20;
             long hp = totalDamage * 50;
 
-            if (zone.map.mapId == 59) {
-                try {
-                    long bossDamage = Util.toIntOrLong(dame);
-                    long bossMaxHealth = Util.toIntOrLong(hp);
-                    bosses.add(new TrungUyTrang(
-                            zone,
-                            bossDamage,
-                            bossMaxHealth));
-                } catch (Exception e) {
-                }
-            }
-            if (zone.map.mapId == 62) {
-                try {
-                    long bossDamage = Util.toIntOrLong((dame * 1.1));
-                    long bossMaxHealth = Util.toIntOrLong((hp * 1.1));
-                    bosses.add(new TrungUyXanhLo(
-                            zone,
-                            bossDamage,
-                            bossMaxHealth));
-                } catch (Exception e) {
-                }
-            }
-            if (zone.map.mapId == 55) {
-                try {
-                    long bossDamage = Util.toIntOrLong((dame * 1.15));
-                    long bossMaxHealth = Util.toIntOrLong((hp * 1.15));
-                    bosses.add(new TrungUyThep(
-                            zone,
-                            bossDamage,
-                            bossMaxHealth));
-                } catch (Exception e) {
-                }
-            }
-            if (zone.map.mapId == 54) {
-                try {
-                    long bossDamage = Util.toIntOrLong((dame * 1.2));
-                    long bossMaxHealth = Util.toIntOrLong((hp * 1.2));
-                    bosses.add(new NinjaAoTim(
-                            zone,
-                            clan,
-                            bossDamage,
-                            bossMaxHealth));
-                } catch (Exception e) {
-                }
-            }
-
-            if (zone.map.mapId == 57) {
-                try {
-                    long bossDamage = Util.toIntOrLong((dame * 1.3));
-                    long bossMaxHealth = Util.toIntOrLong((hp * 1.3));
-                    for (int i = 0; i < 4; i++) {
-                        bosses.add(new RobotVeSi(
+            try {
+                switch (zone.map.mapId) {
+                    case 59 ->
+                        bosses.add(new TrungUyTrang(
                                 zone,
-                                i,
-                                bossDamage,
-                                bossMaxHealth));
+                                Util.maxIntValue(dame),
+                                Util.maxIntValue(hp)
+                        ));
+                    case 62 ->
+                        bosses.add(new TrungUyXanhLo(
+                                zone,
+                                Util.maxIntValue(dame * 1.1),
+                                Util.maxIntValue(hp * 1.1)
+                        ));
+                    case 55 ->
+                        bosses.add(new TrungUyThep(
+                                zone,
+                                Util.maxIntValue(dame * 1.15),
+                                Util.maxIntValue(hp * 1.15)
+                        ));
+                    case 54 ->
+                        bosses.add(new NinjaAoTim(
+                                zone,
+                                clan,
+                                Util.maxIntValue(dame * 1.2),
+                                Util.maxIntValue(hp * 1.2)
+                        ));
+                    case 57 -> {
+                        long bossDamage = Util.maxIntValue(dame * 1.3);
+                        long bossHp = Util.maxIntValue(hp * 1.3);
+                        for (int i = 0; i < 4; i++) {
+                            bosses.add(new RobotVeSi(zone, i, bossDamage, bossHp));
+                        }
                     }
-                } catch (Exception e) {
                 }
+            } catch (Exception ignored) {
             }
         }
-        new Thread(this, "Doanh Trại: " + this.clan.name).start();
+
+        // Khởi chạy thread
+        Thread.ofVirtual()
+                .name("Doanh Trại: " + this.clan.name)
+                .start(this);
     }
 
     public void update() {
         if (isOpened) {
-            if ((!isTimePicking && Util.canDoWithTime(lastTimeOpen, TIME_DOANH_TRAI))
-                    || (isTimePicking && Util.canDoWithTime(lastTimePick, TIME_PICK_DOANH_TRAI))) {
+            if ((!isTimePicking && Util.canDoWithTime(lastTimeOpen, TIME_DOANH_TRAI)) || (isTimePicking && Util.canDoWithTime(lastTimePick, TIME_PICK_DOANH_TRAI))) {
                 finish();
                 dispose();
             }
@@ -321,14 +311,14 @@ public class RedRibbonHQ implements Runnable {
             }
         }
 
-        // update hp dame quái
+        //update hp dame quái
         for (Zone zone : this.zones) {
             for (Mob mob : zone.mobs) {
                 if (mob.isDie()) {
                     continue;
                 }
-                mob.point.dame = Util.toIntOrLong(totalHp / mob.tempId);
-                mob.point.maxHp = Util.toIntOrLong(totalDame * mob.tempId);
+                mob.point.dame = Util.maxIntValue(totalHp / mob.tempId);
+                mob.point.maxHp = Util.maxIntValue(totalDame * mob.tempId);
                 mob.point.hp = mob.point.maxHp;
                 mob.setTiemNang();
             }
@@ -344,8 +334,8 @@ public class RedRibbonHQ implements Runnable {
                 try {
                     long bossDamage = (dame);
                     long bossMaxHealth = (hp);
-                    bossDamage = Util.toIntOrLong(bossDamage);
-                    bossMaxHealth = Util.toIntOrLong(bossMaxHealth);
+                    bossDamage = Util.maxIntValue(bossDamage);
+                    bossMaxHealth = Util.maxIntValue(bossMaxHealth);
                     boss.nPoint.hpMax = bossMaxHealth;
                     boss.nPoint.dame = bossDamage;
                     boss.nPoint.hp = boss.nPoint.hpMax;
@@ -356,10 +346,10 @@ public class RedRibbonHQ implements Runnable {
                 try {
                     long bossDamage = (long) (dame * 1.1);
                     long bossMaxHealth = (long) (hp * 1.1);
-                    bossDamage = Util.toIntOrLong(bossDamage);
-                    bossMaxHealth = Util.toIntOrLong(bossMaxHealth);
-                    boss.nPoint.hpMax = bossMaxHealth;
-                    boss.nPoint.dame = bossDamage;
+                    bossDamage = Util.maxIntValue(bossDamage);
+                    bossMaxHealth = Util.maxIntValue(bossMaxHealth);
+                    boss.nPoint.hpMax =  bossMaxHealth;
+                    boss.nPoint.dame =  bossDamage;
                     boss.nPoint.hp = boss.nPoint.hpMax;
                 } catch (Exception exception) {
                 }
@@ -368,10 +358,10 @@ public class RedRibbonHQ implements Runnable {
                 try {
                     long bossDamage = (long) (dame * 1.15);
                     long bossMaxHealth = (long) (hp * 1.15);
-                    bossDamage = Util.toIntOrLong(bossDamage);
-                    bossMaxHealth = Util.toIntOrLong(bossMaxHealth);
-                    boss.nPoint.hpMax = bossMaxHealth;
-                    boss.nPoint.dame = bossDamage;
+                    bossDamage = Util.maxIntValue(bossDamage);
+                    bossMaxHealth = Util.maxIntValue(bossMaxHealth);
+                    boss.nPoint.hpMax =  bossMaxHealth;
+                    boss.nPoint.dame =  bossDamage;
                     boss.nPoint.hp = boss.nPoint.hpMax;
                 } catch (Exception exception) {
                 }
@@ -380,14 +370,14 @@ public class RedRibbonHQ implements Runnable {
                 try {
                     long bossDamage = (long) (dame * 1.2);
                     long bossMaxHealth = (long) (hp * 1.2);
-                    bossDamage = Util.toIntOrLong(bossDamage);
-                    bossMaxHealth = Util.toIntOrLong(bossMaxHealth);
+                    bossDamage = Util.maxIntValue(bossDamage);
+                    bossMaxHealth = Util.maxIntValue(bossMaxHealth);
                     if (boss.id >= -14 && boss.id <= -9) {
                         bossDamage /= 10;
                         bossMaxHealth /= 10;
                     }
-                    boss.nPoint.hpMax = bossMaxHealth;
-                    boss.nPoint.dame = bossDamage;
+                    boss.nPoint.hpMax =  bossMaxHealth;
+                    boss.nPoint.dame =  bossDamage;
                     boss.nPoint.hp = boss.nPoint.hpMax;
                 } catch (Exception exception) {
                 }
@@ -397,10 +387,10 @@ public class RedRibbonHQ implements Runnable {
                 try {
                     long bossDamage = (long) (dame * 1.3);
                     long bossMaxHealth = (long) (hp * 1.3);
-                    bossDamage = Util.toIntOrLong(bossDamage);
-                    bossMaxHealth = Util.toIntOrLong(bossMaxHealth);
-                    boss.nPoint.hpMax = bossMaxHealth;
-                    boss.nPoint.dame = bossDamage;
+                    bossDamage = Util.maxIntValue(bossDamage);
+                    bossMaxHealth = Util.maxIntValue(bossMaxHealth);
+                    boss.nPoint.hpMax =  bossMaxHealth;
+                    boss.nPoint.dame =  bossDamage;
                     boss.nPoint.hp = boss.nPoint.hpMax;
                 } catch (Exception exception) {
                 }

@@ -1,5 +1,13 @@
 package models.SuperRank;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstSuperRank;
 
 import java.util.List;
@@ -9,10 +17,10 @@ import jdbc.daos.SuperRankDAO;
 import map.Map;
 import map.Zone;
 import network.Message;
-import player.Player;
-import server.Client;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Client;
+import nro.services.MapService;
+import nro.services.Service;
 import utils.TimeUtil;
 import utils.Util;
 
@@ -177,13 +185,13 @@ public class SuperRankService {
     public String textReward(int rank) {
         String text = "";
         if (rank == 1) {
-            text = "+30 Thỏi vàng/ ngày";
+            text = "+10 thỏi vàng/ ngày";
         } else if (rank >= 2 && rank <= 10) {
-            text = "+20 Thỏi vàng/ ngày";
+            text = "+5 thỏi vàng/ ngày";
         } else if (rank >= 11 && rank <= 100) {
-            text = "+5 Thỏi vàng/ ngày";
+            text = "+2 thỏi vàng/ ngày";
         } else if (rank >= 101 && rank <= 199) {
-            text = "+1 Thỏi vàng/ ngày";
+            text = "+1 thỏi vàng/ ngày";
         }
         return text;
     }
@@ -191,11 +199,11 @@ public class SuperRankService {
     public int reward(int rank) {
         int rw = -1;
         if (rank == 1) {
-            rw = 30;
+            rw = 10;
         } else if (rank >= 2 && rank <= 10) {
-            rw = 20;
-        } else if (rank >= 11 && rank <= 100) {
             rw = 5;
+        } else if (rank >= 11 && rank <= 100) {
+            rw = 2;
         } else if (rank >= 101 && rank <= 199) {
             rw = 1;
         }

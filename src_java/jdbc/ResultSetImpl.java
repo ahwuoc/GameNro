@@ -44,8 +44,7 @@ public class ResultSetImpl implements NDVResultSet {
                 try {
                     resultSet.getStatement().close();
                     resultSet.close();
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }
         }
     }
@@ -227,11 +226,7 @@ public class ResultSetImpl implements NDVResultSet {
         if (this.indexData == -1) {
             throw new Exception("Results need to be prepared in advance");
         }
-        Object value = this.values[this.indexData][n - 1];
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return (Long) value;
+        return (Long) this.values[this.indexData][n - 1];
     }
 
     @Override
@@ -242,11 +237,7 @@ public class ResultSetImpl implements NDVResultSet {
         if (this.indexData == -1) {
             throw new Exception("Results need to be prepared in advance");
         }
-        Object value = this.data[this.indexData].get(string.toLowerCase());
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        return (Long) value;
+        return (Long) this.data[this.indexData].get(string.toLowerCase());
     }
 
     @Override

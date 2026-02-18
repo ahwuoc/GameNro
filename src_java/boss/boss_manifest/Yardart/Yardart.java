@@ -1,5 +1,13 @@
 package boss.boss_manifest.Yardart;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossData;
 import boss.BossStatus;
@@ -7,11 +15,11 @@ import boss.BossType;
 import consts.ConstPlayer;
 import item.Item;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.PlayerService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import skill.Skill;
 import utils.SkillUtil;
@@ -32,8 +40,8 @@ public abstract class Yardart extends Boss {
 
     protected int rewardRatio;
 
-    public Yardart(BossType ducpro, int id, BossData... data) throws Exception {
-        super(ducpro, id, data);
+    public Yardart(BossType ducvupro, int id, BossData... data) throws Exception {
+        super(ducvupro, id, data);
     }
 
     @Override

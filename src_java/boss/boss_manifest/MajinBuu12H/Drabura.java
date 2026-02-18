@@ -1,4 +1,13 @@
 package boss.boss_manifest.MajinBuu12H;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
@@ -8,16 +17,16 @@ import consts.ConstPlayer;
 import java.util.ArrayList;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
-import server.ServerNotify;
-import services.SkillService;
-import services.TaskService;
+import nro.server.ServerNotify;
+import nro.services.SkillService;
+import nro.services.TaskService;
 import services.func.ChangeMapService;
 import skill.Skill;
 import utils.SkillUtil;
@@ -52,18 +61,12 @@ public class Drabura extends Boss {
 
     @Override
     public void active() {
-        if (this.zone == null) {
-            return;
-        }
         this.attack();
     }
 
     @Override
     public Player getPlayerAttack() {
-        if (this.zone == null) {
-            return null;
-        }
-        List<Player> plNotVoHinh = new ArrayList<>();
+        List<Player> plNotVoHinh = new ArrayList();
         for (Player pl : this.zone.getNotBosses()) {
             if ((pl.effectSkin == null || !pl.effectSkin.isVoHinh) && pl.cFlag != this.cFlag) {
                 plNotVoHinh.add(pl);
@@ -77,9 +80,6 @@ public class Drabura extends Boss {
     }
 
     private void petrifyPlayersInTheMap() {
-        if (this.zone == null) {
-            return;
-        }
         for (Player pl : this.zone.getNotBosses()) {
             if (Util.isTrue(1, 10)) {
                 this.chat("phẹt");
@@ -156,7 +156,6 @@ public class Drabura extends Boss {
 
     @Override
     public void reward(Player plKill) {
-
         plKill.fightMabu.changePoint((byte) 10);
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
     }

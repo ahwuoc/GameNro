@@ -12,10 +12,10 @@ import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 /**
@@ -41,10 +41,10 @@ public class TinhThachHoa {
                 return 7;
             case 7:
                 return 8;
-//            case 8:
-//                return 9;
-//            case 9:
-//                return 10;
+            case 8:
+                return 9;
+            case 9:
+                return 10;
 
         }
         return 0;
@@ -68,10 +68,10 @@ public class TinhThachHoa {
                 return 5f;
             case 7:
                 return 2f;
-//            case 8:
-//                return 10f;
-//            case 9:
-//                return 5f;
+            case 8:
+                return 10f;
+            case 9:
+                return 5f;
         }
         return 0;
     }
@@ -162,7 +162,6 @@ public class TinhThachHoa {
             if (caiTrang != null && manhCaiTrang != null && manhCaiTrang.quantity > player.combine.DaNangcap) {
                 player.inventory.gold -= gold;
                 player.inventory.gem -= gem;
-              
                 InventoryService.gI().subQuantityItemsBag(player, manhCaiTrang, player.combine.DaNangcap);
                 if (Util.isTrue(tiLe, 100)) {
                     Item newCaiTrang = ItemService.gI().createNewItem((short) (caiTrang.template.id));

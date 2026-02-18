@@ -1,13 +1,20 @@
 package boss.boss_manifest.Android;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
 import boss.Boss;
 import boss.BossID;
 import boss.BossesData;
 import map.ItemMap;
-import player.Player;
-import services.Service;
-import services.TaskService;
+import nro.player.Player;
+import nro.services.Service;
+import nro.services.TaskService;
 import utils.Util;
 
 public class Android13 extends Boss {
@@ -18,7 +25,6 @@ public class Android13 extends Boss {
 
     @Override
     public void reward(Player plKill) {
-         plKill.pointboss+=7;        
         int[] itemRan = new int[]{380, 381, 382, 383, 384, 385};
         int itemId = itemRan[2];
         if (Util.isTrue(15, 100)) {

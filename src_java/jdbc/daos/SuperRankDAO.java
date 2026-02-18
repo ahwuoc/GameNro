@@ -9,8 +9,8 @@ import java.util.List;
 import jdbc.DBConnecter;
 import jdbc.NDVResultSet;
 import org.json.simple.JSONArray;
-import player.Inventory;
-import player.Player;
+import nro.player.Inventory;
+import nro.player.Player;
 import utils.Util;
 
 public class SuperRankDAO {

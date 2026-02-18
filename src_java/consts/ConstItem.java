@@ -1,6 +1,15 @@
-
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package consts;
 
+/**
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 public class ConstItem {
 
     public static final int AO_VAI_3_LO = 0;
@@ -540,7 +549,6 @@ public class ConstItem {
     public static final int GIAP_TAP_LUYEN_CAP_1_534 = 534;
     public static final int GIAP_TAP_LUYEN_CAP_2_535 = 535;
     public static final int GIAP_TAP_LUYEN_CAP_3_536 = 536;
-    public static final int GIAP_TAP_LUYEN_CAP_4 = 1776;
     public static final int CHU_GIAI = 537;
     public static final int CHU_KHAI = 538;
     public static final int CHU_PHONG = 539;
@@ -756,8 +764,8 @@ public class ConstItem {
     public static final int THUNG_NEP = 749;
     public static final int THUNG_DAU_XANH = 750;
     public static final int LA_DONG = 751;
-    public static final int BANH_TET = 1894;
-    public static final int BANH_CHUNG = 1893;
+    public static final int BANH_TET = 752;
+    public static final int BANH_CHUNG = 753;
     public static final int NON_CHUOT_MAY_MAN = 754;
     public static final int NON_CHUOT_MAY_MAN_755 = 755;
     public static final int NON_CHUOT_MAY_MAN_756 = 756;
@@ -926,6 +934,7 @@ public class ConstItem {
     public static final int BUP_BE = 919;
     public static final int GAY_NHU_Y = 920;
     public static final int BONG_TAI_PORATA_CAP_2 = 921;
+    public static final int BONG_TAI_PORATA_CAP_3 = 1810;
     public static final int CAI_TRANG_GOKU_NOEL = 922;
     public static final int CAI_TRANG_PICO_NOEL = 923;
     public static final int CAI_TRANG_RADIC_NOEL = 924;
@@ -966,7 +975,10 @@ public class ConstItem {
     public static final int CAI_TRANG_CADIC_VO_SI = 959;
     public static final int CO_TRANG = 960;
     public static final int CO_DEN_961 = 961;
-
+    public static final int CAPSULE_THOI_TRANG_30_NGAY = 962;
+    public static final int CAPSULE_THOI_TRANG_7_NGAY = 963;
+    public static final int SAO_PHA_LE_964 = 964;
+    public static final int SAO_PHA_LE_965 = 965;
     public static final int TRAI_BONG = 966;
     public static final int SAO_LA = 967;
     public static final int SO_7_GOKU = 968;
@@ -1120,7 +1132,7 @@ public class ConstItem {
     public static final int HOM_HALLOWEEN = 1116;
     public static final int THIEP_HALLOWEEN = 1117;
     public static final int PHUONG_HOANG_LUA = 1148;
-    public static final int CAI_TRANG_SSJ_3_WHITE = 1149;
+    public static final int CAI_TRANG_SSJ_3_WHITE= 1149;
     public static final int NOEL_2022_GOKU = 1159;
     public static final int NOEL_2022_CADIC = 1160;
     public static final int NOEL_2022_POCOLO = 1161;
@@ -1138,7 +1150,7 @@ public class ConstItem {
     public static final int CHU_LUN_6 = 1167;
     public static final int CHU_LUN_7 = 1168;
     public static final int CHUONG_DONG = 1169;
-    public static final int GOI_QUA_NOEL = 1170;
+    public static final int CA_TUYET = 1170;
     public static final int BANH_QUY = 1171;
     public static final int KEO_DUONG = 1172;
     public static final int KEO_NGUOI_TUYET = 1173;
@@ -1223,6 +1235,7 @@ public class ConstItem {
     public static final int VOT_BAT_BO = 1251;
     public static final int VE_SAU_XEN = 1252;
     public static final int VE_SAU_XEN_TIEN_HOA = 1253;
+    public static final int HOA_CUC = 1367;
     public static final int CAI_TRANG_VEGETA_HAKAI = 2000;
     public static final int VE_DOI_AO_HUY_DIET = 2001;
     public static final int VE_DOI_QUAN_HUY_DIET = 2002;
@@ -1260,26 +1273,14 @@ public class ConstItem {
     public static final int GAO_NEP = 2037;
     public static final int DO_XANH = 2038;
     public static final int HOP_QUA_TET_2023 = 2039;
-
-    public static final int[] LIST_ITEM_NLSK_TET_2023 = { 2027, 2028, 2029, 2030, 2030, 2037, 2038 };
+ 
+    public static final int[] LIST_ITEM_NLSK_TET_2023 = {2027, 2028, 2029, 2030, 2030, 2037, 2038};
     public static final int[][][] LIST_ITEM_CLOTHES = {
             // áo , quần , găng ,giày,rada
-            // td -> nm -> xd
-            { { 0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555 },
-                    { 6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556 },
-                    { 21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562 },
-                    { 27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563 },
-                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
-            { { 1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557 },
-                    { 7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558 },
-                    { 22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564 },
-                    { 28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565 },
-                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
-            { { 2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559 },
-                    { 8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560 },
-                    { 23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566 },
-                    { 29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567 },
-                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } }
+            //td -> nm -> xd
+            {{0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555}, {6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556}, {21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562}, {27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
+            {{1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557}, {7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558}, {22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564}, {28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
+            {{2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559}, {8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560}, {23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566}, {29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}}
     };
 
 }

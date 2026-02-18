@@ -2,7 +2,7 @@ package item;
 
 import models.Template;
 import models.Template.ItemTemplate;
-import services.ItemService;
+import nro.services.ItemService;
 import utils.Util;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ public class Item {
 
     public ItemTemplate template;
 
-    public String info;
+    public String info, message;
 
     public String content;
 
@@ -28,9 +28,6 @@ public class Item {
     public boolean isNotNullItem() {
         return this.template != null;
     }
-    public boolean isNullItem() {
-        return this.template == null;
-    }
 
     public Item() {
         this.itemOptions = new ArrayList<>();
@@ -42,6 +39,20 @@ public class Item {
         this.itemOptions = new ArrayList<>();
         this.createTime = System.currentTimeMillis();
     }
+    
+    public boolean hasOption(int optionId, int minParam) {
+        for (ItemOption option : this.itemOptions) {
+            if (option != null && option.optionTemplate != null
+                    && option.optionTemplate.id == optionId && option.param >= minParam) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean isDoKyGui() {
+        return this.template != null && (this.itemOptions.stream().anyMatch(op -> op.optionTemplate.id == 86) || this.itemOptions.stream().anyMatch(op -> op.optionTemplate.id == 87) || this.template.type == 14 || this.template.type == 15 || this.template.type == 6 || this.template.id >= 14 && this.template.id <= 20);
+    }
 
     public String getInfo() {
         String strInfo = "";
@@ -49,6 +60,18 @@ public class Item {
             strInfo += itemOption.getOptionString();
         }
         return strInfo;
+    }
+    
+    public ItemOption getOptionById(int id) {
+        if (this.itemOptions == null) {
+            return null;
+        }
+        for (ItemOption option : this.itemOptions) {
+            if (option.optionTemplate != null && option.optionTemplate.id == id) {
+                return option;
+            }
+        }
+        return null;
     }
 
     public String getContent() {
@@ -101,6 +124,10 @@ public class Item {
         public ItemOption(Template.ItemOptionTemplate temp, int param) {
             this.optionTemplate = temp;
             this.param = param;
+        }
+        
+        public boolean haveExpiryDate() {
+            return optionTemplate.id == 93 || optionTemplate.id == 188;
         }
 
         public String getOptionString() {
@@ -239,15 +266,25 @@ public class Item {
         return template != null && template.id >= 411 && template.id <= 447;
     }
 
-   
+    public boolean isDaPhaLeC2() {
+        return template != null && template.id >= 1416 && template.id <= 1422 || template.id == 964 || template.id == 965;
+    }
 
-    
+    public boolean isDaPhaLeMoi() {
+        return template != null && template.id >= 1416 && template.id <= 1422 || template.id == 964 || template.id == 965
+                || template.id >= 1426 && template.id <= 1434;
+    }
+
     public boolean isDaPhaLeCu() {
         return template != null && template.id >= 441 && template.id <= 447;
     }
 
     public boolean isTypeBody() {
         return template != null && (0 <= template.type && template.type < 6) || template.type == 32 || template.type == 35 || template.type == 11 || template.type == 23;
+    }
+    
+    public boolean canPutInCollectionBox() {
+        return isNotNullItem() && (template.type == 5 || template.type == 11 || template.type == 21 || template.type == 23) && itemOptions.stream().noneMatch(ItemOption::haveExpiryDate);
     }
 
     public boolean isHaveOption(int id) {
@@ -365,8 +402,6 @@ public class Item {
 
             case 441 ->
                 new ItemOption(95, 5);
-            case 1422 ->
-                new ItemOption(190, 3);
             case 442 ->
                 new ItemOption(96, 5);
             case 443 ->
@@ -380,7 +415,20 @@ public class Item {
             case 447 ->
                 new ItemOption(101, 5);
 
-         
+            case 1416 ->
+                new ItemOption(95, 5);
+            case 1417 ->
+                new ItemOption(96, 5);
+            case 1418 ->
+                new ItemOption(97, 5);
+            case 1419 ->
+                new ItemOption(98, 5);
+            case 1420 ->
+                new ItemOption(99, 5);
+            case 1421 ->
+                new ItemOption(100, 5);
+            case 1422 ->
+                new ItemOption(101, 5);
 
             case 1426 ->
                 new ItemOption(95, 5);
@@ -489,7 +537,7 @@ public class Item {
     }
 
     public boolean isTrangBiPSH() {
-        if (this.template.type == 23 || this.template.type == 11 || this.template.type == 5 || this.template.type == 72) {
+        if (this.template.type == 21 || this.template.type == 11 || this.template.type == 25 || this.template.type == 72) {
             return true;
         }
 
@@ -507,7 +555,7 @@ public class Item {
     }
 
     public boolean isTrangBiKhoaGd() {
-        if (this.template.type == 11 || this.template.id == 457 || this.template.type == 30 || this.template.type == 12 || this.template.type == 21 || this.template.type == 27 || this.template.type == 72||this.template.type == 0||this.template.type == 1||this.template.type == 2||this.template.type == 3||this.template.type == 4) {
+        if (this.template.type == 11 || this.template.id != 457 || this.template.type == 30 || this.template.type == 12 || this.template.type == 21 || this.template.type == 27 || this.template.type == 72) {
             return true;
         }
 
@@ -537,7 +585,7 @@ public class Item {
     }
 
     public boolean canPhaLeHoa() {
-        return this.template != null && (this.template.type <11 || this.template.type == 32);
+        return this.template != null && (this.template.type < 5 || this.template.type == 32);
     }
 
     public Item cloneItem() {

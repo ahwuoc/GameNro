@@ -4,9 +4,9 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 
 public class EpSaoTrangBi {
 
@@ -41,14 +41,23 @@ public class EpSaoTrangBi {
         }
         int star = trangBi.getOptionParam(102);
         int starEmpty = trangBi.getOptionParam(107);
-       
-        
-        
+        int cuongHoa = trangBi.getOptionParam(228);
+        if (star < 7 && daPhaLe.isDaPhaLeMoi()) {
+            Service.gI().sendDialogMessage(player, "Sao pha lê cấp 2 hoặc lấp lánh chỉ dùng cho ô thứ 8 đã cường hóa trở lên.");
+            return;
+        }
+        if (star >= 7 && daPhaLe.isDaPhaLeCu()) {
+            Service.gI().sendDialogMessage(player, "Chỉ có thể nạm Sao pha lê mới.");
+            return;
+        }
         if (star >= starEmpty) {
             Service.gI().sendDialogMessage(player, "Cần 1 trang bị có lỗ sao pha lê và 1 loại ngọc để ép vào.");
             return;
         }
-        
+        if (star == 7 && cuongHoa == 0 || star >= 8 && cuongHoa < star + 1) {
+            Service.gI().sendDialogMessage(player, "Cần cường hóa ô sao pha lê này trước");
+            return;
+        }
         StringBuilder text = new StringBuilder();
         text.append(ConstFont.BOLD_BLUE).append(trangBi.template.name).append("\n");
         text.append(ConstFont.BOLD_DARK).append(star >= 7 ? trangBi.getOptionInfoCuongHoa(daPhaLe) : trangBi.getOptionInfo(daPhaLe)).append("\n");
@@ -78,12 +87,21 @@ public class EpSaoTrangBi {
         }
         int star = trangBi.getOptionParam(102);
         int starEmpty = trangBi.getOptionParam(107);
-        if (star >= starEmpty
+        int cuongHoa = trangBi.getOptionParam(228);
+        if (star >= starEmpty || star < 7 && daPhaLe.isDaPhaLeMoi() || star >= 7 && daPhaLe.isDaPhaLeCu()
+                || star == 7 && cuongHoa == 0 || star >= 8 && cuongHoa < star + 1
                 || player.inventory.getGemAndRuby() < getGem(star)) {
             return;
         }
         trangBi.addOptionParam(102, 1);
-        trangBi.addOptionParam(daPhaLe.getOptionDaPhaLe().optionTemplate.id, daPhaLe.getOptionDaPhaLe().param);
+        if (star >= 7) {
+            if (star == 7) {
+                trangBi.itemOptions.add(new Item.ItemOption(218, 0));
+            }
+            trangBi.itemOptions.add(new Item.ItemOption(daPhaLe.getOptionDaPhaLe().optionTemplate.id, daPhaLe.getOptionDaPhaLe().param));
+        } else {
+            trangBi.addOptionParam(daPhaLe.getOptionDaPhaLe().optionTemplate.id, daPhaLe.getOptionDaPhaLe().param);
+        }
         player.inventory.subGemAndRuby(getGem(star));
         InventoryService.gI().subQuantityItemsBag(player, daPhaLe, 1);
         CombineService.gI().sendEffectSuccessCombine(player);

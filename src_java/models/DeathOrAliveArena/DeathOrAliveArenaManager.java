@@ -1,11 +1,18 @@
 package models.DeathOrAliveArena;
- 
-import DucPro.Functions;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.NonNull;
 import map.Zone;
-import server.Maintenance;
+import nro.server.Maintenance;
 import utils.Util;
 
 public class DeathOrAliveArenaManager implements Runnable {
@@ -25,17 +32,15 @@ public class DeathOrAliveArenaManager implements Runnable {
     public void run() {
         while (!Maintenance.isRunning) {
             try {
-//                long start = System.currentTimeMillis();
-//                update();
-//                long timeUpdate = System.currentTimeMillis() - start;
-//                if (1000 - timeUpdate > 0) {
-//                    Thread.sleep(1000 - timeUpdate);
-//                }
                 long start = System.currentTimeMillis();
-                update();
-                Functions.sleep(Math.max(1000 - (System.currentTimeMillis() - start), 10));
 
-            } catch (Exception ex) {
+                update();
+
+                long elapsed = System.currentTimeMillis() - start;
+                long sleepTime = Math.max(1000 - elapsed, 10); // ít nhất 10ms
+                Thread.sleep(sleepTime);
+
+            } catch (Exception ignored) {
             }
         }
     }

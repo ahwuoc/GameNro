@@ -1,6 +1,6 @@
 package shop;
 
-import player.Player;
+import nro.player.Player;
 import java.util.ArrayList;
 import java.util.List;
 

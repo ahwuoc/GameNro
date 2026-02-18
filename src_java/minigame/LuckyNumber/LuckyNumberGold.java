@@ -1,16 +1,18 @@
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.LuckyNumber;
 
-import item.Item;
+import consts.ConstMiniGame;
 import minigame.cost.LuckyNumberCost;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
 import utils.Util;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import services.ItemService;
 
 public class LuckyNumberGold {
 
@@ -51,16 +53,13 @@ public class LuckyNumberGold {
     }
 
     public static void showMenuCSMM(Npc npc, Player player) {
-        Item danc = ItemService.gI().createNewItem((short) 1883, 1);
         String ketQua = showOneResult();
         String listKetQua = showTenResult();
         String listPlayer = showTenPlayResult();
         String resultPlayerSelect = LuckyNumberService.strNumber((int) player.id, true);
         String npcSay = "";
         if (!ketQua.isEmpty()) {
-            npcSay += "Kết quả giải trước: " + ketQua + "\n"
-                    + " Phần Thưởng Giải Trước: " + danc.template.name + "\n";
-          
+            npcSay += "Kết quả giải trước: " + ketQua + "\n";
         }
         if (!listKetQua.isEmpty()) {
             npcSay += listKetQua + "\n";
@@ -68,17 +67,16 @@ public class LuckyNumberGold {
         if (!listPlayer.isEmpty()) {
             npcSay += "Thắng giải trước: " + listPlayer + "\n";
         }
-        
-        npcSay += "Giải Thưởng Lần Này: " + danc.template.name + "\n"
+        npcSay += "Tổng giải thưởng: " + Util.numberFormatLouis(LuckyNumberCost.costGold) + " vàng\n"
                 + "<" + LuckyNumberCost.timeGame + "> giây";
         if (!resultPlayerSelect.isEmpty()) {
             npcSay += "\nCác số bạn chọn: " + resultPlayerSelect;
         }
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_LUCKY_NUMBER_GOLD, npcSay,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_LUCKY_NUMBER_GOLD, npcSay,
                 "Cập nhật",
-                "1 Số\n 10 thỏi vàng",
-                "Ngẫu nhiên\n1 số lẻ\n10 thỏi vàng",
-                "Ngẫu nhiên\n1 số chẵn\n10 thỏi vàng",
+                "1 Số\n1 Tr vàng",
+                "Ngẫu nhiên\n1 số lẻ\n1 Tr vàng",
+                "Ngẫu nhiên\n1 số chẵn\n1 Tr vàng",
                 "Hướng\ndẫn\nthêm",
                 "Đóng");
     }

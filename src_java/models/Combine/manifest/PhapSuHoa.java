@@ -11,9 +11,9 @@ import java.util.Arrays;
 import java.util.List;
 import models.Combine.Combine;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 /**
@@ -58,7 +58,7 @@ public class PhapSuHoa {
                                 npcSay += io.getOptionString() + "\n";
                             }
                         }
-                        player.combine.ratioCombine = 20;
+                        player.combine.ratioCombine = 30;
                         npcSay += "|2|Sau khi nâng cấp sẽ cộng 1 chỉ số pháp sư ngẫu nhiên \n|7|"
                                 + "\n|7|Tỉ lệ thành công: " + player.combine.ratioCombine + "%\n"
                                 + "Cần " + Util.numberToMoney(2000000000) + " vàng";
@@ -135,7 +135,7 @@ public class PhapSuHoa {
                 } else {
                     for (ItemOption itopt : trangBiHacHoa.itemOptions) {
                         if (itopt.optionTemplate.id == randomOption) {
-                            itopt.param += Util.nextInt(0, 500);
+                            itopt.param += Util.nextInt(100, 500);
                             break;
                         }
                     }
@@ -147,7 +147,7 @@ public class PhapSuHoa {
                 CombineService.gI().sendEffectFailCombine(player);
 
             }
-            InventoryService.gI().subQuantityItemsBag(player, daHacHoa, 2);
+            InventoryService.gI().subQuantityItemsBag(player, daHacHoa, 1);
             InventoryService.gI().sendItemBag(player);
             Service.gI().sendMoney(player);
             player.combine.itemsCombine.clear();

@@ -1,13 +1,20 @@
 package models.The23rdMartialArtCongress;
- 
-import DucPro.Functions;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import java.util.ArrayList;
 import utils.Util;
 import java.util.List;
 import lombok.NonNull;
 import map.Zone;
-import player.Player;
-import server.Maintenance;
+import nro.player.Player;
+import nro.server.Maintenance;
 
 public class The23rdMartialArtCongressManager implements Runnable {
 
@@ -24,18 +31,18 @@ public class The23rdMartialArtCongressManager implements Runnable {
 
     @Override
     public void run() {
+        loopWithDelay(this::update, 1000);
+    }
+
+    private void loopWithDelay(Runnable task, long intervalMs) {
         while (!Maintenance.isRunning) {
             try {
-//                long start = System.currentTimeMillis();
-//                update();
-//                long timeUpdate = System.currentTimeMillis() - start;
-//                if (1000 - timeUpdate > 0) {
-//                    Thread.sleep(1000 - timeUpdate);
-//                }
                 long start = System.currentTimeMillis();
-                update();
-                long timeUpdate = System.currentTimeMillis() - start;
-                Functions.sleep(Math.max(1000 - timeUpdate, 10));
+
+                task.run();
+
+                long elapsed = System.currentTimeMillis() - start;
+                Functions.sleep(Math.max(intervalMs - elapsed, 10));
             } catch (Exception e) {
                 e.printStackTrace();
             }

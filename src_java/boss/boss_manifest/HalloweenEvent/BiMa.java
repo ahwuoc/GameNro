@@ -1,12 +1,24 @@
 package boss.boss_manifest.HalloweenEvent;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.*;
 import static boss.BossType.HALLOWEEN_EVENT;
 import consts.ConstPlayer;
+import item.Item;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.InventoryService;
+import nro.services.ItemTimeService;
+import nro.services.Service;
+import nro.services.SkillService;
 import utils.SkillUtil;
 import utils.Util;
 
@@ -18,14 +30,50 @@ public class BiMa extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        ItemMap it = new ItemMap(this.zone, 585, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
-                this.location.y - 24), plKill.id);
-        Service.gI().dropItemMap(this.zone, it);
-    }
+        try {
+            // Xác định loại vật phẩm rơi
+            boolean isKeo = Util.isTrue(80, 100); // 80% là Kẹo, 20% là Bí ngô
 
-    public void halloween(Player player) {
-        if (player.effectSkill != null && !player.effectSkill.isHalloween) {
-            EffectSkillService.gI().setIsHalloween(player, 2, 1800000);
+            // Nếu là kẹo
+            int itemId = isKeo ? 901 : 585;
+            int soLuong = isKeo ? Util.nextInt(1, 5) : Util.nextInt(10, 20);
+
+            // 🔥 Hiệu ứng rơi tự nhiên, tản ngẫu nhiên xung quanh vị trí boss
+            for (int i = 0; i < soLuong; i++) {
+                int x = this.location.x + Util.nextInt(-80, 80);
+                int y = this.zone.map.yPhysicInTop(x, this.location.y - Util.nextInt(60, 120));
+
+                // Tạo vật phẩm rơi
+                ItemMap item = new ItemMap(
+                        this.zone,
+                        itemId, // ID vật phẩm (Kẹo hoặc Bí ngô)
+                        1, // Mỗi vật phẩm rơi 1 cái
+                        x,
+                        y,
+                        plKill.id
+                );
+
+                // Thả vật phẩm xuống bản đồ
+                Service.gI().dropItemMap(this.zone, item);
+
+                // Hiệu ứng sáng nhỏ mỗi khi rơi
+                Service.gI().sendEffAllPlayer(plKill, (short) 13, 1, -1, 1);
+
+                // Delay nhỏ giữa mỗi vật phẩm để tạo hiệu ứng "mưa rơi"
+                Thread.sleep(100);
+            }
+
+            // 🔔 Gửi thông báo cho người chơi
+            if (isKeo) {
+                Service.gI().sendThongBao(plKill, "Bạn nhận được " + soLuong + " Kẹo bàn tay!");
+                Service.gI().chat(plKill, "Mưa Kẹo bàn tay rơi xung quanh bạn!");
+            } else {
+                Service.gI().sendThongBao(plKill, "Bạn nhận được " + soLuong + " Bí ngô!");
+                Service.gI().chat(plKill, "Mưa Bí ngô rơi khắp nơi!");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -78,8 +126,31 @@ public class BiMa extends Boss {
                                     Util.nextInt(10) % 2 == 0 ? pl.location.y : pl.location.y - Util.nextInt(0, 50));
                         }
                     }
-                    halloween(pl);
                     SkillService.gI().useSkill(this, pl, null, -1, null);
+                    if (pl.isPl() || pl.isPet) {
+                        // ❌ Nếu đang đeo khẩu trang thì KHÔNG bị nhiễm
+                        if (pl.itemTime != null && pl.itemTime.isUseKhauTrang) {
+                            Service.gI().chat(pl, "Khẩu trang đã giúp ta tránh được lời nguyền!");
+                            return;
+                        }
+
+                        // ✅ Chỉ biến thành BiMa nếu chưa bị nhiễm và không thuộc 3 loại khác
+                        if (!pl.itemTime.isBiMa
+                                && !pl.itemTime.isMaTroi
+                                && !pl.itemTime.isBoXuong
+                                && !pl.itemTime.isDoiNhi) {
+
+                            pl.itemTime.isBiMa = true;
+                            pl.itemTime.lastTimeBiMa = System.currentTimeMillis();
+
+                            // Cập nhật ngoại hình, hiệu ứng và chỉ số
+                            Service.gI().chat(pl, "Huhuhu... Ta đã bị ma ám!");
+                            Service.gI().point(pl);
+                            ItemTimeService.gI().sendAllItemTime(pl);
+                            Service.gI().Send_Caitrang(pl);
+                        }
+                    }
+
                     checkPlayerDie(pl);
                 } else {
                     if (Util.isTrue(1, 2)) {

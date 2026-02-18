@@ -1,24 +1,31 @@
 package models.DestronGas;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import EMTI.Functions;
 import boss.Boss;
 import boss.boss_manifest.DestronGas.DrLychee;
 import clan.Clan;
 import map.Zone;
 import mob.Mob;
-import player.Player;
-import services.ItemTimeService;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemTimeService;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
-import server.Maintenance;
-import services.ClanService;
-import services.ItemMapService;
+import nro.server.Maintenance;
+import nro.services.ClanService;
+import nro.services.ItemMapService;
 import utils.TimeUtil;
 
 @Data
@@ -27,7 +34,7 @@ public class DestronGas implements Runnable {
     public static final long POWER_CAN_GO_TO_KHI_GAS_HUY_DIET = 2000000000;
     public static final int AVAILABLE = 50;
     public static final int TIME_KHI_GAS_HUY_DIET = 1800000;
-    // bang hội đủ số người mới đc mở
+    //bang hội đủ số người mới đc mở
     public static final int N_PLAYER_CLAN = 0;
 
     public int id;
@@ -68,10 +75,14 @@ public class DestronGas implements Runnable {
 
     public void update() {
         if (isOpened) {
-            if (Util.canDoWithTime(lastTimeOpen, TIME_KHI_GAS_HUY_DIET)
-                    || (kickoutkghd && Util.canDoWithTime(timeKickOutKGHD, 60000))) {
+            if (Util.canDoWithTime(lastTimeOpen, TIME_KHI_GAS_HUY_DIET) || (kickoutkghd && Util.canDoWithTime(timeKickOutKGHD, 60000))) {
                 finish();
                 dispose();
+                for (Zone zone : zones) {
+                    for (Player pl : zone.getPlayers()) {
+                        sendThanhTichKhiGas(pl);
+                    }
+                }
             }
 
             boolean allCharactersDead = true;
@@ -84,19 +95,20 @@ public class DestronGas implements Runnable {
                 }
             }
 
-            if (!callBoss) {
+            if (allCharactersDead && !callBoss) {
                 try {
                     long bossDamage = (10000 * level);
                     long bossMaxHealth = (15000000 * level);
 
-                    bossDamage = Util.toIntOrLong((bossDamage * 1.5));
-                    bossMaxHealth = Util.toIntOrLong((bossMaxHealth * 1.5));
-                    clan.KhiGasHuyDiet.bosses.add(new DrLychee(
+                    bossDamage = Util.maxIntValue((bossDamage * 1.5));
+                    bossMaxHealth = Util.maxIntValue((bossMaxHealth * 1.5));
+                    bosses.add(new DrLychee(
                             getMapById(148),
                             clan,
                             level,
-                            bossDamage,
-                            bossMaxHealth));
+                             bossDamage,
+                             bossMaxHealth
+                    ));
                     callBoss = true;
                 } catch (Exception exception) {
                 }
@@ -118,13 +130,32 @@ public class DestronGas implements Runnable {
                 for (Zone zone : zones) {
                     List<Player> players = zone.getPlayers();
                     for (Player pl : players) {
-                        Service.gI().sendThongBao(pl,
-                                "Về làng Aru sau " + TimeUtil.getTimeLeft(timeKickOutKGHD, 60) + " nữa");
+                        Service.gI().sendThongBao(pl, "Về làng Aru sau " + TimeUtil.getTimeLeft(timeKickOutKGHD, 60) + " nữa");
                     }
                 }
             }
 
         }
+    }
+    
+    public void sendThanhTichKhiGas(Player pl) {
+        long timeDoneKhiGas;
+        timeDoneKhiGas = System.currentTimeMillis() - pl.clan.lastTimeOpenKhiGasHuyDiet;
+        int levelDoneKG;
+        levelDoneKG = pl.clan.KhiGasHuyDiet.level;
+        if (levelDoneKG > pl.clan.levelDoneKhiGas) {
+            pl.clan.levelDoneKhiGas = levelDoneKG;
+            pl.clan.thoiGianHoanThanhKhiGas = timeDoneKhiGas;
+//            System.out.println("levelDoneKG: " + levelDoneKG);
+//            System.out.println("timeDoneKhiGas: " + timeDoneKhiGas);
+        } else if (levelDoneKG == pl.clan.levelDoneKhiGas) {
+            if (timeDoneKhiGas < pl.clan.thoiGianHoanThanhKhiGas) {
+                pl.clan.thoiGianHoanThanhKhiGas = timeDoneKhiGas;
+            }
+        }
+        pl.clan.updatethanhTichKG(pl.clan.id);
+        pl.clan.updatethanhTichKGForLeader();
+        pl.clan.updateThongTinLeader2(pl.clan.id);
     }
 
     public void openKhiGasHuyDiet(Player plOpen, Clan clan, byte level) {
@@ -146,26 +177,24 @@ public class DestronGas implements Runnable {
     }
 
     private void init() {
-        // Hồi sinh quái
+        //Hồi sinh quái
         for (Zone zone : this.zones) {
             List<Mob> mobs = zone.mobs;
             for (int i = 0; i < mobs.size(); i++) {
                 Mob mob = mobs.get(i);
                 if (((i == 5 || i == 10) && zone.map.mapId == 149) || ((i == 5 || i == 10 || i == 15)
-                        && zone.map.mapId == 147)
-                        || ((i == 5 || i == 10 || i == 15 || i == 20 || i == 25)
-                                && zone.map.mapId == 152)
-                        || (i == 5 && zone.map.mapId == 151)
+                        && zone.map.mapId == 147) || ((i == 5 || i == 10 || i == 15 || i == 20 || i == 25)
+                        && zone.map.mapId == 152) || (i == 5 && zone.map.mapId == 151)
                         || ((i == 5 || i == 10) && zone.map.mapId == 148)) {
                     mob.lvMob = 1;
-                    mob.point.dame = Util.toIntOrLong(level * 31 * 5 * mob.tempId * 10);
-                    mob.point.maxHp = Util.toIntOrLong(level * 3107 * 5 * mob.tempId * 10);
+                    mob.point.dame = Util.maxIntValue(level * 31 * 5 * mob.tempId * 10);
+                    mob.point.maxHp = Util.maxIntValue(level * 3107 * 5 * mob.tempId * 10);
                     mob.hoiSinh();
                     mob.hoiSinhMobPhoBan();
                 } else {
                     mob.lvMob = mob.tempId == 76 ? 1 : 0;
-                    mob.point.dame = Util.toIntOrLong(level * 31 * 5 * mob.tempId);
-                    mob.point.maxHp = Util.toIntOrLong(level * 3107 * 5 * mob.tempId);
+                    mob.point.dame = Util.maxIntValue(level * 31 * 5 * mob.tempId);
+                    mob.point.maxHp = Util.maxIntValue(level * 3107 * 5 * mob.tempId);
                     mob.hoiSinh();
                     mob.hoiSinhMobPhoBan();
                 }
@@ -174,13 +203,14 @@ public class DestronGas implements Runnable {
         new Thread(this, "Khí Gas Hủy Diệt: " + this.clan.name).start();
     }
 
-    // kết thúc khí gas hủy diệt
+    //kết thúc khí gas hủy diệt
     public void finish() {
         for (Zone zone : zones) {
             for (int i = zone.getPlayers().size() - 1; i >= 0; i--) {
                 if (i < zone.getPlayers().size()) {
                     Player pl = zone.getPlayers().get(i);
                     kickOutOfKGHD(pl);
+                    pl.playerTask.kolTask.addCount();
                 }
             }
 
@@ -190,6 +220,7 @@ public class DestronGas implements Runnable {
     private void kickOutOfKGHD(Player player) {
         if (MapService.gI().isMapKhiGasHuyDiet(player.zone.map.mapId)) {
             ChangeMapService.gI().changeMapBySpaceShip(player, 0, -1, -1);
+            sendThanhTichKhiGas(player);
         }
     }
 

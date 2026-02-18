@@ -1,11 +1,19 @@
 package boss.boss_manifest.TrungThuEvent;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.*;
 import static boss.BossType.TRUNGTHU_EVENT;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 public class KhiDot extends Boss {
@@ -40,7 +48,7 @@ public class KhiDot extends Boss {
                 this.setDie(plAtt);
                 die(plAtt);
             }
-            return damage;
+            return (int) damage;
         } else {
             return 0;
         }

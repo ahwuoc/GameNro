@@ -10,6 +10,7 @@ mod entities;
 mod features;
 mod item;
 mod map;
+mod matches;
 mod mob;
 mod models;
 mod network;
@@ -35,6 +36,8 @@ async fn main() -> anyhow::Result<()> {
     services::manager::init().await?;
     services::manager::init_maps_world().await?;
     boss::manager::BossManager::init_boss().await;
+    matches::pvp_manager::init_pvp();
+    matches::dhvt::manager::init_dhvt();
     println!(
         "Server started successfully on {}:{}",
         config.server.listen_host, config.server.listen_port

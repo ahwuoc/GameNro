@@ -1,15 +1,22 @@
 package clan;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import jdbc.DBConnecter;
 import models.RedRibbonHQ.RedRibbonHQ;
-import services.ClanService;
+import nro.services.ClanService;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import player.Player;
-import server.Client;
-import services.Service;
+import nro.player.Player;
+import nro.server.Client;
+import nro.services.Service;
 import network.Message;
 import jdbc.daos.NDVSqlFetcher;
 import utils.Logger;
@@ -17,9 +24,12 @@ import utils.Util;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import models.TreasureUnderSea.TreasureUnderSea;
 import models.SnakeWay.SnakeWay;
 import models.DestronGas.DestronGas;
+import nro.server.Manager;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -47,12 +57,12 @@ public class Clan {
     public int level;
     public boolean active;
     public int capsuleClan;
-    public boolean checkin;
+
     public long lastTimeOpenDoanhTrai;
     public boolean haveGoneDoanhTrai;
     public RedRibbonHQ doanhTrai;
     public Player playerOpenDoanhTrai;
-    public int Point;
+
     public final List<ClanMember> members;
     public final List<Player> membersInGame;
 
@@ -68,6 +78,15 @@ public class Clan {
     public long lastTimeOpenKhiGasHuyDiet;
     public Player playerOpenKhiGasHuyDiet;
     public int timesPerDayKGHD;
+    //khí gas
+    public long thoiGianHoanThanhKhiGas;
+    public int levelDoneKhiGas;
+    //bdkb
+    public long thoiGianHoanThanhBDKB;
+    public int levelDoneBanDoKhoBau;
+    //cdrd
+    public long thoiGianHoanThanhCDRD;
+    public int levelDoneConDuongRanDoc;
 
     public long timeUpdateClan;
 
@@ -135,7 +154,7 @@ public class Clan {
         for (int i = this.membersInGame.size() - 1; i >= 0; i--) {
             Player pl = this.membersInGame.get(i);
             if (!plOri.equals(pl) && pl != null && pl.zone != null && plOri.zone.equals(pl.zone)) {
-                long tnsm =  (param / (Math.abs(Service.gI().getCurrLevel(pl) - Service.gI().getCurrLevel(plOri)) + 1));
+                long tnsm = (param / (Math.abs(Service.gI().getCurrLevel(pl) - Service.gI().getCurrLevel(plOri)) + 1));
                 Service.gI().addSMTN(pl, (byte) 1, tnsm, false);
             }
         }
@@ -314,16 +333,24 @@ public class Clan {
             dataArray.add(dataObject.toJSONString());
             dataObject.clear();
         }
-
         String member = dataArray.toJSONString();
+        String topBanDoKhoBau = "[" + levelDoneBanDoKhoBau + "," + thoiGianHoanThanhBDKB + "]";
+        String thongTinLeader = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        String topKhiGas = "[" + levelDoneKhiGas + "," + thoiGianHoanThanhKhiGas + "]";
+        String topConDuongRanDoc = "[" + levelDoneConDuongRanDoc + "," + thoiGianHoanThanhCDRD + "]";
+        String thongTinLeader2 = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        String thongTinLeader3 = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
         dataArray.clear();
 
         String top = dataArray.toJSONString();
 
+        // Lấy ID mới từ DB
+        this.id = DBConnecter.gI().getNextClanId();
+
         PreparedStatement ps = null;
         try (Connection con = DBConnecter.getConnectionServer();) {
-            ps = con.prepareStatement("insert into clan (id, name, name_2, slogan, img_id, power_point, max_member, clan_point, level, members, tops,Point) "
-                    + "values (?,?,?,?,?,?,?,?,?,?,?,?)");
+            ps = con.prepareStatement("insert into clan (id, name, name_2, slogan, img_id, power_point, max_member, clan_point, level, members, tops, thanhTichBDKB, thongTinLeader, thanhTichKhiGas, thanhTichCDRD, thongTinLeader2, thongTinLeader3) "
+                    + "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             ps.setInt(1, this.id);
             ps.setString(2, this.name);
             ps.setString(3, this.name2);
@@ -335,8 +362,12 @@ public class Clan {
             ps.setInt(9, this.level);
             ps.setString(10, member);
             ps.setString(11, top);
-            ps.setInt(12, this.Point);
-            System.out.println("INSERT Point: " + this.Point);
+            ps.setString(12, topBanDoKhoBau);
+            ps.setString(13, thongTinLeader);
+            ps.setString(14, topKhiGas);
+            ps.setString(15, topConDuongRanDoc);
+            ps.setString(16, thongTinLeader2);
+            ps.setString(17, thongTinLeader3);
             ps.executeUpdate();
             ps.close();
         } catch (Exception e) {
@@ -366,20 +397,23 @@ public class Clan {
             dataObject.put("clan_point", cm.clanPoint);
             dataObject.put("join_time", cm.joinTime);
             dataObject.put("ask_pea_time", cm.timeAskPea);
-            dataObject.put("Point", cm.Point);
             dataObject.put("power", cm.powerPoint);
             dataArray.add(dataObject.toJSONString());
             dataObject.clear();
         }
-
         String member = dataArray.toJSONString();
-
+        String topBanDoKhoBau = "[" + levelDoneBanDoKhoBau + "," + thoiGianHoanThanhBDKB + "]";
+        String thongTinLeader = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        String topKhiGas = "[" + levelDoneKhiGas + "," + thoiGianHoanThanhKhiGas + "]";
+        String topConDuongRanDoc = "[" + levelDoneConDuongRanDoc + "," + thoiGianHoanThanhCDRD + "]";
+        String thongTinLeader2 = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        String thongTinLeader3 = "[" + getLeader().id + "," + getLeader().name + "," + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
         dataArray.clear();
 
         PreparedStatement ps = null;
         try (Connection con = DBConnecter.getConnectionServer();) {
             ps = con.prepareStatement("update clan set slogan = ?, img_id = ?, power_point = ?, max_member = ?, clan_point = ?, "
-                    + "level = ?, members = ?, name_2 = ?, tops = ?,Point = ? where id = ? limit 1");
+                    + "level = ?, members = ?, name_2 = ?, tops = ?, thanhTichBDKB = ?, thongTinLeader = ?, thanhTichKhiGas = ?, thanhTichCDRD = ?, thongTinLeader2 = ?, thongTinLeader3 = ? where id = ? limit 1");
             ps.setString(1, this.slogan);
             ps.setInt(2, this.imgId);
             ps.setLong(3, this.powerPoint);
@@ -388,10 +422,14 @@ public class Clan {
             ps.setInt(6, this.level);
             ps.setString(7, member);
             ps.setString(8, this.name2);
-            ps.setString(9, "cc");
-            ps.setInt(10, this.Point);
-            ps.setInt(11, this.id);
-            
+            ps.setString(9, "BARCOLL");
+            ps.setString(10, topBanDoKhoBau);
+            ps.setString(11, thongTinLeader);
+            ps.setString(12, topKhiGas);
+            ps.setString(13, topConDuongRanDoc);
+            ps.setString(14, thongTinLeader2);
+            ps.setString(15, thongTinLeader3);
+            ps.setInt(16, this.id);
             ps.executeUpdate();
             ps.close();
         } catch (Exception e) {
@@ -401,6 +439,180 @@ public class Clan {
                 ps.close();
             } catch (Exception e) {
             }
+        }
+    }
+
+    public void updatethanhTichKG(int clanId) {
+        String topKhiGas = "[" + levelDoneKhiGas + "," + thoiGianHoanThanhKhiGas + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thanhTichKhiGas = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topKhiGas);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichKG");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÀNH TÍCH BANG 2");
+        }
+    }
+
+    public void updatethanhTichKGForLeader() {
+        String topKhiGas = "[" + this.name + "," + this.levelDoneKhiGas + "," + thoiGianHoanThanhKhiGas + "," + System.currentTimeMillis() + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE player SET thanhTichBang2 = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topKhiGas);
+                ps.setInt(2, this.getLeader().id);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichKGForLeader");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÀNH TÍCH BANG 2");
+        }
+    }
+
+    public void updatethanhTichBDKB(int clanId) {
+        String topBDKB = "[" + levelDoneBanDoKhoBau + "," + thoiGianHoanThanhBDKB + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thanhTichBDKB = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topBDKB);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichBDKB");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÀNH TÍCH BANG");
+        }
+    }
+
+    public void updatethanhTichBDKBForLeader() {
+        String topBDKB = "[" + this.name + "," + this.levelDoneBanDoKhoBau + "," + thoiGianHoanThanhBDKB + "," + System.currentTimeMillis() + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE player SET thanhTichBang = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topBDKB);
+                ps.setInt(2, this.getLeader().id);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichBDKBForLeader");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÀNH TÍCH BANG");
+        }
+    }
+
+    public void updatethanhTichCDRD(int clanId) {
+        String topKhiGas = "[" + levelDoneConDuongRanDoc + "," + thoiGianHoanThanhCDRD + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thanhTichCDRD = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topKhiGas);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichCDRD");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE updatethanhTichCDRD");
+        }
+    }
+
+    public void updatethanhTichCDRDForLeader() {
+        String topKhiGas = "[" + this.name + "," + this.levelDoneConDuongRanDoc + "," + thoiGianHoanThanhCDRD + "," + System.currentTimeMillis() + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE player SET thanhTichBang3 = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, topKhiGas);
+                ps.setInt(2, this.getLeader().id);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updatethanhTichCDRDForLeader");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÀNH TÍCH BANG 3");
+        }
+    }
+
+    public void updateThongTinLeader(int clanId) {
+        String thongTinLeader = "[" + getLeader().id + "," + getLeader().name + ","
+                + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thongTinLeader = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, thongTinLeader);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updateThongTinLeader");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÔNG TIN LEADER");
+        }
+    }
+
+    public void updateThongTinLeader2(int clanId) {
+        String thongTinLeader2 = "[" + getLeader().id + "," + getLeader().name + ","
+                + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thongTinLeader2 = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, thongTinLeader2);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updateThongTinLeader2");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÔNG TIN LEADER");
+        }
+    }
+
+    public void updateThongTinLeader3(int clanId) {
+        String thongTinLeader3 = "[" + getLeader().id + "," + getLeader().name + ","
+                + getLeader().head + "," + getLeader().body + "," + getLeader().leg + "]";
+        try (Connection con = DBConnecter.gI().getConnectionServer(); PreparedStatement ps = con != null ? con.prepareStatement(
+                "UPDATE clan SET thongTinLeader3 = ? WHERE id = ? LIMIT 1"
+        ) : null) {
+
+            if (ps != null) {
+                ps.setString(1, thongTinLeader3);
+                ps.setInt(2, clanId);
+                ps.executeUpdate();
+            } else {
+                Logger.error("Connection is null in updateThongTinLeader3");
+            }
+
+        } catch (Exception e) {
+            Logger.logException(Clan.class, e, "ERROR KHI UPDATE THÔNG TIN LEADER");
         }
     }
 
@@ -416,4 +628,45 @@ public class Clan {
         }
     }
 
+    public static void startAutoClanCheck() {
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
+            try {
+                for (Clan clan : Manager.CLANS) {
+                    clan.checkClanStatus();
+                }
+            } catch (Exception e) {
+            }
+        }, 0, 1, TimeUnit.MINUTES);
+    }
+
+    private static final java.util.concurrent.ScheduledExecutorService clanCheckExecutor
+            = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+
+    public static void startAutoCheck() {
+        clanCheckExecutor.scheduleAtFixedRate(() -> {
+            try {
+                for (Clan clan : Manager.CLANS) { // nếu bạn lưu tất cả bang hội ở Manager
+                    clan.checkClanStatus();
+                }
+            } catch (Exception e) {
+            }
+        }, 0, 1, java.util.concurrent.TimeUnit.MINUTES); // 1 phút 1 lần
+    }
+
+    // Thêm hàm kiểm tra riêng cho từng bang
+    public void checkClanStatus() {
+        try {
+            // Kiểm tra số lượng thành viên thực tế
+            if (this.members.size() > this.maxMember) {
+            }
+            // Kiểm tra trưởng bang còn tồn tại không
+            ClanMember leader = getLeader();
+            if (leader == null || NDVSqlFetcher.loadById(leader.id) == null) {
+            }
+            if (!this.active) {
+            }
+
+        } catch (Exception e) {
+        }
+    }
 }

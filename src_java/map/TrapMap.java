@@ -1,7 +1,13 @@
 package map;
 
-import player.Player;
-import services.PlayerService;
+/*
+ *
+ *
+ * @author
+ */
+
+import nro.player.Player;
+import nro.services.PlayerService;
 import services.func.EffectMapService;
 import utils.Util;
 
@@ -18,11 +24,9 @@ public class TrapMap {
         switch (this.effectId) {
             case 49 -> {
                 if (!player.isDie() && Util.canDoWithTime(player.iDMark.getLastTimeAnXienTrapBDKB(), 1000)) {
-                    player.injured(null, Util.toIntOrLong(dame + (Util.nextLong(-10L, 10L) * dame / 100L)), false,
-                            false);
+                    player.injured(null, Util.maxIntValue(dame + (Util.nextLong(-10L, 10L) * dame / 100L)), false, false);
                     PlayerService.gI().sendInfoHp(player);
-                    EffectMapService.gI().sendEffectMapToAllInMap(player.zone, effectId, 2, 1, player.location.x - 32,
-                            1040, 1);
+                    EffectMapService.gI().sendEffectMapToAllInMap(player.zone, effectId, 2, 1, player.location.x - 32, 1040, 1);
                     player.iDMark.setLastTimeAnXienTrapBDKB(System.currentTimeMillis());
                 }
             }

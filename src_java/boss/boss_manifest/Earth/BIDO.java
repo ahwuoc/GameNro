@@ -3,7 +3,9 @@ package boss.boss_manifest.Earth;
 /*
  *
  *
- *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 import boss.Boss;
 import boss.BossID;
@@ -13,9 +15,9 @@ import boss.BossesData;
 import item.Item;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 public class BIDO extends Boss {
@@ -36,33 +38,24 @@ public class BIDO extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        plKill.pointboss += 1;
-        if (Util.isTrue(50, 100)) {
-
-            ItemMap it = new ItemMap(this.zone, 457, (int) 1, this.location.x,
-                    this.zone.map.yPhysicInTop(this.location.x,
-                            this.location.y - 24),
-                    plKill.id);
-
-            Service.gI().dropItemMap(this.zone, it);
+//        Service.gI().dropItemMap(this.zone, new ItemMap(zone, 2055, Util.nextInt(1, 10), this.location.x + Util.nextInt(-50, 50), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id));
+        for (int i = 0; i < Util.nextInt(2); i++) {
+            Service.gI().dropItemMap(this.zone, new ItemMap(zone, 821, Util.nextInt(1, 3), this.location.x + i * Util.nextInt(-50, 50), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id));
         }
-
+        for (int i = 0; i < Util.nextInt(3, 10); i++) {
+            Service.gI().dropItemMap(this.zone, new ItemMap(zone, 77, Util.nextInt(20), this.location.x + i * 10, this.zone.map.yPhysicInTop(this.location.x,
+                    this.location.y - 24), plKill.id));
+        }
+        for (int i = 1; i < Util.nextInt(3, 10) + 1; i++) {
+            Service.gI().dropItemMap(this.zone, new ItemMap(zone, 77, Util.nextInt(20), this.location.x - i * 10, this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id));
+        }
         short itTemp = 426;
-        ItemMap it = new ItemMap(zone, itTemp, 1, this.location.x + Util.nextInt(-50, 50),
-                this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
+        ItemMap it = new ItemMap(zone, itTemp, 1, this.location.x + Util.nextInt(-50, 50), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
         List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop(itTemp);
         if (!ops.isEmpty()) {
             it.options = ops;
         }
         Service.gI().dropItemMap(this.zone, it);
-
-        if (Util.isTrue(1, 2)) {
-            ItemMap it_coin = new ItemMap(this.zone, 1788, 1, this.location.x + 5,
-                    this.zone.map.yPhysicInTop(this.location.x, this.location.y), plKill.id);
-            it_coin.source = "BIDO";
-            Service.gI().dropItemMap(this.zone, it_coin);
-        }
-
     }
 
     @Override

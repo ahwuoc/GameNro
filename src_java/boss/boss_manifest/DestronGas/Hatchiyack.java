@@ -3,7 +3,9 @@ package boss.boss_manifest.DestronGas;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 
 import consts.ConstPlayer;
@@ -13,10 +15,10 @@ import clan.Clan;
 import item.Item;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
-import services.EffectSkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
 import skill.Skill;
-import services.Service;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -103,22 +105,21 @@ public class Hatchiyack extends Boss {
             if (ParamMax < 3) {
                 ParamMax = 3;
             }
-            int ParamMin = ParamMax - 20;
+            int ParamMin = ParamMax - 3;
             if (ParamMin < 3) {
                 ParamMin = 3;
             }
-//            int ParamMaxSDCM = ParamMax < 41 ? ParamMax : 40;
-//            int ParamMinSDCM = ParamMaxSDCM - 3;
-//            if (ParamMinSDCM < 3) {
-//                ParamMinSDCM = 3;
-//            }
-            int hsd = Util.nextInt(1, 3);
+            int ParamMaxSDCM = ParamMax < 41 ? ParamMax : 40;
+            int ParamMinSDCM = ParamMaxSDCM - 3;
+            if (ParamMinSDCM < 3) {
+                ParamMinSDCM = 3;
+            }
+            int hsd = Util.nextInt(ParamMin, ParamMax);
             it.options.add(new Item.ItemOption(50, Util.nextInt(ParamMin, ParamMax)));
             it.options.add(new Item.ItemOption(77, Util.nextInt(ParamMin, ParamMax)));
             it.options.add(new Item.ItemOption(103, Util.nextInt(ParamMin, ParamMax)));
             it.options.add(new Item.ItemOption(5, Util.nextInt(ParamMin, ParamMax)));
-//            it.options.add(new Item.ItemOption(5, Util.nextInt(ParamMinSDCM, ParamMaxSDCM)));
-            it.options.add(new Item.ItemOption(93, hsd > 3 ? 3 : hsd));
+            it.options.add(new Item.ItemOption(93, hsd > 21 ? 21 : hsd));
             it.options.add(new Item.ItemOption(30, 0));
             Service.gI().dropItemMap(this.zone, it);
         } catch (Exception e) {

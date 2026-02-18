@@ -1,5 +1,12 @@
 package jdbc.daos;
- 
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.sql.Connection;

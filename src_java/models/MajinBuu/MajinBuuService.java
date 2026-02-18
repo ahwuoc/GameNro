@@ -1,16 +1,24 @@
 package models.MajinBuu;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstNpc;
-import player.Player;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
 import java.util.List;
 import map.Zone;
-import npc.Npc;
-import services.NpcService;
+import nro.models.npc.Npc;
+import nro.services.NpcService;
 import utils.TimeUtil;
 
 public class MajinBuuService {

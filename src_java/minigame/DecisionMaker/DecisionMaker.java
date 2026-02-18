@@ -1,18 +1,21 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 package minigame.DecisionMaker;
 
-import DucPro.Functions;
+import consts.ConstMiniGame;
+import utils.Functions;
 import consts.ConstNpc;
 import jdbc.DBConnecter;
 import jdbc.NDVResultSet;
 import jdbc.daos.NDVSqlFetcher;
 import jdbc.daos.PlayerDAO;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
-import server.Client;
-import server.Maintenance;
-import server.ServerManager;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
+import nro.server.Client;
+import nro.server.Maintenance;
+import nro.server.ServerManager;
 import minigame.cost.*;
 import utils.Util;
 
@@ -111,7 +114,7 @@ public class DecisionMaker implements Runnable {
             npcSay += "\n" + pl.name + " +" + Util.mumberToLouis(pl.money) + giatri;
         }
         npcSay += "\nTrò chơi sẽ bắt đầu sau: " + DecisionMakerCost.timeDelay + " giây nữa.";
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_WAIT_NEW_GAME, npcSay, "Thể lệ", "OK");
+        npc.createOtherMenu(player, ConstMiniGame.MENU_WAIT_NEW_GAME, npcSay, "Thể lệ", "OK");
     }
 
     public void showMenu(Npc npc, Player player) {
@@ -119,7 +122,7 @@ public class DecisionMaker implements Runnable {
             DecisionMaker.gI().showMenuWaitNewGame(npc, player);
             return;
         }
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_CHON_AI_DAY,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_CHON_AI_DAY,
                 "Trò chơi Chọn Ai Đây đang được diễn ra, nếu bạn tin tưởng mình đang tràn đầy may mắn thì có thể tham gia thử.",
                 "Thể lệ",
                 "Chọn\nVàng",

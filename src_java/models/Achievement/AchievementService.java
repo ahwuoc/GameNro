@@ -1,16 +1,22 @@
 package models.Achievement;
- 
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import consts.ConstAchievement;
 import item.Item;
 import jdbc.daos.PlayerDAO;
 import mob.Mob;
 import models.Template.AchievementTemplate;
 import network.Message;
-import player.Player;
-import server.Manager;
-import services.InventoryService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.Service;
 import skill.Skill;
 import utils.Util;
 
@@ -59,9 +65,9 @@ public class AchievementService {
         }
         int money = Manager.ACHIEVEMENT_TEMPLATE.get(select).money;
         player.achievement.reward(select);
-        player.inventory.gem+= money;
+        player.inventory.ruby += money;
         Service.gI().sendMoney(player);
-        Service.gI().sendThongBao(player, "Bạn vừa nhận được " + money + " Ngọc xanh.");
+        Service.gI().sendThongBao(player, "Bạn vừa nhận được " + money + " Hồng ngọc.");
         Message msg = null;
         try {
             msg = new Message(-76);

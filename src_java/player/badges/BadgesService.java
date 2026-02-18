@@ -1,6 +1,6 @@
 package player.badges;
 
-import player.Player;
+import nro.player.Player;
 
 public class BadgesService {
 
@@ -9,7 +9,6 @@ public class BadgesService {
             for (BadgesData data : player.dataBadges) {
                 if (data.idBadGes == id) {
                     data.isUse = true;
-               
                 } else {
                     data.isUse = false;
                 }

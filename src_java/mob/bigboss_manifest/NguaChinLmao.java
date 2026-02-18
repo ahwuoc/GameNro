@@ -1,13 +1,19 @@
 package mob.bigboss_manifest;
 
-import consts.cn;
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import consts.ConstNpcConfig;
 import java.util.ArrayList;
 import java.util.List;
 import mob.BigBoss;
 import mob.Mob;
 import network.Message;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class NguaChinLmao extends BigBoss {
@@ -50,7 +56,7 @@ public class NguaChinLmao extends BigBoss {
                 int index = Util.nextInt(0, this.zone.getNotBosses().size() - 1);
                 players.add(this.zone.getNotBosses().get(index));
                 action = 10;
-                // return;
+//                return;
             }
 
             Message msg = null;
@@ -73,7 +79,7 @@ public class NguaChinLmao extends BigBoss {
                         for (Player pl : players) {
                             long dame = pl.injured(null, this.point.getDameAttack(), false, true);
                             msg.writer().writeInt((int) pl.id); // id player
-                            msg.writeLongByDucPro(Util.toIntOrLong(dame), cn.readInt); // dame
+                            msg.writeLongByEmti(Util.maxIntValue(dame), ConstNpcConfig.readInt); // dame
                             dir = pl.location.x < this.location.x ? -1 : 1;
                         }
                         msg.writer().writeByte(dir); // dir

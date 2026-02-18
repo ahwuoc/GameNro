@@ -14,8 +14,8 @@ import utils.Logger;
 
 public class NDVDB {
 
-    private static String DRIVER = "org.mariadb.jdbc.Driver";
-    private static final String URL = "jdbc:mariadb://%s:%s/%s?useUnicode=yes&characterEncoding=UTF-8";
+    private static String DRIVER = "com.mysql.jdbc.Driver";
+    private static final String URL = "jdbc:mysql://%s:%s/%s?useUnicode=yes&characterEncoding=UTF-8";
     private static String DB_HOST = "localhost";
     private static String DB_PORT = "3306";
 //    private static String DB_NAME = "linhthuydanhbac";
@@ -23,9 +23,9 @@ public class NDVDB {
     public static String DB_DATA = "ngocrong_data";
     public static String DB_USER = "root";
     private static String DB_PASSWORD = "";
-    private static int MIN_CONN = 1;
-    private static int MAX_CONN = 1;
-    private static long MAX_LIFE_TIME = 120000L;
+    private static int MIN_CONN = 5;
+    private static int MAX_CONN = 20;
+    private static long MAX_LIFE_TIME = 600000L;
     private static final HikariConfig config = new HikariConfig();
     private static final HikariDataSource ds;
 
@@ -60,14 +60,7 @@ public class NDVDB {
             MIN_CONN = Integer.parseInt(properties.getProperty("database.min", String.valueOf(MIN_CONN)));
             MAX_CONN = Integer.parseInt(properties.getProperty("database.max", String.valueOf(MAX_CONN)));
             MAX_LIFE_TIME = Long.parseLong(properties.getProperty("database.lifetime", String.valueOf(MAX_LIFE_TIME)));
-
-            Logger.warning("  _         _____     _    _    _____    _____         ____    _____     _   __   _    _   \n");
-            Logger.warning(" | |       |  _  |   | |  | |  |_   _|  /  ___|       / ___|  |  _  |   | | / /  | |  | |  \n");
-            Logger.warning(" | |       | | | |   | |  | |    | |    \\ `--.       | |  _   | | | |   | |/ /   | |  | |  \n");
-            Logger.warning(" | |       | | | |   | |  | |    | |     `--. \\      | | | |  | | | |   |    \\   | |  | |  \n");
-            Logger.warning(" | |____   | |_| |   | |_/ /    _| |_   /\\__/ /      | |_| |  | |_| |   | |\\  \\  | |_/ /   \n");
-            Logger.warning(" |_____/   \\_____/   \\____/    |_____|  \\____/        \\____|  \\_____/   \\_| \\_/  \\____/    \n");
-            Logger.log("[0;32m", "Successfully loaded file properties!\n");
+            Logger.log("[0;32m", "Downloaded Loading file properties!\n");
 
         } catch (IOException | NumberFormatException e) {
             Logger.log("[4;31m", "Không thể load file properties!\n");

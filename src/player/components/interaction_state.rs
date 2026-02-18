@@ -10,6 +10,11 @@ pub struct InteractionState {
     pub tag_shop: String,
     pub is_thachdau: bool,
     pub has_training_boss: bool,
+    // PVP fields
+    pub id_play_thach_dau: i64,
+    pub gold_thach_dau: i64,
+    pub id_enemy: i64,
+    pub last_time_revenge: u64,
 }
 
 impl InteractionState {

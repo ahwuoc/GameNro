@@ -4,7 +4,7 @@ package matches.pvp;
 import matches.PVP;
 import matches.TYPE_LOSE_PVP;
 import matches.TYPE_PVP;
-import player.Player;
+import nro.player.Player;
 
 public class DHVT extends PVP {
 

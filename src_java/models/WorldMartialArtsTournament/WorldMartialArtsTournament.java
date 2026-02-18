@@ -1,15 +1,24 @@
 package models.WorldMartialArtsTournament;
- 
-import DucPro.Functions;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import consts.ConstPlayer;
 import consts.ConstTournament;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import map.Zone;
 import matches.pvp.DHVT;
-import player.Player;
-import server.Maintenance;
-import services.InventoryService;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Maintenance;
+import nro.services.InventoryService;
+import nro.services.PlayerService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -36,14 +45,19 @@ public final class WorldMartialArtsTournament implements Runnable {
         this.init();
     }
 
+    private static final ExecutorService executor = Executors.newCachedThreadPool();// có thể lỗi
+
     private void init() {
         player_1.totalDamageTaken = 0;
         player_2.totalDamageTaken = 0;
+
         ChangeMapService.gI().changeMap(player_1, zone, 328, 262);
         ChangeMapService.gI().changeMap(player_2, zone, 443, 262);
+
         npc = zone.getNpc();
         Service.gI().setPos(npc, npc.location.x, 312);
-        new Thread(this).start();
+
+        executor.submit(this);
     }
 
     @Override
@@ -219,15 +233,15 @@ public final class WorldMartialArtsTournament implements Runnable {
                 int gold = WorldMartialArtsTournamentManager.gI().thoiVang;
                 if (gold > 0) {
 //                    plWin.inventory.gold++;
-                    Service.gI().dropAndPickItem(plWin, 190, gold);
-                    Service.gI().sendThongBao(plWin, "Bạn vừa nhận thưởng " + gold + " vàng");
+                    Service.gI().dropAndPickItem(plWin, 457, gold);
+                    Service.gI().sendThongBao(plWin, "Bạn vừa nhận thưởng " + gold + " thỏi vàng");
                 } else {
-                    plWin.inventory.gem++;
-                    Service.gI().sendThongBao(plWin, "Bạn vừa nhận thưởng " + gem + " ngọc");
+                    plWin.inventory.ruby++;
+                    Service.gI().sendThongBao(plWin, "Bạn vừa nhận thưởng " + gem + " hồng ngọc");
                 }
                 Service.gI().sendMoney(plWin);
                 InventoryService.gI().sendItemBag(plWin);
-//                Service.gI().dropAndPickItem(plWin, 457, 10);
+                Service.gI().dropAndPickItem(plWin, 457, 10);
 
             }
             Service.gI().setPos(npc, npc.location.x, 312);

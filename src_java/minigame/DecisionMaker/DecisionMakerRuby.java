@@ -1,18 +1,22 @@
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.DecisionMaker;
 
+import consts.ConstMiniGame;
 import minigame.cost.DecisionMakerCost;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class DecisionMakerRuby {
     public static void showMenuSelect(Npc npc, Player player) {
         long totalNormal = DecisionMakerService.getTotalMoney(DecisionMakerCost.HONG_NGOC, true);
         long totalVIP = DecisionMakerService.getTotalMoney(DecisionMakerCost.HONG_NGOC, false);
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_DECISION_MAKER_RUBY,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_DECISION_MAKER_RUBY,
                 "Tổng giải thưởng: " + Util.mumberToLouis(totalNormal) + " hồng ngọc, cơ hội trúng của bạn là: " + DecisionMakerService.getPercent(player, DecisionMakerCost.HONG_NGOC, true) + "%\n"
                         + "Tổng giải VIP: " + Util.mumberToLouis(totalVIP) + " hồng ngọc, cơ hội trúng của bạn là: " + DecisionMakerService.getPercent(player, DecisionMakerCost.HONG_NGOC, false) + "%\n"
                         + "Thời gian còn lại: " + DecisionMakerCost.timeGame + " giây.",

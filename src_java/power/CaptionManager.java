@@ -3,14 +3,20 @@ package power;
 import java.sql.Connection;
 
 import jdbc.DBConnecter;
-import player.Player;
+import nro.player.Player;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
 import lombok.Getter;
- 
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 public class CaptionManager {
 
     private static final CaptionManager instance = new CaptionManager();

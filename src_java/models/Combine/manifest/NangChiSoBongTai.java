@@ -4,9 +4,9 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 public class NangChiSoBongTai {
@@ -83,11 +83,10 @@ public class NangChiSoBongTai {
             return;
         }
         if (Util.isTrue(50, 100)) {
-            int[] options = {77, 103, 50, 108, 94, 14, 80, 81, 5};
+            int[] options = {77, 103, 50, 108, 94, 14, 80, 81, 175, 5};
             int option = options[Util.nextInt(options.length)];
             int param = option == 94 || option == 14 ? Util.nextInt(3, 10) : Util.nextInt(5, 15);
             bongTai.itemOptions.clear();
-            bongTai.itemOptions.add(new Item.ItemOption(72, 2));
             bongTai.itemOptions.add(new Item.ItemOption(option, param));
             bongTai.itemOptions.add(new Item.ItemOption(38, 0));
             CombineService.gI().sendEffectSuccessCombine(player);

@@ -1,145 +1,200 @@
 package consts;
 
-import DucPro.Functions;
 import item.Item;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONValue;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import org.json.simple.JSONObject;
-import services.ItemService;
-import services.Service;
-import jdbc.DBConnecter;
-
-import jdbc.daos.NDVSqlFetcher;
 import java.util.ArrayList;
 import java.util.Calendar;
-
 import java.util.List;
-import jdbc.NDVResultSet;
-import player.Player;
+import jdbc.DBConnecter;
+import jdbc.daos.NDVSqlFetcher;
+import nro.player.Player;
+import nro.services.ItemService;
+import nro.services.Service;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+import utils.Functions;
 import utils.Logger;
 
-// su kien 1/6
-public class ConstDataEventNAP {//zl 0822992003 Đức dz
+/**
+ * Quản lý sự kiện Top Nạp (Clean Code Version)
+ */
+public class ConstDataEventNAP {
 
-    public static ConstDataEventNAP gI;
+    private static ConstDataEventNAP instance;
 
-    public static ConstDataEventNAP gI() {//zl 0822992003 Đức dz
-        if (gI == null) {//zl 0822992003 Đức dz
-            gI = new ConstDataEventNAP();
+    public static ConstDataEventNAP gI() {
+        if (instance == null) {
+            instance = new ConstDataEventNAP();
         }
-        return gI;
+        return instance;
     }
 
-    public static boolean isEventActive() {//zl 0822992003 Đức dz
-        return false;
-    }
-
+    // ================= CONFIGURATION =================
+    // Cờ báo hiệu sự kiện đang chạy (Quan trọng cho Thread check)
+    public static boolean isRunningSK = false; 
     public static boolean isTraoQua = true;
-
-    public static Calendar startEvent;
-
-    public static Calendar endEvents;
-
     public static boolean initsukien = false;
+    
+    public static short MONTH_OPEN, DATE_OPEN, HOUR_OPEN, MIN_OPEN;
+    public static short MONTH_END, DATE_END, HOUR_END, MIN_END;
 
- public static final byte MONTH_OPEN = 5;
-    public static final byte DATE_OPEN = 22;
-    public static final byte HOUR_OPEN = 10;
-    public static final byte MIN_OPEN = 00;
+    private static Calendar startEvent;
+    private static Calendar endEvents;
 
-    public static final byte MONTH_END =6;
-    public static final byte DATE_END = 6;
-    public static final byte HOUR_END = 23;
-    public static final byte MIN_END = 00;
+    // ================= EVENT LOGIC =================
 
     public static boolean isActiveEvent() {
         if (!initsukien) {
-            initsukien = true;
-            startEvent = Calendar.getInstance();
-
-            // Thiết lập ngày và giờ bắt đầu
-            startEvent.set(2025, MONTH_OPEN - 1, DATE_OPEN, HOUR_OPEN, MIN_OPEN);
-            System.out.println("Ngày bắt đầu sự kiện đua top nạp: " + startEvent.getTime());
-
-            endEvents = Calendar.getInstance();
-            // Thiết lập ngày và giờ kết thúc
-            endEvents.set(2025, MONTH_END - 1, DATE_END, HOUR_END, MIN_END);
-            System.out.println("Ngày kết thúc sự kiện đua top nap: " + endEvents.getTime());
+            initEventTime();
         }
 
-        Calendar currentTime = Calendar.getInstance();
-        if (System.currentTimeMillis() >= startEvent.getTimeInMillis() && System.currentTimeMillis() <= endEvents.getTimeInMillis()) {
-            if (isTraoQua && System.currentTimeMillis() + 60000 >= endEvents.getTimeInMillis()) {
-                String sql = "SELECT  player.id as plid, player.name as name, account.danap FROM account, player WHERE account.id = player.account_id AND account.create_time > '2024-" + MONTH_OPEN + "-" + DATE_OPEN + " " + HOUR_OPEN + ":" + MIN_OPEN + ":00' AND account.danap >= 100000 ORDER BY account.danap DESC LIMIT 10;";
-                List<Integer> AccIdPlayer = new ArrayList<>();
-                NDVResultSet rs = null;
-                try {
-                    rs = DBConnecter.executeQuery(sql);
-                    while (rs.next()) {
-                        int id = rs.getInt("id");
-                        AccIdPlayer.add(id);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                for (int i = 0; i < AccIdPlayer.size(); i++) {
-                    Player player = NDVSqlFetcher.loadPlayerByID(AccIdPlayer.get(i));
-                    TraoQuaSuKien(player, i + 1);
-                    Logger.error("Đã trao quà nạp top " + (i + 1) + " cho: " + player.name + "\n");
-                    try {
-                        //Thread.sleep(100);
-                        Functions.sleep(100);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+        long currentMillis = System.currentTimeMillis();
+        long startMillis = startEvent.getTimeInMillis();
+        long endMillis = endEvents.getTimeInMillis();
+
+        if (currentMillis >= startMillis && currentMillis <= endMillis) {
+            // Kiểm tra trao quà khi sự kiện sắp kết thúc (còn 60s)
+            if (isTraoQua && currentMillis + 60000 >= endMillis) {
+                traoQuaHangLoat();
                 isTraoQua = false;
             }
             return true;
-        } else {
-
-            return false;
         }
+        return false;
     }
 
-    public static boolean isRunningSK = isActiveEvent();
+    private static void initEventTime() {
+        initsukien = true;
+        // Top Nạp dùng chung năm với Event SM
+        short year = ConstDataEventSM.YEAR_EVENT; 
+        
+        startEvent = createCalendar(year, MONTH_OPEN, DATE_OPEN, HOUR_OPEN, MIN_OPEN);
+        endEvents = createCalendar(year, MONTH_END, DATE_END, HOUR_END, MIN_END);
+        
+        System.out.println("Star Event TOP CARD: " + startEvent.getTime());
+        System.out.println("End Event TOP CARD: " + endEvents.getTime());
+    }
 
-    public static void TraoQuaSuKien(Player pl, int rank) {
-        Item item = null;
-        JSONArray dataArray;
-        JSONObject dataObject;
-        try ( Connection con2 = DBConnecter.getConnectionServer();  PreparedStatement ps = con2.prepareStatement("SELECT detail FROM moc_nap_top WHERE id = ?")) {
-            // Sử dụng rank (thứ hạng) để truy vấn phần thưởng tương ứng
-            ps.setInt(1, rank);
-            try ( ResultSet rs = ps.executeQuery()) {
+    private static Calendar createCalendar(int year, int month, int day, int hour, int min) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(year, month - 1, day, hour, min);
+        return cal;
+    }
+
+    private static String getStartDateTimeSQL() {
+        return String.format("%04d-%02d-%02d %02d:%02d:00",
+                ConstDataEventSM.YEAR_EVENT, MONTH_OPEN, DATE_OPEN, HOUR_OPEN, MIN_OPEN);
+    }
+
+    // ================= REWARD DISTRIBUTION SYSTEM =================
+
+    private static void traoQuaHangLoat() {
+        Logger.log("Bắt đầu trao quà Top Nạp...");
+        List<JSONArray> allRewards = loadAllRewards();
+        
+        if (allRewards.isEmpty()) {
+            Logger.error("Không tìm thấy dữ liệu phần thưởng Top Nạp trong database!");
+            return;
+        }
+
+        List<Integer> topPlayerIds = getTopRechargePlayerIds();
+        
+        for (int i = 0; i < topPlayerIds.size(); i++) {
+            if (i >= allRewards.size()) break; // Hết quà
+
+            int playerId = topPlayerIds.get(i);
+            Player player = NDVSqlFetcher.loadPlayerByID(playerId);
+
+            if (player != null) {
+                traoQuaSuKien(player, allRewards.get(i));
+                Logger.log("Đã trao quà Top Nạp " + (i + 1) + " cho: " + player.name);
+                Functions.sleep(100); // Delay nhẹ tránh quá tải
+            } else {
+                Logger.error("Không thể tải thông tin người chơi ID: " + playerId);
+            }
+        }
+        Logger.log("Hoàn tất trao quà Top Nạp.");
+    }
+
+    private static List<Integer> getTopRechargePlayerIds() {
+        List<Integer> ids = new ArrayList<>();
+        // Query tối ưu lấy Top Nạp từ bảng Account và join với Player
+        String sql = "SELECT player.id FROM account " +
+                     "JOIN player ON account.id = player.account_id " +
+                     "WHERE account.create_time > ? AND account.danap >= 100000 " +
+                     "ORDER BY account.danap DESC LIMIT 10";
+
+        try (Connection con = DBConnecter.getConnectionServer();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            ps.setString(1, getStartDateTimeSQL());
+            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    dataArray = (JSONArray) JSONValue.parse(rs.getString("detail"));
-                    for (int i = 0; i < dataArray.size(); i++) {
-                        dataObject = (JSONObject) JSONValue.parse(String.valueOf(dataArray.get(i)));
-                        int tempid = Integer.parseInt(String.valueOf(dataObject.get("temp_id")));
-                        int quantity = Integer.parseInt(String.valueOf(dataObject.get("quantity")));
-                        item = ItemService.gI().createNewItem((short) tempid);
-                        item.quantity = quantity;
-                        JSONArray optionsArray = (JSONArray) dataObject.get("options");
-                        for (int j = 0; j < optionsArray.size(); j++) {
-                            JSONObject optionObject = (JSONObject) optionsArray.get(j);
-                            int param = Integer.parseInt(String.valueOf(optionObject.get("param")));
-                            int optionId = Integer.parseInt(String.valueOf(optionObject.get("id")));
-                            item.itemOptions.add(new Item.ItemOption(optionId, param));
-                        }
-                        pl.inventory.itemsMailBox.add(item);
-                    }
-                    if (NDVSqlFetcher.updateMailBox(pl)) {
-                        Service.gI().sendThongBao(pl, "Bạn vừa nhận quà về mail thành công");
-                    }
+                    ids.add(rs.getInt("id"));
                 }
             }
         } catch (SQLException e) {
+            Logger.error("Lỗi lấy danh sách Top Nạp: " + e.getMessage());
+        }
+        return ids;
+    }
+
+    private static List<JSONArray> loadAllRewards() {
+        List<JSONArray> rewards = new ArrayList<>();
+        String sql = "SELECT detail FROM moc_nap_top ORDER BY id ASC";
+
+        try (Connection con = DBConnecter.getConnectionServer();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Object json = JSONValue.parse(rs.getString("detail"));
+                if (json instanceof JSONArray) {
+                    rewards.add((JSONArray) json);
+                }
+            }
+        } catch (SQLException e) {
+            Logger.error("Lỗi load phần thưởng Top Nạp: " + e.getMessage());
+        }
+        return rewards;
+    }
+
+    public static void traoQuaSuKien(Player pl, JSONArray rewardDetail) {
+        if (pl == null || rewardDetail == null) return;
+
+        try {
+            for (Object obj : rewardDetail) {
+                JSONObject itemData = (JSONObject) obj;
+                int tempId = Integer.parseInt(itemData.get("temp_id").toString());
+                int quantity = Integer.parseInt(itemData.get("quantity").toString());
+
+                Item item = ItemService.gI().createNewItem((short) tempId);
+                item.quantity = quantity;
+
+                JSONArray options = (JSONArray) itemData.get("options");
+                if (options != null) {
+                    for (Object opt : options) {
+                        JSONObject optData = (JSONObject) opt;
+                        int optId = Integer.parseInt(optData.get("id").toString());
+                        int param = Integer.parseInt(optData.get("param").toString());
+                        item.itemOptions.add(new Item.ItemOption(optId, param));
+                    }
+                }
+                pl.inventory.itemsMailBox.add(item);
+            }
+
+            if (NDVSqlFetcher.updateMailBox(pl)) {
+                Service.gI().sendThongBao(pl, "Bạn vừa nhận thưởng Top Nạp về hòm thư!");
+            } else {
+                Logger.error("Lỗi lưu quà Top Nạp vào hòm thư cho: " + pl.name);
+            }
+
+        } catch (Exception e) {
+            Logger.error("Lỗi xử lý quà Top Nạp cho " + pl.name + ": " + e.getMessage());
             e.printStackTrace();
         }
     }

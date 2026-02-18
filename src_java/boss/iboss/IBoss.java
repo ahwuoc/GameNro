@@ -2,7 +2,7 @@ package boss.iboss;
 
 
 import boss.BossStatus;
-import player.Player;
+import nro.player.Player;
 
 public interface IBoss {
 

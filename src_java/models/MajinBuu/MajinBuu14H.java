@@ -1,15 +1,22 @@
 package models.MajinBuu;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
-import DucPro.Functions;
+import utils.Functions;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import map.Zone;
 import map.MaBuHold;
-import player.Player;
-import server.Maintenance;
-import services.MapService;
+import nro.player.Player;
+import nro.server.Maintenance;
+import nro.services.MapService;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 

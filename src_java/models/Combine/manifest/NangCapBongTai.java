@@ -4,10 +4,10 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 public class NangCapBongTai {
@@ -30,7 +30,7 @@ public class NangCapBongTai {
             Service.gI().sendDialogMessage(player, "Cần 1 bông tai cấp 1 và 9999 mảnh vỡ bông tai.");
             return;
         }
-            int quantityManhVo = manhVo.quantity;
+        int quantityManhVo = manhVo.getOptionParam(31);
         StringBuilder text = new StringBuilder();
         text.append(ConstFont.BOLD_BLUE).append("Bông tai Porata [+2]\n\n");
         text.append(ConstFont.BOLD_BLUE).append("Tỉ lệ thành công: 50%\n");
@@ -70,7 +70,7 @@ public class NangCapBongTai {
         if (bongTai == null || manhVo == null) {
             return;
         }
-        int quantityManhVo = manhVo.quantity;
+        int quantityManhVo = manhVo.getOptionParam(31);
         if (quantityManhVo < 9999 || player.inventory.gold < 5_000_000 || player.inventory.getGemAndRuby() < 20) {
             return;
         }
@@ -83,10 +83,10 @@ public class NangCapBongTai {
             InventoryService.gI().subQuantityItemsBag(player, bongTai, 1);
             InventoryService.gI().addItemBag(player, btc2);
             CombineService.gI().sendEffectSuccessCombine(player);
-           InventoryService.gI().subQuantityItemsBag(player, manhVo, 9999);
+            InventoryService.gI().subParamItemsBag(player, 933, 31, 9999);
         } else {
             CombineService.gI().sendEffectFailCombine(player);
-            InventoryService.gI().subQuantityItemsBag(player, manhVo, 99);
+            InventoryService.gI().subParamItemsBag(player, 933, 31, 99);
         }
         InventoryService.gI().sendItemBag(player);
         Service.gI().sendMoney(player);

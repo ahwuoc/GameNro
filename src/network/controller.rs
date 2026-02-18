@@ -12,6 +12,7 @@ use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::map::Zone;
+use crate::matches::pvp_service;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};
 use crate::player::player_actor::{
@@ -454,6 +455,10 @@ impl AsyncController {
                 if let Some(snapshot) = session.get_player_snapshot().await {
                     ClanService::clan_donate(&snapshot, msg).await?;
                 }
+                Ok(())
+            }
+            cmd::PVP_CMD => {
+                pvp_service::controller_thach_dau(&session, msg).await?;
                 Ok(())
             }
             _ => {

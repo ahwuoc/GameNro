@@ -1,19 +1,22 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.DecisionMaker;
 
+import consts.ConstMiniGame;
 import minigame.cost.DecisionMakerCost;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class DecisionMakerGem {
     public static void showMenuSelect(Npc npc, Player player) {
         long totalNormal = DecisionMakerService.getTotalMoney(DecisionMakerCost.NGOC_XANH, true);
         long totalVIP = DecisionMakerService.getTotalMoney(DecisionMakerCost.NGOC_XANH, false);
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_DECISION_MAKER_GEM,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_DECISION_MAKER_GEM,
                 "Tổng giải thưởng: " + Util.mumberToLouis(totalNormal) + " hồng ngọc, cơ hội trúng của bạn là: " + DecisionMakerService.getPercent(player, DecisionMakerCost.NGOC_XANH, true) + "%\n"
                         + "Tổng giải VIP: " + Util.mumberToLouis(totalVIP) + " hồng ngọc, cơ hội trúng của bạn là: " + DecisionMakerService.getPercent(player, DecisionMakerCost.NGOC_XANH, false) + "%\n"
                         + "Thời gian còn lại: " + DecisionMakerCost.timeGame + " giây.",
@@ -31,7 +34,6 @@ public class DecisionMakerGem {
             return;
         }
         player.inventory.gem -= money;
-       
         Service.gI().sendMoney(player);
         DecisionMakerService.newData(player, money, DecisionMakerCost.NGOC_XANH, isNormal);
         showMenuSelect(npc, player);

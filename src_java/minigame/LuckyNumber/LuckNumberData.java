@@ -1,3 +1,6 @@
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.LuckyNumber;
 

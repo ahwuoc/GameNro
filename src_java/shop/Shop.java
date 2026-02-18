@@ -1,11 +1,19 @@
 package shop;
 
-import player.Player;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import nro.player.Player;
 import shop.TabShopDanhHieu.TabShopDanhHieu;
 import shop.TabShopDanhHieu.TabShopSoHuu;
-
 import java.util.ArrayList;
 import java.util.List;
+import shop.TabShopKyNang.TabShopHocKynang;
 
 public class Shop {
 
@@ -36,6 +44,8 @@ public class Shop {
                 this.tabShops.add(new TabShopDanhHieu(tabShop, player));
             } else if (tabShop.id == 29) {
                 this.tabShops.add(new TabShopSoHuu(tabShop, player));
+            } else if (tabShop.id >= 49 && tabShop.id <= 51) {
+                this.tabShops.add(new TabShopHocKynang(tabShop, player));
             } else {
                 this.tabShops.add(new TabShop(tabShop, player.gender));
             }

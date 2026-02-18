@@ -1,10 +1,18 @@
 package boss.boss_manifest.The23rdMartialArtCongress;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.BossID;
 import boss.BossesData;
 import static boss.BossType.PHOBAN;
-import player.Player;
-import services.EffectSkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
 import utils.Util;
 
 public class ThienXinHang extends The23rdMartialArtCongress {

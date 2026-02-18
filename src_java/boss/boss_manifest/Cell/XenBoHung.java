@@ -3,7 +3,9 @@ package boss.boss_manifest.Cell;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 
 import consts.ConstPlayer;
@@ -11,11 +13,11 @@ import boss.Boss;
 import boss.BossesData;
 import boss.BossID;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.PlayerService;
-import services.Service;
-import services.TaskService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.TaskService;
 import utils.Util;
 import services.func.ChangeMapService;
 
@@ -30,14 +32,12 @@ public class XenBoHung extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        if (Util.isTrue(10, 100)) {  // 35% xác suất rơi item ID 16
-    ItemMap it = new ItemMap(this.zone, 16, 1, this.location.x, this.location.y, plKill.id);
-    Service.gI().dropItemMap(this.zone, it);
-}
-TaskService.gI().checkDoneTaskKillBoss(plKill, this);
-        if (Util.isTrue(5, 100)) {
-            for (int i = 0; i < Util.nextInt(5, 15); i++) {
-                ItemMap it2 = new ItemMap(this.zone, 1229,1 , this.location.x + Util.nextInt(-15, 15), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
+        ItemMap it = new ItemMap(this.zone, 16, 1, this.location.x, this.location.y, plKill.id);
+        Service.gI().dropItemMap(this.zone, it);
+        TaskService.gI().checkDoneTaskKillBoss(plKill, this);
+        if (Util.isTrue(5, 50)) {
+            for (int i = 0; i < Util.nextInt(25, 50); i++) {
+                ItemMap it2 = new ItemMap(this.zone, 1229, 1, this.location.x + Util.nextInt(-15, 15), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
                 Service.gI().dropItemMap(this.zone, it2);
             }
         }
@@ -87,7 +87,7 @@ TaskService.gI().checkDoneTaskKillBoss(plKill, this);
                 if (damage > nPoint.hpMax) {
                     EffectSkillService.gI().breakShield(this);
                 }
-                damage = damage / 1;
+                damage = damage / 4;
             }
             this.nPoint.subHP(damage);
             if (isDie()) {

@@ -1,11 +1,18 @@
 package mob.bigboss_manifest;
 
-import consts.cn;
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import consts.ConstNpcConfig;
 import mob.BigBoss;
 import mob.Mob;
 import network.Message;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class VuaBachTuoc extends BigBoss {
@@ -46,7 +53,7 @@ public class VuaBachTuoc extends BigBoss {
                     if (action == 3 || action == 4) {
                         msg.writer().writeByte(1); // SIZE PLAYER ATTACK
                         msg.writer().writeInt((int) player.id); // PLAYER ID
-                        msg.writeLongByDucPro(Util.toIntOrLong(dame), cn.readInt); // DAME
+                        msg.writeLongByEmti(Util.maxIntValue(dame), ConstNpcConfig.readInt); // DAME
                     } else {
                         msg.writer().writeShort(this.location.x);
                     }

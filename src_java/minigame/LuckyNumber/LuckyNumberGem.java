@@ -1,10 +1,14 @@
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.LuckyNumber;
 
+import consts.ConstMiniGame;
 import minigame.cost.LuckyNumberCost;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
 import utils.Util;
 
 import java.util.List;
@@ -67,7 +71,7 @@ public class LuckyNumberGem {
         if (!resultPlayerSelect.isEmpty()) {
             npcSay += "\nCác số bạn chọn: " + resultPlayerSelect;
         }
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_LUCKY_NUMBER_GEM, npcSay,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_LUCKY_NUMBER_GEM, npcSay,
                 "Cập nhật",
                 "1 Số\n5 ngọc xanh",
                 "Ngẫu nhiên\n1 số lẻ\n5 ngọc xanh",

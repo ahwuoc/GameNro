@@ -1,22 +1,29 @@
 package boss.boss_manifest.GoldenFrieza;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import boss.*;
 import consts.ConstPlayer;
 import item.Item;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
 import mob.Mob;
 import network.Message;
-import services.MapService;
-import services.PlayerService;
-import services.SkillService;
+import nro.services.MapService;
+import nro.services.PlayerService;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.TimeUtil;
@@ -34,26 +41,26 @@ public class GoldenFrieza extends Boss {
 
     @Override
     public void reward(Player plKill) {
-
-        plKill.pointboss += 10;
-        ItemMap it = new ItemMap(this.zone, 629, 1, this.location.x + 5, this.zone.map.yPhysicInTop(this.location.x,
-                this.location.y - 24), plKill.id);
-        it.options.add(new Item.ItemOption(50, Util.nextInt(20, 35)));
-        it.options.add(new Item.ItemOption(77, Util.nextInt(20, 40)));
-        it.options.add(new Item.ItemOption(103, Util.nextInt(20, 40)));
-        it.options.add(new Item.ItemOption(14, Util.nextInt(5, 8)));
-        it.options.add(new Item.ItemOption(153, Util.nextInt(20, 65)));
-        if (Util.isTrue(996, 1000)) {
+        if (Util.isTrue(50, 100)) {
+            ItemMap it = new ItemMap(this.zone, 629, 1, this.location.x + 5, this.zone.map.yPhysicInTop(this.location.x,
+                    this.location.y - 24), plKill.id);
+            it.options.add(new Item.ItemOption(50, Util.nextInt(20, 30)));
+            it.options.add(new Item.ItemOption(77, Util.nextInt(20, 40)));
+            it.options.add(new Item.ItemOption(103, Util.nextInt(20, 40)));
+            it.options.add(new Item.ItemOption(14, Util.nextInt(5, 8)));
+            it.options.add(new Item.ItemOption(153, Util.nextInt(20, 65)));
             it.options.add(new Item.ItemOption(93, 7));
+            Service.gI().dropItemMap(this.zone, it);
+            for (int i = 0; i < Util.nextInt(3, 10); i++) {
+                Service.gI().dropItemMap(this.zone, new ItemMap(zone, 76, Util.nextInt(20000, 30000), this.location.x + i * 10, this.zone.map.yPhysicInTop(this.location.x,
+                        this.location.y - 24), plKill.id));
+            }
+        } else {
+            for (int i = 0; i < Util.nextInt(3, 10); i++) {
+                Service.gI().dropItemMap(this.zone, new ItemMap(zone, 77, Util.nextInt(10, 20), this.location.x + i * 10, this.zone.map.yPhysicInTop(this.location.x,
+                        this.location.y - 24), plKill.id));
+            }
         }
-        Service.gI().dropItemMap(this.zone, it);
-        if (Util.isTrue(1, 2)) {
-            ItemMap it_coin = new ItemMap(this.zone, 1790, 1, this.location.x + 5,
-                    this.zone.map.yPhysicInTop(this.location.x, this.location.y), -1);
-            Service.gI().dropItemMap(this.zone, it_coin);
-        }
-
-        plKill.sosumenhplayer.addCountTask(5);
     }
 
     @Override
@@ -69,12 +76,14 @@ public class GoldenFrieza extends Boss {
                 return 0;
             }
             damage = this.nPoint.subDameInjureWithDeff(damage);
-            damage /= 3;
             if (!piercing && effectSkill.isShielding) {
                 if (damage > nPoint.hpMax) {
                     EffectSkillService.gI().breakShield(this);
                 }
                 damage = 1;
+            }
+            if (damage > 50_000_000) {
+                damage = 50_000_000;
             }
             this.nPoint.subHP(damage);
             if (isDie()) {
@@ -129,13 +138,9 @@ public class GoldenFrieza extends Boss {
                     case 1:
                         if (callDeathBeam) {
                             boolean checkDeathBeamDie = true;
-                            if (this.bossAppearTogether == null || this.bossAppearTogether[this.currentLevel] == null) {
-                                checkDeathBeamDie = true;
-                            } else {
-                                for (Boss boss : this.bossAppearTogether[this.currentLevel]) {
-                                    if (boss != null && boss.bossStatus != BossStatus.REST) {
-                                        checkDeathBeamDie = false;
-                                    }
+                            for (Boss boss : this.bossAppearTogether[this.currentLevel]) {
+                                if (boss.bossStatus != BossStatus.REST) {
+                                    checkDeathBeamDie = false;
                                 }
                             }
                             if (checkDeathBeamDie) {
@@ -146,11 +151,9 @@ public class GoldenFrieza extends Boss {
                             return;
                         }
                         callDeathBeam = true;
-                        if (this.bossAppearTogether != null && this.bossAppearTogether[this.currentLevel] != null) {
-                            for (Boss boss : this.bossAppearTogether[this.currentLevel]) {
-                                if (boss != null && boss.bossStatus == BossStatus.REST) {
-                                    boss.changeStatus(BossStatus.RESPAWN);
-                                }
+                        for (Boss boss : this.bossAppearTogether[this.currentLevel]) {
+                            if (boss.bossStatus == BossStatus.REST) {
+                                boss.changeStatus(BossStatus.RESPAWN);
                             }
                         }
                         timeChanges = 15000;
@@ -161,18 +164,15 @@ public class GoldenFrieza extends Boss {
                         if (pl == null || pl.isDie()) {
                             return;
                         }
-                        this.playerSkill.skillSelect = this.playerSkill.skills
-                                .get(Util.nextInt(0, this.playerSkill.skills.size() - 1));
+                        this.playerSkill.skillSelect = this.playerSkill.skills.get(Util.nextInt(0, this.playerSkill.skills.size() - 1));
                         if (Util.getDistance(this, pl) <= this.getRangeCanAttackWithSkillSelect()) {
                             if (Util.isTrue(5, 20)) {
                                 if (SkillUtil.isUseSkillChuong(this)) {
                                     this.moveTo(pl.location.x + (Util.getOne(-1, 1) * Util.nextInt(20, 200)),
-                                            Util.nextInt(10) % 2 == 0 ? pl.location.y
-                                                    : pl.location.y - Util.nextInt(0, 70));
+                                            Util.nextInt(10) % 2 == 0 ? pl.location.y : pl.location.y - Util.nextInt(0, 70));
                                 } else {
                                     this.moveTo(pl.location.x + (Util.getOne(-1, 1) * Util.nextInt(10, 40)),
-                                            Util.nextInt(10) % 2 == 0 ? pl.location.y
-                                                    : pl.location.y - Util.nextInt(0, 50));
+                                            Util.nextInt(10) % 2 == 0 ? pl.location.y : pl.location.y - Util.nextInt(0, 50));
                                 }
                             }
                             SkillService.gI().useSkill(this, pl, null, -1, null);
@@ -194,7 +194,7 @@ public class GoldenFrieza extends Boss {
         if (this.playerSkill.prepareTuSat) {
             return;
         }
-        new Thread(() -> {
+        Thread.startVirtualThread(() -> {
             if (!this.playerSkill.prepareTuSat) {
                 this.playerSkill.prepareTuSat = true;
                 this.playerSkill.lastTimePrepareTuSat = System.currentTimeMillis();
@@ -219,6 +219,7 @@ public class GoldenFrieza extends Boss {
                         for (Player pl : playersMap) {
                             if (!this.equals(pl)) {
                                 pl.injured(this, 2_100_000_000, true, false);
+                            pl.setDie();
                                 PlayerService.gI().sendInfoHpMpMoney(pl);
                                 Service.gI().Send_Info_NV(pl);
                             }
@@ -226,7 +227,7 @@ public class GoldenFrieza extends Boss {
                     }
                 }
             }
-        }).start();
+        });
     }
 
     @Override

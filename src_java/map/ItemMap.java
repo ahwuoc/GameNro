@@ -3,19 +3,21 @@ package map;
 /*
  *
  *
- *  
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 import java.util.ArrayList;
 import java.util.List;
 import models.Template.ItemTemplate;
 import item.Item.ItemOption;
-import player.Player;
+import nro.player.Player;
 import utils.Util;
-import services.ItemMapService;
-import services.ItemService;
-import services.MapService;
-import services.PlayerService;
-import services.Service;
+import nro.services.ItemMapService;
+import nro.services.ItemService;
+import nro.services.MapService;
+import nro.services.PlayerService;
+import nro.services.Service;
 
 public class ItemMap {
 
@@ -29,16 +31,15 @@ public class ItemMap {
     public long playerId;
     public List<ItemOption> options;
 
-    private long createTime;
-    public boolean isPickedUp = false;
-    public boolean isCanHut = true;
+    public long createTime;
+
     public int clanId = -1;
     public boolean isNamecBallTranhDoat;
     public byte typeHaveBallTranhDoat = -1;
     public boolean isBlackBall;
     public boolean isNamecBall;
     
-    public String source; // Nguồn gốc của ItemMap
+    public boolean isPickedUp;
 
     public ItemMap(Zone zone, int tempId, int quantity, int x, int y, long playerId) {
         this.zone = zone;

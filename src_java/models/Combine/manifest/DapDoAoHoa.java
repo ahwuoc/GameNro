@@ -8,9 +8,9 @@ import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 /**

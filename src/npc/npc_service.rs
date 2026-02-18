@@ -18,6 +18,8 @@ use crate::templates::npc_template_manager;
 
 pub mod npc_service {
     use crate::map::map_manager;
+    use crate::matches::dhvt::service::GhiDanhHandler;
+    use crate::matches::pvp_service;
     use crate::npc::handlers::cargo::CargoHandler;
     use crate::npc::handlers::cui::CuiHandler;
     use crate::npc::handlers::dr_drief::DrDriefHandler;
@@ -159,6 +161,7 @@ pub mod npc_service {
             NpcId::DrDrief => Some(Box::new(DrDriefHandler)),
             NpcId::Cargo => Some(Box::new(CargoHandler)),
             NpcId::ThanMeoKarin => Some(Box::new(ThanMeoKarinHandler)),
+            NpcId::GhiDanh => Some(Box::new(GhiDanhHandler)),
 
             // =================Handle Shop Dynamic===============
             NpcId::Bunma => Some(Box::new(DynamicShopHandler::new(
@@ -194,11 +197,31 @@ pub mod npc_service {
             None => return Ok(()),
         };
 
+        println!(
+            "handle_menu_confirm npc_id={} select={} state={:?}",
+            npc_id, select, state
+        );
+
         if let Some(handle) = session.get_player_handle().await {
             handle.send_forget(PlayerMessage::TaskAction(
                 TaskType::ConfirmMenu,
                 npc_id.to_string(),
             ));
+        }
+
+        println!("handle_menu_confirm state={:?}", state);
+        match state {
+            MenuId::MakeMatchPvp => {
+                pvp_service::send_invite_pvp_thachdau(session, select).await?;
+                return Ok(());
+            }
+            MenuId::Revenge => {
+                if select == 0 {
+                    crate::matches::pvp_service::accept_revenge(session).await?;
+                }
+                return Ok(());
+            }
+            _ => {}
         }
 
         if !can_open_npc(session, npc_id).await {

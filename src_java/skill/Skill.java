@@ -1,11 +1,18 @@
 package skill;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import models.Template.SkillTemplate;
 
 public class Skill {
 
     public static final int RANGE_ATTACK_CHIEU_DAM = 100;
-   
     public static final int RANGE_ATTACK_CHIEU_CHUONG = 300;
 
     public static final byte DEMON = 2;
@@ -38,10 +45,9 @@ public class Skill {
     public static final byte LIEN_HOAN_CHUONG = 25;
     public static final byte MA_PHONG_BA = 26;
     
-   
-    public static final byte SUPER_BROLY = 29;
-    public static final byte GONG = 30;
-    public static final byte PHAN_THAN = 31;
+    public static final byte BIEN_HINH = 27;
+    public static final byte PHAN_THAN = 28;
+    public long lastTimeUseThisSkillbot;
 
     public SkillTemplate template;
 

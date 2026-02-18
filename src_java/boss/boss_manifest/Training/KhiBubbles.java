@@ -1,10 +1,18 @@
 package boss.boss_manifest.Training;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
 import static boss.BossType.PHOBAN;
-import player.Player;
+import nro.player.Player;
 import utils.Util;
 
 public class KhiBubbles extends TrainingBoss {

@@ -1,17 +1,25 @@
 package boss.boss_manifest.TrungThuEvent;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.*;
-import static boss.BossType.TRUNGTHU_EVENT;
+import static boss.BossType.CHRISTMAS_EVENT;
 import consts.ConstPlayer;
 import item.Item;
 import java.util.ArrayList;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.PlayerService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.Util;
@@ -27,7 +35,7 @@ public class NguyetThan extends Boss {
     private long lastTimeReward;
 
     public NguyetThan() throws Exception {
-        super(TRUNGTHU_EVENT, BossID.NGUYETTHAN, true, true, BossesData.NGUYETTHAN);
+        super(CHRISTMAS_EVENT, BossID.NGUYETTHAN, true, true, BossesData.NGUYETTHAN);
     }
 
     @Override
@@ -41,7 +49,7 @@ public class NguyetThan extends Boss {
     @Override
     public void afk() {
         if (playerReward.isPl() && !isReward && this.zone != null) {
-            ItemMap it = new ItemMap(this.zone, 2123, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
+            ItemMap it = new ItemMap(this.zone, 1685, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
                     this.location.y - 24), playerReward.id);
             it.options.add(new Item.ItemOption(77, Util.nextInt(20, 30)));
             it.options.add(new Item.ItemOption(103, Util.nextInt(20, 30)));
@@ -50,7 +58,7 @@ public class NguyetThan extends Boss {
             it.options.add(new Item.ItemOption(14, Util.nextInt(2, 12)));
             it.options.add(new Item.ItemOption(108, Util.nextInt(2, 15)));
             it.options.add(new Item.ItemOption(154, 0));
-            it.options.add(new Item.ItemOption(93, Util.nextInt(1, 5)));
+            it.options.add(new Item.ItemOption(93, Util.nextInt(1, 15)));
             Service.gI().dropItemMap(this.zone, it);
             isReward = true;
             lastTimeReward = System.currentTimeMillis();

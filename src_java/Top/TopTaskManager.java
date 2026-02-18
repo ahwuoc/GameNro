@@ -9,10 +9,10 @@ import jdbc.DBConnecter;
 import lombok.Getter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONValue;
-import player.Player;
+import nro.player.Player;
 import item.Item;
-import server.Manager;
-import services.ItemService;
+import nro.server.Manager;
+import nro.services.ItemService;
 import task.TaskMain;
 
 /**

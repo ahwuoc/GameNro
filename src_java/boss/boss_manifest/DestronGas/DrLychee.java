@@ -1,5 +1,13 @@
 package boss.boss_manifest.DestronGas;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstPlayer;
 import boss.*;
 import static boss.BossType.PHOBANKGHD;
@@ -7,10 +15,10 @@ import clan.Clan;
 import item.Item;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
-import services.EffectSkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
 import skill.Skill;
-import services.Service;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -19,25 +27,25 @@ public class DrLychee extends Boss {
     private final int level;
     private Clan clan;
 
-    private static final int[][] FULL_DEMON = new int[][] { { Skill.DEMON, 1 }, { Skill.DEMON, 2 }, { Skill.DEMON, 3 },
-            { Skill.DEMON, 4 }, { Skill.DEMON, 5 }, { Skill.DEMON, 6 }, { Skill.DEMON, 7 } };
+    private static final int[][] FULL_DEMON = new int[][]{{Skill.DEMON, 1}, {Skill.DEMON, 2}, {Skill.DEMON, 3}, {Skill.DEMON, 4}, {Skill.DEMON, 5}, {Skill.DEMON, 6}, {Skill.DEMON, 7}};
 
     public DrLychee(Zone zone, Clan clan, int level, long dame, long hp) throws Exception {
         super(PHOBANKGHD, BossID.DR_LYCHEE, new BossData(
                 "Dr Lychee",
                 ConstPlayer.TRAI_DAT,
-                new short[] { 742, 743, 744, -1, -1, -1 },
+                new short[]{742, 743, 744, -1, -1, -1},
                 ((10000 + dame)),
-                new long[] { ((1000000 + hp)) },
-                new int[] { 148 },
+                new long[]{((1000000 + hp))},
+                new int[]{148},
                 (int[][]) Util.addArray(FULL_DEMON),
-                new String[] { "|-1|Ta đợi các ngươi mãi",
-                        "|-1|Bọn xayda các ngươi mau đền tội đi" },
-                new String[] { "|-1|Đại bác báo thù...",
-                        "|-1|Heyyyyyyyy Yaaaaa" },
-                new String[] { "|-1|Các ngươi khá lắm",
-                        "|-1|Hatchiyack sẽ báo thù cho ta" },
-                60));
+                new String[]{"|-1|Ta đợi các ngươi mãi",
+                    "|-1|Bọn xayda các ngươi mau đền tội đi"},
+                new String[]{"|-1|Đại bác báo thù...",
+                    "|-1|Heyyyyyyyy Yaaaaa"},
+                new String[]{"|-1|Các ngươi khá lắm",
+                    "|-1|Hatchiyack sẽ báo thù cho ta"},
+                60
+        ));
         this.zone = zone;
         this.level = level;
         this.clan = clan;
@@ -97,16 +105,16 @@ public class DrLychee extends Boss {
         if (ParamMax < 3) {
             ParamMax = 3;
         }
-        int ParamMin = ParamMax - 20;
+        int ParamMin = ParamMax - 3;
         if (ParamMin < 3) {
             ParamMin = 3;
         }
-        int hsd = Util.nextInt(1, 3);
+        int hsd = Util.nextInt(ParamMin, ParamMax);
         it.options.add(new Item.ItemOption(50, Util.nextInt(ParamMin, ParamMax)));
         it.options.add(new Item.ItemOption(77, Util.nextInt(ParamMin, ParamMax)));
         it.options.add(new Item.ItemOption(103, Util.nextInt(ParamMin, ParamMax)));
         it.options.add(new Item.ItemOption(94, Util.nextInt(ParamMin, ParamMax)));
-        it.options.add(new Item.ItemOption(93, hsd > 3 ? 3 : hsd));
+        it.options.add(new Item.ItemOption(93, hsd > 21 ? 21 : hsd));
         it.options.add(new Item.ItemOption(30, 0));
         Service.gI().dropItemMap(this.zone, it);
     }
@@ -128,15 +136,16 @@ public class DrLychee extends Boss {
 
     @Override
     public void leaveMap() {
-        long bossDamage = Util.toIntOrLong((this.nPoint.dame * 1.5));
-        long bossMaxHealth = Util.toIntOrLong((this.nPoint.hpMax * 1.5));
+        long bossDamage = Util.maxIntValue((this.nPoint.dame * 1.5));
+        long bossMaxHealth = Util.maxIntValue((this.nPoint.hpMax * 1.5));
         try {
             clan.KhiGasHuyDiet.bosses.add(new Hatchiyack(
                     zone,
                     clan,
                     level,
                     bossDamage,
-                    bossMaxHealth));
+                    bossMaxHealth
+            ));
         } catch (Exception ex) {
         }
         ChangeMapService.gI().exitMap(this);

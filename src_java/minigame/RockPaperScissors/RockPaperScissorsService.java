@@ -1,11 +1,14 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 package minigame.RockPaperScissors;
 
 import consts.ConstFont;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
-import services.Service;
+import consts.ConstMiniGame;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
+import nro.services.Service;
 import utils.Util;
 
 public class RockPaperScissorsService {
@@ -14,7 +17,7 @@ public class RockPaperScissorsService {
         String ketQuaPlayer = convertNumberToString(player.iDMark.getKeoBuaBaoPlayer());
         String ketQuaServer = convertNumberToString(player.iDMark.getKeoBuaBaoServer());
         String money = Util.numberFormatLouis(player.iDMark.getMoneyKeoBuaBao());
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
                 ConstFont.BOLD_RED + "Bạn ra cái <" + ketQuaPlayer + ">\n"
                 + "Tôi ra cái <" + ketQuaServer + ">\n"
                 + ConstFont.BOLD_DARK + "Tôi thắng nhé hihi\n"
@@ -28,7 +31,7 @@ public class RockPaperScissorsService {
         String ketQuaPlayer = convertNumberToString(player.iDMark.getKeoBuaBaoPlayer());
         String ketQuaServer = convertNumberToString(player.iDMark.getKeoBuaBaoServer());
         String money = Util.numberFormatLouis(player.iDMark.getMoneyKeoBuaBao());
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
                 ConstFont.BOLD_GREEN + "Bạn ra cái <" + ketQuaPlayer + ">\n"
                 + "Tôi ra cái <" + ketQuaServer + ">\n"
                 + ConstFont.BOLD_DARK + "Bạn thắng rồi huhu\n"
@@ -42,7 +45,7 @@ public class RockPaperScissorsService {
         String ketQuaPlayer = convertNumberToString(player.iDMark.getKeoBuaBaoPlayer());
         String ketQuaServer = convertNumberToString(player.iDMark.getKeoBuaBaoServer());
         String money = Util.numberFormatLouis(player.iDMark.getMoneyKeoBuaBao());
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
                 ConstFont.BOLD_BLUE + "Bạn ra cái <" + ketQuaPlayer + ">\n"
                 + "Tôi ra cái <" + ketQuaServer + ">\n"
                 + ConstFont.BOLD_YELLOW + "Hoà nhau nhé haha",

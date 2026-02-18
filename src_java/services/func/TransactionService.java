@@ -1,13 +1,20 @@
 package services.func;
- 
-import DucPro.Functions;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import jdbc.DBConnecter;
 import jdbc.daos.PlayerDAO;
-import player.Player;
+import nro.player.Player;
 import network.Message;
-import server.Client;
-import server.Maintenance;
-import services.Service;
+import nro.server.Client;
+import nro.server.Maintenance;
+import nro.services.Service;
 import utils.Logger;
 import utils.TimeUtil;
 import utils.Util;
@@ -38,7 +45,7 @@ public class TransactionService implements Runnable {
     public static TransactionService gI() {
         if (i == null) {
             i = new TransactionService();
-            new Thread(i).start();
+            Thread.startVirtualThread(() -> i.run());
         }
         return i;
     }
@@ -61,6 +68,13 @@ public class TransactionService implements Runnable {
                 pl.iDMark.setTransactionWP(false);
                 pl.iDMark.setTransactionWVP(false);
             }
+//            if (pl.iDMark.isTransactionWP()) {
+//                TransactionWPService.gI().controller(pl, action, msg);
+//            }
+//            if (pl.iDMark.isTransactionWVP()) {
+//                TransactionWVPService.gI().controller(pl, action, msg, plMap);
+//                return;
+//            }
             switch (action) {
                 case SEND_INVITE_TRADE:
                 case ACCEPT_TRADE:
@@ -92,14 +106,6 @@ public class TransactionService implements Runnable {
                                     if (checkLogout2) {
                                         Client.gI().kickSession(plMap.getSession());
                                         break;
-                                    }
-                                    if (pl.nPoint.power < 1_000_000_000L) {
-                                        Service.gI().sendThongBao(pl, "Đạt 1 tỷ SM moi giao dich duoc");
-                                        return;
-                                    }
-                                    if (plMap.nPoint.power < 1_000_000_000L) {
-                                        Service.gI().sendThongBao(plMap, "Đạt 1 tỷ SM moi giao dich duoc");
-                                        return;
                                     }
                                     pl.iDMark.setLastTimeTrade(System.currentTimeMillis());
                                     pl.iDMark.setPlayerTradeId((int) plMap.id);

@@ -2,30 +2,33 @@ package consts;
 
 public class ConstSQL {
 
-    public static final String TOP_SM = "SELECT name, gender, items_body, CAST( JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) AS sm FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) DESC LIMIT 20;";
-    public static final String TOP_NAP = "SELECT name, gender, items_body,CAST( cash AS SIGNED) AS cash FROM account, player WHERE account.id = player.account_id ORDER BY cash DESC LIMIT 20;";
-    
-   public static final String TOP_BOSS_DAY = 
-    "SELECT name, gender, items_body, CAST(san_boss_points AS SIGNED) AS san_boss_points " + 
+    public static final String TOP_SM =
+        "SELECT name, gender, items_body, " +
+        "CAST(JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) AS sm " +
+        "FROM player INNER JOIN account ON account.id = player.account_id " +
+        "WHERE account.ban = 0 " +
+        "ORDER BY CAST(JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) DESC LIMIT 20;";
+    public static String getTopDuaSM() {
+        return "SELECT name, gender, items_body, " +
+               "CAST(JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) AS sm " +
+               "FROM player " +
+               "WHERE create_time > '" + ConstDataEventSM.getStartDateTimeSQL() + "' " +
+               "ORDER BY CAST(JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) DESC LIMIT 20;";
+    }
+    public static final String TOP_NAP = "SELECT name, gender, items_body,CAST( cash AS UNSIGNED) AS cash FROM account, player WHERE account.id = player.account_id ORDER BY cash DESC LIMIT 20;";
+
+    public static final String queryTopmaydam =
+    "SELECT player.id, player.name, player.gender, player.items_body, " +
+    "CAST(point_maydam AS UNSIGNED) AS point_maydam, " +
+    "CAST(total_damage_maydam AS UNSIGNED) AS total_damage_maydam " +
     "FROM player " +
-    "ORDER BY san_boss_points DESC " +
-    "LIMIT 20;";
-  public static final String TOP_CHIEN_LUC = 
-    "SELECT name, gender, items_body, CAST(luchien AS SIGNED) AS luchien " + 
-    "FROM player " +
-    "ORDER BY luchien DESC " +
-    "LIMIT 20;";
+    "INNER JOIN account ON account.id = player.account_id " +
+    "WHERE account.ban = 0 " +
+    "ORDER BY point_maydam DESC " +
+    "LIMIT 100;";
 
-
-  public static final String TOP_BANG = 
-    "SELECT NAME, Point FROM clan ORDER BY Point DESC LIMIT 20;";
-
-
-
-
-    public static final String TOP_SO_SU_MENH = "SELECT *, CAST(JSON_EXTRACT(so_su_menh, '$.point') AS SIGNED) AS point_value FROM player ORDER BY point_value DESC LIMIT 10;";
-
-    public static final String TOP_DUA_SM = "SELECT name, gender, items_body, CAST( JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) AS sm FROM player WHERE create_time > '2024-" + ConstDataEventSM.MONTH_OPEN + "-" + ConstDataEventSM.DATE_OPEN + " " + ConstDataEventSM.HOUR_OPEN + ":" + ConstDataEventSM.MIN_OPEN + ":00' ORDER BY CAST( split_str(data_point,',',2) AS UNSIGNED) DESC LIMIT 20;";
+    public static final String TOP_DUA_SM = 
+            "SELECT name, gender, items_body, CAST( JSON_EXTRACT(data_point, '$[1]') AS UNSIGNED) AS sm FROM player WHERE create_time > '2025-" + ConstDataEventSM.MONTH_OPEN + "-" + ConstDataEventSM.DATE_OPEN + " " + ConstDataEventSM.HOUR_OPEN + ":" + ConstDataEventSM.MIN_OPEN + ":00' ORDER BY CAST( split_str(data_point,',',2) AS UNSIGNED) DESC LIMIT 20;";
     public static final String TOP_DUA_NAP = "SELECT name, gender, items_body, CAST( danap AS UNSIGNED) AS danap FROM account, player WHERE account.id = player.account_id AND account.danap >= 100000 ORDER BY account.danap DESC LIMIT 10;";
     public static final String TOP_DUA_QUOC_VUONG = "SELECT name, gender, items_body, \n"
             + "  account.id as accountId, \n"
@@ -129,14 +132,12 @@ public class ConstSQL {
             + "  thoi_vang DESC \n"
             + "limit \n"
             + "  10;";
-     public static final String TOP_SD = "SELECT name, gender, items_body, CAST( dame_point_fusion AS SIGNED) AS dame_point_fusion FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( dame_point_fusion AS SIGNED) DESC LIMIT 10;";
-    public static final String TOP_HP = "SELECT name, gender, items_body, CAST( split_str(data_point,',',6) AS SIGNED) AS hp FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str(data_point,',',6)  AS SIGNED) DESC LIMIT 10;";
-    public static final String TOP_KI = "SELECT name, gender, items_body, CAST( split_str(data_point,',',7) AS SIGNED) AS ki FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str(data_point,',',7)  AS SIGNED) DESC LIMIT 10;";
+    public static final String TOP_SD = "SELECT name, gender, items_body, CAST( split_str(data_point,',',8) AS UNSIGNED) AS sd FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str(data_point,',',8)  AS UNSIGNED) DESC LIMIT 10;";
+    public static final String TOP_HP = "SELECT name, gender, items_body, CAST( split_str(data_point,',',6) AS UNSIGNED) AS hp FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str(data_point,',',6)  AS UNSIGNED) DESC LIMIT 10;";
+    public static final String TOP_KI = "SELECT name, gender, items_body, CAST( split_str(data_point,',',7) AS UNSIGNED) AS ki FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str(data_point,',',7)  AS UNSIGNED) DESC LIMIT 10;";
     public static final String TOP_NV = "SELECT name, gender, items_body, CAST( JSON_EXTRACT(data_task, '$[0]') AS UNSIGNED) AS nv, CAST( JSON_EXTRACT(data_task, '$[1]') AS UNSIGNED) AS subnv, CAST( JSON_EXTRACT(data_task, '$[3]') AS UNSIGNED) AS lasttime FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( JSON_EXTRACT(data_task, '$[0]') AS UNSIGNED) DESC, CAST( JSON_EXTRACT(data_task, '$[1]') AS UNSIGNED) DESC, CAST( JSON_EXTRACT(data_task, '$[2]') AS UNSIGNED) DESC, CAST( JSON_EXTRACT(data_task, '$[3]') AS UNSIGNED) ASC LIMIT 20;";
-    public static final String TOP_SK = "SELECT name, gender, items_body, CAST( split_str( data_inventory,',',5)  AS SIGNED) AS event FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str( data_inventory,',',5)  AS SIGNED) DESC LIMIT 10;";
-    public static final String TOP_PVP = "SELECT name, gender, items_body, CAST( pointPvp AS SIGNED) AS pointPvp FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( pointPvp AS SIGNED) DESC LIMIT 100;";
-    public static final String TOP_TET = "SELECT name, gender, items_body, CAST( pointtet AS SIGNED) AS pointtet FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( pointtet AS SIGNED) DESC LIMIT 10;";
-   
+    public static final String TOP_SK = "SELECT name, gender, items_body, CAST( split_str( data_inventory,',',5)  AS UNSIGNED) AS event FROM player INNER JOIN account ON account.id = player.account_id WHERE account.is_admin = 0 AND account.ban = 0 ORDER BY CAST( split_str( data_inventory,',',5)  AS UNSIGNED) DESC LIMIT 10;";
+    public static final String TOP_PVP = "SELECT name, gender, items_body, CAST( pointPvp AS UNSIGNED) AS pointPvp FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY CAST( pointPvp AS UNSIGNED) DESC LIMIT 100;";
     public static final String TOP_NHS = "SELECT name, gender, items_body, NguHanhSonPoint FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY NguHanhSonPoint DESC LIMIT 100;";
     public static final String TOP_DC = "SELECT name, gender, items_body, dicanh, juventus FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 ORDER BY dicanh DESC LIMIT 100;";
     public static final String TOP_VDST = "SELECT name, gender, items_body, CAST( JSON_EXTRACT(vodaisinhtu, '$[2]') AS UNSIGNED) AS lasttime, CAST( JSON_EXTRACT(vodaisinhtu, '$[3]') AS UNSIGNED) AS time FROM player INNER JOIN account ON account.id = player.account_id WHERE account.ban = 0 AND CAST( JSON_EXTRACT(vodaisinhtu, '$[3]') AS UNSIGNED) > 0 ORDER BY CAST( JSON_EXTRACT(vodaisinhtu, '$[3]') AS UNSIGNED) DESC LIMIT 20;";

@@ -1,15 +1,22 @@
 package models.WorldMartialArtsTournament;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import consts.ConstNpc;
 import consts.ConstTournament;
 import item.Item;
 import java.util.ArrayList;
 import jdbc.daos.PlayerDAO;
-import npc.Npc;
-import player.Player;
-import services.InventoryService;
-import services.NpcService;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.NpcService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 
@@ -98,7 +105,7 @@ public class WorldMartialArtsTournamentService extends ConstTournament {
                                 ArrayList<String> menu = new ArrayList<>();
                                 if (tour == NGOAI_HANG) {
 //                                    menu.add("Giải\n" + tournamentNames[tour] + "\n(" + tournamentGolds[tour] / 1000 + "k vàng)");
-                                    menu.add("Giải\n" + tournamentNames[tour] + "\n(" + tournamentThoiVangs[tour] + " vàng)");
+                                    menu.add("Giải\n" + tournamentNames[tour] + "\n(" + tournamentThoiVangs[tour] + " thỏi vàng)");
                                 } else {
                                     menu.add("Giải\n" + tournamentNames[tour] + "\n(" + tournamentGems[tour] + " ngọc)");
                                 }
@@ -142,10 +149,10 @@ public class WorldMartialArtsTournamentService extends ConstTournament {
             int tour = getTournament();
             int gold = tournamentThoiVangs[tour];
             int gem = tournamentGems[tour];
-//            if (player.inventory.gold < gold) {
-//                NpcService.gI().createTutorial(player, npc.tempId, npc.avartar, "Bạn không đủ vàng, còn thiếu " + (gold - player.inventory.gold) + " vàng nữa");
-//                return;
-//            } 
+            if (player.inventory.gold < gold) {
+                NpcService.gI().createTutorial(player, npc.tempId, npc.avartar, "Bạn không đủ vàng, còn thiếu " + (gold - player.inventory.gold) + " vàng nữa");
+                return;
+            } 
             Item thoiVang = InventoryService.gI().findItemBag(player, 457);
             if (thoiVang == null) {
                 NpcService.gI().createTutorial(player, npc.tempId, npc.avartar, "Bạn không đủ thỏi vàng, còn thiếu " + (gold) + " thỏi vàng nữa");

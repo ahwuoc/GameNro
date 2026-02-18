@@ -1,6 +1,6 @@
 package player.dailyGift;
 
-import player.Player;
+import nro.player.Player;
 
 public class DailyGiftService {
 

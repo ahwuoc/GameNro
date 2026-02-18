@@ -1,13 +1,21 @@
 package boss.boss_manifest.Android;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
 import map.ItemMap;
-import player.Player;
-import services.Service;
-import services.TaskService;
+import nro.player.Player;
+import nro.services.Service;
+import nro.services.TaskService;
 import utils.Util;
 
 public class Pic extends Boss {
@@ -18,14 +26,6 @@ public class Pic extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        plKill.pointboss+=7;
-//         for (int i = 0; i < Util.nextInt(1,3); i++) {
-//                
-//                ItemMap it = new ItemMap(this.zone, 457, (int) 1, this.location.x + i * 10, this.zone.map.yPhysicInTop(this.location.x,
-//                        this.location.y - 24), plKill.id);
-//                
-//                Service.gI().dropItemMap(this.zone, it);
-//            }
         int[] itemRan = new int[]{380, 381, 382, 383, 384, 385};
         int itemId = itemRan[2];
         if (Util.isTrue(15, 100)) {
@@ -44,7 +44,7 @@ public class Pic extends Boss {
 
     @Override
     public void autoLeaveMap() {
-        if (Util.canDoWithTime(st, 600000)) {
+        if (Util.canDoWithTime(st, 900000)) {
             this.leaveMapNew();
         }
         if (this.zone != null && this.zone.getNumOfPlayers() > 0) {

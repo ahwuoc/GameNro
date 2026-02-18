@@ -1,17 +1,25 @@
 package models.ShenronEvent;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import network.Message;
 import consts.ConstNpc;
 import item.Item;
-import player.Player;
+import nro.player.Player;
 import lombok.Getter;
 import lombok.Setter;
 import map.Zone;
-import server.Client;
-import services.InventoryService;
-import services.ItemTimeService;
-import services.NpcService;
-import services.Service;
+import nro.server.Client;
+import nro.services.InventoryService;
+import nro.services.ItemTimeService;
+import nro.services.NpcService;
+import nro.services.Service;
 import utils.SkillUtil;
 import utils.Util;
 
@@ -40,10 +48,14 @@ public class ShenronEvent {
     public static int timeResummonShenron = 300000;
     public static int timeShenronWait = 300000;
 
-    public static final String SHENRON_SAY = "Ta sẽ ban cho người 1 điều ước, ngươi có 5 phút, hãy chọn đi:\n1) Đổi skill 3, 4 đệ tử (có thể trùng skill trước đó).\n2) Skill 5 đệ tử tăng thêm 1 cấp.\n3) Tăng 10% HP, KI, SD trong 30p.\n4) Quần đang mang tăng thêm 1 cấp.";
+    public static final String SHENRON_SAY
+            = "Ta sẽ ban cho người 1 điều ước, ngươi có 5 phút, hãy chọn đi:\n1) "
+            + "Đổi skill 3, 4 đệ tử (có thể trùng skill trước đó).\n2)"
+            + " Skill 5 đệ tử tăng thêm 1 cấp.\n3) Tăng 10% HP, KI, SD trong 30p.\n4)"
+            + " Quần đang mang tăng thêm 1 cấp.";
 
-    public static final String[] SHENRON_WISHES = new String[] { "Điều ước 1", "Điều ước 2", "Điều ước 3",
-            "Điều ước 4" };
+    public static final String[] SHENRON_WISHES
+            = new String[]{"Điều ước 1", "Điều ước 2", "Điều ước 3", "Điều ước 4"};
 
     public boolean shenronLeave;
 
@@ -54,10 +66,8 @@ public class ShenronEvent {
                     Player pl = Client.gI().getPlayer(playerId);
                     if (pl != null) {
                         player = pl;
-                        if (player.zone != null && player.zone.map.mapId != 0 && player.zone.map.mapId != 7
-                                && player.zone.map.mapId != 14
-                                && player.zone.map.mapId != 21 && player.zone.map.mapId != 22
-                                && player.zone.map.mapId != 23) {
+                        if (player.zone != null && player.zone.map.mapId != 0 && player.zone.map.mapId != 7 && player.zone.map.mapId != 14
+                                && player.zone.map.mapId != 21 && player.zone.map.mapId != 22 && player.zone.map.mapId != 23) {
                             player.shenronEvent = this;
                             zone = player.zone;
                             player.iDMark.setShenronType(shenronType);
@@ -68,8 +78,7 @@ public class ShenronEvent {
                 }
                 if (Util.canDoWithTime(lastTimeShenronWait, timeShenronWait)) {
                     leaveMap = true;
-                    NpcService.gI().createMenuRongThieng(player, ConstNpc.IGNORE_MENU,
-                            "Còn cái nịt =))\nCó không ước mất đừng tìm.", "Xin vĩnh biệt cụ........");
+                    NpcService.gI().createMenuRongThieng(player, ConstNpc.IGNORE_MENU, "Còn cái nịt =))\nCó không ước mất đừng tìm.", "Xin vĩnh biệt cụ........");
                     shenronLeave();
                 }
             }
@@ -95,8 +104,7 @@ public class ShenronEvent {
                 wish = SHENRON_WISHES[select];
                 break;
         }
-        NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_EVENT_CONFIRM, "Ngươi có chắc muốn ước?", wish,
-                "Từ chối");
+        NpcService.gI().createMenuRongThieng(player, ConstNpc.SHENRON_EVENT_CONFIRM, "Ngươi có chắc muốn ước?", wish, "Từ chối");
     }
 
     public void activeShenron(boolean appear, byte type) {
@@ -109,7 +117,7 @@ public class ShenronEvent {
                 msg.writer().writeShort(player.zone.map.bgId);
                 msg.writer().writeByte(player.zone.zoneId);
                 msg.writer().writeInt((int) player.id);
-                msg.writer().writeUTF("DucPro");
+                msg.writer().writeUTF("BARCOLLxENZEEFXNRO");
                 msg.writer().writeShort(player.location.x);
                 msg.writer().writeShort(player.location.y);
                 msg.writer().writeByte(type);
@@ -128,7 +136,7 @@ public class ShenronEvent {
         switch (player.iDMark.getShenronType()) {
             case 0:
                 switch (this.select) {
-                    case 0: // thay chiêu 3-4 đệ tử
+                    case 0: //thay chiêu 3-4 đệ tử
                         if (player.pet != null) {
                             if (player.pet.playerSkill.skills.get(2).skillId != -1) {
                                 player.pet.openSkill3();
@@ -151,8 +159,7 @@ public class ShenronEvent {
                             if (SkillUtil.upSkillPet(player.pet.playerSkill.skills, 4)) {
                                 Service.gI().chatJustForMe(player, player.pet, "Cám ơn sư phụ");
                             } else {
-                                Service.gI().sendThongBao(player,
-                                        "Skill đã đạt cấp tối đa hoặc đệ ngươi chưa có skill 5.");
+                                Service.gI().sendThongBao(player, "Skill đã đạt cấp tối đa hoặc đệ ngươi chưa có skill 5.");
                                 sendWhishesShenron();
                                 return;
                             }
@@ -175,12 +182,12 @@ public class ShenronEvent {
                         player.itemTime.lastTimeUseRX = System.currentTimeMillis();
                         ItemTimeService.gI().sendItemTime(player, 6581, timeRX);
                         player.nPoint.calPoint();
-                        player.nPoint.setHp(Util.toIntOrLong(player.nPoint.hpMax));
-                        player.nPoint.setMp(Util.toIntOrLong(player.nPoint.mpMax));
+                        player.nPoint.setHp(Util.maxIntValue( player.nPoint.hpMax));
+                        player.nPoint.setMp(Util.maxIntValue( player.nPoint.mpMax));
                         Service.gI().point(player);
                         Service.gI().Send_Info_NV(player);
                         break;
-                    case 3: // quần đang đeo lên 1 cấp
+                    case 3: //quần đang đeo lên 1 cấp
                         Item item = this.player.inventory.itemsBody.get(1);
                         if (item.isNotNullItem()) {
                             int level = 0;

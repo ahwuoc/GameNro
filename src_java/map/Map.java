@@ -1,14 +1,19 @@
 package map;
 
-
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import consts.ConstMap;
 import models.Template;
 import boss.Boss;
 import boss.BossID;
 import boss.BossManager;
 import consts.ConstMob;
-import consts.ConstNpc;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -17,20 +22,19 @@ import models.BlackBallWar.BlackBallWar;
 import models.RedRibbonHQ.RedRibbonHQ;
 import models.RedRibbonHQ.RedRibbonHQService;
 import mob.Mob;
-import npc.Npc;
-import npc.NpcFactory;
-import player.Player;
-import server.Manager;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.models.npc.NpcFactory;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
 import mob.bigboss_manifest.GaChinCua;
 import mob.bigboss_manifest.GauTuongCuop;
-import mob.bigboss_manifest.Gozila;
 import mob.bigboss_manifest.Hirudegarn;
-import mob.bigboss_manifest.Kong;
+import mob.bigboss_manifest.MayDoSucManh;
 import mob.bigboss_manifest.NguaChinLmao;
 import mob.bigboss_manifest.Piano;
 import mob.bigboss_manifest.RobotBaoVe;
@@ -47,7 +51,7 @@ import models.DragonNamecWar.TranhNgocService;
 import models.MajinBuu.MajinBuu14H;
 import models.MajinBuu.MajinBuu14HService;
 import models.SuperDivineWater.SuperDivineWaterService;
-import services.MapService;
+import nro.services.MapService;
 import utils.Logger;
 
 public class Map implements Runnable {
@@ -71,6 +75,8 @@ public class Map implements Runnable {
     public int[] tileTop;
     public int mapWidth;
     public int mapHeight;
+    
+    public boolean isMapOffline;
 
     public List<Zone> zones;
     public List<WayPoint> wayPoints;
@@ -86,7 +92,7 @@ public class Map implements Runnable {
 
     public Map(int mapId, String mapName, byte planetId,
             byte tileId, byte bgId, byte bgType, byte type, int[][] tileMap,
-            int[] tileTop, int zones, int maxPlayer, List<WayPoint> wayPoints, List<EffectMap> effMap) {
+            int[] tileTop, int zones, boolean isMapOffline, int maxPlayer, List<WayPoint> wayPoints, List<EffectMap> effMap) {
         this.mapId = mapId;
         this.mapName = mapName;
         this.planetId = planetId;
@@ -97,6 +103,7 @@ public class Map implements Runnable {
         this.type = type;
         this.tileMap = tileMap;
         this.tileTop = tileTop;
+        this.isMapOffline = isMapOffline;
         this.zones = new ArrayList<>();
         this.wayPoints = wayPoints;
         this.effMap = effMap;
@@ -179,7 +186,7 @@ public class Map implements Runnable {
         }
     }
 
-    public void initMob(byte[] mobTemp, byte[] mobLevel, int[] mobHp, short[] mobX, short[] mobY) {
+    public void initMob(byte[] mobTemp, byte[] mobLevel, long[] mobHp, short[] mobX, short[] mobY) {
         for (int i = 0; i < mobTemp.length; i++) {
             int mobTempId = mobTemp[i];
             Template.MobTemplate temp = Manager.getMobTemplateByTemp(mobTempId);
@@ -215,10 +222,8 @@ public class Map implements Runnable {
                             mobZone = new NguaChinLmao(mob);
                         case ConstMob.PIANO ->
                             mobZone = new Piano(mob);
-                        case ConstMob.KONG->
-                            mobZone = new Kong(mob);
-                        case ConstMob.GOZILLA->
-                            mobZone = new Gozila(mob);
+                        case ConstMob.MAY_DO_SUC_MANH ->
+                            mobZone = new MayDoSucManh(mob);
                         default ->
                             mobZone = new Mob(mob);
                     }
@@ -291,6 +296,20 @@ public class Map implements Runnable {
                     itemMap = new ItemMap(zone, 377, 1, 0, 0, -1);
                 case 91 -> //7 sao đen
                     itemMap = new ItemMap(zone, 378, 1, 0, 0, -1);
+//                case 85 -> //1 sao đen
+//                    itemMap = new ItemMap(zone, 372, 1, 0, 0, -1);
+//                case 86 -> //2 sao đen
+//                    itemMap = new ItemMap(zone, 373, 1, 0, 0, -1);
+//                case 87 -> //3 sao đen
+//                    itemMap = new ItemMap(zone, 374, 1, 0, 0, -1);
+//                case 88 -> //4 sao đen
+//                    itemMap = new ItemMap(zone, 375, 1, 0, 0, -1);
+//                case 89 -> //5 sao đen
+//                    itemMap = new ItemMap(zone, 376, 1, 0, 0, -1);
+//                case 90 -> //6 sao đen
+//                    itemMap = new ItemMap(zone, 377, 1, 0, 0, -1);
+//                case 91 -> //7 sao đen
+//                    itemMap = new ItemMap(zone, 378, 1, 0, 0, -1);
             }
         }
 

@@ -8,7 +8,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.Executors;
 
 public class Logger {
 
@@ -21,10 +20,9 @@ public class Logger {
     public static final String GREEN = "\033[0;32m";   // GREEN
     public static final String YELLOW = "\033[0;33m";  // YELLOW
     public static final String BLUE = "\033[0;34m";    // BLUE
-    public static final String PURPLE = "\033[0;35m";
+    public static final String PURPLE = "\033[0;35m";  // PURPLE
     public static final String CYAN = "\033[0;36m";    // CYAN
     public static final String WHITE = "\033[0;37m";   // WHITE
-    public static final String PINK = "\033[95m"; // Mã màu hồng tạo bằng cách kết hợp màu đỏ và màu xanh dương
 
     // Bold
     public static final String BLACK_BOLD = "\033[1;30m";  // BLACK
@@ -87,42 +85,57 @@ public class Logger {
     public static final String WHITE_BACKGROUND_BRIGHT = "\033[0;107m";   // WHITE
 
     public static void log(String text) {
-        System.out.print(text);
-    }
-
-    public static void logln(String text) {
         System.out.println(text);
     }
 
     public static void log(String color, String text) {
-        System.out.print(color + text + RESET);
-    }
-
-    public static void logln(String color, String text) {
         System.out.println(color + text + RESET);
     }
 
     public static void success(String text) {
-        System.out.print(GREEN + text + RESET);
+        System.out.println(GREEN + text + RESET);
     }
-     public static void ThongBao(String text) {
-        System.out.print(BLACK+ text + RESET);
+
+    public static void warning(String text) {
+        System.out.println(YELLOW + text + RESET);
+    }
+
+    public static void error(String text) {
+        System.out.println(RED + text + RESET);
+    }
+
+    public static void logException(Class clazz, Exception ex, String... log) {
+        try {
+            if (log != null && log.length > 0) {
+                log(PURPLE, log[0] + "\n");
+            }
+            StackTraceElement stackTraceElements[] = (new Throwable()).getStackTrace();
+            String nameMethod = stackTraceElements[1].getMethodName();
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            ex.printStackTrace(pw);
+            String detail = sw.toString();
+            String[] arr = detail.split("\n");
+            Logger.warning("Có lỗi tại class: ");
+            Logger.error(clazz.getName());
+            Logger.warning(" - tại phương thức: ");
+            Logger.error(nameMethod + "\n");
+            Logger.warning("Chi tiết lỗi:\n");
+            for (String str : arr) {
+                Logger.error(str + "\n");
+            }
+            Logger.log("--------------------------------------------------------\n");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void successln(String text) {
         System.out.println(GREEN + text + RESET);
     }
 
-    public static void warning(String text) {
-        System.out.print(YELLOW + text + RESET);
-    }
-
     public static void warningln(String text) {
         System.out.println(YELLOW + text + RESET);
-    }
-
-    public static void error(String text) {
-        System.out.print(RED + text + RESET);
     }
 
     public static void errorln(String text) {
@@ -137,35 +150,8 @@ public class Logger {
         System.out.println(BLUE + text + RESET);
     }
 
-    public static void logException(Class<?> clazz, Exception ex, String... log) {
-        try {
-            if (log != null && log.length > 0) {
-                log(PURPLE, log[0] + "\n");
-            }
-
-            String methodName = Thread.currentThread().getStackTrace()[2].getMethodName();
-
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            ex.printStackTrace(pw);
-            String exceptionDetails = sw.toString();
-
-            Logger.warning("Error in class: ");
-            Logger.error(clazz.getName());
-            Logger.warning(" - in method: ");
-            Logger.error(methodName + "\n");
-            Logger.warning("Error details:\n");
-            for (String line : exceptionDetails.split("\n")) {
-                Logger.error(line + "\n");
-            }
-            Logger.log("--------------------------------------------------------\n");
-        } catch (Exception e) {
-            Logger.error("Failed to log exception: " + e.getMessage());
-        }
-    }
-
     public static void fileLog(String playerName, String string) {
-        Executors.newSingleThreadExecutor().submit(() -> {
+        new Thread(() -> {
             try {
                 SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy + HH:mm:ss");
                 String timeNow = formatter.format(new Date());
@@ -173,7 +159,7 @@ public class Logger {
                 writeFile("log/" + playerName + "_log.txt", logEntry);
             } catch (IOException e) {
             }
-        });
+        }).start();
     }
 
     private static void writeFile(String filePath, String content) throws IOException {
@@ -183,5 +169,4 @@ public class Logger {
             out.println(content);
         }
     }
-
 }

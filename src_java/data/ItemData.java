@@ -1,11 +1,19 @@
 package data;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import models.Template;
 import models.Template.ArrHead2Frames;
 import models.Template.ItemOptionTemplate;
-import server.Manager;
+import nro.server.Manager;
 import network.Message;
-import server.io.MySession;
+import nro.server.io.MySession;
 
 public class ItemData {
 
@@ -23,7 +31,7 @@ public class ItemData {
             msg.writer().writeByte(8);
             msg.writer().writeByte(DataGame.vsItem); //vcitem
             msg.writer().writeByte(0); //update option
-            msg.writer().writeByte(Manager.ITEM_OPTION_TEMPLATES.size());
+            msg.writer().writeInt(Manager.ITEM_OPTION_TEMPLATES.size());//conchongungoc
             for (ItemOptionTemplate io : Manager.ITEM_OPTION_TEMPLATES) {
                 msg.writer().writeUTF(io.name);
                 msg.writer().writeByte(io.type);

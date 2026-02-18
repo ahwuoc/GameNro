@@ -1,12 +1,18 @@
 package boss.boss_manifest.GinyuForce;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
-import map.ItemMap;
-import player.Player;
-import services.Service;
+import nro.player.Player;
 import utils.Util;
 
 public class SO4 extends Boss {
@@ -27,18 +33,6 @@ public class SO4 extends Boss {
 
     @Override
     public void reward(Player plKill) {
-         plKill.pointboss+=3;
-//         for (int i = 0; i < Util.nextInt(1,2); i++) {
-//                
-//                ItemMap it = new ItemMap(this.zone, 457, (int) 1, this.location.x + i * 10, this.zone.map.yPhysicInTop(this.location.x,
-//                        this.location.y - 24), plKill.id);
-//                
-//                Service.gI().dropItemMap(this.zone, it);
-//            }
-          ItemMap it = new ItemMap(this.zone, Util.nextInt(16,20),  1, this.location.x , this.zone.map.yPhysicInTop(this.location.x,
-                        this.location.y - 24), plKill.id);
-                
-                Service.gI().dropItemMap(this.zone, it);
         super.reward(plKill);
         if (this.currentLevel == 1) {
             return;
@@ -61,7 +55,7 @@ public class SO4 extends Boss {
 
     @Override
     public void autoLeaveMap() {
-        if (Util.canDoWithTime(st, 600000)) {
+        if (Util.canDoWithTime(st, 900000)) {
             this.leaveMapNew();
         }
         if (this.zone != null && this.zone.getNumOfPlayers() > 0) {

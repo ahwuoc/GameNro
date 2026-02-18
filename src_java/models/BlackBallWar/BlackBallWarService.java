@@ -1,15 +1,27 @@
 package models.BlackBallWar;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import item.Item;
 import java.util.ArrayList;
 import java.util.List;
 import static models.BlackBallWar.BlackBallWar.COST_X3;
+import static models.BlackBallWar.BlackBallWar.COST_X5;
+import static models.BlackBallWar.BlackBallWar.COST_X7;
 import static models.BlackBallWar.BlackBallWar.X3;
+import static models.BlackBallWar.BlackBallWar.X5;
+import static models.BlackBallWar.BlackBallWar.X7;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.services.PlayerService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 import utils.Util;
@@ -84,12 +96,10 @@ public class BlackBallWarService {
                         + TimeUtil.getSecondsUntilCanPick() + " giây nữa");
                 return false;
             } else if (player.zone.finishBlackBallWar) {
-                Service.gI().sendThongBao(player,
-                        "Trò chơi tìm ngọc hôm nay đã kết thúc, hẹn gặp lại vào 20h ngày mai");
+                Service.gI().sendThongBao(player, "Trò chơi tìm ngọc hôm nay đã kết thúc, hẹn gặp lại vào 20h ngày mai");
                 return false;
             } else {
-                if (Util.canDoWithTime(player.zone.lastTimeDropBlackBall,
-                        BlackBallWar.TIME_CAN_PICK_BLACK_BALL_AFTER_DROP)) {
+                if (Util.canDoWithTime(player.zone.lastTimeDropBlackBall, BlackBallWar.TIME_CAN_PICK_BLACK_BALL_AFTER_DROP)) {
                     player.iDMark.setHoldBlackBall(true);
                     player.iDMark.setTempIdBlackBallHold(item.template.id);
                     player.iDMark.setLastTimeHoldBlackBall(System.currentTimeMillis());
@@ -107,9 +117,7 @@ public class BlackBallWarService {
                     return true;
                 } else {
                     Service.gI().sendThongBao(player, "Chưa thể nhặt lúc này, hãy đợi "
-                            + TimeUtil.getTimeLeft(player.zone.lastTimeDropBlackBall,
-                                    BlackBallWar.TIME_CAN_PICK_BLACK_BALL_AFTER_DROP / 1000)
-                            + " nữa");
+                            + TimeUtil.getTimeLeft(player.zone.lastTimeDropBlackBall, BlackBallWar.TIME_CAN_PICK_BLACK_BALL_AFTER_DROP / 1000) + " nữa");
                     return false;
                 }
             }
@@ -121,17 +129,15 @@ public class BlackBallWarService {
     public void xHPKI(Player player, byte x) {
         int cost = 0;
         switch (x) {
-            case BlackBallWar.X3:
-                cost = BlackBallWar.COST_X3;
+            case X3:
+                cost = COST_X3;
                 break;
-            case BlackBallWar.X5:
-                cost = BlackBallWar.COST_X5;
+            case X5:
+                cost = COST_X5;
                 break;
-            case BlackBallWar.X7:
-                cost = BlackBallWar.COST_X7;
+            case X7:
+                cost = COST_X7;
                 break;
-            default:
-                return;
         }
         if (player.inventory.gold >= cost) {
             player.inventory.gold -= cost;
@@ -139,10 +145,9 @@ public class BlackBallWarService {
             player.effectSkin.lastTimeXHPKI = System.currentTimeMillis();
             player.effectSkin.xHPKI = x;
             player.nPoint.calPoint();
-            player.nPoint.setHp(Util.toIntOrLong(player.nPoint.hp * x));
-            player.nPoint.setMp(Util.toIntOrLong(player.nPoint.mp * x));
+            player.nPoint.setHp(Util.maxIntValue( player.nPoint.hp * x));
+            player.nPoint.setMp(Util.maxIntValue( player.nPoint.mp * x));
             PlayerService.gI().sendInfoHpMp(player);
-            Service.gI().sendThongBao(player, "Bạn đã tăng x" + x + " cho HP, MP");
             Service.gI().point(player);
         } else {
             Service.gI().sendThongBao(player, "Không đủ vàng để thực hiện, còn thiếu "
@@ -156,15 +161,21 @@ public class BlackBallWarService {
             case X3:
                 cost = COST_X3;
                 break;
-            default:
-                return;
+            case X5:
+                cost = COST_X5;
+                break;
+            case X7:
+                cost = COST_X7;
+                break;
         }
         if (player.inventory.gold >= cost) {
             player.inventory.gold -= cost;
             Service.gI().sendMoney(player);
             player.effectSkin.lastTimeXDame = System.currentTimeMillis();
-            player.effectSkin.xDame = (byte) Util.toIntOrLong(x);
+            player.effectSkin.xDame = x;
             player.nPoint.calPoint();
+            player.nPoint.setHp(Util.maxIntValue( player.nPoint.hp * x));
+            player.nPoint.setMp(Util.maxIntValue( player.nPoint.mp * x));
             PlayerService.gI().sendInfoHpMp(player);
             Service.gI().point(player);
         } else {
@@ -179,8 +190,7 @@ public class BlackBallWarService {
                 ChangeMapService.gI().changeMap(player,
                         player.mapBlackBall.get(index).map.mapId, -1, 50, 50);
             } else {
-                Service.gI().sendThongBao(player,
-                        "Trò chơi tìm ngọc hôm nay đã kết thúc, hẹn gặp lại vào 20h ngày mai");
+                Service.gI().sendThongBao(player, "Trò chơi tìm ngọc hôm nay đã kết thúc, hẹn gặp lại vào 20h ngày mai");
                 Service.gI().hideWaitDialog(player);
             }
         } catch (Exception ex) {

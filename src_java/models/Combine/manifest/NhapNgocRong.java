@@ -4,10 +4,10 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 public class NhapNgocRong {
@@ -74,7 +74,7 @@ public class NhapNgocRong {
                 return;
             }
             Item nr = ItemService.gI().createNewItem((short) (item.template.id - 1));
-            
+            nr.itemOptions.add(new Item.ItemOption(30,1));
             CombineService.gI().sendEffectCombineDB(player, nr.template.iconID);
             InventoryService.gI().addItemBag(player, nr);
             InventoryService.gI().subQuantityItemsBag(player, item, 7);
@@ -95,7 +95,7 @@ public class NhapNgocRong {
             if (Util.isTrue(50, 100)) {
                 nrSub = 7;
                 Item nr = ItemService.gI().createNewItem((short) 1015);
-               
+                nr.itemOptions.add(new Item.ItemOption(30, 0));
                 nr.itemOptions.add(new Item.ItemOption(87, 0));
                 CombineService.gI().sendEffectCombineDB(player, nr.template.iconID);
                 InventoryService.gI().addItemBag(player, nr);

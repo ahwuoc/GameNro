@@ -4,7 +4,7 @@ package models.DragonNamecWar;
 import consts.ConstTranhNgocNamek;
 import java.util.ArrayList;
 import java.util.List;
-import player.Player;
+import nro.player.Player;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 import utils.Util;
@@ -12,18 +12,10 @@ import utils.Util;
 public class TranhNgoc {
 
     private static TranhNgoc i;
-
+    
     private static long TIME_REGISTER;
     private static long TIME_OPEN;
     private static long TIME_CLOSE;
-
-    public static final byte HOUR_REGISTER = 11;
-    public static final byte MIN_REGISTER = 50;
-    public static final byte HOUR_OPEN = 12;
-    public static final byte MIN_OPEN = 00;
-
-    public static final byte HOUR_CLOSE = 12;
-    public static final byte MIN_CLOSE = 10;
 
     private final List<Player> playersRed = new ArrayList<>();
     private final List<Player> playersBlue = new ArrayList<>();
@@ -82,9 +74,9 @@ public class TranhNgoc {
         if (i.day == -1 || i.day != TimeUtil.getCurrDay()) {
             i.day = TimeUtil.getCurrDay();
             try {
-                TranhNgoc.TIME_OPEN = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + HOUR_OPEN + ":" + MIN_OPEN + ":" + 0, "dd/MM/yyyy HH:mm:ss");
-                TranhNgoc.TIME_CLOSE = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + HOUR_CLOSE + ":" + MIN_CLOSE + ":" + 0, "dd/MM/yyyy HH:mm:ss");
-                TranhNgoc.TIME_REGISTER = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + HOUR_REGISTER + ":" + MIN_REGISTER + ":" + 0, "dd/MM/yyyy HH:mm:ss");
+                TIME_OPEN = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + ConstTranhNgocNamek.HOUR_OPEN + ":" + ConstTranhNgocNamek.MIN_OPEN + ":" + 0, "dd/MM/yyyy HH:mm:ss");
+                TIME_CLOSE = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + ConstTranhNgocNamek.HOUR_CLOSE + ":" + ConstTranhNgocNamek.MIN_CLOSE + ":" + 0, "dd/MM/yyyy HH:mm:ss");
+                TIME_REGISTER = TimeUtil.getTime(TimeUtil.getTimeNow("dd/MM/yyyy") + " " + ConstTranhNgocNamek.HOUR_REGISTER + ":" + ConstTranhNgocNamek.MIN_REGISTER + ":" + 0, "dd/MM/yyyy HH:mm:ss");
             } catch (Exception e) {   e.printStackTrace();
             }
         }

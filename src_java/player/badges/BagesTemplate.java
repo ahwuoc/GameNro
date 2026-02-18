@@ -1,8 +1,8 @@
 package player.badges;
 
 import item.Item;
-import player.Player;
-import server.Manager;
+import nro.player.Player;
+import nro.server.Manager;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,7 +18,6 @@ public class BagesTemplate {
     public List<Item.ItemOption> options = new ArrayList<>();
 
     public static int findIdItemByIdIdEffect(int idEffect) {
-        
         for (BagesTemplate data : Manager.BAGES_TEMPLATES) {
             if (data.idEffect == idEffect) {
                 return data.idItem;

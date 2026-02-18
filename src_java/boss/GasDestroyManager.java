@@ -1,7 +1,16 @@
 package boss;
 
-import DucPro.Functions;
-import server.Maintenance;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
+import java.util.ArrayList;
+import java.util.List;
+import nro.server.Maintenance;
 
 public class GasDestroyManager extends BossManager {
 
@@ -17,28 +26,30 @@ public class GasDestroyManager extends BossManager {
     @Override
     public void run() {
         while (!Maintenance.isRunning) {
-            try {
-                long st = System.currentTimeMillis();
-                for (int i = this.ListBoss.size() - 1; i >= 0; i--) {
-                    if (i < this.ListBoss.size()) {
-                        Boss boss = this.ListBoss.get(i);
-                        try {
-                            boss.update();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            try {
-                                removeBoss(boss);
-                            } catch (Exception ex) {
-                            }
-                        }
-                    }
+            long start = System.currentTimeMillis();
+            List<Boss> toRemove = new ArrayList<>();
+
+            for (int i = this.bosses.size() - 1; i >= 0; i--) {
+                try {
+                    this.bosses.get(i).update();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    toRemove.add(this.bosses.get(i));
                 }
-                // if (150 - (System.currentTimeMillis() - st) > 0) {
-                // Thread.sleep(150 - (System.currentTimeMillis() - st));
-                // }
-                Functions.sleep(Math.max(150 - (System.currentTimeMillis() - st), 10));
-            } catch (Exception e) {
-                e.printStackTrace();
+            }
+            for (Boss b : toRemove) {
+                try {
+                    removeBoss(b);
+                } catch (Exception ignored) {
+                }
+            }
+
+            long elapsed = System.currentTimeMillis() - start;
+            long sleep = Math.max(10, 150 - elapsed);
+
+            try {
+                Thread.sleep(sleep);
+            } catch (InterruptedException ignored) {
             }
         }
     }

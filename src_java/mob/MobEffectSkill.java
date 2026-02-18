@@ -1,8 +1,15 @@
 package mob;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import network.Message;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import skill.Skill;
 import utils.Util;
 
@@ -17,10 +24,16 @@ public class MobEffectSkill {
     public long lastTimeStun;
     public int timeStun;
     public boolean isStun;
+    public boolean isBang;
+    public long lastTimeBang;
+    public int timeBang;
 
     public void update() {
         if (isStun && (Util.canDoWithTime(lastTimeStun, timeStun) || mob.isDie())) {
             removeStun();
+        }
+        if (isBang && (Util.canDoWithTime(lastTimeBang, timeBang) || mob.isDie())) {
+            removeBang();
         }
         if (isThoiMien && (Util.canDoWithTime(lastTimeThoiMien, timeThoiMien) || mob.isDie())) {
             removeThoiMien();
@@ -41,8 +54,7 @@ public class MobEffectSkill {
             if (Util.canDoWithTime(lastTimeMaPhongBa, 500) && !mob.isDie()) {
                 if (playerUseMafuba != null && playerUseMafuba.playerSkill != null) {
                     double param = playerUseMafuba.playerSkill.getSkillbyId(Skill.MA_PHONG_BA).point;
-                    long subHp = Util.toIntOrLong((long) playerUseMafuba.nPoint.hpMax * param
-                            * (playerUseMafuba.effectSkill.typeBinh == 0 ? 1 : 2) / 100);
+                    long subHp = Util.maxIntValue((long) playerUseMafuba.nPoint.hpMax * param * (playerUseMafuba.effectSkill.typeBinh == 0 ? 1 : 2) / 100);
                     if (subHp >= this.mob.point.hp) {
                         subHp = this.mob.point.hp - 1;
                     }
@@ -77,7 +89,20 @@ public class MobEffectSkill {
         } catch (Exception e) {
         }
     }
-
+    private void removeBang() {
+        isBang = false;
+        Message msg;
+        try {
+            msg = new Message(-124);
+            msg.writer().writeByte(0);
+            msg.writer().writeByte(1);
+            msg.writer().writeByte(40);
+            msg.writer().writeByte(mob.id);
+            Service.gI().sendMessAllPlayerInMap(mob.zone, msg);
+            msg.cleanup();
+        } catch (Exception e) {
+        }
+    }
     public boolean isThoiMien;
     public long lastTimeThoiMien;
     public int timeThoiMien;
@@ -93,10 +118,10 @@ public class MobEffectSkill {
         Message msg;
         try {
             msg = new Message(-124);
-            msg.writer().writeByte(0); // b5
-            msg.writer().writeByte(1); // b6
-            msg.writer().writeByte(41); // num6
-            msg.writer().writeByte(mob.id); // b7
+            msg.writer().writeByte(0); //b5
+            msg.writer().writeByte(1); //b6
+            msg.writer().writeByte(41); //num6
+            msg.writer().writeByte(mob.id); //b7
             Service.gI().sendMessAllPlayerInMap(mob.zone, msg);
             msg.cleanup();
         } catch (Exception e) {
@@ -143,10 +168,10 @@ public class MobEffectSkill {
         Message msg;
         try {
             msg = new Message(-124);
-            msg.writer().writeByte(0); // b4
-            msg.writer().writeByte(1);// b5
-            msg.writer().writeByte(32);// num8
-            msg.writer().writeByte(mob.id);// b6
+            msg.writer().writeByte(0); //b4
+            msg.writer().writeByte(1);//b5
+            msg.writer().writeByte(32);//num8
+            msg.writer().writeByte(mob.id);//b6
             Service.gI().sendMessAllPlayerInMap(mob.zone, msg);
             msg.cleanup();
         } catch (Exception e) {

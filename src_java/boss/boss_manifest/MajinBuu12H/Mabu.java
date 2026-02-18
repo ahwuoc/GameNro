@@ -1,4 +1,13 @@
 package boss.boss_manifest.MajinBuu12H;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
@@ -8,17 +17,17 @@ import static boss.BossType.FINAL;
 import consts.ConstPlayer;
 import item.Item;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
 import models.MajinBuu.MajinBuuService;
-import services.EffectSkillService;
-import services.ItemTimeService;
-import services.SkillService;
-import services.TaskService;
+import nro.services.EffectSkillService;
+import nro.services.ItemTimeService;
+import nro.services.SkillService;
+import nro.services.TaskService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 
@@ -54,21 +63,12 @@ public class Mabu extends Boss {
         if (zoneFinal != null) {
             this.zone = zoneFinal;
         }
-        if (this.zone == null) {
-            return;
-        }
         ChangeMapService.gI().changeMap(this, this.zone, Util.nextInt(300, 400), 336);
         this.changeStatus(BossStatus.CHAT_S);
-        var npcBabiday = MajinBuuService.gI().getNpcBabiday(this.zone);
-        if (npcBabiday != null) {
-            npcBabiday.npcChat(this.zone, "Mabư ! Hãy theo lệnh ta, giết hết bọn chúng đi");
-        }
+        MajinBuuService.gI().getNpcBabiday(this.zone).npcChat(this.zone, "Mabư ! Hãy theo lệnh ta, giết hết bọn chúng đi");
     }
 
     private void petrifyPlayersInTheMap() {
-        if (this.zone == null) {
-            return;
-        }
         for (Player pl : this.zone.getNotBosses()) {
             if (Util.isTrue(1, 10)) {
                 EffectSkillService.gI().setIsStone(pl, 22000);

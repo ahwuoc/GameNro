@@ -1,4 +1,6 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.cost;
 

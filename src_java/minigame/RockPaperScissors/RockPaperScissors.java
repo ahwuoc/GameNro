@@ -1,14 +1,18 @@
 
+/*
+ * ENZEEFX_NROxBarColl
+ */
 package minigame.RockPaperScissors;
 
 import consts.ConstFont;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
+import consts.ConstMiniGame;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import player.Player;
-import services.ItemTimeService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemTimeService;
+import nro.services.Service;
 import utils.Util;
 
 public class RockPaperScissors {
@@ -30,7 +34,7 @@ public class RockPaperScissors {
         player.iDMark.setMoneyKeoBuaBao(tiendatcuoc);
         player.iDMark.setTimePlayKeoBuaBao(System.currentTimeMillis() + (timePlay * 1000));
         ItemTimeService.gI().sendTextTimeKeoBuaBao(player, (int) timePlay);
-        npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
+        npc.createOtherMenu(player, ConstMiniGame.MENU_PLAY_KEO_BUA_BAO,
                 ConstFont.BOLD_GREEN + "Mức vàng cược: " + money + "\n"
                 + ConstFont.BOLD_DARK + "Hãy chọn Kéo, Búa hoặc Bao\n"
                 + ConstFont.BOLD_RED + "Thời gian " + timePlay + " giây bắt đầu",
@@ -56,7 +60,7 @@ public class RockPaperScissors {
                 }
                 break;
             case 3:
-                npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_KEO_BUA_BAO,
+                npc.createOtherMenu(player, ConstMiniGame.MENU_KEO_BUA_BAO,
                         "Hãy chọn mức cược.",
                         "1 Tr vàng",
                         "5 Tr vàng",

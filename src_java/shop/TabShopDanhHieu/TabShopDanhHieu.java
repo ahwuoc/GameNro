@@ -1,7 +1,7 @@
 package shop.TabShopDanhHieu;
 
 import item.Item;
-import player.Player;
+import nro.player.Player;
 import player.badges.BagesTemplate;
 import shop.ItemShop;
 import shop.TabShop;
@@ -27,24 +27,21 @@ public class TabShopDanhHieu extends TabShop {
                         break;
                     }
                 }
+
                 if (shouldAdd) {
-                    List<Item.ItemOption> listOptionBackup = new ArrayList<>(itemShop.options);
-                    itemShop.options.clear();
-                    int percent = BadgesTaskService.sendPercenBadgesTask(player, BagesTemplate.fineIdEffectbyIdItem(itemShop.temp.id));
-                    if (percent != 0) {
-                        boolean optionExists = false;
-                        for (Item.ItemOption option : listOptionBackup) {
-                            if (option.optionTemplate.id == 220) {
-                                optionExists = true;
-                                option.param = percent;
-                                break;
-                            }
-                        }
-                        if (!optionExists) {
-                            itemShop.options.add(new Item.ItemOption(220, percent));
+                    List<Item.ItemOption> listOptionBackup = new ArrayList<>();
+                    for (Item.ItemOption opt : itemShop.options) {
+                        if (opt.optionTemplate.id != 220) {
+                            listOptionBackup.add(opt);
                         }
                     }
+
+                    itemShop.options.clear();
+                    int percent = BadgesTaskService.sendPercenBadgesTask(player, BagesTemplate.fineIdEffectbyIdItem(itemShop.temp.id));
+
                     itemShop.options.addAll(listOptionBackup);
+                    itemShop.options.add(new Item.ItemOption(220, percent));
+
                     this.itemShops.add(new ItemShop(itemShop));
                 }
             }

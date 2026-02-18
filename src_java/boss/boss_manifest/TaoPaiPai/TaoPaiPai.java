@@ -1,10 +1,19 @@
 package boss.boss_manifest.TaoPaiPai;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossesData;
 import static boss.BossType.FINAL;
-import player.Player;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 public class TaoPaiPai extends Boss {

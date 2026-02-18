@@ -1,9 +1,16 @@
 package event;
- 
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.BossManager;
 import event.ievent.IEvent;
-import npc.NpcFactory;
-import services.MapService;
+import nro.models.npc.NpcFactory;
+import nro.services.MapService;
 import utils.Logger;
 
 public abstract class Event implements IEvent {

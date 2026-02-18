@@ -1,7 +1,15 @@
 package utils;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import boss.Boss;
 import boss.BossManager;
-import consts.cn;
+import consts.ConstNpcConfig;
 import item.Item;
 import map.ItemMap;
 import map.Zone;
@@ -11,35 +19,189 @@ import java.text.NumberFormat;
 import java.util.*;
 
 import mob.Mob;
-import npc.Npc;
-import player.Player;
+import nro.models.npc.Npc;
+import nro.player.Player;
 import network.Message;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import server.Client;
-import server.Manager;
-import services.ItemService;
+import nro.server.Client;
+import nro.server.Manager;
+import nro.services.ItemService;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.commons.lang.ArrayUtils;
-import services.TaskService;
+import nro.services.TaskService;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import nro.services.Service;
 
 public class Util {
 
     private static final Random rand;
     private static final SimpleDateFormat dateFormat;
     private static SimpleDateFormat dateFormatDay = new SimpleDateFormat("yyyy-MM-dd");
+    private static final NumberFormat num = NumberFormat.getInstance(new Locale("vi", "VN"));
 
     static {
         rand = new Random();
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    }
+
+    public static boolean nextBoolean() {
+        return new java.util.Random().nextBoolean();
+    }
+    
+    public static String msToTime(long ms) {
+        if (ms <= 0) {
+            return "0s";
+        }
+        long day = ms / (1000 * 60 * 60 * 24);
+        ms = ms % (1000 * 60 * 60 * 24);
+        long hour = ms / (1000 * 60 * 60);
+        ms = ms % (1000 * 60 * 60);
+        long min = ms / (1000 * 60);
+        ms = ms % (1000 * 60);
+        long sec = ms / 1000;
+        StringBuilder time = new StringBuilder();
+        if (day > 0) {
+            time.append(day).append(" ngày, ");
+        }
+        if (hour > 0) {
+            time.append(hour).append(" giờ, ");
+        }
+        if (min > 0) {
+            time.append(min).append(" phút, ");
+        }
+        if (sec > 0) {
+            time.append(sec).append(" giây");
+        }
+        String timeStr = time.toString();
+        if (timeStr.endsWith(", ")) {
+            timeStr = timeStr.substring(0, timeStr.length() - 2);
+        }
+        return timeStr.isEmpty() ? "0s" : timeStr;
+    }
+
+    public static <T> T random(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return list.get(nextInt(0, list.size() - 1));
+    }
+    
+    public static String numberFormat(long number) {
+            DecimalFormat decimalFormat = new DecimalFormat("#,###");
+                return decimalFormat.format(number).replace(',', '.');
+    }
+    
+    public static boolean containsSubstring(String inputString, String pattern) {
+        // Loại bỏ ký tự đặc biệt và khoảng trắng từ chuỗi
+        String cleanedString = inputString.replaceAll("[^a-zA-Z0-9]", "");
+
+        // Kiểm tra xem chuỗi đã được làm sạch có chứa mẫu không
+        return cleanedString.contains(pattern);
+    }
+    
+    public static String formatNumber(long j) {
+        long j2 = (j / 1000) + 1;
+        String str = "";
+        int i = 0;
+        while (((long) i) < j2) {
+            if (j >= 1000) {
+                long j3 = j % 1000;
+                if (j3 == 0) {
+                    StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append(".000");
+                    stringBuilder.append(str);
+                    str = stringBuilder.toString();
+                } else {
+                    StringBuilder stringBuilder2;
+                    String str2;
+                    if (j3 < 10) {
+                        stringBuilder2 = new StringBuilder();
+                        str2 = ".00";
+                    } else if (j3 < 100) {
+                        stringBuilder2 = new StringBuilder();
+                        str2 = ".0";
+                    } else {
+                        stringBuilder2 = new StringBuilder();
+                        str2 = ".";
+                    }
+                    stringBuilder2.append(str2);
+                    stringBuilder2.append(j3);
+                    stringBuilder2.append(str);
+                    str = stringBuilder2.toString();
+                }
+                j /= 1000;
+                i++;
+            } else {
+                StringBuilder stringBuilder3 = new StringBuilder();
+                stringBuilder3.append(j);
+                stringBuilder3.append(str);
+                return stringBuilder3.toString();
+            }
+        }
+        return str;
+    }
+    
+    public static long TamkjllGH(double a) {
+        return (long) a;
+    }
+    
+    public static String generateRandomString() {
+        // Bảng chữ cái không dấu viết hoa
+        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        // Tạo một danh sách chứa 4 chữ cái ngẫu nhiên
+        List<Character> randomLetters = new ArrayList<>();
+        Random random = new Random();
+        for (int i = 0; i < 4; i++) {
+            char randomLetter = letters.charAt(random.nextInt(letters.length()));
+            randomLetters.add(randomLetter);
+        }
+
+        // Tạo một danh sách chứa 2 số ngẫu nhiên từ 0 đến 9
+        List<Integer> randomNumbers = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            int randomNumber = random.nextInt(10);
+            randomNumbers.add(randomNumber);
+        }
+
+        // Kết hợp danh sách chữ cái và danh sách số thành một danh sách tổng
+        List<Object> combinedList = new ArrayList<>();
+        combinedList.addAll(randomLetters);
+        combinedList.addAll(randomNumbers);
+
+        // Trộn danh sách tổng để đảm bảo sự đan xen ngẫu nhiên
+        Collections.shuffle(combinedList);
+
+        // Chuyển danh sách tổng thành một chuỗi và trả về
+        StringBuilder result = new StringBuilder();
+        for (Object element : combinedList) {
+            result.append(element);
+        }
+
+        return result.toString();
+    }
+    
+    public static String formatCurrency(double amount) {
+        String result = "";
+
+        DecimalFormat decimalFormat = new DecimalFormat("#,##0");
+        result = decimalFormat.format(amount);
+
+        return result.replaceAll(",", ".");
+    }
+    
+    public static String formatLocalDateTime(LocalDateTime localDateTime) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+        return localDateTime.format(formatter);
     }
 
     public static int createIdBossClone(int idPlayer) {
@@ -48,6 +210,38 @@ public class Util {
 
     public static boolean contains(String[] arr, String key) {
         return Arrays.toString(arr).contains(key);
+    }
+    
+    public static String convertMillisecondsToSeconds(long milliseconds) {
+        double seconds = (double) milliseconds / 1000;
+        return String.format("%.2f", seconds).replace('.', ',');
+    }
+    
+    public static String convertSecondsToTime(long totalSeconds) {
+        if (totalSeconds < 60) {
+            return totalSeconds + " giây trước";
+        } else if (totalSeconds < 3600) {
+            long minutes = totalSeconds / 60;
+            return minutes + " phút" + " trước";
+        } else if (totalSeconds < 86400) {
+            long hours = totalSeconds / 3600;
+            return hours + " giờ" + " trước";
+        } else {
+            long days = totalSeconds / 86400;
+            return days + " ngày" + " trước";
+        }
+    }
+    
+    public static String convertMilliseconds(long milliseconds) {
+        long seconds = milliseconds / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+
+        return minutes + " m " + seconds + " s";
+    }
+    
+    public static String format(double inputFormat) {
+        return num.format((double) inputFormat);
     }
 
     public static String numberToMoney(long power) {
@@ -63,6 +257,11 @@ public class Util {
         } else {
             return num.format(power);
         }
+    }
+    
+    
+    public static int getPercent(int value, int percent) {
+        return value / 100 * percent;
     }
 
     public static String powerToString(long power) {
@@ -106,9 +305,6 @@ public class Util {
     }
 
     public static int nextInt(int from, int to) {
-        if (to < from) {
-            return from; // Tránh lỗi bound must be positive
-        }
         return from + rand.nextInt(to - from + 1);
     }
 
@@ -135,8 +331,8 @@ public class Util {
         return i;
     }
 
-    public static long toIntOrLong(double a) {
-        if (cn.readInt) {
+    public static long maxIntValue(double a) {
+        if (ConstNpcConfig.readInt) {
             if (a > Integer.MAX_VALUE) {
                 a = Integer.MAX_VALUE;
             }
@@ -193,29 +389,29 @@ public class Util {
         return System.currentTimeMillis() - lastTime > miniTimeTarget;
     }
 
-    private static final char[] SOURCE_CHARACTERS = { 'À', 'Á', 'Â', 'Ã', 'È', 'É',
-            'Ê', 'Ì', 'Í', 'Ò', 'Ó', 'Ô', 'Õ', 'Ù', 'Ú', 'Ý', 'à', 'á', 'â',
-            'ã', 'è', 'é', 'ê', 'ì', 'í', 'ò', 'ó', 'ô', 'õ', 'ù', 'ú', 'ý',
-            'Ă', 'ă', 'Đ', 'đ', 'Ĩ', 'ĩ', 'Ũ', 'ũ', 'Ơ', 'ơ', 'Ư', 'ư', 'Ạ',
-            'ạ', 'Ả', 'ả', 'Ấ', 'ấ', 'Ầ', 'ầ', 'Ẩ', 'ẩ', 'Ẫ', 'ẫ', 'Ậ', 'ậ',
-            'Ắ', 'ắ', 'Ằ', 'ằ', 'Ẳ', 'ẳ', 'Ẵ', 'ẵ', 'Ặ', 'ặ', 'Ẹ', 'ẹ', 'Ẻ',
-            'ẻ', 'Ẽ', 'ẽ', 'Ế', 'ế', 'Ề', 'ề', 'Ể', 'ể', 'Ễ', 'ễ', 'Ệ', 'ệ',
-            'Ỉ', 'ỉ', 'Ị', 'ị', 'Ọ', 'ọ', 'Ỏ', 'ỏ', 'Ố', 'ố', 'Ồ', 'ồ', 'Ổ',
-            'ổ', 'Ỗ', 'ỗ', 'Ộ', 'ộ', 'Ớ', 'ớ', 'Ờ', 'ờ', 'Ở', 'ở', 'Ỡ', 'ỡ',
-            'Ợ', 'ợ', 'Ụ', 'ụ', 'Ủ', 'ủ', 'Ứ', 'ứ', 'Ừ', 'ừ', 'Ử', 'ử', 'Ữ',
-            'ữ', 'Ự', 'ự', };
+    private static final char[] SOURCE_CHARACTERS = {'À', 'Á', 'Â', 'Ã', 'È', 'É',
+        'Ê', 'Ì', 'Í', 'Ò', 'Ó', 'Ô', 'Õ', 'Ù', 'Ú', 'Ý', 'à', 'á', 'â',
+        'ã', 'è', 'é', 'ê', 'ì', 'í', 'ò', 'ó', 'ô', 'õ', 'ù', 'ú', 'ý',
+        'Ă', 'ă', 'Đ', 'đ', 'Ĩ', 'ĩ', 'Ũ', 'ũ', 'Ơ', 'ơ', 'Ư', 'ư', 'Ạ',
+        'ạ', 'Ả', 'ả', 'Ấ', 'ấ', 'Ầ', 'ầ', 'Ẩ', 'ẩ', 'Ẫ', 'ẫ', 'Ậ', 'ậ',
+        'Ắ', 'ắ', 'Ằ', 'ằ', 'Ẳ', 'ẳ', 'Ẵ', 'ẵ', 'Ặ', 'ặ', 'Ẹ', 'ẹ', 'Ẻ',
+        'ẻ', 'Ẽ', 'ẽ', 'Ế', 'ế', 'Ề', 'ề', 'Ể', 'ể', 'Ễ', 'ễ', 'Ệ', 'ệ',
+        'Ỉ', 'ỉ', 'Ị', 'ị', 'Ọ', 'ọ', 'Ỏ', 'ỏ', 'Ố', 'ố', 'Ồ', 'ồ', 'Ổ',
+        'ổ', 'Ỗ', 'ỗ', 'Ộ', 'ộ', 'Ớ', 'ớ', 'Ờ', 'ờ', 'Ở', 'ở', 'Ỡ', 'ỡ',
+        'Ợ', 'ợ', 'Ụ', 'ụ', 'Ủ', 'ủ', 'Ứ', 'ứ', 'Ừ', 'ừ', 'Ử', 'ử', 'Ữ',
+        'ữ', 'Ự', 'ự',};
 
-    private static final char[] DESTINATION_CHARACTERS = { 'A', 'A', 'A', 'A', 'E',
-            'E', 'E', 'I', 'I', 'O', 'O', 'O', 'O', 'U', 'U', 'Y', 'a', 'a',
-            'a', 'a', 'e', 'e', 'e', 'i', 'i', 'o', 'o', 'o', 'o', 'u', 'u',
-            'y', 'A', 'a', 'D', 'd', 'I', 'i', 'U', 'u', 'O', 'o', 'U', 'u',
-            'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A',
-            'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'E', 'e',
-            'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E',
-            'e', 'I', 'i', 'I', 'i', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o',
-            'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O',
-            'o', 'O', 'o', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u',
-            'U', 'u', 'U', 'u', };
+    private static final char[] DESTINATION_CHARACTERS = {'A', 'A', 'A', 'A', 'E',
+        'E', 'E', 'I', 'I', 'O', 'O', 'O', 'O', 'U', 'U', 'Y', 'a', 'a',
+        'a', 'a', 'e', 'e', 'e', 'i', 'i', 'o', 'o', 'o', 'o', 'u', 'u',
+        'y', 'A', 'a', 'D', 'd', 'I', 'i', 'U', 'u', 'O', 'o', 'U', 'u',
+        'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A',
+        'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'A', 'a', 'E', 'e',
+        'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E',
+        'e', 'I', 'i', 'I', 'i', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o',
+        'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O', 'o', 'O',
+        'o', 'O', 'o', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u',
+        'U', 'u', 'U', 'u',};
 
     public static char removeAccent(char ch) {
         int index = Arrays.binarySearch(SOURCE_CHARACTERS, ch);
@@ -262,6 +458,32 @@ public class Util {
         }
         return arr0;
     }
+    
+    public static ItemMap saoPhaLe(Zone zone, int tempId, int quantity, int x, int y, int playerId) {
+        ItemMap it = new ItemMap(zone, tempId, quantity, x, y, playerId);
+        switch (tempId) {
+            case 441 ->
+                it.options.add(new Item.ItemOption(95, 5));
+            case 442 ->
+                it.options.add(new Item.ItemOption(96, 5));
+            case 443 ->
+                it.options.add(new Item.ItemOption(97, 5));
+            case 444 ->
+                it.options.add(new Item.ItemOption(99, 3));
+            case 445 ->
+                it.options.add(new Item.ItemOption(98, 3));
+            case 446 ->
+                it.options.add(new Item.ItemOption(100, 5));
+            case 447 ->
+                it.options.add(new Item.ItemOption(101, 5));
+            case 459 -> {
+                it.options.add(new Item.ItemOption(112, 80));
+                it.options.add(new Item.ItemOption(93, 90));
+                it.options.add(new Item.ItemOption(30, 1));
+            }
+        }
+        return it;
+    }
 
     public static ItemMap ratiDTL(Zone zone, int tempId, int quantity, int x, int y, long playerId) {
         ItemMap it = new ItemMap(zone, tempId, quantity, x, zone.map.yPhysicInTop(x, y - 24), playerId);
@@ -271,20 +493,16 @@ public class Util {
         List<Integer> giay = Arrays.asList(563, 565, 567);
         int ntl = 561;
         if (ao.contains(tempId)) {
-            it.options.add(new Item.ItemOption(47,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(501) + 1300)));
+            it.options.add(new Item.ItemOption(47, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(501) + 1300)));
         }
         if (quan.contains(tempId)) {
-            it.options.add(new Item.ItemOption(22,
-                    highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(11) + 45)));
+            it.options.add(new Item.ItemOption(22, highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(11) + 45)));
         }
         if (gang.contains(tempId)) {
-            it.options.add(new Item.ItemOption(0,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(1001) + 3500)));
+            it.options.add(new Item.ItemOption(0, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(1001) + 3500)));
         }
         if (giay.contains(tempId)) {
-            it.options.add(new Item.ItemOption(23,
-                    highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(11) + 35)));
+            it.options.add(new Item.ItemOption(23, highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(11) + 35)));
         }
         if (ntl == tempId) {
             it.options.add(new Item.ItemOption(14, new Random().nextInt(2) + 15));
@@ -310,27 +528,21 @@ public class Util {
         List<Integer> giay = Arrays.asList(269, 273, 277);
         int rd12 = 281;
         if (ao.contains(tempId)) {
-            it.options.add(new Item.ItemOption(47,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(121) + 350)));// giáp 350-470
+            it.options.add(new Item.ItemOption(47, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(121) + 350)));//giáp 350-470
         }
         if (quan.contains(tempId)) {
-            it.options.add(
-                    new Item.ItemOption(22, highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(5) + 20)));// hp
-                                                                                                                        // 20-24k
+            it.options.add(new Item.ItemOption(22, highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(5) + 20)));//hp 20-24k
         }
         if (gang.contains(tempId)) {
-            it.options.add(new Item.ItemOption(0,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(51) + 2200)));// 2200-2250
+            it.options.add(new Item.ItemOption(0, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(51) + 2200)));//2200-2250
         }
         if (giay.contains(tempId)) {
-            it.options.add(
-                    new Item.ItemOption(23, highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(4) + 20)));// 20-23k
-                                                                                                                        // ki
+            it.options.add(new Item.ItemOption(23, highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(4) + 20)));//20-23k ki
         }
         if (rd12 == tempId) {
-            it.options.add(new Item.ItemOption(14, new Random().nextInt(3) + 10));// 10-12cm
+            it.options.add(new Item.ItemOption(14, new Random().nextInt(3) + 10));//10-12cm
         }
-        it.options.add(new Item.ItemOption(207, 1));// đồ rơi từ boss
+        it.options.add(new Item.ItemOption(207, 1));//đồ rơi từ boss
         if (Util.isTrue(70, 100)) {// tỉ lệ ra spl 1-3 sao 70%
             it.options.add(new Item.ItemOption(107, new Random().nextInt(1) + 3));
         } else if (Util.isTrue(4, 100)) {// tỉ lệ ra spl 5-7 sao 4%
@@ -349,20 +561,16 @@ public class Util {
         List<Integer> giay = Arrays.asList(563, 565, 567);
         int ntl = 561;
         if (ao.contains(tempId)) {
-            it.itemOptions.add(
-                    new Item.ItemOption(47, highlightsItem(it.template.gender == 2, new Random().nextInt(501) + 1000)));
+            it.itemOptions.add(new Item.ItemOption(47, highlightsItem(it.template.gender == 2, new Random().nextInt(501) + 1000)));
         }
         if (quan.contains(tempId)) {
-            it.itemOptions.add(
-                    new Item.ItemOption(22, highlightsItem(it.template.gender == 0, new Random().nextInt(11) + 45)));
+            it.itemOptions.add(new Item.ItemOption(22, highlightsItem(it.template.gender == 0, new Random().nextInt(11) + 45)));
         }
         if (gang.contains(tempId)) {
-            it.itemOptions.add(
-                    new Item.ItemOption(0, highlightsItem(it.template.gender == 2, new Random().nextInt(1001) + 3500)));
+            it.itemOptions.add(new Item.ItemOption(0, highlightsItem(it.template.gender == 2, new Random().nextInt(1001) + 3500)));
         }
         if (giay.contains(tempId)) {
-            it.itemOptions.add(
-                    new Item.ItemOption(23, highlightsItem(it.template.gender == 1, new Random().nextInt(11) + 35)));
+            it.itemOptions.add(new Item.ItemOption(23, highlightsItem(it.template.gender == 1, new Random().nextInt(11) + 35)));
         }
         if (ntl == tempId) {
             it.itemOptions.add(new Item.ItemOption(14, new Random().nextInt(3) + 15));
@@ -379,20 +587,16 @@ public class Util {
         List<Integer> giay = Arrays.asList(563, 565, 567);
         int ntl = 561;
         if (ao.contains(tempId)) {
-            it.options.add(new Item.ItemOption(47,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(501) + 1000)));
+            it.options.add(new Item.ItemOption(47, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(501) + 1000)));
         }
         if (quan.contains(tempId)) {
-            it.options.add(new Item.ItemOption(22,
-                    highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(11) + 45)));
+            it.options.add(new Item.ItemOption(22, highlightsItem(it.itemTemplate.gender == 0, new Random().nextInt(11) + 45)));
         }
         if (gang.contains(tempId)) {
-            it.options.add(new Item.ItemOption(0,
-                    highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(1001) + 3500)));
+            it.options.add(new Item.ItemOption(0, highlightsItem(it.itemTemplate.gender == 2, new Random().nextInt(1001) + 3500)));
         }
         if (giay.contains(tempId)) {
-            it.options.add(new Item.ItemOption(23,
-                    highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(11) + 35)));
+            it.options.add(new Item.ItemOption(23, highlightsItem(it.itemTemplate.gender == 1, new Random().nextInt(11) + 35)));
         }
         if (ntl == tempId) {
             it.options.add(new Item.ItemOption(14, new Random().nextInt(3) + 15));
@@ -495,15 +699,16 @@ public class Util {
     }
 
     public static void checkPlayer(Player player) {
-        new Thread(() -> {
+        Thread.startVirtualThread(() -> {
             List<Player> list = Client.gI().getPlayers().stream()
-                    .filter(p -> !p.isDeTu && !p.isNewPet && p.getSession().userId == player.getSession().userId)
+                    .filter(p -> !p.isPet && !p.isNewPet)
+                    .filter(p -> p.getSession().userId == player.getSession().userId)
                     .collect(Collectors.toList());
+
             if (list.size() > 1) {
                 list.forEach(pp -> Client.gI().kickSession(pp.getSession()));
-                list.clear();
             }
-        }).start();
+        });
     }
 
     public static boolean isAfterMidnight(long currenttimemillis) {
@@ -599,13 +804,13 @@ public class Util {
     }
 
     public static void setTimeout(Runnable runnable, int delay) {
-        new Thread(() -> {
+        Thread.startVirtualThread(() -> {
             try {
                 Thread.sleep(delay);
                 runnable.run();
             } catch (InterruptedException e) {
             }
-        }).start();
+        });
     }
 
     public static String addSlashes(String input) {
@@ -682,7 +887,7 @@ public class Util {
 
     public static String dvp2(double n) {
         if (n >= 1000) {
-            String[] suffixes = { "", "k", "m", "b" };
+            String[] suffixes = {"", "k", "m", "b"};
             int index = 0;
             while (n >= 1000 && index < suffixes.length - 1) {
                 index++;
@@ -691,6 +896,36 @@ public class Util {
             return String.format("%.2f%s", n, suffixes[index]);
         }
         return String.valueOf((int) n);
+    }
+    
+    public static String msToTimeNdung(long ms) {
+        ms = ms - System.currentTimeMillis();
+        if (ms < 0) {
+            ms = 0;
+        }
+        long sec;
+        long min;
+        long hour;
+        long hour_in_day;
+        long day;
+        sec = ms / 1000;
+        min = (sec / 60);
+        sec = sec % 60;
+        hour = (min / 60);
+        hour_in_day = hour % 24;
+        min = min % 60;
+        day = hour / 24;
+        if (day != 0) {
+            return String.valueOf(day) + " ngày, " + String.valueOf(hour_in_day) + " giờ, " + String.valueOf(min) + " phút, " + String.valueOf(sec) + " giây";
+        } else if (hour != 0) {
+            return String.valueOf(hour) + " giờ, " + String.valueOf(min) + " phút, " + String.valueOf(sec) + " giây";
+        } else if (min != 0) {
+            return String.valueOf(min) + " phút, " + String.valueOf(sec) + " giây";
+        } else if (sec != 0) {
+            return String.valueOf(sec) + " giây";
+        } else {
+            return "0s";
+        }
     }
 
     public static String toDateString(Date date) {
@@ -735,5 +970,72 @@ public class Util {
         }
         Arrays.sort(answer);
         return answer;
+    }
+    
+    public static int dropItemBossSoi(Boss boss, Player plKill) {
+        int quantity = Util.nextInt(10, 30);
+        int maxPerDrop = 5;
+        int numDrops = (int) Math.ceil((double) quantity / maxPerDrop);
+        int totalItemsDropped = 0;
+
+        for (int i = 0; i < numDrops; i++) {
+            int qty = Math.min(maxPerDrop, quantity - i * maxPerDrop);
+            int x = boss.location.x + Util.nextInt(-30, 30);
+            int y = boss.zone.map.yPhysicInTop(x, boss.location.y - 24);
+            Service.gI().dropItemMap(boss.zone, new ItemMap(boss.zone, 1905, qty, x, y, plKill.id));
+            totalItemsDropped += qty;
+        }
+
+        if (Util.isTrue(50, 100)) {
+            ItemMap itemMap = new ItemMap(boss.zone, 1885, 1,
+                    boss.location.x + Util.nextInt(-30, 30),
+                    boss.zone.map.yPhysicInTop(boss.location.x, boss.location.y - 24),
+                    plKill.id);
+            int randomPair = Util.nextInt(0, 2);
+            switch (randomPair) {
+                case 0 ->
+                    itemMap.options.add(new Item.ItemOption(50, Util.nextInt(5, 10)));
+                case 1 ->
+                    itemMap.options.add(new Item.ItemOption(77, Util.nextInt(5, 10)));
+                default ->
+                    itemMap.options.add(new Item.ItemOption(103, Util.nextInt(5, 10)));
+            }
+            Service.gI().dropItemMap(boss.zone, itemMap);
+            totalItemsDropped += 1;
+        }
+        return totalItemsDropped;
+    }
+    
+    public static ItemMap spl(Zone zone, int tempId, int quantity, int x, int y, long playerId) {
+        ItemMap it = new ItemMap(zone, tempId, quantity, x, y, playerId);
+        int spl = 441;
+        int spl1 = 442;
+        int spl2 = 443;
+        int spl3 = 444;
+        int spl4 = 445;
+        int spl5 = 446;
+        int spl6 = 447;
+        if (spl == tempId) {
+            it.options.add(new Item.ItemOption(95, 5));
+        }
+        if (spl1 == tempId) {
+            it.options.add(new Item.ItemOption(96, 5));
+        }
+        if (spl2 == tempId) {
+            it.options.add(new Item.ItemOption(97, 5));
+        }
+        if (spl3 == tempId) {
+            it.options.add(new Item.ItemOption(99, 3));
+        }
+        if (spl4 == tempId) {
+            it.options.add(new Item.ItemOption(98, 3));
+        }
+        if (spl5 == tempId) {
+            it.options.add(new Item.ItemOption(100, 5));
+        }
+        if (spl6 == tempId) {
+            it.options.add(new Item.ItemOption(101, 5));
+        }
+        return it;
     }
 }

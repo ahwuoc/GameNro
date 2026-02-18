@@ -1,5 +1,12 @@
 package models.The23rdMartialArtCongress;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
 import boss.boss_manifest.The23rdMartialArtCongress.TauPayPay;
 import boss.boss_manifest.The23rdMartialArtCongress.PonPut;
@@ -16,11 +23,11 @@ import boss.boss_manifest.The23rdMartialArtCongress.Xinbato;
 import consts.ConstPlayer;
 import boss.Boss;
 import boss.BossStatus;
-import player.Player;
-import services.EffectSkillService;
-import services.ItemTimeService;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.ItemTimeService;
+import nro.services.PlayerService;
+import nro.services.Service;
 import lombok.Getter;
 import lombok.Setter;
 import map.Zone;
@@ -244,7 +251,7 @@ public class The23rdMartialArtCongress {
                 player.nPoint.hp = player.nPoint.hpMax;
                 player.nPoint.mp = player.nPoint.mpMax;
                 Service.gI().Send_Info_NV(player);
-//                PlayerService.gI().hoiSinh(player);
+                PlayerService.gI().hoiSinh(player);
             }
             PlayerService.gI().changeAndSendTypePK(player, ConstPlayer.NON_PK);
             if (player != null && player.zone != null && player.zone.map.mapId == 129) {

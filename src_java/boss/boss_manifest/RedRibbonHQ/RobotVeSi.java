@@ -1,13 +1,22 @@
 package boss.boss_manifest.RedRibbonHQ;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstPlayer;
 import boss.*;
 import static boss.BossType.PHOBANDT;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
+import nro.player.Player;
 import skill.Skill;
-import services.EffectSkillService;
-import services.Service;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -38,8 +47,12 @@ public class RobotVeSi extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        if (Util.isTrue(20, 100)) {
-            ItemMap it = new ItemMap(this.zone, Util.nextInt(17, 20), 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
+        if (Util.isTrue(100, 100)) {
+            ItemMap it = new ItemMap(this.zone, Util.nextInt(16, 20), 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
+                    this.location.y - 24), plKill.id);
+            Service.gI().dropItemMap(this.zone, it);
+        } else if (Util.isTrue(1, 100)) {
+            ItemMap it = new ItemMap(this.zone, 1862, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
                     this.location.y - 24), plKill.id);
             Service.gI().dropItemMap(this.zone, it);
         }

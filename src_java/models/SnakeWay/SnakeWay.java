@@ -1,6 +1,13 @@
 package models.SnakeWay;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import boss.boss_manifest.SnakeWay.SAIBAMEN;
 import boss.boss_manifest.SnakeWay.NADIC;
 import boss.boss_manifest.SnakeWay.CADICH;
@@ -9,19 +16,19 @@ import boss.BossStatus;
 import clan.Clan;
 import map.Zone;
 import mob.Mob;
-import player.Player;
-import services.ItemTimeService;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemTimeService;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
-import server.Maintenance;
-import services.ClanService;
-import services.ItemMapService;
+import nro.server.Maintenance;
+import nro.services.ClanService;
+import nro.services.ItemMapService;
 import utils.TimeUtil;
 
 @Data
@@ -101,14 +108,35 @@ public class SnakeWay implements Runnable {
                 for (Zone zone : zones) {
                     List<Player> players = zone.getPlayers();
                     for (Player pl : players) {
-                        Service.gI().sendThongBao(pl, "Trận chiến với người Xayda sẽ kết thúc sau "
-                                + TimeUtil.getTimeLeft(timeKickOutCDRD, 60) + " nữa");
+                        sendThanhTichCDRD(pl);
+                        Service.gI().sendThongBao(pl, "Trận chiến với người Xayda sẽ kết thúc sau " + TimeUtil.getTimeLeft(timeKickOutCDRD, 60) + " nữa");
                     }
 
                 }
             }
 
         }
+    }
+    
+    public void sendThanhTichCDRD(Player pl) {
+        if (pl == null || pl.clan == null || pl.clan.BanDoKhoBau == null) {
+            return;
+        }
+        long timeDoneKhiGas;
+        timeDoneKhiGas = System.currentTimeMillis() - pl.clan.lastTimeOpenConDuongRanDoc;
+        int levelDoneKG;
+        levelDoneKG = pl.clan.ConDuongRanDoc.level;
+        if (levelDoneKG > pl.clan.levelDoneConDuongRanDoc) {
+            pl.clan.levelDoneConDuongRanDoc = levelDoneKG;
+            pl.clan.thoiGianHoanThanhCDRD = timeDoneKhiGas;
+        } else if (levelDoneKG == pl.clan.levelDoneConDuongRanDoc) {
+            if (timeDoneKhiGas < pl.clan.thoiGianHoanThanhCDRD) {
+                pl.clan.thoiGianHoanThanhCDRD = timeDoneKhiGas;
+            }
+        }
+        pl.clan.updatethanhTichCDRD(pl.clan.id);
+        pl.clan.updatethanhTichCDRDForLeader();
+        pl.clan.updateThongTinLeader(pl.clan.id);
     }
 
     public void openConDuongRanDoc(Player plOpen, Clan clan, byte level) {
@@ -129,62 +157,60 @@ public class SnakeWay implements Runnable {
     }
 
     private void init() {
-        // Hồi sinh quái
+        // --- Hồi sinh quái ---
         for (Zone zone : this.zones) {
             List<Mob> mobs = zone.mobs;
             for (int i = 0; i < mobs.size(); i++) {
                 Mob mob = mobs.get(i);
-                if (i == 5) {
-                    mob.lvMob = 1;
-                    mob.point.dame = Util.toIntOrLong(level * 100 * mob.tempId * 12);
-                    mob.point.maxHp = Util.toIntOrLong(level * 1000 * mob.tempId * 12);
-                    mob.hoiSinh();
-                    mob.hoiSinhMobPhoBan();
-                } else {
-                    mob.lvMob = 0;
-                    mob.point.dame = Util.toIntOrLong(level * 100 * mob.tempId);
-                    mob.point.maxHp = Util.toIntOrLong(level * 1000 * mob.tempId);
-                    mob.hoiSinh();
-                    mob.hoiSinhMobPhoBan();
-                }
+                boolean isSpecialMob = (i == 5);
+
+                mob.lvMob = isSpecialMob ? 1 : 0;
+                int dameMultiplier = isSpecialMob ? 12 : 1;
+                int hpMultiplier = isSpecialMob ? 12 : 1;
+
+                mob.point.dame = Util.maxIntValue(level * 100 * mob.tempId * dameMultiplier);
+                mob.point.maxHp = Util.maxIntValue(level * 1000 * mob.tempId * hpMultiplier);
+                mob.hoiSinh();
+                mob.hoiSinhMobPhoBan();
             }
 
+            // --- Boss ---
             if (zone.map.mapId == 144) {
                 try {
-                    long bossDamage = (200000 * level);
-                    long bossMaxHealth = (2000000 * level);
+                    long baseDame = 200_000L * level;
+                    long baseHp = 2_000_000L * level;
+
+                    // 6 SAIBAMEN
                     for (int i = 6; i > 0; i--) {
-                        bossDamage = Util.toIntOrLong((bossDamage));
-                        bossMaxHealth = Util.toIntOrLong((bossMaxHealth));
                         bosses.add(new SAIBAMEN(
-                                zone,
-                                clan,
-                                i,
-                                bossDamage,
-                                bossMaxHealth));
+                                zone, clan, i,
+                                Util.maxIntValue(baseDame),
+                                Util.maxIntValue(baseHp)
+                        ));
                     }
-                    bossDamage = Util.toIntOrLong((bossDamage * 5));
-                    bossMaxHealth = Util.toIntOrLong((bossMaxHealth * 5));
-                    bosses.add(new NADIC(
-                            zone,
-                            clan,
-                            bossDamage,
-                            bossMaxHealth));
-                    bossDamage = Util.toIntOrLong((bossDamage * 10));
-                    bossMaxHealth = Util.toIntOrLong((bossMaxHealth * 10));
-                    bosses.add(new CADICH(
-                            zone,
-                            clan,
-                            bossDamage,
-                            bossMaxHealth));
-                } catch (Exception exception) {
+
+                    // NADIC
+                    long nadicDame = Util.maxIntValue(baseDame * 5);
+                    long nadicHp = Util.maxIntValue(baseHp * 5);
+                    bosses.add(new NADIC(zone, clan, nadicDame, nadicHp));
+
+                    // CADICH
+                    long cadicDame = Util.maxIntValue(baseDame * 10);
+                    long cadicHp = Util.maxIntValue(baseHp * 10);
+                    bosses.add(new CADICH(zone, clan, cadicDame, cadicHp));
+
+                } catch (Exception ignored) {
                 }
             }
         }
-        new Thread(this, "Con Đường Rắn Độc: " + this.clan.name).start();
+
+        // --- Thread chạy riêng ---
+        Thread.ofVirtual()
+                .name("Con Đường Rắn Độc: " + this.clan.name)
+                .start(this);
     }
 
-    // kết thúc con đường rắn độc
+    //kết thúc con đường rắn độc
     public void finish() {
         for (Zone zone : zones) {
             for (int i = zone.getPlayers().size() - 1; i >= 0; i--) {
@@ -200,6 +226,7 @@ public class SnakeWay implements Runnable {
     private void kickOutOfCDRD(Player player) {
         if (MapService.gI().isMapConDuongRanDoc(player.zone.map.mapId)) {
             ChangeMapService.gI().changeMapBySpaceShip(player, 5, -1, 1038);
+            sendThanhTichCDRD(player);
         }
     }
 

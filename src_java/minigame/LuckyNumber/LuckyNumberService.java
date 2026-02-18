@@ -1,18 +1,18 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 package minigame.LuckyNumber;
 
-import item.Item;
 import minigame.cost.LuckyNumberCost;
 import network.Message;
-import player.Player;
-import services.ItemTimeService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemTimeService;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import services.InventoryService;
 
 public class LuckyNumberService {
 
@@ -151,7 +151,6 @@ public class LuckyNumberService {
                 return;
             }
             pl.inventory.gem -= LuckyNumberCost.costPlayGem;
-           
         } else {
             if (pl.inventory.gold < LuckyNumberCost.costPlayGold) {
                 Service.gI().sendThongBao(pl, "Bạn không đủ vàng, còn thiếu " + Util.numberToMoney(LuckyNumberCost.costGold - pl.inventory.gold) + " vàng nữa");
@@ -183,15 +182,12 @@ public class LuckyNumberService {
                 return;
             }
             pl.inventory.gem -= LuckyNumberCost.costPlayGem;
-           
         } else {
-            Item tv = InventoryService.gI().findItemBag(pl, 457);
-            if(tv==null|| tv.quantity <10){
-            Service.gI().sendThongBao(pl, "Kiếm 10 thỏi vàng rồi anh chó chú chơi");
-            return;
-        }
-            InventoryService.gI().subQuantityItemsBag(pl, tv, 10);
-           InventoryService.gI().sendItemBag(pl);
+            if (pl.inventory.gold < LuckyNumberCost.costPlayGold) {
+                Service.gI().sendThongBao(pl, "Bạn không đủ vàng, còn thiếu " + Util.numberToMoney(LuckyNumberCost.costGold - pl.inventory.gold) + " vàng nữa");
+                return;
+            }
+            pl.inventory.gold -= LuckyNumberCost.costPlayGold;
         }
         Service.gI().sendMoney(pl);
         addData(pl, numberRandom, pl.iDMark.isGemCSMM());

@@ -1,7 +1,14 @@
 package services.func;
- 
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import utils.Functions;
 import network.Message;
 import consts.ConstNpc;
 import jdbc.daos.NDVSqlFetcher;
@@ -9,12 +16,12 @@ import jdbc.daos.PlayerDAO;
 import item.Item;
 import java.util.List;
 import map.Zone;
-import player.Player;
-import server.Client;
-import services.InventoryService;
-import services.ItemService;
-import services.NpcService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Client;
+import nro.services.InventoryService;
+import nro.services.ItemService;
+import nro.services.NpcService;
+import nro.services.Service;
 import utils.Util;
 
 public class SummonDragonNamek {
@@ -44,7 +51,7 @@ public class SummonDragonNamek {
     }
 
     private SummonDragonNamek() {
-        this.update = new Thread(() -> {
+        this.update = Thread.ofVirtual().unstarted(() -> {
             while (active) {
                 try {
                     if (isShenronAppear) {
@@ -58,25 +65,29 @@ public class SummonDragonNamek {
                                     break;
                                 }
                             }
-
                         }
+
                         if (Util.canDoWithTime(lastTimeShenronWait, timeShenronWait)) {
                             shenronLeave(playerSummonShenron, TIME_UP);
                         }
                     }
-                 Functions.sleep(1000);
+
+                    Functions.sleep(1000); // ngủ 1 giây giữa các vòng lặp
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         });
+
         this.active();
     }
 
     private void active() {
         if (!active) {
             active = true;
-            this.update.start();
+            if (!update.isAlive()) {
+                update.start();
+            }
         }
     }
 
@@ -109,7 +120,7 @@ public class SummonDragonNamek {
                 msg.writer().writeShort(pl.zone.map.bgId);
                 msg.writer().writeByte(pl.zone.zoneId);
                 msg.writer().writeInt((int) pl.id);
-                msg.writer().writeUTF("ducpro");
+                msg.writer().writeUTF("BARCOLLxENZEEFXNRO");
                 msg.writer().writeShort(pl.location.x);
                 msg.writer().writeShort(pl.location.y);
                 msg.writer().writeByte(type);

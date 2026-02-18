@@ -1,5 +1,13 @@
 package models;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import consts.ConstMap;
 import map.WayPoint;
 import skill.Skill;
 import java.util.ArrayList;
@@ -116,7 +124,7 @@ public class Template {
 
         public byte[] mobTemp;
         public byte[] mobLevel;
-        public int[] mobHp;
+        public long[] mobHp;
         public short[] mobX;
         public short[] mobY;
 
@@ -124,11 +132,17 @@ public class Template {
         public short[] npcX;
         public short[] npcY;
         public List<EffectMap> effectMaps;
-
+        
         public MapTemplate() {
             this.wayPoints = new ArrayList<>();
             this.effectMaps = new ArrayList<>();
         }
+
+        public boolean isMapOffline() {
+            return this.type == ConstMap.MAP_OFFLINE;
+        }
+
+        
     }
 
     public static class SkillTemplate {
@@ -146,8 +160,8 @@ public class Template {
         public int type;
 
         public int iconId;
-
-        public String[] description;
+        
+        public String description;
 
         public Skill[] skills;
 

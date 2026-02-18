@@ -1,7 +1,7 @@
 package shop.TabShopDanhHieu;
 
 import item.Item;
-import player.Player;
+import nro.player.Player;
 import player.badges.BagesTemplate;
 import shop.ItemShop;
 import shop.TabShop;

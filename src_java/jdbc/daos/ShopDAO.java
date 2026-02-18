@@ -1,5 +1,13 @@
 package jdbc.daos;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import item.Item;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -7,7 +15,7 @@ import org.json.simple.JSONValue;
 import shop.ItemShop;
 import shop.Shop;
 import shop.TabShop;
-import services.ItemService;
+import nro.services.ItemService;
 import utils.Logger;
 
 import java.sql.Connection;
@@ -120,26 +128,26 @@ public class ShopDAO {
         }
     }
 
-//    private static void loadItemShopOption(Connection con, ItemShop itemShop) {
-//        try {
-//            PreparedStatement ps = con.prepareStatement("select * from item_shop_option where item_shop_id = ?");
-//            ps.setInt(1, itemShop.id);
-//            ResultSet rs = ps.executeQuery();
-//            while (rs.next()) {
-//                itemShop.options.add(new Item.ItemOption(rs.getInt("option_id"), rs.getInt("param")));
-//            }
-//            try {
-//                if (rs != null) {
-//                    rs.close();
-//                }
-//                if (ps != null) {
-//                    ps.close();
-//                }
-//            } catch (SQLException ex) {
-//            }
-//        } catch (Exception e) {
-//            Logger.logException(ShopDAO.class, e);
-//        }
-//    }
+    private static void loadItemShopOption(Connection con, ItemShop itemShop) {
+        try {
+            PreparedStatement ps = con.prepareStatement("select * from item_shop_option where item_shop_id = ?");
+            ps.setInt(1, itemShop.id);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                itemShop.options.add(new Item.ItemOption(rs.getInt("option_id"), rs.getInt("param")));
+            }
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (ps != null) {
+                    ps.close();
+                }
+            } catch (SQLException ex) {
+            }
+        } catch (Exception e) {
+            Logger.logException(ShopDAO.class, e);
+        }
+    }
 
 }

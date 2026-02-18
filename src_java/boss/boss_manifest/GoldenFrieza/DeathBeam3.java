@@ -1,12 +1,21 @@
 package boss.boss_manifest.GoldenFrieza;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
 import static boss.BossType.SKILLSUMMONED;
-import player.Player;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -131,7 +140,7 @@ public class DeathBeam3 extends Boss {
 
     @Override
     public void setDie() {
-//        playerAtt.setDie();
+        playerAtt.setDie();
         playerAtt.injured(this.playerUseSkill, 2_100_000_000, true, false);
     }
 }

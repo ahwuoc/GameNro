@@ -2,7 +2,7 @@ package network.io;
 
 
 
-import consts.cn;
+import consts.ConstNpcConfig;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -189,9 +189,9 @@ public class Message
     public void writeLong(long v) throws IOException {
         /* 224 */ writer().writeLong(v);
     }
-
+    
     public void writeFix(long v) throws IOException {
-        if (cn.readInt) {
+        if (ConstNpcConfig.readInt) {
             writeInt((int) v);
             return;
         }

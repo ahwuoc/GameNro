@@ -1,12 +1,20 @@
 package boss.boss_manifest.Training;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
 import static boss.BossType.PHOBAN;
 import jdbc.daos.TraningDAO;
-import player.Player;
-import services.Service;
+import nro.player.Player;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 
@@ -91,6 +99,7 @@ public class Whis extends TrainingBoss {
             playerAtt.traning.setTime((int) (System.currentTimeMillis() - lastJoinMapTime));
             playerAtt.traning.setLastTime(System.currentTimeMillis());
             TraningDAO.updatePlayer(playerAtt);
+            nro.server.Manager.gI().reloadTopWhis();
         } catch (Exception e) {
         }
     }

@@ -24,6 +24,12 @@ pub enum MenuId {
     TapTuDong, // menu 2001
     TapLuyen,  // menu 2002
     ThachDau,  // menu 2003
+    // PVP
+    MakeMatchPvp,
+    Revenge,
+    // DHVT
+    DhvtConfirm,
+    DhvtMenu129,
 }
 
 impl Default for MenuId {

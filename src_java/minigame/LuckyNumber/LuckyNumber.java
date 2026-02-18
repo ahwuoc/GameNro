@@ -1,22 +1,22 @@
-
+/*
+ * ENZEEFX_NROxBarColl
+ */
 package minigame.LuckyNumber;
 
-import DucPro.Functions;
+import consts.ConstMiniGame;
+import utils.Functions;
 import consts.ConstNpc;
-import item.Item;
 import jdbc.daos.NDVSqlFetcher;
 import minigame.cost.LuckyNumberCost;
-import npc.Npc;
-import npc.npc_manifest.LyTieuNuong;
-import player.Player;
-import server.Client;
-import server.Maintenance;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.models.npc.npc_manifest.LyTieuNuong;
+import nro.player.Player;
+import nro.server.Client;
+import nro.server.Maintenance;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.*;
-import services.InventoryService;
-import services.ItemService;
 
 public class LuckyNumber implements Runnable {
 
@@ -69,9 +69,7 @@ public class LuckyNumber implements Runnable {
                             rewardWinGame();
                         }
                     }
-                    Functions.sleep(1000);
-                } else {
-                    Functions.sleep(10000);
+                   Functions.sleep(1000);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -81,10 +79,10 @@ public class LuckyNumber implements Runnable {
 
     public static void showMenu(Npc npc, Player player, boolean isGem) {
         if (!isOpen()) {
-            npc.createOtherMenu(player, LyTieuNuong.ConstMiniGame.MENU_LUCKY_NUMBER,
+            npc.createOtherMenu(player, ConstMiniGame.MENU_LUCKY_NUMBER,
                     "Thời gian từ 8h đến hết 21h59 hằng ngày\n"
-                            + "Mỗi lượt đợc chọn 10 con số từ 0 đến 99\n"
-                            + "Thời gian mỗi lượt là 5 phút.",
+                    + "Mỗi lượt đợc chọn 10 con số từ 0 đến 99\n"
+                    + "Thời gian mỗi lượt là 5 phút.",
                     "Cập nhật", "Đóng");
         } else {
             if (isGem) { // nếu chọn là ngọc thì xử lý ở đây
@@ -98,8 +96,8 @@ public class LuckyNumber implements Runnable {
     public static void showMenuTutorials(Npc npc, Player player) {
         npc.createOtherMenu(player, ConstNpc.IGNORE_MENU,
                 "Thời gian từ 8h đến hết 21h59 hằng ngày\n"
-                        + "Mỗi lượt đợc chọn 10 con số từ 0 đến 99\n"
-                        + "Thời gian mỗi lượt là 5 phút.",
+                + "Mỗi lượt đợc chọn 10 con số từ 0 đến 99\n"
+                + "Thời gian mỗi lượt là 5 phút.",
                 "Đóng");
     }
 
@@ -109,10 +107,8 @@ public class LuckyNumber implements Runnable {
         players.forEach((g) -> {
             Player player = Client.gI().getPlayerByID((int) g.id);
             if (player != null) {
-                // LuckyNumberService.spinNumber(player, String.valueOf(RESULT), "Con số may mắn
-                // là " + RESULT);
-                Service.gI().showYourNumber(player, "cccccc", String.valueOf(RESULT) + "",
-                        "Con số may mắn là " + RESULT, 1);
+//                LuckyNumberService.spinNumber(player, String.valueOf(RESULT), "Con số may mắn là " + RESULT);
+                Service.gI().showYourNumber(player, "cccccc", String.valueOf(RESULT) + "", "Con số may mắn là " + RESULT, 1);
                 checkPlayerWin(g.id);
             }
         });
@@ -129,12 +125,11 @@ public class LuckyNumber implements Runnable {
             Player player = NDVSqlFetcher.loadById(g.id);
             if (id == g.id && g.number == RESULT && !g.isReward && player != null) {
                 if (g.isGem) {
-                    finish = "Chúc mừng " + player.name + " đã thắng " + LuckyNumberCost.costGem
-                            + " ngọc với con số may mắn " + RESULT;
+                    finish = "Chúc mừng " + player.name + " đã thắng " + LuckyNumberCost.costGem + " ngọc với con số may mắn " + RESULT;
                     LuckyNumberService.addDataResul(player, g.number, LuckyNumberCost.costGem, finish);
                     g.isReward = true;
                 } else {
-                    finish = "Chúc mừng " + player.name + " đã thắng  Được 1 trứng Gold với con số may mắn " + RESULT;
+                    finish = "Chúc mừng " + player.name + " đã thắng " + Util.mumberToLouis(LuckyNumberCost.costGold) + " vàng với con số may mắn " + RESULT;
                     LuckyNumberService.addDataResul(player, g.number, LuckyNumberCost.costGold, finish);
                     g.isReward = true;
                 }
@@ -156,11 +151,7 @@ public class LuckyNumber implements Runnable {
                     if (g.money == 450) {
                         player.inventory.gem += g.money;
                     } else {
-                        // player.inventory.gold += g.money;
-                        Item danc = ItemService.gI().createNewItem((short) 1883, 1);
-                        InventoryService.gI().addItemBag(player, danc);
-                        InventoryService.gI().sendItemBag(player);
-                        Service.gI().sendEffAllPlayer(player, 251);
+                        player.inventory.gold += g.money;
                     }
                     Service.gI().sendThongBao(player, g.text);
                     Service.gI().sendMoney(player);

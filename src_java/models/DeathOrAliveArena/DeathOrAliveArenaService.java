@@ -1,16 +1,24 @@
 package models.DeathOrAliveArena;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import map.Zone;
-import player.Player;
+import nro.player.Player;
 import network.Message;
 import consts.ConstNpc;
 import java.io.IOException;
 import map.Map;
-import npc.Npc;
-import npc.NpcManager;
-import services.InventoryService;
-import services.MapService;
-import services.Service;
+import nro.models.npc.Npc;
+import nro.models.npc.NpcManager;
+import nro.services.InventoryService;
+import nro.services.MapService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import static utils.Util.setTimeout;
 
@@ -28,10 +36,8 @@ public class DeathOrAliveArenaService {
     public void startChallenge(Player player) {
         Zone zone = getMapChallenge(112);
         if (zone != null) {
-            if (InventoryService.gI().findItemBag(player, 457) != null
-                    && InventoryService.gI().findItemBag(player, 457).quantity >= player.thoiVangVoDaiSinhTu) {
-                InventoryService.gI().subQuantityItemsBag(player, InventoryService.gI().findItemBag(player, 457),
-                        player.thoiVangVoDaiSinhTu);
+            if (InventoryService.gI().findItemBag(player, 457) != null && InventoryService.gI().findItemBag(player, 457).quantity >= player.thoiVangVoDaiSinhTu) {
+                InventoryService.gI().subQuantityItemsBag(player, InventoryService.gI().findItemBag(player, 457), player.thoiVangVoDaiSinhTu);
                 InventoryService.gI().sendItemBag(player);
                 player.thoiVangVoDaiSinhTu += 100;
                 player.lastTimePKVoDaiSinhTu = System.currentTimeMillis();
@@ -65,7 +71,7 @@ public class DeathOrAliveArenaService {
     public void sendTypePK(Player player, Player boss) {
         Message msg;
         try {
-            msg = Service.gI().messageSubCommand30((byte) 35);
+            msg = Service.gI().messageSubCommand((byte) 35);
             msg.writer().writeInt((int) boss.id);
             msg.writer().writeByte(3);
             player.sendMessage(msg);

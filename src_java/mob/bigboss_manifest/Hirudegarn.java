@@ -1,13 +1,19 @@
 package mob.bigboss_manifest;
 
-import consts.cn;
+/**
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import consts.ConstNpcConfig;
+import item.Item.ItemOption;
 import map.ItemMap;
 import mob.BigBoss;
 import mob.Mob;
 import network.Message;
-import player.Player;
-import services.ItemService;
-import services.Service;
+import nro.player.Player;
+import nro.services.ItemService;
+import nro.services.Service;
 import utils.Util;
 
 public class Hirudegarn extends BigBoss {
@@ -38,7 +44,7 @@ public class Hirudegarn extends BigBoss {
             try {
                 msg = new Message(-9);
                 msg.writer().writeByte(this.id);
-                msg.writeLongByDucPro(Util.toIntOrLong(this.point.gethp()), cn.readInt);
+                msg.writeLongByEmti(Util.maxIntValue(this.point.gethp()), ConstNpcConfig.readInt);
                 msg.writer().writeInt(1);
                 Service.gI().sendMessAllPlayerInMap(this.zone, msg);
             } catch (Exception e) {
@@ -70,7 +76,7 @@ public class Hirudegarn extends BigBoss {
             int trai = 0;
             int phai = 1;
             int next = 0;
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 30; i++) {
                 int X = next == 0 ? -5 * trai : 5 * phai;
                 if (next == 0) {
                     trai++;
@@ -84,18 +90,27 @@ public class Hirudegarn extends BigBoss {
                 if (phai > 10) {
                     phai = 1;
                 }
-
+                Service.gI().dropItemMap(
+                        this.zone,
+                        new ItemMap(zone, 190, 32000, this.location.x + X, this.location.y, -1)
+                );
             }
             if (Util.isTrue(5, 10)) {
                 ItemMap it = new ItemMap(this.zone, 568, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
                         this.location.y - 24), -1);
                 Service.gI().dropItemMap(this.zone, it);
             }
+            if (Util.isTrue(20, 100)) {
+                ItemMap it = new ItemMap(this.zone, 1822, 1, this.location.x,
+                        this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), -1);
+
+                it.options.add(new ItemOption(249, 0));
+
+                Service.gI().dropItemMap(this.zone, it);
+            }
             if (Util.isTrue(5, 50)) {
-                ItemMap it = ItemService.gI().randDoTL(this.zone, 1, this.location.x,
-                        this.zone.map.yPhysicInTop(this.location.x,
-                                this.location.y - 24),
-                        -1);
+                ItemMap it = ItemService.gI().randDoTL(this.zone, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
+                        this.location.y - 24), -1);
                 Service.gI().dropItemMap(this.zone, it);
             }
             Service.gI().sendBigBoss2(this.zone, action, this);
@@ -104,7 +119,7 @@ public class Hirudegarn extends BigBoss {
                 try {
                     msg = new Message(-9);
                     msg.writer().writeByte(this.id);
-                    msg.writeLongByDucPro(Util.toIntOrLong(this.point.gethp()), cn.readInt);
+                    msg.writeLongByEmti(Util.maxIntValue(this.point.gethp()), ConstNpcConfig.readInt);
                     msg.writer().writeInt(1);
                     Service.gI().sendMessAllPlayerInMap(this.zone, msg);
                 } catch (Exception e) {
@@ -125,12 +140,11 @@ public class Hirudegarn extends BigBoss {
         if (!isDie() && !effectSkill.isHaveEffectSkill() && Util.canDoWithTime(lastBigBossAttackTime, 3000)) {
             Message msg = null;
             try {
-                // 0: bắn - 1: Quật đuôi - 2: dậm chân - 3: Bay - 4: tấn công - 5: Biến hình -
-                // 6: Biến hình lên cấp
+                // 0: bắn - 1: Quật đuôi - 2: dậm chân - 3: Bay - 4: tấn công - 5: Biến hình - 6: Biến hình lên cấp
                 // 7: vận chiêu - 8: Di chuyển - 9: Die
-                int[] idAction = new int[] { 1, 2, 3, 7 };
+                int[] idAction = new int[]{1, 2, 3, 7};
                 if (this.lvMob >= 2) {
-                    idAction = new int[] { 1, 2 };
+                    idAction = new int[]{1, 2};
                 }
                 action = action == 7 ? 0 : idAction[Util.nextInt(0, idAction.length - 1)];
                 if (this.zone.getPlayers().isEmpty()) {
@@ -153,7 +167,7 @@ public class Hirudegarn extends BigBoss {
                             msg.writer().writeByte(1);
                             long dame = player.injured(null, this.point.getDameAttack(), false, true);
                             msg.writer().writeInt((int) player.id); // id player
-                            msg.writeLongByDucPro(Util.toIntOrLong(dame), cn.readInt); // dame
+                            msg.writeLongByEmti(Util.maxIntValue(dame), ConstNpcConfig.readInt); // dame
                             break;
                         case 3:
                             this.location.x = (short) player.location.x;
@@ -166,7 +180,7 @@ public class Hirudegarn extends BigBoss {
                                 Player pl = this.zone.getPlayers().get(i);
                                 dame = pl.injured(null, this.point.getDameAttack(), false, true);
                                 msg.writer().writeInt((int) pl.id); // id player
-                                msg.writeLongByDucPro(Util.toIntOrLong(dame), cn.readInt); // dame
+                                msg.writeLongByEmti(Util.maxIntValue(dame), ConstNpcConfig.readInt); // dame
                             }
                             break;
                     }

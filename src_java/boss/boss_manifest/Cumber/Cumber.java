@@ -3,16 +3,21 @@ package boss.boss_manifest.Cumber;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
+import nro.services.Service;
+import nro.services.ItemService;
+import nro.services.SkillService;
+import nro.services.EffectSkillService;
 import boss.*;
 import consts.ConstPlayer;
 import consts.ConstTask;
 import consts.ConstTaskBadges;
 import item.Item;
 import map.ItemMap;
-import player.Player;
-import services.*;
+import nro.player.Player;
 import task.Badges.BadgesTaskService;
 import utils.Util;
 
@@ -27,32 +32,21 @@ public class Cumber extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        if (Util.isTrue(5, 100)) {
+        BadgesTaskService.updateCountBagesTask(plKill, ConstTaskBadges.TRUM_SAN_BOSS, 1);
+        if (Util.isTrue(15, 100)) {
             ItemMap it = ItemService.gI().randDoTL(this.zone, 1, this.location.x, this.zone.map.yPhysicInTop(this.location.x,
                     this.location.y - 24), plKill.id);
             Service.gI().dropItemMap(this.zone, it);
         }
-         if (Util.isTrue(5, 100)) {
-          
-            Service.gI().dropItemMap(this.zone, new ItemMap(zone, Util.nextInt(1066,1070), 5, this.location.x , this.zone.map.yPhysicInTop(this.location.x,
-                    this.location.y - 24), plKill.id));
+        if (super.head == 1311) {
+            ItemMap it = new ItemMap(this.zone, 1274, 1, this.location.x + Util.nextInt(-15, 15), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
+            it.options.add(new Item.ItemOption(50, 20));
+            it.options.add(new Item.ItemOption(77, 20));
+            it.options.add(new Item.ItemOption(103, 20));
+            it.options.add(new Item.ItemOption(117, 15));
+            it.options.add(new Item.ItemOption(93, Util.nextInt(1, 5)));
+            Service.gI().dropItemMap(this.zone, it);
         }
-       
-        BadgesTaskService.updateCountBagesTask(plKill, ConstTaskBadges.TRUM_SAN_BOSS, 1);
-        if (Util.isTrue(20, 100)) {
-            Service.gI().dropItemMap(this.zone, new ItemMap(zone, 674, 1, this.location.x , this.zone.map.yPhysicInTop(this.location.x,
-                    this.location.y - 24), plKill.id));
-           
-        }
-//        if (super.head == 1311) {
-//            ItemMap it = new ItemMap(this.zone, 1274, 1, this.location.x + Util.nextInt(-15, 15), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id);
-//            it.options.add(new Item.ItemOption(50, 20));
-//            it.options.add(new Item.ItemOption(77, 20));
-//            it.options.add(new Item.ItemOption(103, 20));
-//            it.options.add(new Item.ItemOption(117, 15));
-//            it.options.add(new Item.ItemOption(93, Util.nextInt(1, 5)));
-//            Service.gI().dropItemMap(this.zone, it);
-//        }
     }
 
     @Override
@@ -63,7 +57,7 @@ public class Cumber extends Boss {
                 return 0;
             }
             if (this.currentLevel != 0) {
-                damage /= 1;
+                damage /= 2;
             }
             damage = this.nPoint.subDameInjureWithDeff(damage - Util.nextInt(100000));
             if (!piercing && effectSkill.isShielding) {
@@ -94,7 +88,7 @@ public class Cumber extends Boss {
         }
         if (this.zone != null && this.zone.getNumOfPlayers() > 0) {
             st = System.currentTimeMillis();
-            timeLeaveMap = Util.nextInt(300000, 600000);
+            timeLeaveMap = Util.nextInt(300000, 900000);
         }
     }
 
@@ -103,7 +97,7 @@ public class Cumber extends Boss {
         this.name = this.data[this.currentLevel].getName() + " " + Util.nextInt(1, 100);
         super.joinMap();
         st = System.currentTimeMillis();
-        timeLeaveMap = Util.nextInt(300000, 600000);
+        timeLeaveMap = Util.nextInt(600000, 900000);
     }
 
     @Override

@@ -1,5 +1,15 @@
 package consts;
- 
+
+import utils.Util;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 public class ConstTask {
 
     //const level side task
@@ -10,11 +20,11 @@ public class ConstTask {
     public static final byte HELL = 4;
 
     //const gold reward side task
-    public static final int GOLD_EASY = 10000000;
-    public static final int GOLD_NORMAL = 30000000;
-    public static final int GOLD_HARD = 50000000;
-    public static final int GOLD_VERY_HARD = 80000000;
-    public static final int GOLD_HELL = 100000000;
+    public static final int GOLD_EASY = Util.nextInt(10_000_000,25_000_000); // 2 - 5
+    public static final int GOLD_NORMAL = Util.nextInt(25_000_000,50_000_000); // 5 - 10
+    public static final int GOLD_HARD = Util.nextInt(50_000_000,75_000_000); // 10 - 15
+    public static final int GOLD_VERY_HARD = Util.nextInt(75_000_000,100_000_000); // 12 - 20
+    public static final int GOLD_HELL = Util.nextInt(100_000_000,200_000_000); // 20 - 40
 
     //const max side task of date
     public static final byte MAX_SIDE_TASK = 20;

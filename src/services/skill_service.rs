@@ -138,7 +138,7 @@ pub async fn execute_dichchuyentucthoi(
             EffectAction::START,
             EffectSkillService::BLIND_EFFECT,
         ));
-        let _ = ServiceHandles::send_item_time(target, 3779, (time_stun / 1000) as i16);
+        let _ = ServiceHandles::send_item_time_client(target, 3779, (time_stun / 1000) as i16);
     }
 
     if let Some(mob) = mob_target {
@@ -183,7 +183,7 @@ pub fn execute_thoimien(
             EffectAction::START,
             EffectSkillService::SLEEP_EFFECT,
         );
-        let _ = crate::services::ServiceHandles::send_item_time(
+        let _ = crate::services::ServiceHandles::send_item_time_client(
             target,
             3782,
             (time_sleep / 1000) as i16,
@@ -366,7 +366,7 @@ pub async fn execute_skill_type3(player: &mut Player) {
                 EffectAction::START,
                 EffectSkillService::SHIELD_EFFECT,
             );
-            let _ = ServiceHandles::send_item_time(
+            let _ = ServiceHandles::send_item_time_client(
                 player,
                 3784,
                 (player.effect_skill.shield_duration_ms / 1000) as i16,
@@ -555,7 +555,7 @@ pub async fn execute_huyt_sao(player: &mut Player) {
         let heal_amount = (player.n_point.hp_current as i64 * percent_hp as i64 / 100) as i32;
         player.n_point.current_hp_add(heal_amount);
 
-        let _ = ServiceHandles::send_item_time(player, 3781, 30);
+        let _ = ServiceHandles::send_item_time_client(player, 3781, 30);
         let _ = player_info_service::send_point_info_sync(player);
         player_info_service::send_info_hp_mp_money(player);
     }

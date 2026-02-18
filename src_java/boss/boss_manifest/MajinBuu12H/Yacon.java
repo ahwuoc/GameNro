@@ -1,5 +1,13 @@
 package boss.boss_manifest.MajinBuu12H;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
@@ -7,16 +15,16 @@ import boss.BossesData;
 import static boss.BossType.FINAL;
 import consts.ConstPlayer;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
-import server.ServerNotify;
-import services.EffectSkillService;
-import services.SkillService;
-import services.TaskService;
+import nro.server.ServerNotify;
+import nro.services.EffectSkillService;
+import nro.services.SkillService;
+import nro.services.TaskService;
 import skill.Skill;
 import utils.SkillUtil;
 
@@ -36,7 +44,6 @@ public class Yacon extends Boss {
 
     @Override
     public void reward(Player plKill) {
-         plKill.pointboss+=5;
         plKill.fightMabu.changePoint((byte) 10);
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
     }

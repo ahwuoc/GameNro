@@ -6,9 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class TOP {
-    public String getName() {
-        return name;
-    }
+
     private String name;
     private byte gender;
     private short head;
@@ -22,11 +20,6 @@ public class TOP {
     private byte subnv;
     private int sk;
     private int pvp;
-    private int diemsm;
-    private int vongquay;
-    private int diemtet;
-    private int bossday;
-    private int diemhopqua;
     private int nhs;
     private int dicanh;
     private int divdst;
@@ -36,6 +29,7 @@ public class TOP {
     private int level;
     private int cash;
     private int thoivang;
-    private long banghoi;
-    private long chienluc;
+    private String info1;
+    private String info2;
+    private int id_player;
 }

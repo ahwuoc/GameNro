@@ -49,7 +49,7 @@ impl EffectSkillService {
 
     pub fn break_shield(player: &mut Player) {
         Self::remove_shield(player);
-        ServiceHandles::send_item_time(player, 3784, 0);
+        ServiceHandles::send_item_time_client(player, 3784, 0);
     }
 
     // ========== BLIND (Thái dương hạ san / DCTT) ==========

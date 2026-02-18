@@ -1,14 +1,23 @@
 package boss.boss_manifest.SnakeWay;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstPlayer;
 import boss.*;
 import static boss.BossType.PHOBANCDRD;
 import clan.Clan;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
+import nro.player.Player;
 import skill.Skill;
-import services.Service;
-import services.SkillService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.Util;

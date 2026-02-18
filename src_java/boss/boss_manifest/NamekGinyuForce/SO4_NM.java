@@ -1,12 +1,17 @@
 package boss.boss_manifest.NamekGinyuForce;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
 import boss.BossesData;
-import map.ItemMap;
-import player.Player;
-import services.Service;
+import nro.player.Player;
 import utils.Util;
 
 public class SO4_NM extends Boss {
@@ -27,18 +32,9 @@ public class SO4_NM extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        plKill.pointboss += 3;
         if (this.currentLevel == 1) {
             return;
         }
-
-        if (Util.isTrue(1, 2)) {
-            ItemMap it_coin = new ItemMap(this.zone, 1788, 1, this.location.x + 5,
-                    this.zone.map.yPhysicInTop(this.location.x, this.location.y), plKill.id);
-            it_coin.source = "SO4_NM";
-            Service.gI().dropItemMap(this.zone, it_coin);
-        }
-
     }
 
     @Override
@@ -57,7 +53,7 @@ public class SO4_NM extends Boss {
 
     @Override
     public void autoLeaveMap() {
-        if (Util.canDoWithTime(st, 600000)) {
+        if (Util.canDoWithTime(st, 900000)) {
             this.leaveMapNew();
         }
         if (this.zone != null && this.zone.getNumOfPlayers() > 0) {

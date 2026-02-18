@@ -1,12 +1,19 @@
 package models.MajinBuu;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 
 import java.util.ArrayList;
 import java.util.List;
 import map.Zone;
 import map.MaBuHold;
-import player.Player;
-import services.MapService;
+import nro.player.Player;
+import nro.services.MapService;
 import services.func.ChangeMapService;
 
 public class MajinBuu14HService {

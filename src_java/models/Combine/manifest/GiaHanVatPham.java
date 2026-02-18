@@ -4,15 +4,15 @@
  */
 package models.Combine.manifest;
 
-import player.Player;
+import nro.player.Player;
 
 import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 /**
  *
@@ -54,13 +54,13 @@ public class GiaHanVatPham {
             npcSay += "\n|0|Sau khi gia hạn + ~ 3 - 7 ngày\n";
 
             npcSay += "|0|Tỉ lệ thành công: 100%" + "\n";
-            if (player.inventory.gem > 100) {
-                npcSay += "|2|Cần 100  ngọc";
+            if (player.inventory.ruby > 1000) {
+                npcSay += "|2|Cần 1000 hồng ngọc";
                 CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.MENU_START_COMBINE, npcSay,
                         "Gia hạn", "Từ chối");
 
-            } else if (player.inventory.gem < 100) {
-                int SoVangThieu2 = (int) (100 - player.inventory.gem);
+            } else if (player.inventory.ruby < 1000) {
+                int SoVangThieu2 = (int) (1000 - player.inventory.ruby);
                 CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Bạn còn thiếu " + SoVangThieu2 + " Hong Ngoc");
             } else {
                 CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Cần 1 trang bị có hạn sử dụng và 1 Đá hoàng Kim");

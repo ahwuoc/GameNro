@@ -4,73 +4,94 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import server.ServerNotify;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.server.ServerNotify;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 public class PhaLeHoaTrangBi {
 
     private static float getRatio(int star) {
         return switch (star) {
-            case 0 -> 80;
-            case 1 -> 50;
-            case 2 -> 30;
-            case 3 -> 10;
-            case 4 -> 5;
-            case 5 -> 1;
-            case 6 -> 0.5f;
-            case 7 -> 0.1f; //7sa0 0.3%
-            case 8 -> 0.05f; // 8sao 0.2 %
-            case 9 -> 0.001f; // 8sao 0.01 %
-            case 10 -> 0.0001f; // 8sao 0.01 %
-            default -> 0;
+            case 0 ->
+                80;
+            case 1 ->
+                50;
+            case 2 ->
+                30;
+            case 3 ->
+                20;
+            case 4 ->
+                10;
+            case 5 ->
+                5;
+            case 6 ->
+                2;
+            case 7 ->
+                1f;
+            case 8 ->
+                0.25f;
+            default ->
+                0;
         };
     }
 
-    private static String getRatioStr(int star, Player player) {
+    private static String getRatioStr(int star) {
         int ratio = (int) getRatio(star);
         if (ratio < 1) {
             ratio = 1;
-        }
-        if (ratio > 100) {
-            ratio = 100;
         }
         return String.valueOf(ratio);
     }
 
     private static int getGold(int star) {
         return switch (star) {
-            case 0 -> 5_000_000;
-            case 1 -> 10_000_000;
-            case 2 -> 20_000_000;
-            case 3 -> 40_000_000;
-            case 4 -> 60_000_000;
-            case 5 -> 80_000_000;
-            case 6 -> 100_000_000;
-            case 7 -> 150_000_000;
-            case 8 -> 200_000_000;
-            case 9 -> 400_000_000;
-            case 10 -> 400_000_000;
-            default -> 0;
+            case 0 ->
+                5_000_000;
+            case 1 ->
+                10_000_000;
+            case 2 ->
+                20_000_000;
+            case 3 ->
+                40_000_000;
+            case 4 ->
+                60_000_000;
+            case 5 ->
+                90_000_000;
+            case 6 ->
+                120_000_000;
+            case 7 ->
+                150_000_000;
+            case 8 ->
+                180_000_000;
+            default ->
+                0;
         };
     }
 
     private static int getGem(int star) {
         return switch (star) {
-            case 0 -> 1;
-            case 1 -> 2;
-            case 2 -> 3;
-            case 3 -> 4;
-            case 4 -> 5;
-            case 5 -> 6;
-            case 6 -> 7;
-            case 7 -> 20;
-            case 8 -> 30;
-            case 9 -> 30;
-            case 10 -> 30;
-            default -> 0;
+            case 0 ->
+                1;
+            case 1 ->
+                2;
+            case 2 ->
+                3;
+            case 3 ->
+                4;
+            case 4 ->
+                5;
+            case 5 ->
+                6;
+            case 6 ->
+                7;
+            case 7 ->
+                20;
+            case 8 ->
+                30;
+            default ->
+                0;
         };
     }
 
@@ -84,10 +105,7 @@ public class PhaLeHoaTrangBi {
             return;
         }
         if (item.isHaveOption(93)) {
-            Service.gI().sendDialogMessage(
-                player,
-                "Trang bị có hạn sử dụng, không thể thực hiện"
-            );
+            Service.gI().sendDialogMessage(player, "Trang bị có hạn sử dụng, không thể thực hiện");
             return;
         }
         if (!item.canPhaLeHoa()) {
@@ -95,60 +113,25 @@ public class PhaLeHoaTrangBi {
             return;
         }
         int star = item.getOptionParam(107);
-        // int gem = getGem(star);
-        int gem = 0;
+        int gem = getGem(star);
         int gold = getGold(star);
         if (star >= CombineService.MAX_STAR_ITEM) {
             Service.gI().sendDialogMessage(player, "Đã đạt số pha lê tối đa");
             return;
         }
         StringBuilder text = new StringBuilder();
-        text
-            .append(ConstFont.BOLD_BLUE)
-            .append(item.template.name)
-            .append("\n");
-        text
-            .append(ConstFont.BOLD_DARK)
-            .append(item.getOptionInfo())
-            .append("\n");
-        text
-            .append(ConstFont.BOLD_GREEN)
-            .append(star + 1)
-            .append(" ô Sao Pha Lê\n");
-        text
-            .append(ConstFont.BOLD_BLUE)
-            .append("Tỉ lệ thành công: ")
-            .append(getRatioStr(star, player))
-            .append("%\n");
-        text
-            .append(
-                player.inventory.gold < gold
-                    ? ConstFont.BOLD_RED
-                    : ConstFont.BOLD_BLUE
-            )
-            .append("Cần ")
-            .append(Util.numberToMoney(gold))
-            .append(" vàng");
+        text.append(ConstFont.BOLD_BLUE).append(item.template.name).append("\n");
+        text.append(ConstFont.BOLD_DARK).append(item.getOptionInfo()).append("\n");
+        text.append(ConstFont.BOLD_GREEN).append(star + 1).append(" ô Sao Pha Lê\n");
+        text.append(ConstFont.BOLD_BLUE).append("Tỉ lệ thành công: ").append(getRatioStr(star)).append("%\n");
+        text.append(player.inventory.gold < gold ? ConstFont.BOLD_RED : ConstFont.BOLD_BLUE).append("Cần ").append(Util.numberToMoney(gold)).append(" vàng");
         if (player.inventory.gold < gold) {
-            CombineService.gI().baHatMit.createOtherMenu(
-                player,
-                ConstNpc.IGNORE_MENU,
-                text.toString(),
-                "Còn thiếu\n" +
-                    Util.numberToMoney(gold - player.inventory.gold) +
-                    " vàng"
-            );
+            CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, text.toString(),
+                    "Còn thiếu\n" + Util.numberToMoney(gold - player.inventory.gold) + " vàng");
             return;
         }
-        CombineService.gI().baHatMit.createOtherMenu(
-            player,
-            ConstNpc.MENU_START_COMBINE,
-            text.toString(),
-            "Nâng cấp\n x100 lần",
-            "Nâng cấp \n x10 lần",
-            "Nâng cấp\n x1",
-            "Từ chối"
-        );
+        CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.MENU_START_COMBINE, text.toString(),
+                "Nâng cấp\n" + gem + " ngọc\nx100 lần", "Nâng cấp\n" + gem + " ngọc\nx10 lần", "Nâng cấp\n" + gem + " ngọc", "Từ chối");
     }
 
     public static void phaLeHoa(Player player, int... numm) {
@@ -156,15 +139,9 @@ public class PhaLeHoaTrangBi {
         if (numm.length > 0) {
             n = numm[0];
         }
-
         if (!player.combine.itemsCombine.isEmpty()) {
             Item item = player.combine.itemsCombine.get(0);
-            if (
-                item == null ||
-                !item.isNotNullItem() ||
-                item.isHaveOption(93) ||
-                !item.canPhaLeHoa()
-            ) {
+            if (item == null || !item.isNotNullItem() || item.isHaveOption(93) || !item.canPhaLeHoa()) {
                 return;
             }
             int star = item.getOptionParam(107);
@@ -172,17 +149,12 @@ public class PhaLeHoaTrangBi {
                 return;
             }
             int gold = getGold(star);
-            int gem_phalehoa = 0;
+            int gem = getGem(star);
             if (n == 1) {
                 if (player.inventory.gold < gold) {
                     return;
-                } else if (player.inventory.getGemAndRuby() < gem_phalehoa) {
-                    Service.gI().sendServerMessage(
-                        player,
-                        "Bạn không đủ ngọc, còn thiếu " +
-                            (gem_phalehoa - player.inventory.getGemAndRuby()) +
-                            " ngọc nữa"
-                    );
+                } else if (player.inventory.getGemAndRuby() < gem) {
+                    Service.gI().sendServerMessage(player, "Bạn không đủ ngọc, còn thiếu " + (gem - player.inventory.getGemAndRuby()) + " ngọc nữa");
                     return;
                 }
             }
@@ -190,33 +162,17 @@ public class PhaLeHoaTrangBi {
             boolean success = false;
             for (int i = 0; i < n; i++) {
                 num = i + 1;
-                if (player.inventory.getGemAndRuby() < gem_phalehoa) {
-                    Service.gI().sendServerMessage(
-                        player,
-                        "Sau " +
-                            num +
-                            " lần nâng cấp thất bại, bạn không đủ ngọc để tiếp tục."
-                    );
+                if (player.inventory.getGemAndRuby() < gem) {
+                    Service.gI().sendServerMessage(player, "Sau " + i + " lần nâng cấp thất bại, bạn không đủ ngọc để tiếp tục.");
                     break;
                 }
                 if (player.inventory.gold < gold) {
-                    Service.gI().sendServerMessage(
-                        player,
-                        "Sau " +
-                            num +
-                            " lần nâng cấp thất bại, bạn không đủ vàng để tiếp tục."
-                    );
+                    Service.gI().sendServerMessage(player, "Sau " + i + " lần nâng cấp thất bại, bạn không đủ vàng để tiếp tục.");
                     break;
                 }
                 player.inventory.gold -= gold;
-                int mayman = 1;
-                float ratio =
-                    getRatio(star) * ((player.vip >= 1) ? 2 : 1) * mayman;
-                if (player.point_lucky_dapdo > 0) {
-                    ratio *= 2; // x2 tỉ lệ nếu có pointdapdo
-                    player.point_lucky_dapdo -= 1; // Trừ mỗi lần dập
-                }
-                if (Util.isTrue(ratio, 200) || player.isAdmin()) {
+                player.inventory.subGemAndRuby(gem);
+                if (Util.isTrue(getRatio(star), 2000)) {
                     success = true;
                     break;
                 }
@@ -224,24 +180,12 @@ public class PhaLeHoaTrangBi {
             if (success) {
                 item.addOptionParam(107, 1);
                 if (star > 4) {
-                    ServerNotify.gI().notify(
-                        "Chúc mừng " +
-                            player.name +
-                            " vừa pha lê hóa " +
-                            "thành công " +
-                            item.template.name +
-                            " lên " +
-                            (star + 1) +
-                            " sao pha lê"
-                    );
+                    ServerNotify.gI().notify("Chúc mừng " + player.name + " vừa pha lê hóa "
+                            + "thành công " + item.template.name + " lên " + (star + 1) + " sao pha lê");
                 }
                 if (n > 1) {
-                    Service.gI().sendServerMessage(
-                        player,
-                        "Thành công sau " + num + " lần nâng cấp."
-                    );
+                    Service.gI().sendServerMessage(player, "Thành công sau " + num + " lần nâng cấp.");
                 }
-                player.sosumenhplayer.addCountTask(3);
                 CombineService.gI().sendEffectSuccessCombine(player);
             } else {
                 CombineService.gI().sendEffectFailCombine(player);
@@ -251,4 +195,5 @@ public class PhaLeHoaTrangBi {
             CombineService.gI().reOpenItemCombine(player);
         }
     }
+
 }

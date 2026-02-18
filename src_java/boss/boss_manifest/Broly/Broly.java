@@ -3,45 +3,73 @@ package boss.boss_manifest.Broly;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 import boss.Boss;
 import boss.BossData;
 import boss.BossID;
 import boss.BossStatus;
 import static boss.BossType.BROLY;
-import boss.BossesData;
 import consts.ConstPlayer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import map.Zone;
-import player.Player;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import skill.Skill;
 import utils.SkillUtil;
 import utils.Util;
 
 public class Broly extends Boss {
-private long realHpMax = 5000;
+    private long lastTimeAttack;
+
     public Broly() throws Exception {
-         super(BROLY, BossID.BROLY, false, true, BossesData.BROLY);
+
+        super(BROLY, BossID.BROLY, new BossData(
+                "Broly", //name
+                ConstPlayer.XAYDA, //gender
+                new short[]{291, 292, 293, -1, -1, -1}, //outfit {head, body, leg, bag, aura, eff}
+                100, //dame
+                new long[]{500}, //hp
+                new int[]{5, 13, 20, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38}, //map join
+                new int[][]{
+                    {Skill.TAI_TAO_NANG_LUONG, 1, 1000}, {Skill.TAI_TAO_NANG_LUONG, 2, 1000}, {Skill.TAI_TAO_NANG_LUONG, 3, 1000}, {Skill.TAI_TAO_NANG_LUONG, 4, 1000}, {Skill.TAI_TAO_NANG_LUONG, 5, 1000}, {Skill.TAI_TAO_NANG_LUONG, 6, 1000}, {Skill.TAI_TAO_NANG_LUONG, 7, 100},
+                    {Skill.DRAGON, 1, 1000}, {Skill.DRAGON, 2, 1000}, {Skill.DRAGON, 3, 1000}, {Skill.DRAGON, 4, 1000}, {Skill.DRAGON, 5, 1000}, {Skill.DRAGON, 6, 1000}, {Skill.DRAGON, 7, 1000},
+                    {Skill.DEMON, 1, 1000}, {Skill.DEMON, 2, 1000}, {Skill.DEMON, 3, 1000}, {Skill.DEMON, 4, 1000}, {Skill.DEMON, 5, 1000}, {Skill.DEMON, 6, 1000}, {Skill.DEMON, 7, 1000},
+                    {Skill.GALICK, 1, 1000}, {Skill.GALICK, 2, 1000}, {Skill.GALICK, 3, 1000}, {Skill.GALICK, 4, 1000}, {Skill.GALICK, 5, 1000}, {Skill.GALICK, 6, 1000}, {Skill.GALICK, 7, 1000},
+                    {Skill.KAMEJOKO, 1, 1000}, {Skill.KAMEJOKO, 2, 1000}, {Skill.KAMEJOKO, 3, 1000}, {Skill.KAMEJOKO, 4, 1000}, {Skill.KAMEJOKO, 5, 1000}, {Skill.KAMEJOKO, 6, 1000}, {Skill.KAMEJOKO, 7, 1000},
+                    {Skill.MASENKO, 1, 1000}, {Skill.MASENKO, 2, 1000}, {Skill.MASENKO, 3, 1000}, {Skill.MASENKO, 4, 1000}, {Skill.MASENKO, 5, 1000}, {Skill.MASENKO, 6, 1000}, {Skill.MASENKO, 7, 1000},
+                    {Skill.ANTOMIC, 1, 1000}, {Skill.ANTOMIC, 2, 1000}, {Skill.ANTOMIC, 3, 1000}, {Skill.ANTOMIC, 4, 1000}, {Skill.ANTOMIC, 5, 1000}, {Skill.ANTOMIC, 6, 1000}, {Skill.ANTOMIC, 7, 1000},}, //skill
+                new String[]{}, //text chat 1
+                new String[]{"|-1|Haha! ta sẽ giết hết các ngươi",
+                    "|-1|Sức mạnh của ta là tuyệt đối",
+                    "|-1|Vào hết đây!!!",}, //text chat 2
+                new String[]{"|-1|Các ngươi giỏi lắm. Ta sẽ quay lại."}, //text chat 3
+                600//type appear
+        ));
     }
 
-  
-   
     @Override
-public void joinMap() {
-    this.name = "Broly " + Util.nextInt(10, 100);
-    if (this.nPoint.hpMax < 1000) {
-        this.nPoint.hpMax = 1000;
+    public void active() {
+        super.active();
+        if (this.nPoint.hpMax >= 1_000_000) {
+            this.leaveMap();
+        }
     }
-    this.nPoint.dame = this.nPoint.hpMax / 100;
-    this.nPoint.crit = Util.nextInt(50);
-    this.joinMap2();
-    st = System.currentTimeMillis();
-}
+
+    @Override
+    public void joinMap() {
+        this.name = "Broly " + Util.nextInt(10, 100);
+        this.nPoint.hpMax = Util.nextInt(500, 100000);
+        this.nPoint.hp = this.nPoint.hpMax;
+        this.nPoint.dame = this.nPoint.hpMax / 100;
+        this.nPoint.crit = Util.nextInt(50);
+        this.joinMap2();
+        st = System.currentTimeMillis();
+    }
 
     public void joinMap2() {
         if (this.zone == null) {
@@ -95,13 +123,9 @@ public void joinMap() {
                 this.chat("Xí hụt");
                 return 0;
             }
-            if (Util.isTrue(10, 30)) {
+            if (Util.isTrue(1, 10)) {
                 this.playerSkill.skillSelect = this.playerSkill.skills.get(Util.nextInt(0, 6));
-               realHpMax += realHpMax * (Util.nextInt(1, 30)) / 100L;
-                           if (realHpMax > 16_777_777) {
-                               realHpMax = 16_777_777;
-                           }
-                           this.nPoint.hpMax = realHpMax;      
+                this.tangChiSo();
                 SkillService.gI().useSkill(this, null, null, -1, null);
             }
             damage = this.nPoint.subDameInjureWithDeff(damage);
@@ -109,14 +133,15 @@ public void joinMap() {
                 damage = this.nPoint.hpMax / 100;
             }
             this.nPoint.subHP(damage);
-            
-            return damage;
+            if (isDie()) {
+                this.setDie(plAtt);
+                die(plAtt);
+            }
+            return (int) damage;
         } else {
             return 0;
         }
     }
-
-    private long lastTimeAttack;
 
     @Override
     public void attack() {
@@ -138,17 +163,13 @@ public void joinMap() {
                                     Util.nextInt(10) % 2 == 0 ? pl.location.y : pl.location.y - Util.nextInt(0, 50));
                         }
                     }
-                    if (Util.isTrue(10, 100)) {
+                    if (Util.isTrue(1, 100)) {
                         this.playerSkill.skillSelect = this.playerSkill.skills.get(Util.nextInt(0, 6));
-                         realHpMax += realHpMax * (Util.nextInt(1, 30)) / 100L;
-                           if (realHpMax > 16_777_777) {
-                               realHpMax = 16_777_777;
-                           }
-                           this.nPoint.hpMax = realHpMax;                       
+                        this.tangChiSo();
                     }
 
                     SkillService.gI().useSkill(this, pl, null, -1, null);
-                    
+                    checkPlayerDie(pl);
                 } else {
                     if (Util.isTrue(1, 2)) {
                         this.moveToPlayer(pl);
@@ -162,44 +183,27 @@ public void joinMap() {
 
     @Override
     public void die(Player plKill) {
-        this.reward(plKill);
         this.changeStatus(BossStatus.DIE);
     }
 
-    @Override
-    public void reward(Player plKill) {
-        plKill.pointboss+=1;
-        Zone zone = this.zone;
-        int x = this.location.x;
-        int y = this.location.y;
-        if (this.nPoint.hpMax > 1_000_000) {
-            try {
-                SuperBuVip superBroly = new SuperBuVip(zone, x, y);
-                System.out.println("Create Super suscess in map " + zone.map.mapName);
-            } catch (Exception ex) {
-                Logger.getLogger(Broly.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-
-//        super.reward(plKill);
+    private void tangChiSo() {
+        long hpMax = this.nPoint.hpMax;
+        int rand = Util.nextInt(10, 100);
+        hpMax = hpMax + hpMax / rand < 16_070_777 ? hpMax + hpMax / rand : 16_070_777;
+        this.nPoint.hpMax = hpMax;
+        this.nPoint.dame = hpMax / 10;
     }
-
-    
-
-private void tangChiSo() {
-    realHpMax += realHpMax * (Util.nextInt(1, 30)) / 100L;
-    if (realHpMax > 16_777_777) {
-        realHpMax = 16_777_777;
-    }
-    this.nPoint.hpMax = realHpMax;
-   
-}
-
-
 
     @Override
     public void leaveMap() {
+        Zone zone = this.zone;
+        int x = this.location.x;
+        int y = this.location.y;
         ChangeMapService.gI().exitMap(this);
+        try {
+            new SuperBroly(zone, x, y);
+        } catch (Exception ex) {
+        }
         this.lastZone = null;
         this.lastTimeRest = System.currentTimeMillis();
         this.changeStatus(BossStatus.REST);

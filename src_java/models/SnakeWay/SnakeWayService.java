@@ -1,13 +1,20 @@
 package models.SnakeWay;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
 import clan.Clan;
 import clan.ClanMember;
 import java.util.ArrayList;
 import java.util.List;
 import map.Zone;
-import player.Player;
-import server.Maintenance;
-import services.Service;
+import nro.player.Player;
+import nro.server.Maintenance;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 import utils.Util;
@@ -41,9 +48,9 @@ public class SnakeWayService {
         if (clan != null) {
             ClanMember cm = clan.getClanMember((int) player.id);
             if (cm != null) {
-//                if (player.clanMember.getNumDateFromJoinTimeToToday() < 2) {
-//                    return;
-//                }
+                if (player.clanMember.getNumDateFromJoinTimeToToday() < 2) {
+                    return;
+                }
                 if (!player.joinCDRD && !Util.isTimeDifferenceGreaterThanNDays(player.lastTimeJoinCDRD, 7)) {
                     Service.gI().sendThongBao(player, "Vui lòng đợi " + TimeUtil.getDateLeft(player.lastTimeJoinCDRD, 7 * 24 * 60 * 60) + " nữa");
                     return;

@@ -1,4 +1,13 @@
 package boss.boss_manifest.HungVuongEvent;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.*;
 import static boss.BossType.HUNGVUONG_EVENT;
 import consts.ConstPlayer;
@@ -6,11 +15,11 @@ import item.Item;
 import java.util.ArrayList;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import services.EffectSkillService;
-import services.PlayerService;
-import services.Service;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.PlayerService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.Util;
@@ -31,12 +40,6 @@ public class SonTinh extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        if(plKill.nPoint.isMiNuong||plKill.nPoint.isHacMiNuong){
-            for (int i = 0; i < Util.nextInt(2); i++) {
-            Service.gI().dropItemMap(this.zone, new ItemMap(zone, 1839, 1, this.location.x + i * Util.nextInt(-50, 50), this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24), plKill.id));
-        }
-            
-        }
         this.parentBoss.playerReward = plKill;
         this.parentBoss.changeStatus(BossStatus.AFK);
     }
@@ -56,9 +59,8 @@ public class SonTinh extends Boss {
                 it.options.add(new Item.ItemOption(116, 0));
             }
             it.options.add(new Item.ItemOption(154, 0));
-            if(Util.isTrue(90,100)){
-                it.options.add(new Item.ItemOption(93, Util.nextInt(1, 15)));
-            }
+            it.options.add(new Item.ItemOption(93, Util.nextInt(1, 15)));
+            Service.gI().dropItemMap(this.zone, it);
             isReward = true;
             lastTimeReward = System.currentTimeMillis();
             this.chat("Được! hảo hán!");
@@ -144,7 +146,6 @@ public class SonTinh extends Boss {
         if (this.effectSkill.isCharging) {
             return;
         }
-         Service.gI().sendTitle(this, 14);
         if (Util.canDoWithTime(this.lastTimeAttack, 100)) {
             this.lastTimeAttack = System.currentTimeMillis();
             try {

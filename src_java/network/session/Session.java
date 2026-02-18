@@ -1,9 +1,5 @@
 package network.session;
 
-
-
-
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -15,11 +11,9 @@ import network.handler.IMessageSendCollect;
 import network.io.Collector;
 import network.io.Message;
 import network.io.Sender;
-import network.server.TeaGameServer;
-import network.server.TeaGameSessionManager;
+import network.server.Server_firewall;
+import network.server.SessionManager_network;
 import utils.StringUtil;
-
-
 
 public class Session
         implements ISession {
@@ -114,7 +108,8 @@ public class Session
             /*  96 */
             this.socket.setReceiveBufferSize(1048576);
             /*  97 */
-        } catch (Exception exception) {   exception.printStackTrace();
+        } catch (Exception exception) {
+            exception.printStackTrace();
         }
 
 
@@ -209,17 +204,18 @@ public class Session
         if (this.socket != null) {
             try {
                 String ip = socket.getInetAddress().getHostAddress();
-                if (TeaGameServer.firewall.containsKey(ip)) {
-                    int count = TeaGameServer.firewall.get(ip);
+                if (Server_firewall.firewall.containsKey(ip)) {
+                    int count = Server_firewall.firewall.get(ip);
                     if (count > 0) {
-                        TeaGameServer.firewall.put(ip, count - 1);
+                        Server_firewall.firewall.put(ip, count - 1);
                     } else {
-                        TeaGameServer.firewall.remove(ip);
+                        Server_firewall.firewall.remove(ip);
                     }
                 }
 
                 this.socket.close();
-            } catch (IOException ex) {ex.printStackTrace();
+            } catch (IOException ex) {
+                ex.printStackTrace();
                 Logger.getLogger(Session.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
@@ -262,7 +258,7 @@ public class Session
         /* 189 */
         this.ip = null;
         /* 190 */
-        TeaGameSessionManager.gI().removeSession(this);
+        SessionManager_network.gI().removeSession(this);
     }
 
     public void sendKey() throws Exception {
@@ -272,7 +268,7 @@ public class Session
             throw new Exception("Key handler chưa được khởi tạo!");
         }
         /* 198 */
-        if (TeaGameServer.gI().isRandomKey()) {
+        if (Server_firewall.gI().isRandomKey()) {
             /* 199 */
             this.KEYS = StringUtil.randomText(7).getBytes();
         }
@@ -381,7 +377,25 @@ public class Session
     }
 
     public void initThreadSession() {
-        this.tSender = new Thread((this.sender != null) ? (Runnable) this.sender.setSocket(this.socket) : (Runnable) (this.sender = new Sender(this, this.socket)), "Thread tsender");
-        this.tCollector = new Thread((this.collector != null) ? (Runnable) this.collector.setSocket(this.socket) : (Runnable) (this.collector = new Collector(this, this.socket)), "Thread collecter");
+        this.tSender = Thread.ofVirtual()
+                .name("Thread-tsender")
+                .unstarted(() -> {
+                    if (sender == null) {
+                        sender = new Sender(this, socket);
+                    } else {
+                        sender.setSocket(socket);
+                    }
+                });
+
+        this.tCollector = Thread.ofVirtual()
+                .name("Thread-collector")
+                .unstarted(() -> {
+                    if (collector == null) {
+                        collector = new Collector(this, socket);
+                    } else {
+                        collector.setSocket(socket);
+                    }
+                });
     }
+
 }

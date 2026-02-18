@@ -1,7 +1,10 @@
+/*
+ * ENZEEFX_NROxBarColl
+ */
 
 package minigame.DecisionMaker;
 
-import player.Player;
+import nro.player.Player;
 
 public class DecisionMakerService {
 

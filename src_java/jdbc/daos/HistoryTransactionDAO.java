@@ -1,8 +1,16 @@
 package jdbc.daos;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import jdbc.DBConnecter;
 import item.Item;
-import player.Player;
+import nro.player.Player;
 import utils.TimeUtil;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -44,13 +52,13 @@ public class HistoryTransactionDAO {
         for (Item item : doGD1) {
             if (item.isNotNullItem()) {
                 itemPlayer1 += item.template.name + " (x" + item.quantityGD + "),";
-//                System.out.println(item.template.name + " (x" + item.quantityGD + "),");
+                System.out.println(item.template.name + " (x" + item.quantityGD + "),");
             }
         }
         for (Item item : doGD2) {
             if (item.isNotNullItem()) {
                 itemPlayer2 += item.template.name + " (x" + item.quantityGD + "),";
-//                System.out.println(item.template.name + " (x" + item.quantityGD + "),");
+                System.out.println(item.template.name + " (x" + item.quantityGD + "),");
             }
         }
         String beforeTran1 = "";

@@ -1,14 +1,22 @@
 package models.Training;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.boss_manifest.Training.*;
 import consts.ConstNpc;
 import map.Zone;
-import player.Player;
-import services.MapService;
-import services.NpcService;
-import services.Service;
+import nro.player.Player;
+import nro.services.MapService;
+import nro.services.NpcService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Logger;
 import utils.Util;
@@ -86,6 +94,9 @@ public class TrainingService {
                 case BossID.KHI_BUBBLES -> {
                     return new KhiBubbles(pl);
                 }
+                case BossID.CAU_VANG -> {
+                    return new Cauvang(pl);
+                }
                 case BossID.THAN_VU_TRU -> {
                     return new ThanVuTru(pl);
                 }
@@ -124,44 +135,68 @@ public class TrainingService {
     }
 
     public void tnsmLuyenTapUp(Player player) {
-        long tnsm;
-        int time = (int) ((System.currentTimeMillis() - player.lastTimeOffline) / 1000);
-        if (time > 60) {
-            tnsm = ((long) getTnsmMoiPhut(player) * (long) ((time > 86400 ? 86400 : time)) / 60);
-            if (MapService.gI().isMapLuyenTap(player.zone.map.mapId)) {
-                NpcService.gI().createTutorial(player, -1, "Bạn tăng được " + Util.numberToMoney(tnsm) + " sức mạnh trong thời gian " + (time / 60) + " phút tập luyện Offline");
-                Service.gI().addSMTN(player, (byte) 2, tnsm, false);
-            } else if (player.dangKyTapTuDong && time > 1800) {
-                if (player.inventory.getGemAndRuby() > 1) {
-                    new Thread(() -> {
-                        try {
-                            player.inventory.subGemAndRuby(1);
-                            Thread.sleep(1000);
-                            if (player.zone == null) {
-                                return;
-                            }
-                            player.lastMapOffline = player.zone.map.mapId;
-                            player.lastZoneOffline = player.zone.zoneId;
-                            player.lastXOffline = player.location.x;
-                            Service.gI().addSMTN(player, (byte) 2, tnsm, false);
-                            player.teleTapTuDong = true;
-                            player.thongBaoTapTuDong = "Bạn tăng được " + Util.numberToMoney(tnsm) + " sức mạnh trong thời gian " + (time / 60) + " phút tập luyện Offline, -1 ngọc (phí đăng ký tập tự động)";
-                            ChangeMapService.gI().changeMapBySpaceShip(player, player.mapIdDangTapTuDong, 0, Util.nextInt(200, 400));
-                            Service.gI().sendMoney(player);
-                        } catch (InterruptedException e) {
+    long tnsm;
+    int time = (int) ((System.currentTimeMillis() - player.lastTimeOffline) / 1000);
+    if (time > 60) {
+        tnsm = ((long) getTnsmMoiPhut(player) * (long) ((time > 86400 ? 86400 : time)) / 60);
+
+        if (MapService.gI().isMapLuyenTap(player.zone.map.mapId)) {
+            // Người chơi ở map luyện tập -> cộng SM offline
+            NpcService.gI().createTutorial(player, -1,
+                    "Bạn tăng được " + Util.numberToMoney(tnsm)
+                    + " sức mạnh trong thời gian " + (time / 60) + " phút tập luyện Offline");
+            Service.gI().addSMTN(player, (byte) 2, tnsm, false);
+
+        } else if (player.dangKyTapTuDong && time > 1800) {
+            // Người chơi có đăng ký tập tự động và offline > 30 phút
+            if (player.inventory.getGemAndRuby() > 1) {
+                Thread.ofVirtual().name("LuyenTap-" + player.name).start(() -> {
+                    try {
+                        player.inventory.subGemAndRuby(1);
+                        Thread.sleep(1000);
+
+                        if (player.zone == null) {
+                            return;
                         }
-                    }, "Luyện Tập").start();
-                } else {
-                    player.dangKyTapTuDong = false;
-                    Service.gI().sendThongBao(player, "Bạn không đủ ngọc, đăng ký luyện tập tự động đã bị hủy");
-                }
+
+                        // Lưu lại vị trí trước khi auto tập
+                        player.lastMapOffline = player.zone.map.mapId;
+                        player.lastZoneOffline = player.zone.zoneId;
+                        player.lastXOffline = player.location.x;
+
+                        // Cộng SM offline
+                        Service.gI().addSMTN(player, (byte) 2, tnsm, false);
+
+                        player.teleTapTuDong = true;
+                        player.thongBaoTapTuDong = "Bạn tăng được " + Util.numberToMoney(tnsm)
+                                + " sức mạnh trong thời gian " + (time / 60)
+                                + " phút tập luyện Offline, -1 ngọc (phí đăng ký tập tự động)";
+
+                        // Đưa về map tập tự động
+                        ChangeMapService.gI().changeMapBySpaceShip(player,
+                                player.mapIdDangTapTuDong, 0, Util.nextInt(200, 400));
+
+                        // Gửi cập nhật tiền
+                        Service.gI().sendMoney(player);
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            } else {
+                player.dangKyTapTuDong = false;
+                Service.gI().sendThongBao(player,
+                        "Bạn không đủ ngọc, đăng ký luyện tập tự động đã bị hủy");
             }
-        }
-        if (Util.isAfterMidnight(player.lastTimeOffline)) {
-            if (player.tnsmLuyenTap > 1) {
-                player.tnsmLuyenTap -= player.tnsmLuyenTap / 3;
-            }
-            player.lastTimeOffline = System.currentTimeMillis();
         }
     }
+
+    // Reset mỗi ngày: giảm tnsmLuyenTap và cập nhật lastTimeOffline
+    if (Util.isAfterMidnight(player.lastTimeOffline)) {
+        if (player.tnsmLuyenTap > 1) {
+            player.tnsmLuyenTap -= player.tnsmLuyenTap / 3;
+        }
+        player.lastTimeOffline = System.currentTimeMillis();
+    }
+}
 }

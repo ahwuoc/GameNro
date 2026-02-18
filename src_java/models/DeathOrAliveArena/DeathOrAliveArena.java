@@ -1,5 +1,13 @@
 package models.DeathOrAliveArena;
- 
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstPlayer;
 import boss.Boss;
 import boss.BossStatus;
@@ -10,14 +18,14 @@ import boss.boss_manifest.DeathOrAliveArena.ThoDauBac;
 import boss.boss_manifest.DeathOrAliveArena.VuaQuySaTang;
 import java.util.ArrayList;
 import java.util.List;
-import player.Player;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.services.PlayerService;
+import nro.services.Service;
 import lombok.Getter;
 import lombok.Setter;
 import map.Zone;
 import matches.pvp.DHVT;
-import npc.Npc;
+import nro.models.npc.Npc;
 import utils.Util;
 
 public class DeathOrAliveArena {

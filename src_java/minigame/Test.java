@@ -1,3 +1,6 @@
+/*
+ * Copyright by ENZEEFX_NROxBarColl
+ */
 
 package minigame;
 

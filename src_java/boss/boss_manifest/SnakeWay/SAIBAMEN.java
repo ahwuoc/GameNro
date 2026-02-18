@@ -1,6 +1,14 @@
 package boss.boss_manifest.SnakeWay;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
+import utils.Functions;
 import consts.ConstPlayer;
 import boss.*;
 import static boss.BossType.PHOBANCDRD;
@@ -9,12 +17,12 @@ import network.Message;
 import java.util.List;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
-import services.EffectSkillService;
-import services.MapService;
-import services.PlayerService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
+import nro.services.MapService;
+import nro.services.PlayerService;
 import skill.Skill;
-import services.Service;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.Util;
 

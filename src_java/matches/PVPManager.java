@@ -1,8 +1,15 @@
 package matches;
- 
-import DucPro.Functions;
-import player.Player;
-import server.ServerManager;
+
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
+import nro.player.Player;
+import nro.server.ServerManager;
 import java.util.ArrayList;
 
 public class PVPManager implements Runnable {
@@ -20,7 +27,7 @@ public class PVPManager implements Runnable {
 
     public PVPManager() {
         this.pvps = new ArrayList<>();
-//        new Thread(this, "Update pvp").start();
+        Thread.ofVirtual().name("UpdatePVP").start(this);
     }
 
     public void removePVP(PVP pvp) {

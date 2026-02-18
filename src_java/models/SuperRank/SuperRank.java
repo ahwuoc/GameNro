@@ -1,6 +1,13 @@
 package models.SuperRank;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import boss.Boss;
 import boss.BossStatus;
 import boss.boss_manifest.SuperRank.Rival;
@@ -10,11 +17,11 @@ import jdbc.daos.SuperRankDAO;
 import lombok.Data;
 import map.Zone;
 import matches.pvp.DHVT;
-import player.Player;
-import server.Maintenance;
-import server.ServerNotify;
-import services.PlayerService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Maintenance;
+import nro.server.ServerNotify;
+import nro.services.PlayerService;
+import nro.services.Service;
 import services.func.ChangeMapService;
 import utils.TimeUtil;
 import utils.Util;
@@ -64,10 +71,14 @@ public final class SuperRank implements Runnable {
         rankLose = player.superRank.rank;
         isCompeting = true;
         win = false;
+
         if (player.zone.zoneId != zone.zoneId) {
             ChangeMapService.gI().changeZone(player, zone.zoneId);
         }
-        new Thread(this, "Super Rank").start();
+
+        Thread.ofVirtual()
+                .name("Super Rank-" + player.name)
+                .start(this);
     }
 
     @Override
@@ -120,8 +131,7 @@ public final class SuperRank implements Runnable {
         }
         if (timeDown > 0) {
             timeDown--;
-            if (player != null && player.isPKDHVT && !player.lostByDeath && player.location != null && !player.isDie()
-                    && player.zone != null && player.zone.equals(zone)) {
+            if (player != null && player.isPKDHVT && !player.lostByDeath && player.location != null && !player.isDie() && player.zone != null && player.zone.equals(zone)) {
                 if (rival == null || rival.zone == null || rival.isDie()) {
                     win();
                 }
@@ -151,8 +161,7 @@ public final class SuperRank implements Runnable {
             plLose.superRank.history("Thua " + plWin.name + "[" + rankWin + "]", System.currentTimeMillis());
             SuperRankDAO.updatePlayer(plLose);
             if (rankWin <= 10) {
-                ServerNotify.gI()
-                        .notify(ConstSuperRank.TEXT_TOP_10.replaceAll("%1", plWin.name).replaceAll("%2", rankWin + ""));
+                ServerNotify.gI().notify(ConstSuperRank.TEXT_TOP_10.replaceAll("%1", plWin.name).replaceAll("%2", rankWin + ""));
             }
             if (player != null && player.zone != null) {
                 player.superRank.win++;
@@ -225,11 +234,11 @@ public final class SuperRank implements Runnable {
         }
         if (player != null && player.zone != null && player.zone.equals(zone)) {
             if (player.isDie()) {
-                Service.gI().hsChar(player, Util.toIntOrLong(player.nPoint.hpMax),
-                        Util.toIntOrLong(player.nPoint.mpMax));
+                Service.gI().hsChar(player, Util.maxIntValue(player.nPoint.hpMax), Util.maxIntValue(player.nPoint.mpMax));
             }
             PlayerService.gI().changeAndSendTypePK(player, ConstPlayer.NON_PK);
             Service.gI().sendPlayerVS(player, null, (byte) 0);
+            player.playerTask.kolTask.addCount();
         }
     }
 
@@ -260,5 +269,4 @@ public final class SuperRank implements Runnable {
         rankLose = -1;
         SuperRankManager.gI().removeSPR(this);
     }
-
 }

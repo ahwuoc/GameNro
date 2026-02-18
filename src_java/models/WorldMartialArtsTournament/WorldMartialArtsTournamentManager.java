@@ -1,17 +1,23 @@
 package models.WorldMartialArtsTournament;
- 
-import DucPro.Functions;
+
+/**
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import consts.ConstTournament;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.NonNull;
 import map.Map;
 import map.Zone;
-import player.Player;
-import server.Client;
-import server.Maintenance;
-import services.MapService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Client;
+import nro.server.Maintenance;
+import nro.services.MapService;
+import nro.services.Service;
 import utils.TimeUtil;
 import utils.Util;
 

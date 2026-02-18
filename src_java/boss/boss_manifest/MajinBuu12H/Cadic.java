@@ -1,5 +1,13 @@
 package boss.boss_manifest.MajinBuu12H;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
@@ -9,16 +17,16 @@ import consts.ConstPlayer;
 import java.util.ArrayList;
 import java.util.List;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
-import server.ServerNotify;
-import services.PlayerService;
-import services.SkillService;
+import nro.server.ServerNotify;
+import nro.services.PlayerService;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 
@@ -65,15 +73,11 @@ public class Cadic extends Boss {
 
     @Override
     public void active() {
-        if (this.zone == null)
-            return;
         this.attack();
     }
 
     @Override
     public Player getPlayerAttack() {
-        if (this.zone == null)
-            return null;
         List<Player> plNotVoHinh = new ArrayList();
         for (Player pl : this.zone.getNotBosses()) {
             if (pl != null && (pl.effectSkin == null || !pl.effectSkin.isVoHinh) && pl.cFlag != this.cFlag) {
@@ -81,7 +85,7 @@ public class Cadic extends Boss {
             }
         }
         for (Player pl : this.zone.getBosses()) {
-            if (pl != null && !pl.equals(this) && pl.cFlag == 9) {
+            if (!pl.equals(this) && pl.cFlag == 9) {
                 plNotVoHinh.add(pl);
             }
         }
@@ -126,14 +130,12 @@ public class Cadic extends Boss {
 
     @Override
     public void attack() {
-        if (this.zone == null)
-            return;
         if (this.effectSkill.isCharging) {
             return;
         }
         if (Util.canDoWithTime(this.lastTimeAttack, 100)) {
             if (Util.canDoWithTime(lastTimePetrify, 10000)) {
-                // petrifyPlayersInTheMap();
+//                petrifyPlayersInTheMap();
                 this.lastTimePetrify = System.currentTimeMillis();
             }
             this.lastTimeAttack = System.currentTimeMillis();
@@ -150,8 +152,7 @@ public class Cadic extends Boss {
                     }
                     return;
                 }
-                this.playerSkill.skillSelect = this.playerSkill.skills
-                        .get(Util.nextInt(0, this.playerSkill.skills.size() - 1));
+                this.playerSkill.skillSelect = this.playerSkill.skills.get(Util.nextInt(0, this.playerSkill.skills.size() - 1));
                 int dis = Util.getDistance(this, pl);
                 if (dis > 450) {
                     move(pl.location.x - 24, pl.location.y);
@@ -231,8 +232,6 @@ public class Cadic extends Boss {
 
     @Override
     public void reward(Player plKill) {
-        plKill.pointboss += 5;
-
         plKill.fightMabu.changePoint((byte) 10);
     }
 

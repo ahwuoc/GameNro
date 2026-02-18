@@ -3,7 +3,9 @@ package boss;
 /*
  *
  *
- * 
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
  */
 public class BossID {
 
@@ -24,12 +26,12 @@ public class BossID {
     public static final int CADICH = -15;
     public static final int NADIC = -16;
     public static final int SAIBAMEN = -17;
-    public static final int ZAMASU = -615;
-    public static final int GOKUBLACK = -614;
-    
+
     public static final int KUKU = -20;
     public static final int MAP_DAU_DINH = -21;
     public static final int RAMBO = -22;
+    public static final int Virut = -79;
+    public static final int MAT_TROI = -799;
 
     public static final int SO_4 = -23;
     public static final int SO_3 = -24;
@@ -63,6 +65,14 @@ public class BossID {
     public static final int XEN_CON_5 = -106;
     public static final int XEN_CON_6 = -107;
     public static final int XEN_CON_7 = -108;
+    
+    public static final int RONG_1_SAO = -109;
+    public static final int RONG_2_SAO = -110;
+    public static final int RONG_3_SAO = -111;
+    public static final int RONG_4_SAO = -112;
+    public static final int RONG_5_SAO = -113;
+    public static final int RONG_6_SAO = -114;
+    public static final int RONG_7_SAO = -115;
 
     public static final int HIT = -204;
     public static final int CHILL_1 = -205;
@@ -71,8 +81,8 @@ public class BossID {
     public static final int DR_LYCHEE = -208;
 
     public static final int BROLY = -1;
-    public static final int SUPERBUVIP = -2;
-     public static final int BROLYSUPERVIP = -3;
+    public static final int SUPER_BROLY = -2;
+    public static final int UBU = -3483;
 
     //========================BOSS 12H========================
     public static final int DRABURA = -233;
@@ -84,7 +94,7 @@ public class BossID {
     public static final int GOKU = -341;
     public static final int CADIC = -342;
     public static final int DRABURA_3 = -343;
-  
+
     public static final int BLACK_GOKU = -203;
 
     public static final int TAU_PAY_PAY_DONG_NAM_KARIN = -308;
@@ -94,20 +104,14 @@ public class BossID {
     public static final int SO_2_NM = -313;
     public static final int SO_1_NM = -314;
     public static final int TIEU_DOI_TRUONG_NM = -315;
-  
+
     public static final int BUJIN = -316;
     public static final int KOGU = -317;
     public static final int ZANGYA = -318;
     public static final int BIDO = -319;
     public static final int BOJACK = -320;
     public static final int SUPER_BOJACK = -321;
-//========================NGOAI TRUYEN========================
-    public static final int DOREMON= -500;
-    public static final int NOBITA = -501;
-    public static final int SIZUKA= -503;
-    public static final int CHAIEN= -504;
-    public static final int XEKO = -505;
-    public static final int BACONSOi = -109;
+
     //========================YARDART========================
     public static final int TAP_SU_0 = -322;
     public static final int TAP_SU_1 = -323;
@@ -128,12 +132,6 @@ public class BossID {
     public static final int CHIEN_BINH_4 = -338;
     public static final int DOI_TRUONG_5 = -339;
 
-
-  //  =========================BOSS THE GIOI=============================
-    public static final int BOSS_THE_GIOI_1 = -34339;
-    public static final int BOSS_THE_GIOI_2 = -34340;
-
-
     //========================SIEU THANH THUY========================
     public static final int POCOLO = -340;
 
@@ -153,13 +151,21 @@ public class BossID {
     public static final int THIEN_XIN_HANG_CLONE1 = -89;
     public static final int THIEN_XIN_HANG_CLONE2 = -90;
     public static final int THIEN_XIN_HANG_CLONE3 = -91;
-
+    public static final int SOI_HEC_QUYN_1 = -92;
+    public static final int O_DO_NEW = -668;
+    public static final int XINBATO_1 = -669;
+    public static final int CHILLER = -700;
+    
     //========================VO DAI BA HAT MIT========================
     public static final int DRACULA = -93;
     public static final int NGUOI_VO_HINH = -94;
     public static final int BONG_BANG = -95;
     public static final int VUA_QUY_SA_TANG = -96;
     public static final int THO_DAU_BAC = -97;
+    public static final int O_DO1 = -98;
+    public static final int VI_RUT = -99;
+    public static final int BABY = -1001;
+    public static final int BABY_MONKEY = -1002;
 
     //========================TRUNGTHU EVENT========================
     public static final int KHIDOT = -344;
@@ -168,6 +174,7 @@ public class BossID {
 
     //========================BOSS 21H========================
     public static final int GOLDEN_FRIEZA = -502;
+    public static final int GOLDEN_COOLER = -503;
     public static final int DEATH_BEAM_1 = -609;
     public static final int DEATH_BEAM_2 = -610;
     public static final int DEATH_BEAM_3 = -611;
@@ -184,6 +191,7 @@ public class BossID {
     public static final int MATROI = -349;
     public static final int DOI = -350;
     public static final int BIMA = -351;
+    public static final int BOXUONG = -352;
 
     //========================CHRISTMAS EVENT========================
     public static final int ONG_GIA_NOEL = -353;
@@ -194,6 +202,7 @@ public class BossID {
 
     //========================TET EVENT========================
     public static final int LAN_CON = -371;
+    public static final int BE_NA = -3723;
 
     public static final int KARIN = -357;
     public static final int YAJIRO = -358;
@@ -208,12 +217,33 @@ public class BossID {
     //======================HANH TINH NGUC TU========================
     public static final int CUMBER = -366;
 
+    public static final int THODAICA = -53555;
     public static final int AN_TROM = -367;
     public static final int AN_TROM_TV = -368;
-     public static final int O_DO1= -369;
-      public static final int SOI_HEC_QUEN= -370;
-        public static final int XINBATO1= -372;
-      public static final int BILL= -373;
-        public static final int WHISS= -374;
+    public static final int MI_NUONG_PHO_BAN = -369;
+    public static final int JACKY_CHUN2 = -370;
+    public static final int QUY_LAO = -372;
+    public static final int THAN_HUY_DIET = -373;
+    public static final int THAN_THIEN_SU = -374;
+    public static final int THAN_HUY_DIET2 = -378;
+    public static final int THAN_THIEN_SU2 = -379;
+    public static final int THAN_HUY_DIET3 = -380;
+    public static final int THAN_THIEN_SU3 = -381;
+    
+    //======================POKEMON========================
+    public static final int KOCHIRO = -375;
+    public static final int MUSASHI = -376;
+    public static final int MEOWTH = -377;
+    public static final int CAU_VANG = -278;
+    
+    public static final int TUAN_LOC = -54746;
+    public static final int GOKUGOD = -54747;
+    public static final int BROLYSSJ = -54748;
+    public static final int COLLER_GOLD = -54749;
 
+    //======================Đại tướng broly========================
+    public static final int DAITUONGBROLY = -400;
+    public static final int BROLY_SSJ = -401;
+    //======================BA CON SÓI RƠI ĐÁ Sao Thiên Tử + CHÂN MỆNH CẤP 1========================
+    public static final int BA_CON_SOI = -402;
 }

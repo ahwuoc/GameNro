@@ -4,9 +4,9 @@ import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 public class CuongHoaLoSaoPhaLe {
@@ -21,7 +21,7 @@ public class CuongHoaLoSaoPhaLe {
         Item trangBi = null;
 
         for (Item item : player.combine.itemsCombine) {
-            if (item.template.type < 5 || item.template.type ==32) {
+            if (item.template.type < 5 || item.template.type == 32) {
                 trangBi = item;
             } else if (item.template.id == 1438) {
                 duiDuc = item;
@@ -69,7 +69,7 @@ public class CuongHoaLoSaoPhaLe {
         Item trangBi = null;
 
         for (Item item : player.combine.itemsCombine) {
-            if (item.template.type < 5||item.template.type ==32) {
+            if (item.template.type < 5 || item.template.type == 32) {
                 trangBi = item;
             } else if (item.template.id == 1438) {
                 duiDuc = item;

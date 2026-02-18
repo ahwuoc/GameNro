@@ -1,5 +1,13 @@
 package boss.boss_manifest.MajinBuu12H;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import boss.Boss;
 import boss.BossID;
 import boss.BossStatus;
@@ -7,14 +15,14 @@ import boss.BossesData;
 import boss.AppearType;
 import static boss.BossType.FINAL;
 import map.ItemMap;
-import player.Player;
-import server.Manager;
-import services.EffectSkillService;
-import services.Service;
+import nro.player.Player;
+import nro.server.Manager;
+import nro.services.EffectSkillService;
+import nro.services.Service;
 import utils.Util;
 
 import java.util.Random;
-import services.TaskService;
+import nro.services.TaskService;
 import services.func.ChangeMapService;
 import skill.Skill;
 
@@ -41,8 +49,6 @@ public class Drabura2 extends Boss {
 
     @Override
     public void reward(Player plKill) {
-                 plKill.pointboss+=5;
-
         plKill.fightMabu.changePoint((byte) 10);
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
     }

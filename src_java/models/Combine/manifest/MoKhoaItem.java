@@ -10,9 +10,9 @@ import item.Item.ItemOption;
 import java.util.Arrays;
 import java.util.List;
 import models.Combine.CombineService;
-import player.Player;
-import services.InventoryService;
-import services.Service;
+import nro.player.Player;
+import nro.services.InventoryService;
+import nro.services.Service;
 import utils.Util;
 
 /**
@@ -22,79 +22,70 @@ import utils.Util;
 public class MoKhoaItem {
 
     public static void showInfoCombine(Player player) {
-        if (InventoryService.gI().getCountEmptyBag(player) > 0) {
-            if (player.combine.itemsCombine.size() == 2) {
-                Item dahoangkim = null;
-                Item itemkhoagd = null;
-                for (Item item_ : player.combine.itemsCombine) {
-                    // System.out.println("Item type: " + item_.template.type);
-                    if (item_.template.id == 1723) {
-                        dahoangkim = item_;
-                    } else if (item_.isTrangBiKhoaGd()) {
-                        itemkhoagd = item_;
+       if (InventoryService.gI().getCountEmptyBag(player) > 0) {
+                    if (player.combine.itemsCombine.size() == 2) {
+                        Item dahoangkim = null;
+                        Item itemkhoagd = null;
+                        for (Item item_ : player.combine.itemsCombine) {
+                            System.out.println("Item type: " + item_.template.type);
+                            if (item_.template.id == 1723) {
+                                dahoangkim = item_;
+                            } else if (item_.isTrangBiKhoaGd()) {
+                                itemkhoagd = item_;
+                            }
+                        }
+
+                        if (dahoangkim == null) {
+                            CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Cần có Đá Hoàng Kim", "Đóng");
+                            return;
+                        }
+                        if (itemkhoagd == null) {
+                            CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Cần có Item bị khóa giao dịch3", "Đóng");
+                            return;
+                        }
+
+                        String npcSay = "|2|Hiện tại " + itemkhoagd.template.name + "\n|0|";
+                        for (Item.ItemOption io : itemkhoagd.itemOptions) {
+                            if (io.optionTemplate.id != 72) {
+                                npcSay += io.getOptionString() + "\n";
+                            }
+                        }
+                        npcSay += "|2|Sau khi mở khóa Item của bạn sẽ thành Item gd được \n|7|"
+                                + "\n|7|Tỉ lệ thành công: " + 30 + "%\n"
+                                + "Cần " + Util.numberToMoney(2000) + " hồng ngọc";
+
+                        CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.MENU_START_COMBINE,
+                                npcSay, "Mở Khóa\n" + Util.numberToMoney(2000) + " hồng ngọc", "Từ chối");
+                    } else {
+                        CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Cần có Item bị khóa gd và Đá Hoàng Kim", "Đóng");
                     }
+                } else {
+                    CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Hành trang cần ít nhất 1 chỗ trống", "Đóng");
                 }
-
-                if (dahoangkim == null) {
-                    CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, "Cần có Đá Hoàng Kim",
-                            "Đóng");
-                    return;
-                }
-                if (itemkhoagd == null) {
-                    CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU,
-                            "Cần có Item bị khóa giao dịch3", "Đóng");
-                    return;
-                }
-
-                String npcSay = "|2|Hiện tại " + itemkhoagd.template.name + "\n|0|";
-                for (Item.ItemOption io : itemkhoagd.itemOptions) {
-                    if (io.optionTemplate.id != 72) {
-                        npcSay += io.getOptionString() + "\n";
-                    }
-                }
-                npcSay += "|2|Sau khi mở khóa Item của bạn sẽ thành Item gd được \n|7|"
-                        + "\n|7|Tỉ lệ thành công: " + 50 + "%\n"
-                        + "Cần " + Util.numberToMoney(200) + " ngọc";
-
-                CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.MENU_START_COMBINE,
-                        npcSay, "Mở Khóa\n" + Util.numberToMoney(200) + "  ngọc", "Từ chối");
-            } else {
-                CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU,
-                        "Cần có Item bị khóa gd và Đá Hoàng Kim", "Đóng");
-            }
-        } else {
-            CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU,
-                    "Hành trang cần ít nhất 1 chỗ trống", "Đóng");
-        }
 
     }
 
     public static void startCombine(Player player) {
-        if (player.combine.itemsCombine.size() != 2) {
+       if (player.combine.itemsCombine.size() != 2) {
             Service.gI().sendThongBao(player, "Thiếu nguyên liệu");
             return;
         }
-        if (player.combine.itemsCombine.stream().filter(item -> item.isNotNullItem() && (item.isTrangBiKhoaGd()))
-                .count() != 1) {
+        if (player.combine.itemsCombine.stream().filter(item -> item.isNotNullItem() && (item.isTrangBiKhoaGd())).count() != 1) {
             Service.gI().sendThongBao(player, "Thiếu Item khóa giao dịch1");
             return;
         }
-        if (player.combine.itemsCombine.stream().filter(item -> item.isNotNullItem() && item.template.id == 1723)
-                .count() != 1) {
+        if (player.combine.itemsCombine.stream().filter(item -> item.isNotNullItem() && item.template.id == 1723).count() != 1) {
             Service.gI().sendThongBao(player, "Cần Đá Hoàng Kim mua tại Bà Hạt Mít");
             return;
         }
         if (InventoryService.gI().getCountEmptyBag(player) > 0) {
-            if (player.inventory.gem < 200) {
+            if (player.inventory.ruby < 2000) {
                 Service.gI().sendThongBao(player, "Con cần 20k hồng ngọc để tẩy...");
                 return;
             }
-            player.inventory.gem -= 200;
-
-            Item dahoangkim = player.combine.itemsCombine.stream().filter(item -> item.template.id == 1723).findFirst()
-                    .get();
-            Item trangBiKhoagd = player.combine.itemsCombine.stream().filter((item -> item.isTrangBiKhoaGd()))
-                    .findFirst().get();
+            player.inventory.ruby -= 2000;
+            Item dahoangkim = player.combine.itemsCombine.stream().filter(item -> item.template.id == 1723).findFirst().get();
+            Item trangBiKhoagd = player.combine.itemsCombine.stream().filter((item -> item.isTrangBiKhoaGd())).findFirst().get();
             if (dahoangkim == null) {
                 Service.gI().sendThongBao(player, "Cần Đá Hoàng Kim mua tại Bà Hạt Mít");
                 return;
@@ -104,15 +95,15 @@ public class MoKhoaItem {
                 return;
             }
 
-            if (Util.isTrue(50, 100)) {
-                CombineService.gI().sendEffectSuccessCombine(player);
+            if (Util.isTrue(30, 100)) {
+                 CombineService.gI().sendEffectSuccessCombine(player);
                 List<Integer> idOptionHacHoa = Arrays.asList(30);
 
                 ItemOption option_30 = new ItemOption();
 
                 for (ItemOption itopt : trangBiKhoagd.itemOptions) {
                     if (itopt.optionTemplate.id == 30) {
-                        // System.out.println("50 _ mở khoa gd");
+                        System.out.println("30 _ mở khoa gd");
                         option_30 = itopt;
                     }
                 }
@@ -134,5 +125,5 @@ public class MoKhoaItem {
             CombineService.gI().reOpenItemCombine(player);
         }
     }
-
+    
 }

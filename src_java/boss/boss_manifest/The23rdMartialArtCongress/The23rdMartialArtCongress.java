@@ -1,14 +1,22 @@
 package boss.boss_manifest.The23rdMartialArtCongress;
 
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+
 import consts.ConstRatio;
 import boss.Boss;
 import boss.BossData;
 import boss.OtherBossManager;
 import boss.BossStatus;
 import boss.BossType;
-import player.Player;
-import services.PlayerService;
-import services.SkillService;
+import nro.player.Player;
+import nro.services.PlayerService;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.Util;
@@ -18,8 +26,8 @@ public abstract class The23rdMartialArtCongress extends Boss {
     protected Player playerAtt;
     protected long timeJoinMap;
 
-    public The23rdMartialArtCongress(BossType ducpro, int id, BossData data) throws Exception {
-        super(ducpro, id, data);
+    public The23rdMartialArtCongress(BossType ducvupro, int id, BossData data) throws Exception {
+        super(ducvupro, id, data);
         this.bossStatus = BossStatus.RESPAWN;
     }
 

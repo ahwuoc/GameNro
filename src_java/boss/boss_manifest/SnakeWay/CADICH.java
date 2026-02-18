@@ -1,6 +1,13 @@
 package boss.boss_manifest.SnakeWay;
 
-import DucPro.Functions;
+/*
+ *
+ *
+ *  Box ZALO:https://zalo.me/g/ifjict764
+ *  sdt zalo: 0358176187
+ * Chuyên chỉnh sữa mua bán source nro,...
+ */
+import utils.Functions;
 import consts.ConstPlayer;
 import boss.*;
 import static boss.BossType.PHOBANCDRD;
@@ -8,11 +15,11 @@ import clan.Clan;
 import item.Item;
 import map.ItemMap;
 import map.Zone;
-import player.Player;
-import services.EffectSkillService;
+import nro.player.Player;
+import nro.services.EffectSkillService;
 import skill.Skill;
-import services.Service;
-import services.SkillService;
+import nro.services.Service;
+import nro.services.SkillService;
 import services.func.ChangeMapService;
 import utils.SkillUtil;
 import utils.Util;
@@ -27,23 +34,24 @@ public class CADICH extends Boss {
     private boolean bienKhi;
 
     public CADICH(Zone zone, Clan clan, long dame, long hp) throws Exception {
-        super(PHOBANCDRD, BossID.CADICH, new BossData(
+        super( BossID.CADICH, new BossData(
                 "Cađích",
                 ConstPlayer.XAYDA,
-                new short[] { 645, 646, 647, -1, -1, -1 },
+                new short[]{645, 646, 647, -1, -1, -1},
                 ((10000 + dame)),
-                new long[] { ((500000 + hp)) },
-                new int[] { 144 },
-                new int[][] {
-                        { Skill.GALICK, 7, 1000 },
-                        { Skill.MASENKO, 1, 1000 },
-                        { Skill.ANTOMIC, 1, 1000 },
-                        { Skill.KAMEJOKO, 4, 1000 },
-                        { Skill.BIEN_KHI, 1, 1000 } }, // skill
-                new String[] { "|-1|Vĩnh biệt chú mày nhé, Na đíc" },
-                new String[] {},
-                new String[] { "|-1|Tốt lắm phi thuyền đã đến đón ta" },
-                60));
+                new long[]{((500000 + hp))},
+                new int[]{144},
+                new int[][]{
+                    {Skill.GALICK, 7, 1000},
+                    {Skill.MASENKO, 1, 1000},
+                    {Skill.ANTOMIC, 1, 1000},
+                    {Skill.KAMEJOKO, 4, 1000},
+                    {Skill.BIEN_KHI, 1, 1000}},//skill
+                new String[]{"|-1|Vĩnh biệt chú mày nhé, Na đíc"},
+                new String[]{},
+                new String[]{"|-1|Tốt lắm phi thuyền đã đến đón ta"},
+                60
+        ));
         this.zone = zone;
         this.clan = clan;
     }
@@ -134,8 +142,7 @@ public class CADICH extends Boss {
 
     @Override
     public void attack() {
-        if (!gongBienKhi && !this.effectSkill.isCharging && Util.canDoWithTime(this.lastTimeAttack, 100)
-                && this.typePk == ConstPlayer.PK_ALL) {
+        if (!gongBienKhi && !this.effectSkill.isCharging && Util.canDoWithTime(this.lastTimeAttack, 100) && this.typePk == ConstPlayer.PK_ALL) {
             this.lastTimeAttack = System.currentTimeMillis();
             try {
                 Player pl = getPlayerAttack();
@@ -155,9 +162,9 @@ public class CADICH extends Boss {
                     this.effectSkill.timeMonkey = timeMonkey;
                     this.effectSkill.lastTimeUpMonkey = System.currentTimeMillis();
                     this.effectSkill.levelMonkey = 1;
-                    long hpmax = Util.toIntOrLong(this.nPoint.hpMax * 2L);
+                    long hpmax = Util.maxIntValue(this.nPoint.hpMax * 2L);
                     this.nPoint.hpMax = hpmax;
-                    this.nPoint.setHp(Util.toIntOrLong(this.nPoint.hpMax));
+                    this.nPoint.setHp(Util.maxIntValue(this.nPoint.hpMax));
                     EffectSkillService.gI().sendEffectMonkey(this);
                     Service.gI().Send_Caitrang(this);
                     Service.gI().point(this);
