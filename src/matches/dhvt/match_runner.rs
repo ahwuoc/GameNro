@@ -196,9 +196,8 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
     change_type_pk(p1_id, TypePk::PkNon);
     change_type_pk(p2_id, TypePk::PkNon);
 
-    // Chờ 5 giây (giống Java: npcChat + sleep 4750ms)
+    // wait 5s
     tokio::time::sleep(Duration::from_millis(5000)).await;
-
     // Winner: full HP/MP rồi teleport về map 52 (phòng chờ)
     modify_player(winner_id, |player| {
         player.n_point.set_full_hp_mp();
