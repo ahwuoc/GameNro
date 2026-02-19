@@ -2,6 +2,8 @@ use crate::constant::menu_enum::MenuId;
 use crate::matches::dhvt::constants::*;
 use crate::matches::dhvt::manager::get_dhvt_handle;
 use crate::npc::handlers::{NpcContext, NpcHandler};
+use crate::player::player_actor::PlayerMessage;
+use crate::player::Player;
 use crate::services::ServiceHandles;
 use async_trait::async_trait;
 use chrono::{Local, Timelike};
@@ -72,19 +74,16 @@ impl GhiDanhHandler {
 
         let say = say_text(info.can_reg, info.tournament, info.reg_count, info.hour);
         let mut menu_options: Vec<&str> = vec!["Thông tin\nChi tiết"];
-
-        if info.can_reg && info.tournament != -1 {
+        if info.can_reg {
             if !info.is_registered {
-                menu_options.push("Đăng kí");
+                menu_options.push("Dang ky");
             } else {
-                menu_options.push("Hủy\nđăng kí");
+                menu_options.push("Huy\nDang ky");
             }
-            menu_options.push("Giải\nSiêu Hạng");
-            menu_options.push("Đại Hội\nVõ Thuật\nLần thứ\n23");
         } else {
-            menu_options.push("Giải\nSiêu Hạng");
-            menu_options.push("Đại Hội\nVõ Thuật\nLần thứ\n23");
-            menu_options.push("Đóng");
+            menu_options.push("Giai\nSieu Hang");
+            menu_options.push("Dai Hoi\nVo Thuat\nLan thu\n23");
+            menu_options.push("Dong");
         }
 
         ctx.create_menu(&say, menu_options, MenuId::BaseMenu)
@@ -105,7 +104,7 @@ impl GhiDanhHandler {
         match menu_id {
             MenuId::DhvtConfirm => {
                 // Xác nhận đăng ký
-                if select == 0 && info.can_reg && info.tournament != -1 {
+                if select == 0 && info.can_reg {
                     self.do_register(ctx, snapshot).await?;
                 }
             }
@@ -121,25 +120,20 @@ impl GhiDanhHandler {
                         )?;
                     }
                     1 => {
-                        if info.can_reg && info.tournament != -1 {
+                        if info.can_reg {
                             if !info.is_registered {
-                                // Hiện menu xác nhận đăng ký
-                                let tour = info.tournament as usize;
-                                let fee_text = if info.tournament == NGOAI_HANG {
-                                    format!(
-                                        "Giải\n{}\n({} thỏi vàng)",
-                                        TOURNAMENT_NAMES[tour], TOURNAMENT_THOI_VANGS[tour]
-                                    )
-                                } else {
-                                    format!(
-                                        "Giải\n{}\n({} ngọc)",
-                                        TOURNAMENT_NAMES[tour], TOURNAMENT_GEMS[tour]
-                                    )
+                                let cost = info.tournament.register_cost();
+                                let fee_text = match cost {
+                                    CostType::Gem(_) | CostType::Gold(_) => format!(
+                                        "Giải\n{}\n({})",
+                                        info.tournament.get_name(),
+                                        cost.get_text()
+                                    ),
                                 };
                                 ctx.create_menu(
                                     &format!(
                                         "Hiện đang có giải đấu {} bạn có muốn đăng ký không?",
-                                        TOURNAMENT_NAMES[tour]
+                                        info.tournament.get_name()
                                     ),
                                     vec![&fee_text, "Từ chối"],
                                     MenuId::DhvtConfirm,
@@ -156,7 +150,7 @@ impl GhiDanhHandler {
                         }
                     }
                     2 => {
-                        if info.can_reg && info.tournament != -1 {
+                        if info.can_reg {
                             // Chuyển map Siêu Hạng
                             ctx.change_map_by_spaceship(MAP_SIEU_HANG, snapshot.location.x, 360)
                                 .await?;
@@ -167,7 +161,7 @@ impl GhiDanhHandler {
                         }
                     }
                     3 => {
-                        if info.can_reg && info.tournament != -1 {
+                        if info.can_reg {
                             // Chuyển map ĐHVT 23
                             ctx.change_map_by_spaceship(MAP_DHVT_23, snapshot.location.x, 360)
                                 .await?;
@@ -199,32 +193,41 @@ impl GhiDanhHandler {
         }
 
         let info = dhvt.get_info(player_id).await;
-        let tour = info.tournament;
-        if tour < 0 {
-            return Ok(());
-        }
-        let tour_idx = tour as usize;
-        let gem_cost = TOURNAMENT_GEMS[tour_idx] as i32;
-
-        // Check phí
-        if snapshot.inventory.get_gem() < gem_cost {
-            ctx.npc_chat(&format!(
-                "Bạn không đủ ngọc, còn thiếu {} ngọc nữa",
-                gem_cost - snapshot.inventory.get_gem()
-            ))?;
-            return Ok(());
-        }
-
-        // Trừ ngọc qua PlayerMessage::Modify
-        let dhvt_clone = dhvt.clone();
-        ctx.send_player_message(crate::player::player_actor::message::PlayerMessage::Modify(
-            Box::new(move |player| {
-                if player.inventory.sub_gem(gem_cost) {
-                    let _ = ServiceHandles::send_gold_gem_ruby_to_client(player);
-                    dhvt_clone.register(player.id as i64);
+        let cost = info.tournament.register_cost();
+        match cost {
+            CostType::Gem(amt) => {
+                if snapshot.inventory.get_gem() < amt {
+                    ctx.npc_chat(&format!(
+                        "Bạn không đủ ngọc, còn thiếu {} ngọc nữa",
+                        amt - snapshot.inventory.get_gem()
+                    ))?;
+                    return Ok(());
                 }
-            }),
-        ));
+                let dhvt_clone = dhvt.clone();
+                ctx.send_player_message(PlayerMessage::Modify(Box::new(move |player| {
+                    if player.inventory.sub_gem(amt) {
+                        let _ = ServiceHandles::send_gold_gem_ruby_to_client(player);
+                        dhvt_clone.register(player.id as i64);
+                    }
+                })));
+            }
+            CostType::Gold(amt) => {
+                if snapshot.inventory.get_gold() < amt as i64 {
+                    ctx.npc_chat(&format!(
+                        "Bạn không đủ thỏi vàng, còn thiếu {} thỏi vàng nữa",
+                        amt - snapshot.inventory.get_gold() as i32
+                    ))?;
+                    return Ok(());
+                }
+                let dhvt_clone = dhvt.clone();
+                ctx.send_player_message(PlayerMessage::Modify(Box::new(move |player| {
+                    if player.inventory.sub_gold(amt as i64) {
+                        let _ = ServiceHandles::send_gold_gem_ruby_to_client(player);
+                        dhvt_clone.register(player.id as i64);
+                    }
+                })));
+            }
+        }
 
         let now = Local::now();
         let text = TEXT_DANG_KY_THANH_CONG

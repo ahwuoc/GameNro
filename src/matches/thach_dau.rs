@@ -1,9 +1,13 @@
+use tracing_subscriber::util;
+
 use crate::matches::pvp::{change_type_pk, send_money, send_thong_bao, PvpMatch};
 use crate::matches::{TypeLosePvp, TypePvp};
 use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::TypePk;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::ServiceHandles;
+use crate::utils;
+use crate::utils::number_util::number_to_money;
 
 /// Mức cược vàng cho phép
 pub const GOLD_CHALLENGE: [i64; 3] = [1_000_000, 10_000_000, 100_000_000];
@@ -74,7 +78,7 @@ impl PvpMatch for ThachDau {
 
     fn send_result(&self, loser_id: i64, type_lose: TypeLosePvp) {
         let winner_id = self.get_winner_id(loser_id);
-        let gold_display = format_gold(self.gold_reward);
+        let gold_display = number_to_money(self.gold_reward);
 
         match type_lose {
             TypeLosePvp::RunsAway => {
@@ -116,16 +120,4 @@ impl ThachDau {
             })));
         }
     }
-}
-
-fn format_gold(gold: i64) -> String {
-    let s = gold.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push('.');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
 }

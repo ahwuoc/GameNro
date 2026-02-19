@@ -8,19 +8,53 @@ use crate::player::player_manager::PLAYER_MANAGER;
 use crate::utils::Location;
 use std::time::Duration;
 
-/// Kết quả trận đấu
 #[derive(Debug)]
-enum MatchResult {
-    FallOut { loser_id: i64 },
-    Die { loser_id: i64 },
-    LeaveMap { loser_id: i64 },
-    TimeOut { loser_id: i64 },
+struct MatchResult {
+    winner_id: i64,
+    loser_id: i64,
+    reson: EndReson,
+}
+#[derive(Debug)]
+enum EndReson {
+    Fallout,
+    Die,
+    Leave,
+    Timeout,
 }
 
+struct CountdownEvent {
+    at_tick: i32,
+    message: &'static str,
+}
+const COUNDOWN_EVENTS: &[CountdownEvent] = &[
+    CountdownEvent {
+        at_tick: 6,
+        message: "Trận đấu sắp bắt đầu, hãy chuẩn bị!",
+    },
+    CountdownEvent {
+        at_tick: 13,
+        message: "3...",
+    },
+    CountdownEvent {
+        at_tick: 15,
+        message: "2...",
+    },
+    CountdownEvent {
+        at_tick: 17,
+        message: "1...",
+    },
+    CountdownEvent {
+        at_tick: 19,
+        message: "Trận đấu bắt đầu!",
+    },
+    // CountdownEvent {
+    //     at_tick: 22,
+    //     message: "",
+    // },
+];
+const TICK_ENABLE: i32 = 22;
+
 /// Chạy 1 trận đấu DHVT trên 1 zone riêng
-/// - Tokio task, KHÔNG phải Actor
-/// - Đọc player state bằng get_snapshot() (async, an toàn)
-/// - Modify player bằng PlayerHandle.send_forget(Modify(...)) (fire-and-forget)
 pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHandle) {
     tracing::info!(
         "[DHVT_MATCH] Starting match: {} vs {} on zone {}",
@@ -60,34 +94,14 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
     // Đếm ngược
     let tick_duration = Duration::from_millis(MATCH_TICK_MS);
     for tick in 0..MATCH_COUNTDOWN_TICKS {
-        match tick {
-            6 => {
-                // Thông báo bắt đầu
-                send_thong_bao(p1_id, "Trận đấu sắp bắt đầu, hãy chuẩn bị!");
-                send_thong_bao(p2_id, "Trận đấu sắp bắt đầu, hãy chuẩn bị!");
-            }
-            13 => {
-                send_thong_bao(p1_id, "3...");
-                send_thong_bao(p2_id, "3...");
-            }
-            15 => {
-                send_thong_bao(p1_id, "2...");
-                send_thong_bao(p2_id, "2...");
-            }
-            17 => {
-                send_thong_bao(p1_id, "1...");
-                send_thong_bao(p2_id, "1...");
-            }
-            19 => {
-                send_thong_bao(p1_id, "Trận đấu bắt đầu!");
-                send_thong_bao(p2_id, "Trận đấu bắt đầu!");
-            }
-            22 => {
-                // Set PK mode PVP
+        if let Some(event) = COUNDOWN_EVENTS.iter().find(|e| e.at_tick == tick) {
+            send_thong_bao(p1_id, event.message);
+            send_thong_bao(p2_id, event.message);
+
+            if tick == TICK_ENABLE {
                 change_type_pk(p1_id, TypePk::PkPvp);
                 change_type_pk(p2_id, TypePk::PkPvp);
             }
-            _ => {}
         }
         tokio::time::sleep(tick_duration).await;
     }
@@ -112,56 +126,80 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
                 p1_total_damage = p1_max_hp.saturating_sub(p1_current_hp);
                 p2_total_damage = p2_max_hp.saturating_sub(p2_current_hp);
 
-                // Check leaveMap
                 if p1.map_id != MAP_VO_DAI {
-                    result = Some(MatchResult::LeaveMap { loser_id: p1_id });
+                    result = Some(MatchResult {
+                        winner_id: p2_id,
+                        loser_id: p1_id,
+                        reson: EndReson::Leave,
+                    });
                     break;
                 }
                 if p2.map_id != MAP_VO_DAI {
-                    result = Some(MatchResult::LeaveMap { loser_id: p2_id });
+                    result = Some(MatchResult {
+                        winner_id: p1_id,
+                        loser_id: p2_id,
+                        reson: EndReson::Leave,
+                    });
                     break;
                 }
-
-                // Check die
                 if p1.is_die() {
-                    result = Some(MatchResult::Die { loser_id: p1_id });
+                    result = Some(MatchResult {
+                        winner_id: p2_id,
+                        loser_id: p1_id,
+                        reson: EndReson::Die,
+                    });
                     break;
                 }
                 if p2.is_die() {
-                    result = Some(MatchResult::Die { loser_id: p2_id });
+                    result = Some(MatchResult {
+                        winner_id: p1_id,
+                        loser_id: p2_id,
+                        reson: EndReson::Die,
+                    });
                     break;
                 }
 
-                // Check fallOut (rơi khỏi võ đài)
-                let p1_x = p1.location.x as i32;
-                let p1_y = p1.location.y as i32;
-                let p2_x = p2.location.x as i32;
-                let p2_y = p2.location.y as i32;
-
-                if p1_x < ARENA_X_MIN || p1_x > ARENA_X_MAX || p1_y > ARENA_Y_MAX {
-                    result = Some(MatchResult::FallOut { loser_id: p1_id });
+                if p1.location.x < ARENA_X_MIN
+                    || p1.location.x > ARENA_X_MAX
+                    || p1.location.y > ARENA_Y_MAX
+                {
+                    result = Some(MatchResult {
+                        winner_id: p2_id,
+                        loser_id: p1_id,
+                        reson: EndReson::Fallout,
+                    });
                     break;
                 }
-                if p2_x < ARENA_X_MIN || p2_x > ARENA_X_MAX || p2_y > ARENA_Y_MAX {
-                    result = Some(MatchResult::FallOut { loser_id: p2_id });
+                if p2.location.x < ARENA_X_MIN
+                    || p2.location.x > ARENA_X_MAX
+                    || p2.location.y > ARENA_Y_MAX
+                {
+                    result = Some(MatchResult {
+                        winner_id: p1_id,
+                        loser_id: p2_id,
+                        reson: EndReson::Fallout,
+                    });
                     break;
                 }
             }
             (None, Some(_)) => {
-                // P1 offline
-                result = Some(MatchResult::LeaveMap { loser_id: p1_id });
+                result = Some(MatchResult {
+                    winner_id: p2_id,
+                    loser_id: p1_id,
+                    reson: EndReson::Leave,
+                });
                 break;
             }
             (Some(_), None) => {
-                // P2 offline
-                result = Some(MatchResult::LeaveMap { loser_id: p2_id });
+                result = Some(MatchResult {
+                    winner_id: p1_id,
+                    loser_id: p2_id,
+                    reson: EndReson::Leave,
+                });
                 break;
             }
             (None, None) => {
-                // cả 2 offline
                 tracing::warn!("[DHVT_MATCH] Both players offline, aborting");
-                change_type_pk(p1_id, TypePk::PkNon);
-                change_type_pk(p2_id, TypePk::PkNon);
                 return;
             }
         }
@@ -171,23 +209,25 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
 
     // Timeout: so sánh damage taken
     if result.is_none() {
-        let loser = if p1_total_damage >= p2_total_damage {
-            p1_id // p1 bị thương nhiều hơn → thua
+        if p1_total_damage >= p2_total_damage {
+            result = Some(MatchResult {
+                winner_id: p2_id,
+                loser_id: p1_id,
+                reson: EndReson::Timeout,
+            });
         } else {
-            p2_id
+            result = Some(MatchResult {
+                winner_id: p1_id,
+                loser_id: p2_id,
+                reson: EndReson::Timeout,
+            });
         };
-        result = Some(MatchResult::TimeOut { loser_id: loser });
     }
 
     // ── Phase 3: Kết thúc ──
     let match_result = result.unwrap();
-    let loser_id = match &match_result {
-        MatchResult::FallOut { loser_id } => *loser_id,
-        MatchResult::Die { loser_id } => *loser_id,
-        MatchResult::LeaveMap { loser_id } => *loser_id,
-        MatchResult::TimeOut { loser_id } => *loser_id,
-    };
-    let winner_id = if loser_id == p1_id { p2_id } else { p1_id };
+    let winner_id = match_result.winner_id;
+    let loser_id = match_result.loser_id;
 
     // Thông báo kết quả
     send_match_result(winner_id, loser_id, &match_result);
@@ -207,8 +247,7 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
     // Loser: hồi sinh nếu đang chết, rồi teleport về nhà
     modify_player(loser_id, |player| {
         if player.is_die() {
-            player.n_point.hp_current = player.n_point.hp_max;
-            player.n_point.mp_current = player.n_point.mp_max;
+            player.n_point.set_full_hp_mp();
         }
     });
     teleport_to_home(loser_id);
@@ -217,35 +256,28 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
     dhvt_handle.match_finished(winner_id, loser_id);
 
     tracing::info!(
-        "[DHVT_MATCH] Match finished: winner={}, loser={}, result={:?}",
+        "[DHVT_MATCH] Match finished: winner={}, loser={}, reason={:?}",
         winner_id,
         loser_id,
-        match_result
+        match_result.reson
     );
 }
 
 fn send_match_result(winner_id: i64, loser_id: i64, result: &MatchResult) {
-    match result {
-        MatchResult::FallOut { .. } => {
-            send_thong_bao(winner_id, TEXT_DOI_THU_BO_CUOC_ROI_MAP);
-            send_thong_bao(loser_id, TEXT_CHIA_BUON);
-        }
-        MatchResult::Die { .. } => {
-            send_thong_bao(winner_id, TEXT_DOI_THU_KIET_SUC);
-            send_thong_bao(loser_id, TEXT_CHIA_BUON);
-        }
-        MatchResult::LeaveMap { .. } => {
-            send_thong_bao(winner_id, TEXT_DOI_THU_BO_CUOC_ROI_MAP);
-            send_thong_bao(loser_id, TEXT_XU_THUA_BO_CHAY);
-        }
-        MatchResult::TimeOut { .. } => {
-            send_thong_bao(
-                winner_id,
-                "Hết giờ thi đấu, bạn đã chiến thắng vì bị thương ít hơn",
-            );
-            send_thong_bao(loser_id, TEXT_CHIA_BUON);
-        }
-    }
+    let winner_msg = match result.reson {
+        EndReson::Die => TEXT_DOI_THU_KIET_SUC,
+        EndReson::Fallout => TEXT_DOI_THU_BO_CUOC_ROI_MAP,
+        EndReson::Leave => TEXT_DOI_THU_BO_CUOC_ROI_MAP,
+        EndReson::Timeout => "Hết giờ thi đấu, bạn đã chiến thắng vì bị thương ít hơn",
+    };
+    let loser_msg = match result.reson {
+        EndReson::Die => TEXT_CHIA_BUON,
+        EndReson::Fallout => TEXT_CHIA_BUON,
+        EndReson::Leave => TEXT_XU_THUA_BO_CHAY,
+        EndReson::Timeout => TEXT_CHIA_BUON,
+    };
+    send_thong_bao(winner_id, winner_msg);
+    send_thong_bao(loser_id, loser_msg);
 }
 
 // ── Helper functions ──

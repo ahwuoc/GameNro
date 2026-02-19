@@ -14,17 +14,6 @@ pub const MINS_END: u32 = 57;
 
 // Phí đăng ký
 pub const TOURNAMENT_GEMS: [i64; 5] = [200, 400, 600, 800, 0];
-pub const TOURNAMENT_THOI_VANGS: [i64; 5] = [0, 0, 0, 0, 5];
-pub const THOI_VANG_ITEM_ID: i16 = 457;
-
-pub const TOURNAMENT_NAMES: [&str; 5] = [
-    "Nhi đồng",
-    "Siêu cấp 1",
-    "Siêu cấp 2",
-    "Siêu cấp 3",
-    "Ngoại hạng",
-];
-
 // Map IDs
 pub const MAP_VO_DAI: i32 = 51;
 pub const MAP_PHONG_CHO: i32 = 52;
@@ -32,9 +21,9 @@ pub const MAP_SIEU_HANG: i32 = 113;
 pub const MAP_DHVT_23: i32 = 129;
 
 // Võ đài boundaries (fallOut check)
-pub const ARENA_X_MIN: i32 = 158;
-pub const ARENA_X_MAX: i32 = 610;
-pub const ARENA_Y_MAX: i32 = 320;
+pub const ARENA_X_MIN: i16 = 158;
+pub const ARENA_X_MAX: i16 = 610;
+pub const ARENA_Y_MAX: i16 = 320;
 
 // Vị trí spawn trong võ đài
 pub const P1_SPAWN_X: i32 = 328;
@@ -76,16 +65,61 @@ pub const TEXT_VO_DICH: &str =
     "Bạn đã vô địch giải đấu, xin chúc mừng bạn, bạn được thưởng 5 viên đá nâng cấp";
 pub const TEXT_KHOE_VO_DICH: &str = "Chúc mừng %1 vừa vô địch giải %2";
 
-/// Xác định hạng đấu theo giờ hiện tại
-pub fn get_tournament_by_hour(hour: u32) -> i32 {
-    match hour {
-        // Mở thường trực để test — mỗi giờ 1 giải
-        0 | 1 | 8 | 14 | 18 => NHI_DONG,
-        2 | 3 | 9 | 13 | 19 => SIEU_CAP_1,
-        4 | 5 | 10 | 15 | 20 => SIEU_CAP_2,
-        6 | 7 | 11 | 16 | 21 => SIEU_CAP_3,
-        12 | 17 | 22 | 23 => NGOAI_HANG,
-        _ => NHI_DONG, // fallback
+// ─── Tournament Class ───
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TournamentClass {
+    NhiDong,
+    SieuCap1,
+    Sieucap2,
+    Sieucap3,
+    Ngoaihang,
+}
+impl Default for TournamentClass {
+    fn default() -> Self {
+        Self::NhiDong
+    }
+}
+impl TournamentClass {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::Ngoaihang => "Ngoai hang",
+            Self::NhiDong => "Nhi Dong",
+            Self::Sieucap2 => "Sieu cap 2",
+            Self::Sieucap3 => "Sieu cap 3",
+            Self::SieuCap1 => "Sieu cap 1",
+        }
+    }
+    pub fn register_cost(&self) -> CostType {
+        match self {
+            Self::Ngoaihang => CostType::Gem(20),
+            Self::NhiDong => CostType::Gold(20),
+            Self::Sieucap2 => CostType::Gem(150),
+            Self::Sieucap3 => CostType::Gem(175),
+            Self::SieuCap1 => CostType::Gem(125),
+        }
+    }
+    pub fn from_hour(hour: u32) -> Option<Self> {
+        match hour {
+            0 | 1 | 8 | 14 | 18 => Some(Self::Sieucap3),
+            2 | 3 | 9 | 13 | 19 => Some(Self::SieuCap1),
+            4 | 5 | 10 | 15 | 20 => Some(Self::Sieucap2),
+            6 | 7 | 11 | 16 | 21 => Some(Self::Ngoaihang),
+            12 | 17 | 22 | 23 => Some(Self::NhiDong),
+            _ => None,
+        }
+    }
+}
+pub enum CostType {
+    Gold(i32),
+    Gem(i32),
+}
+impl CostType {
+    pub fn get_text(&self) -> String {
+        match self {
+            Self::Gold(amt) => format!("{} thỏi vàng", amt),
+            Self::Gem(amt) => format!("{} ngọc", amt),
+        }
     }
 }
 
@@ -100,11 +134,12 @@ pub fn get_next_tournament_time(hour: u32) -> u32 {
 }
 
 /// Text NPC nói khi mở menu
-pub fn say_text(can_reg: bool, tournament: i32, reg_count: usize, hour: u32) -> String {
-    if can_reg && tournament >= 0 {
+pub fn say_text(can_reg: bool, tournament: TournamentClass, reg_count: usize, hour: u32) -> String {
+    if can_reg {
         format!(
             "Chào mừng bạn đến với đại hội võ thuật\nGiải {} đang có {} người đăng ký thi đấu",
-            TOURNAMENT_NAMES[tournament as usize], reg_count
+            tournament.get_name(),
+            reg_count
         )
     } else {
         format!(

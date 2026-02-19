@@ -64,7 +64,7 @@ pub struct DhvtInfo {
     pub can_reg: bool,
     pub round: i32,
     pub reg_count: usize,
-    pub tournament: i32,
+    pub tournament: TournamentClass,
     pub cup_name: String,
     pub is_registered: bool,
     pub is_in_wait_list: bool,
@@ -125,7 +125,7 @@ impl DhvtHandle {
             can_reg: false,
             round: 0,
             reg_count: 0,
-            tournament: -1,
+            tournament: TournamentClass::default(),
             cup_name: String::new(),
             is_registered: false,
             is_in_wait_list: false,
@@ -179,7 +179,7 @@ pub struct DhvtActor {
     active_matches: Vec<JoinHandle<()>>,
     round: i32,
     can_reg: bool,
-    tournament: i32,
+    tournament: TournamentClass,
     last_mins: u32,
     last_date: u32,
 }
@@ -196,7 +196,7 @@ impl DhvtActor {
             active_matches: Vec::new(),
             round: 0,
             can_reg: false,
-            tournament: -1,
+            tournament: TournamentClass::default(),
             last_mins: 99,
             last_date: 0,
         };
@@ -239,11 +239,8 @@ impl DhvtActor {
                         round: self.round,
                         reg_count: self.list_reg.len(),
                         tournament: self.tournament,
-                        cup_name: if self.tournament >= 0 {
-                            TOURNAMENT_NAMES[self.tournament as usize].to_string()
-                        } else {
-                            String::new()
-                        },
+                        cup_name: self.tournament.get_name().to_string(),
+
                         is_registered: self.list_reg.contains(&player_id),
                         is_in_wait_list: self.list_wait.contains(&player_id),
                         hour: now.hour(),
@@ -286,26 +283,22 @@ impl DhvtActor {
             tracing::info!("[DHVT] Daily reset - cleared champion list");
         }
 
-        let tour = get_tournament_by_hour(hour);
-        self.tournament = tour;
-        self.can_reg = min < MINS_MAX_CAN_REG && tour != -1;
+        let tour = TournamentClass::from_hour(hour);
 
-        if tour != -1 {
+        if let Some(tour) = tour {
+            self.tournament = tour;
+            self.can_reg = min < MINS_MAX_CAN_REG;
             self.update_tournament(min);
         } else {
-            // Ngoài giờ thi đấu → reset
-            if self.round != 0 {
+            if self.round != 0 || !self.list_reg.is_empty() {
                 self.round = 0;
                 self.list_reg.clear();
-                self.list_wait.clear();
+                self.list_wait.capacity();
                 for handle in self.active_matches.drain(..) {
                     handle.abort();
                 }
             }
-        }
-
-        // Cleanup finished match handles
-        self.active_matches.retain(|h| !h.is_finished());
+        };
     }
 
     fn update_tournament(&mut self, min: u32) {

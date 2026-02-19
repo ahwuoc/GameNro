@@ -384,10 +384,13 @@ impl PlayerActor {
                 y,
                 space_type,
             } => {
-                if let Some(zone) = ZONE_MANAGER.get_zone(map_id, zone_id) {
-                    let pvp_handle = pvp_manager::get_pvp_handle();
-                    pvp_handle.player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
+                let zone_opt = if zone_id == -1 {
+                    ZONE_MANAGER.get_best_zone(map_id)
+                } else {
+                    ZONE_MANAGER.get_zone(map_id, zone_id)
+                };
 
+                if let Some(zone) = zone_opt {
                     self.sync_pet_map().await;
 
                     ChangeMapService::change_map_to_zone(
@@ -399,6 +402,12 @@ impl PlayerActor {
                         Some(&self.session),
                     )
                     .await;
+                } else {
+                    tracing::warn!(
+                        "[ACTOR] ChangeMap failed: zone not found for map {} zone {}",
+                        map_id,
+                        zone_id
+                    );
                 }
             }
             PlayerMessage::UpdateTick => {

@@ -216,7 +216,7 @@ impl CommandService {
                              You in wait list: {}\n\
                              Hour: {}",
                             info.cup_name,
-                            info.tournament,
+                            info.tournament.get_name(),
                             info.can_reg,
                             info.round,
                             info.reg_count,
