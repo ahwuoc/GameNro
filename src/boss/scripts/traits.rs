@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::{boss::actor::BossActor, models::skill_model};
+use crate::{boss::boss_actor::BossActor, models::skill_model};
 
 #[async_trait]
 pub trait BossScript: Send + Sync {

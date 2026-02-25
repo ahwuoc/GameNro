@@ -30,6 +30,9 @@ pub enum MenuId {
     // DHVT
     DhvtConfirm,
     DhvtMenu129,
+
+    // Bùa
+    MenuShopBua,
 }
 
 impl Default for MenuId {

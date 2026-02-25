@@ -11,6 +11,7 @@ use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player_actor::TypePk;
 use crate::player::player_data::PetData;
+use crate::player::Charms;
 use crate::player::InteractionState;
 use crate::player::MagicTree;
 use crate::player::NPoint;
@@ -88,6 +89,7 @@ pub struct Player {
     pub stats_need_update: bool,
     pub pet_data: Option<PetData>,
     pub boss_component: Option<crate::player::components::boss::BossComponent>,
+    pub charms: Charms,
     pub magic_tree: MagicTree,
     pub radar_cards: Vec<radar::Card>,
     pub map_id_before_capsule: i32,
@@ -151,6 +153,7 @@ impl Player {
             stats_need_update: true,
             pet_data: None,
             boss_component: None,
+            charms: Charms::new(),
             magic_tree: MagicTree::new(),
             radar_cards: Vec::new(),
             map_id_before_capsule: -1,

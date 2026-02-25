@@ -7,6 +7,7 @@ use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
 use crate::player::player_actor::PlayerMessage;
+use crate::player::player_manager::PLAYER_MANAGER;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
 use crate::services::{player_info_service, ServiceHandles};
 use crate::utils::{skill_util, time, MapUtils};
@@ -475,19 +476,55 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
     };
     let _ = ServiceHandles::send_player_attack_player(player, target.id, dame_hit, is_die, is_crit);
 }
-
+// =================Player attack Mob===================
 pub async fn deal_damage_to_mob(
     player: &mut Player,
     mob: &mut RtMob,
     miss: bool,
     die_when_hp_full: bool,
 ) -> Option<Message> {
+    if !player.is_pet {
+        if player.n_point.stamina <= 0 {
+            let _ = ServiceHandles::send_thong_bao_to_player(
+                player,
+                "Thể lực đã cạn kiệt, hãy nghỉ ngơi để lấy lại sức",
+            );
+            return None;
+        }
+        if player.charms.td_deo_dai <= time::current_time_millis() {
+            player.n_point.num_attack += 1;
+            if player.n_point.num_attack >= 500 {
+                player.n_point.num_attack = 0;
+                player.n_point.current_stamina_sub(1);
+                let _ = player_info_service::send_current_stamina(player);
+            }
+        }
+    }
     if miss {
         return None;
     }
     let is_crit = player.n_point.roll_crit();
-    let dame_attack = player.n_point.get_dame_attack(is_crit);
-    let _ = ServiceHandles::send_player_attack_mob(player, mob.id as u8);
+    let mut dame_attack = player.n_point.get_dame_attack(is_crit);
+    let curr_time = time::current_time_millis();
+    if player.charms.td_bat_tu > curr_time && player.n_point.hp_current <= 1 {
+        if player.n_point.hp_current < 1 {
+            player.n_point.set_hp_current(1);
+        }
+        if !player.is_pet {
+            dame_attack = 0;
+            let _ = ServiceHandles::send_thong_bao_to_player(
+                player,
+                "Bạn đang được bùa bất tử bảo vệ không thể tấn công!",
+            );
+        }
+    }
+    if player.charms.td_manh_me > curr_time {
+        dame_attack += dame_attack * 150 / 100;
+    }
+    if player.is_pet && player.charms.td_de_tu > curr_time {
+        dame_attack *= 2;
+    }
+    ServiceHandles::send_player_attack_mob(player, mob.id as u8);
     let _ = mob_service::attack_mob(
         player,
         mob.id as i32,

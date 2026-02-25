@@ -6,7 +6,7 @@ use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::PlayerHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
-use crate::services::ServiceHandles;
+use crate::services::{player_tnsm_services, skill_service, ServiceHandles};
 use crate::utils::time;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -79,6 +79,18 @@ impl PetActor {
                                     &self.pet.player,
                                 );
                             }
+                        }
+                        PlayerMessage::AddTNSM {
+                            type_tnsm,
+                            param,
+                            is_ori,
+                        } => {
+                            player_tnsm_services::tiemnang_sucmanh_add(
+                                &mut self.pet.player,
+                                type_tnsm,
+                                param,
+                                is_ori,
+                            );
                         }
                         _ => {}
                     }
@@ -352,19 +364,6 @@ impl PetActor {
                     } else {
                         0
                     };
-
-                    // let need_select = match &self.pet.player.player_skill.skill_select {
-                    //     Some(current) => {
-                    //         if let Some(target) =
-                    //             self.pet.player.player_skill.skills.get(skill_index)
-                    //         {
-                    //             current.template_id != target.template_id
-                    //         } else {
-                    //             false
-                    //         }
-                    //     }
-                    //     None => true,
-                    // };
                     let need_select = match &self.pet.player.player_skill.skill_select {
                         Some(current) => {
                             if let Some(target) =
@@ -401,8 +400,13 @@ impl PetActor {
                         self.move_to(mob.location.x + 100, mob.location.y).await;
                     }
                     if (skill_index == 0 && dist <= 80.0) || (skill_index == 1 && dist <= 350.0) {
+                        if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
+                            if let Some(master_snapshot) = master_handle.get_snapshot().await {
+                                self.pet.player.charms.td_de_tu = master_snapshot.charms.td_de_tu;
+                            }
+                        }
                         let mut mob_clone = mob.clone();
-                        crate::services::skill_service::execute_skill(
+                        skill_service::execute_skill(
                             &mut self.pet.player,
                             None,
                             Some(&mut mob_clone),

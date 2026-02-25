@@ -7,7 +7,7 @@ use crate::player::Player;
 use crate::utils::skill_util;
 use crate::{item::ItemService, player::player_data::PetData};
 
-use super::{actor::PetActor, handle::PetHandle, Pet, PetStatus};
+use super::{handle::PetHandle, pet_actor::PetActor, Pet, PetStatus};
 
 pub struct PetService;
 

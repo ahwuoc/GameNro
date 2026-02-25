@@ -123,21 +123,32 @@ impl ShopData {
 }
 
 pub mod shop_service {
+    use crate::{
+        player::{player_actor::PlayerMessage, Charms},
+        services::ServiceHandles,
+    };
+
     use super::*;
 
     pub async fn open_shop(tag_name: &str, session: &SessionArc) -> anyhow::Result<()> {
         let shop_data = ShopData::get(tag_name).await?;
-
         let shop_type = shop_data.shop.type_shop.unwrap_or(0);
-
         if let Some(handle) = session.get_player_handle().await {
             let tag = tag_name.to_string();
-            handle.send_forget(crate::player::player_actor::PlayerMessage::Modify(Box::new(
-                move |pl| {
-                    pl.interaction_state.set_tag_shop(tag);
-                },
-            )));
+            handle.send_forget(PlayerMessage::Modify(Box::new(move |pl| {
+                pl.interaction_state.set_tag_shop(tag);
+            })));
         }
+
+        let charm_overrides = if is_shop_sell_bua(tag_name) {
+            if let Some(snapshot) = session.get_player_snapshot().await {
+                charm_overrider(&snapshot.charms, &shop_data)
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        };
 
         let mut msg = Message::new(-44);
 
@@ -151,7 +162,12 @@ pub mod shop_service {
             msg.write_byte(tab.items.len() as i8)?;
 
             for item in &tab.items {
-                write_shop_item(&mut msg, item, shop_type)?;
+                write_shop_item_with_overrides(
+                    &mut msg,
+                    item,
+                    shop_type,
+                    charm_overrides.get(&item.item.temp_id),
+                )?;
             }
         }
 
@@ -162,12 +178,11 @@ pub mod shop_service {
         Ok(())
     }
 
-    fn write_shop_item(
+    fn write_shop_item_with_overrides(
         msg: &mut Message,
-
         shop_item: &ShopItem,
-
         shop_type: i32,
+        charm_override: Option<&Vec<(i8, i16)>>,
     ) -> anyhow::Result<()> {
         let item = &shop_item.item;
 
@@ -176,35 +191,34 @@ pub mod shop_service {
         match shop_type {
             0 => {
                 let cost = item.cost.unwrap_or(0);
-
                 let type_sell = item.type_sell.unwrap_or(0);
-
                 if type_sell == 0 {
                     msg.write_int(cost)?;
-
                     msg.write_int(0)?;
                 } else {
                     msg.write_int(0)?;
-
                     msg.write_int(cost)?;
                 }
             }
-
             3 => {
                 msg.write_short(item.icon_spec.unwrap_or(1) as i16)?;
-
                 msg.write_int(item.cost.unwrap_or(0))?;
             }
-
             _ => {}
         }
 
-        msg.write_byte(shop_item.options.len() as i8)?;
-
-        for option in &shop_item.options {
-            msg.write_byte(option.option_id as i8)?;
-
-            msg.write_short(option.param as i16)?;
+        if let Some(overrides) = charm_override {
+            msg.write_byte(overrides.len() as i8)?;
+            for (opt_id, param) in overrides {
+                msg.write_byte(*opt_id)?;
+                msg.write_short(*param)?;
+            }
+        } else {
+            msg.write_byte(shop_item.options.len() as i8)?;
+            for option in &shop_item.options {
+                msg.write_byte(option.option_id as i8)?;
+                msg.write_short(option.param as i16)?;
+            }
         }
 
         msg.write_byte(item.is_new)?;
@@ -212,13 +226,9 @@ pub mod shop_service {
         if let Some(template) = item_template_manager::get(item.temp_id as i16) {
             if template.r#type == 5 {
                 msg.write_byte(1)?;
-
                 msg.write_short(template.head as i16)?;
-
                 msg.write_short(template.body as i16)?;
-
                 msg.write_short(template.leg as i16)?;
-
                 msg.write_short(-1)?;
             } else {
                 msg.write_byte(0)?;
@@ -229,12 +239,42 @@ pub mod shop_service {
 
         Ok(())
     }
+    fn is_shop_sell_bua(tag_name: &str) -> bool {
+        matches!(tag_name, "BUA_1H" | "BUA_8H" | "BUA_1M")
+    }
+
+    fn get_bua_minutes(tag_name: &str) -> i32 {
+        match tag_name {
+            "BUA_1H" => 60,
+            "BUA_8H" => 60 * 8,
+            "BUA_1M" => 60 * 24 * 30,
+            _ => 0,
+        }
+    }
+
+    fn charm_overrider(charms: &Charms, shop_data: &ShopData) -> HashMap<i32, Vec<(i8, i16)>> {
+        let mut overrides = HashMap::new();
+        for tab in shop_data.tabs.iter() {
+            for item in tab.items.iter() {
+                let mins = charms.get_remaining_minutes(item.item.temp_id);
+                if mins > 0 {
+                    let opts = if mins >= 1440 {
+                        vec![(63i8, (mins / 1440) as i16)]
+                    } else if mins >= 60 {
+                        vec![(64i8, (mins / 60) as i16)]
+                    } else {
+                        vec![(65i8, mins as i16)]
+                    };
+                    overrides.insert(item.item.temp_id, opts);
+                }
+            }
+        }
+        overrides
+    }
 
     pub async fn take_item_shop(
         session: &SessionArc,
-
         _type_shop: i8,
-
         temp_id: i16,
     ) -> anyhow::Result<()> {
         let tag_shop = if let Some(snapshot) = session.get_player_snapshot().await {
@@ -251,36 +291,76 @@ pub mod shop_service {
             .flat_map(|tab| tab.items.iter())
             .find(|it| it.item.temp_id == temp_id as i32)
             .ok_or_else(|| anyhow::anyhow!("Shop item not found"))?;
+        if is_shop_sell_bua(&tag_shop) {
+            let cost = shop_item.item.cost.unwrap_or(0);
+            let type_sell = shop_item.item.type_sell.unwrap_or(0);
+            let minutes = get_bua_minutes(&tag_shop);
+            let tag_shop_clone = tag_shop.clone();
 
+            let has_enough = if let Some(snapshot) = session.get_player_snapshot().await {
+                match type_sell {
+                    0 => snapshot.inventory.gold >= cost as i64,
+                    _ => snapshot.inventory.gem >= cost,
+                }
+            } else {
+                false
+            };
+
+            if !has_enough {
+                if let Some(handle) = session.get_player_handle().await {
+                    let msg = match type_sell {
+                        0 => "Bạn không có đủ vàng",
+                        _ => "Bạn không có đủ ngọc",
+                    };
+                    handle.send_forget(PlayerMessage::Modify(Box::new(move |player| {
+                        ServiceHandles::send_thong_bao_to_player(player, msg);
+                        ServiceHandles::send_gold_gem_ruby_to_client(player);
+                    })));
+                }
+                return Ok(());
+            }
+
+            if let Some(handle) = session.get_player_handle().await {
+                let temp_id_i32 = temp_id as i32;
+                handle.send_forget(PlayerMessage::Modify(Box::new(move |player| {
+                    match type_sell {
+                        0 => {
+                            player.inventory.sub_gold(cost as i64);
+                        }
+                        _ => {
+                            player.inventory.sub_gem(cost);
+                        }
+                    }
+                    player.charms.add_time_bua(temp_id_i32, minutes);
+                    ServiceHandles::send_gold_gem_ruby_to_client(player);
+                })));
+            }
+            open_shop(&tag_shop_clone, session).await?;
+            return Ok(());
+        }
+
+        // === Xử lý mua item thường ===
         if let Some(handle) = session.get_player_handle().await {
             let session_clone = session.clone();
             let temp_id_val = shop_item.item.temp_id;
             let options_clone = shop_item.options.clone();
-            handle.send_forget(crate::player::player_actor::PlayerMessage::Modify(Box::new(
-                move |player| {
-                    if let Some(idx_bag) = player
-                        .inventory
-                        .items_bag
-                        .iter()
-                        .position(|it: &crate::item::item::Item| it.is_null_item())
-                    {
-                        if let Some(mut new_item) = ItemService::create_new_item(temp_id_val as i16)
-                        {
-                            for opt in options_clone {
-                                new_item.add_option_param(opt.option_id as i8, opt.param as i16);
-                            }
-
-                            player.inventory.items_bag[idx_bag] = new_item;
-
-                            if let Ok(msg) = InventoryService::create_item_bag_to_client(player) {
-                                session_clone.transmit(msg);
-                            }
-
-                            println!("mua thanh cong {}", temp_id_val);
+            handle.send_forget(PlayerMessage::Modify(Box::new(move |player| {
+                if let Some(idx_bag) = player
+                    .inventory
+                    .items_bag
+                    .iter()
+                    .position(|it: &crate::item::item::Item| it.is_null_item())
+                {
+                    if let Some(mut new_item) = ItemService::create_new_item(temp_id_val as i16) {
+                        for opt in options_clone {
+                            new_item.add_option_param(opt.option_id as i8, opt.param as i16);
                         }
+                        player.inventory.items_bag[idx_bag] = new_item;
+                        InventoryService::send_item_bag_to_client(player);
+                        println!("mua thanh cong {}", temp_id_val);
                     }
-                },
-            )));
+                }
+            })));
         } else {
             return Err(anyhow::anyhow!("Player not found"));
         }

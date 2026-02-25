@@ -2,6 +2,8 @@ use crate::combine::combine_service;
 use crate::combine::combine_type::CombineType;
 use crate::constant::menu_enum::MenuId;
 use crate::npc::handlers::{NpcContext, NpcHandler};
+use crate::shop::shop_dao;
+use crate::shop::shop_services::shop_service;
 use async_trait::async_trait;
 
 pub struct BahatmitHandler;
@@ -29,7 +31,10 @@ impl NpcHandler for BahatmitHandler {
                 )
                 .await?;
             }
-            _ => {}
+            _ => {
+                ctx.create_menu("", vec!["Cửa hàng\nBùa"], MenuId::BaseMenu)
+                    .await?
+            }
         }
         Ok(())
     }
@@ -72,11 +77,11 @@ impl NpcHandler for BahatmitHandler {
                 _ => match select {
                     0 => {
                         ctx.create_menu(
-                            "Xin chào, ta có một số vật phẩm đặc biệt cậu có muốn xem không?",
-                            vec!["Sub Menu"],
-                            MenuId::SubMenuSanta,
+                            "Bùa của ta rất lợi hại, nhìn ngươi yếu đuối thế này, chắc muốn mua bùa để mạnh mẽ à, mua không ta bán cho, xài rồi lại thích cho mà xem.",
+                            vec!["Bùa\n1 giờ", "Bùa\n8 giờ", "Bùa\n1 tháng", "Đóng"],
+                            MenuId::MenuShopBua,
                         )
-                        .await?;
+                        .await?
                     }
                     _ => {}
                 },
@@ -89,6 +94,19 @@ impl NpcHandler for BahatmitHandler {
                 0 => {
                     combine_service::confirm_combine(ctx.session).await?;
                 }
+                _ => {}
+            },
+            MenuId::MenuShopBua => match select {
+                0 => {
+                    shop_service::open_shop("BUA_1H", ctx.session).await?;
+                }
+                1 => {
+                    shop_service::open_shop("BUA_8H", ctx.session).await?;
+                }
+                2 => {
+                    shop_service::open_shop("BUA_1M", ctx.session).await?;
+                }
+                3 => println!("Đóng"),
                 _ => {}
             },
             _ => {}

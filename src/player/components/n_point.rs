@@ -70,6 +70,7 @@ pub struct NPoint {
     pub mp_hoi: i32,
     pub last_time_hoi_phuc: u64,
     pub last_time_hoi_stamina: u64,
+    pub num_attack: i32,
 }
 
 impl NPoint {
@@ -125,6 +126,7 @@ impl NPoint {
             mp_hoi: 0,
             last_time_hoi_phuc: 0,
             last_time_hoi_stamina: 0,
+            num_attack: 0,
         }
     }
     pub fn set_power(&mut self, power: i64) {

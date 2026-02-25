@@ -9,7 +9,7 @@ use crate::player::player_actor::handle::PlayerHandle;
 use crate::player::player_actor::PlayerMessage;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::templates::boss_template_manager;
-use crate::{boss::actor::BossActor, player::player_actor::TypePk};
+use crate::{boss::boss_actor::BossActor, player::player_actor::TypePk};
 use tokio::sync::mpsc;
 use tracing::{error, info};
 

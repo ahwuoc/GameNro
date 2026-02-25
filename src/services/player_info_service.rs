@@ -2,7 +2,7 @@ use crate::data::DataGame;
 use crate::entities::prelude::ItemShop;
 use crate::item::Item;
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::map::Zone;
+use crate::map::ZoneActor;
 use crate::network::message::Message;
 use crate::network::session::{AsyncSession, SessionArc};
 use crate::player::player_actor::pet::Pet;

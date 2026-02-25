@@ -5,9 +5,11 @@ use crate::item::item::Item;
 use crate::item::{ItemOption, ItemService};
 use crate::map::item_map::ItemMap;
 use crate::map::map_service::{self, is_map_black_ball_war, is_map_tanthu};
-use crate::map::models::zone::{Zone, ZoneHandle};
+use crate::map::models::zone::ZoneHandle;
+use crate::map::models::zone_actor::ZoneActor;
 use crate::map::services::item_map_service::ItemMapService;
 use crate::map::zone::ZoneMessage;
+use crate::map::zone_manager::ZONE_MANAGER;
 use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::player::player::Player;
@@ -28,7 +30,7 @@ pub async fn attack_mob(
     is_crit: bool,
     die_when_hp_full: bool,
 ) {
-    let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+    let zone_manager = &ZONE_MANAGER;
     if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
         let _ = zone
             .tx
@@ -45,7 +47,7 @@ pub async fn attack_mob(
 }
 
 pub async fn attack_mob_actor(
-    zone: &mut Zone,
+    zone: &mut ZoneActor,
     player_id: u64,
     mob_id: u64,
     damage: i32,
@@ -66,7 +68,7 @@ pub async fn attack_mob_actor(
                     mob.id, mob.template_id, real_damage, new_hp, mob.max_hp
                 );
 
-                if let Some(handle) = zone.players.get(&player_id) {
+                if let Some(handle) = zone.active_players.get(&player_id) {
                     let tnsm_amount = mob.get_tiemnang_for_player(player_power, real_damage as i64);
                     handle.send_forget(PlayerMessage::AddTNSM {
                         type_tnsm: TypeTNSM::All,
@@ -90,7 +92,7 @@ pub async fn attack_mob_actor(
                     let drop_y = mob.location.y;
                     let mob_temp_id = mob.template_id;
 
-                    if let Some(handle) = zone.players.get(&player_id) {
+                    if let Some(handle) = zone.active_players.get(&player_id) {
                         handle.send_forget(PlayerMessage::TaskAction(
                             TaskType::KillMob,
                             mob_temp_id.to_string(),
@@ -111,7 +113,7 @@ pub async fn attack_mob_actor(
     };
 
     if let Some(msg) = msg_opt {
-        for handle in zone.players.values() {
+        for handle in zone.active_players.values() {
             handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
                 msg.clone(),
             ));
@@ -133,7 +135,7 @@ pub async fn attack_mob_actor(
 }
 
 async fn drop_item_on_mob_death_actor(
-    zone: &mut Zone,
+    zone: &mut ZoneActor,
     x: i32,
     y: i32,
     player_id: u64,
@@ -147,7 +149,7 @@ async fn drop_item_on_mob_death_actor(
 
     let mut task_id = -1;
     let mut task_index = -1;
-    if let Some(handle) = zone.players.get(&player_id) {
+    if let Some(handle) = zone.active_players.get(&player_id) {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = handle.send(PlayerMessage::GetSnapshot(tx)).await;
         if let Ok(player) = rx.await {
@@ -165,7 +167,7 @@ async fn drop_item_on_mob_death_actor(
             || mob_template_id == const_mob::PHI_LONG_ME as i16
             || mob_template_id == const_mob::QUY_BAY_ME as i16)
     {
-        if let Some(handle) = zone.players.get(&player_id) {
+        if let Some(handle) = zone.active_players.get(&player_id) {
             let _ = handle.send_forget(PlayerMessage::SendPacket(ServiceHandles::build_thong_bao(
                 "Con thằn lằn mẹ này không giữ ngọc, hãy tìm con thằn lằn mẹ khác",
             )));
@@ -177,7 +179,7 @@ async fn drop_item_on_mob_death_actor(
             || mob_template_id == constant::const_mob::PHI_LONG_ME as i16
             || mob_template_id == constant::const_mob::QUY_BAY_ME as i16)
     {
-        if let Some(handle) = zone.players.get(&player_id) {
+        if let Some(handle) = zone.active_players.get(&player_id) {
             handle.send_forget(PlayerMessage::TaskAction(
                 TaskType::TaskScripts,
                 mob_template_id.to_string(),
@@ -198,7 +200,7 @@ async fn drop_item_on_mob_death_actor(
 
         zone.active_items.push(item_map.clone());
         let msg = ItemMapService::build_item_appear_message(&item_map);
-        for handle in zone.players.values() {
+        for handle in zone.active_players.values() {
             handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
         }
     }
@@ -241,7 +243,7 @@ fn get_mob_rewards(map_id: i32, mob_template_id: i16, task_id: i32, task_index: 
     drops
 }
 
-pub async fn update_actor(zone: &mut Zone) {
+pub async fn update_actor(zone: &mut ZoneActor) {
     let current_time = time::current_time_millis();
     let mut global_msgs = Vec::new();
     let mut attack_candidates = Vec::new();
@@ -295,7 +297,7 @@ pub async fn update_actor(zone: &mut Zone) {
             if let Some(mob) = zone.active_mobs.iter_mut().find(|m| m.id == mob_id) {
                 if mob.is_alive && can_mob_attack(mob, current_time) {
                     mob.start_time_attack_player = current_time;
-                    if let Some(handle) = zone.players.get(&target_id) {
+                    if let Some(handle) = zone.active_players.get(&target_id) {
                         let damage = mob.get_dame_attack();
                         tracing::info!(
                             "[MOB_ATK] Mob {} (temp {}) ATK Pl {}. Dmg: {}. Retaliatory: {}. Last Atk: {}, Wait: {}",
@@ -320,7 +322,7 @@ pub async fn update_actor(zone: &mut Zone) {
                             target_id as i32,
                             player_hp.saturating_sub(damage as i32),
                         );
-                        for (other_id, other_handle) in zone.players.iter() {
+                        for (other_id, other_handle) in zone.active_players.iter() {
                             if *other_id != target_id {
                                 tracing::info!(
                                     "[MOB_ATK] BROADCAST Command -10 to Observer {}",
@@ -346,7 +348,7 @@ pub async fn update_actor(zone: &mut Zone) {
     }
 
     for msg in global_msgs {
-        for handle in zone.players.values() {
+        for handle in zone.active_players.values() {
             handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
                 msg.clone(),
             ));
@@ -459,13 +461,13 @@ fn handle_mob_effects(mob: &mut RtMob, current_time: u64, global_msgs: &mut Vec<
 }
 
 async fn find_target_accurate_actor(
-    zone: &Zone,
+    zone: &ZoneActor,
     mob_location: &crate::utils::location::Location,
     temporary_enemies: &[u64],
     template_id: i8,
 ) -> Option<(u64, bool, crate::utils::location::Location, f64, i32)> {
     for &player_id in temporary_enemies {
-        if let Some(handle) = zone.players.get(&player_id) {
+        if let Some(handle) = zone.active_players.get(&player_id) {
             if handle.boss_info.is_some() {
                 continue;
             }
@@ -493,7 +495,7 @@ async fn find_target_accurate_actor(
     if template_id > 18 || is_boss {
         let mut closest_info = None;
         let mut min_dist = if is_boss { f64::MAX } else { 100.0 };
-        for handle in zone.players.values() {
+        for handle in zone.active_players.values() {
             if handle.boss_info.is_some() {
                 continue;
             }

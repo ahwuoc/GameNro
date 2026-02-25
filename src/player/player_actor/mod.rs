@@ -1,11 +1,11 @@
-pub mod actor;
 pub mod handle;
 pub mod message;
 pub mod pet;
+pub mod player_actor;
 
-pub use actor::PlayerActor;
 pub use handle::PlayerHandle;
 pub use message::PlayerMessage;
+pub use player_actor::PlayerActor;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypePk {

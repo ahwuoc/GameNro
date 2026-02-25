@@ -11,7 +11,7 @@ use crate::entities::{account, player};
 use crate::item::{item_controller, type_item_inventory};
 use crate::map::change_map_service::ChangeMapService;
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::map::Zone;
+use crate::map::ZoneActor;
 use crate::matches::pvp_service;
 use crate::network::SESSION_MANAGER;
 use crate::npc::{self, npc_service};

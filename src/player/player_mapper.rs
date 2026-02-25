@@ -5,6 +5,7 @@ use crate::entities::player;
 use crate::item::item_service::ItemService;
 use crate::models::intrinsic::{Intrinsic, IntrinsicPlayer};
 use crate::models::radar;
+use crate::player::components::charms::Charms;
 use crate::player::player::Player;
 use crate::player::player_data::*;
 use crate::player::player_parser::*;
@@ -214,6 +215,9 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
         }
     }
 
+    // Parse charms
+    p.charms = Charms::from_db(&model.data_charm);
+
     if !model.data_card.is_empty() && model.data_card != "[]" {
         if let Ok(cards_json) = serde_json::from_str::<Vec<CardDataJson>>(&model.data_card) {
             p.radar_cards = cards_json
@@ -338,6 +342,8 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         .collect();
     let radar_str = serde_json::to_string(&radar_cards_json).unwrap_or_else(|_| "[]".to_string());
 
+    let charm_str = p.charms.to_db();
+
     player::ActiveModel {
         id: Set(p.id as i32),
         name: Set(p.name.clone()),
@@ -356,6 +362,7 @@ pub fn to_active_model(p: &Player) -> player::ActiveModel {
         clan_id: Set(p.clan_id),
         data_task: Set(data_task),
         data_card: Set(radar_str),
+        data_charm: Set(charm_str),
         ..Default::default()
     }
 }

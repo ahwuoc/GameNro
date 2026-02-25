@@ -1,4 +1,4 @@
-use crate::map::Zone;
+use crate::map::ZoneActor;
 use crate::models::EffectSkill;
 use crate::network::message::Message;
 use crate::player::player::Player;

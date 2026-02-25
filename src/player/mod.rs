@@ -10,6 +10,7 @@ pub mod player_parser;
 pub use player::ChargeUpdateResult;
 pub use player::Player;
 
+pub use components::charms::Charms;
 pub use components::fusion::Fusion;
 pub use components::interaction_state::InteractionState;
 pub use components::n_point::NPoint;

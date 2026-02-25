@@ -1,12 +1,12 @@
 use crate::player::Player;
 
-pub mod actor;
 pub mod handle;
 pub mod message;
+pub mod pet_actor;
 pub mod service;
 
-pub use actor::PetActor;
 pub use handle::PetHandle;
+pub use pet_actor::PetActor;
 pub use service::PetService;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

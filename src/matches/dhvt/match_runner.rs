@@ -47,10 +47,6 @@ const COUNDOWN_EVENTS: &[CountdownEvent] = &[
         at_tick: 19,
         message: "Trận đấu bắt đầu!",
     },
-    // CountdownEvent {
-    //     at_tick: 22,
-    //     message: "",
-    // },
 ];
 const TICK_ENABLE: i32 = 22;
 
@@ -97,11 +93,11 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
         if let Some(event) = COUNDOWN_EVENTS.iter().find(|e| e.at_tick == tick) {
             send_thong_bao(p1_id, event.message);
             send_thong_bao(p2_id, event.message);
+        }
 
-            if tick == TICK_ENABLE {
-                change_type_pk(p1_id, TypePk::PkPvp);
-                change_type_pk(p2_id, TypePk::PkPvp);
-            }
+        if tick == TICK_ENABLE {
+            change_type_pk(p1_id, TypePk::PkPvp);
+            change_type_pk(p2_id, TypePk::PkPvp);
         }
         tokio::time::sleep(tick_duration).await;
     }
@@ -239,9 +235,13 @@ pub async fn run_match(p1_id: i64, p2_id: i64, zone_id: i32, dhvt_handle: DhvtHa
     // wait 5s
     tokio::time::sleep(Duration::from_millis(5000)).await;
     // Winner: full HP/MP rồi teleport về map 52 (phòng chờ)
+
     modify_player(winner_id, |player| {
         player.n_point.set_full_hp_mp();
     });
+
+    // =========hanldep player win 2 round thi finish task ====
+
     teleport_player_spaceship(winner_id, MAP_PHONG_CHO, -1, 300, 336);
 
     // Loser: hồi sinh nếu đang chết, rồi teleport về nhà

@@ -1,4 +1,5 @@
 pub mod boss;
+pub mod charms;
 pub mod fusion;
 pub mod interaction_state;
 pub mod n_point;

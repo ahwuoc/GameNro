@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use crate::constant::const_map;
 use crate::database::DbManager;
 use crate::map::map_service;
-use crate::map::zone::Zone;
+use crate::map::zone_actor::ZoneActor;
 use crate::map::zone_manager::ZONE_MANAGER;
 use crate::network::message::Message;
 use crate::player::player::Player;

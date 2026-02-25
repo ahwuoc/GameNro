@@ -1,8 +1,11 @@
 use super::constants::*;
 use super::match_runner;
+use crate::constant::task_type::TaskType;
 use crate::matches::pvp::{change_type_pk, send_thong_bao};
+use crate::player::player_actor::PlayerMessage;
 use crate::player::player_manager::PLAYER_MANAGER;
 use chrono::{Datelike, Local, Timelike};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
@@ -182,6 +185,7 @@ pub struct DhvtActor {
     tournament: TournamentClass,
     last_mins: u32,
     last_date: u32,
+    win_count: HashMap<i64, i32>,
 }
 
 impl DhvtActor {
@@ -199,6 +203,7 @@ impl DhvtActor {
             tournament: TournamentClass::default(),
             last_mins: 99,
             last_date: 0,
+            win_count: HashMap::new(),
         };
         (handle, actor)
     }
@@ -207,13 +212,17 @@ impl DhvtActor {
         while let Some(msg) = self.receiver.recv().await {
             match msg {
                 DhvtMessage::Register { player_id } => {
-                    if !self.list_reg.contains(&player_id) {
-                        self.list_reg.push(player_id);
-                        tracing::info!(
-                            "[DHVT] Player {} registered. Total: {}",
-                            player_id,
-                            self.list_reg.len()
-                        );
+                    if self.can_reg {
+                        if !self.list_reg.contains(&player_id) {
+                            self.list_reg.push(player_id);
+                            tracing::info!(
+                                "[DHVT] Player {} registered. Total: {}",
+                                player_id,
+                                self.list_reg.len()
+                            );
+                        }
+                    } else {
+                        send_thong_bao(player_id, "Đã hết thời gian đăng ký giải đấu này.");
                     }
                 }
                 DhvtMessage::Unregister { player_id } => {
@@ -271,12 +280,12 @@ impl DhvtActor {
     }
 
     fn tick(&mut self) {
+        self.active_matches.retain(|h| !h.is_finished());
+
         let now = Local::now();
         let hour = now.hour();
         let min = now.minute();
         let day = now.ordinal();
-
-        // Daily reset
         if day != self.last_date {
             self.list_champ.clear();
             self.last_date = day;
@@ -286,14 +295,30 @@ impl DhvtActor {
         let tour = TournamentClass::from_hour(hour);
 
         if let Some(tour) = tour {
+            if self.tournament != tour {
+                tracing::info!(
+                    "[DHVT] Tournament changed from {:?} to {:?}",
+                    self.tournament,
+                    tour
+                );
+                self.round = 0;
+                self.list_reg.clear();
+                self.list_wait.clear();
+                self.win_count.clear();
+                for handle in self.active_matches.drain(..) {
+                    handle.abort();
+                }
+            }
+
             self.tournament = tour;
             self.can_reg = min < MINS_MAX_CAN_REG;
             self.update_tournament(min);
         } else {
-            if self.round != 0 || !self.list_reg.is_empty() {
+            if self.round != 0 || !self.list_reg.is_empty() || !self.list_wait.is_empty() {
                 self.round = 0;
                 self.list_reg.clear();
-                self.list_wait.capacity();
+                self.list_wait.clear();
+                self.win_count.clear();
                 for handle in self.active_matches.drain(..) {
                     handle.abort();
                 }
@@ -303,7 +328,6 @@ impl DhvtActor {
 
     fn update_tournament(&mut self, min: u32) {
         if min >= MINS_END {
-            // Force kết thúc tất cả
             if self.round != 0 || !self.list_reg.is_empty() || !self.list_wait.is_empty() {
                 tracing::info!("[DHVT] Tournament ended (MINS_END reached)");
                 self.round = 0;
@@ -312,33 +336,39 @@ impl DhvtActor {
                 }
                 self.list_reg.clear();
                 self.list_wait.clear();
+                self.win_count.clear();
             }
         } else if min >= MINS_START {
-            // Nếu chỉ còn 1 người chờ, không còn trận, không còn đăng ký → VÔ ĐỊCH
-            if self.list_wait.len() == 1
-                && self.list_reg.is_empty()
-                && self.active_matches.is_empty()
-            {
-                let winner_id = self.list_wait[0];
+            let total_players = self.list_reg.len() + self.list_wait.len();
+            if self.round > 0 && total_players == 1 && self.active_matches.is_empty() {
+                let winner_id = if !self.list_wait.is_empty() {
+                    self.list_wait[0]
+                } else {
+                    self.list_reg[0]
+                };
+                tracing::info!(
+                    "[DHVT] Only 1 player left (ID: {}). Declaring champion.",
+                    winner_id
+                );
                 self.reward_champion(winner_id);
                 return;
             }
 
-            // Vòng sau: chuyển list_wait → list_reg khi tất cả trận kết thúc
             if self.round > 0
                 && self.list_wait.len() > 1
                 && self.list_reg.is_empty()
                 && self.active_matches.is_empty()
             {
                 tracing::info!(
-                    "[DHVT] Round {} done. {} players advancing to next round",
+                    "[DHVT] Round {} finished. {} players advancing to round {}",
                     self.round,
-                    self.list_wait.len()
+                    self.list_wait.len(),
+                    self.round + 1
                 );
                 self.list_reg = self.list_wait.drain(..).collect();
             }
 
-            // Ghép cặp nếu có người đăng ký và không có trận đang chạy
+            // 3. Khởi chạy vòng đấu mới: Nếu có người trong reg và không có trận nào đang chạy
             if !self.list_reg.is_empty() && self.active_matches.is_empty() {
                 self.pair_and_start_matches();
             }
@@ -352,10 +382,6 @@ impl DhvtActor {
             self.round,
             self.list_reg.len()
         );
-
-        // Loại player không ở map 52 (check bằng PLAYER_MANAGER.contains)
-        // Vì chúng ta không thể await get_snapshot trong sync context,
-        // ta chỉ kiểm tra player còn online không. Map check sẽ ở match_runner.
         self.list_reg.retain(|&player_id| {
             let online = PLAYER_MANAGER.contains(player_id as u64);
             if !online {
@@ -369,7 +395,6 @@ impl DhvtActor {
             return;
         }
 
-        // Lẻ người → 1 người vào list_wait (bye)
         if self.list_reg.len() % 2 != 0 {
             if let Some(bye_id) = self.list_reg.pop() {
                 self.list_wait.push(bye_id);
@@ -411,23 +436,34 @@ impl DhvtActor {
 
     fn handle_match_finished(&mut self, winner_id: i64, _loser_id: i64) {
         self.list_wait.push(winner_id);
+        let wins = self.win_count.entry(winner_id).or_insert(0);
+        *wins += 1;
         tracing::info!(
-            "[DHVT] Match finished. Winner: {}. Wait list: {}, Active: {}",
+            "[DHVT] Match finished. Winner: {} (wins: {}). Wait list: {}, Active: {}",
             winner_id,
+            *wins,
             self.list_wait.len(),
             self.active_matches
                 .iter()
                 .filter(|h| !h.is_finished())
                 .count()
         );
+
+        // Chỉ gửi TaskAction khi player đã win >= 2 round
+        if *wins >= 2 {
+            if let Some(pl_handle) = PLAYER_MANAGER.get(winner_id as u64) {
+                pl_handle.send_forget(PlayerMessage::TaskAction(
+                    TaskType::TaskScripts,
+                    "dhvt_win".to_string(),
+                ));
+            }
+        }
     }
 
     fn reward_champion(&mut self, player_id: i64) {
         tracing::info!("[DHVT] CHAMPION: player {}", player_id);
 
-        // Lấy tên player để ghi vào danh sách vô địch
         if let Some(handle) = PLAYER_MANAGER.get_ref(player_id as u64) {
-            // Lưu ID player vào champion list (dùng id format string vì không có name trên handle)
             let player_id_str = player_id.to_string();
             self.list_champ.push(player_id_str);
         }
@@ -454,5 +490,7 @@ impl DhvtActor {
 
         self.list_reg.clear();
         self.list_wait.clear();
+        self.win_count.clear();
+        self.round = 0;
     }
 }

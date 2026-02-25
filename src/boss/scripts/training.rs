@@ -3,7 +3,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use rand::Rng;
 
-use crate::boss::actor::{BossActor, BossState};
+use crate::boss::boss_actor::{BossActor, BossState};
 use crate::boss::boss_id::{BOSS_TAU_PAY_PAY, BOSS_THAN_MEO_KARIN, BOSS_YAJIRO};
 use crate::boss::scripts::traits::BossScript;
 use crate::constant::task_type::TaskType;

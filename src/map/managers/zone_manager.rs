@@ -1,4 +1,5 @@
-use crate::map::models::zone::{Zone, ZoneHandle};
+use crate::map::models::zone::ZoneHandle;
+use crate::map::models::zone_actor::ZoneActor;
 use crate::services::task_utils::TaskUtils;
 use dashmap::DashMap;
 use std::sync::LazyLock;
@@ -18,7 +19,7 @@ impl ZoneManager {
     pub fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
         let zone_key = format!("{}_{}", map_id, zone_id);
         let (tx, rx) = mpsc::channel(1000);
-        let zone = Zone::new(map_id, zone_id, max_player, rx);
+        let zone = ZoneActor::new(map_id, zone_id, max_player, rx);
         let handle = ZoneHandle {
             map_id,
             zone_id,

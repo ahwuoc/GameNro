@@ -8,12 +8,13 @@ pub use models::item_map;
 pub use models::map;
 pub use models::waypoint;
 pub use models::zone;
+pub use models::zone_actor;
 
 // Re-export models types
 pub use item_map::ItemMap;
 pub use map::Map;
 pub use waypoint::WayPoint;
-pub use zone::Zone;
+pub use zone_actor::ZoneActor;
 
 // Re-export services modules
 pub use services::change_map_service;

@@ -2,6 +2,7 @@ use crate::boss::boss_id::BOSS_TAU_PAY_PAY;
 use crate::constant::const_item::{ITEM_DUI_GA_NUONG, ITEM_EM_BE};
 use crate::constant::task_id;
 use crate::item::item_controller::ItemController;
+use crate::item::use_item_service::UseItemResult;
 use crate::item::{InventoryService, Item};
 use crate::map::services::training_services;
 use crate::map::zone_manager::ZONE_MANAGER;
@@ -52,17 +53,6 @@ impl PlayerActor {
         }
     }
 
-    fn check_cooldown(last_time: &mut Option<Instant>, millis: u64) -> bool {
-        let now = Instant::now();
-        if let Some(t) = *last_time {
-            if now.duration_since(t).as_millis() < millis as u128 {
-                return false;
-            }
-        }
-        *last_time = Some(now);
-        true
-    }
-
     pub async fn run(mut self) {
         info!(
             "PlayerActor started for {} (ID: {})",
@@ -88,49 +78,16 @@ impl PlayerActor {
 
         self.dispose().await;
     }
-
     async fn handle_message(&mut self, msg: PlayerMessage) {
         match msg {
             PlayerMessage::TaskAction(task_type, target_id) => {
-                let old_task = (
-                    TaskUtils::get_id_task(&self.player),
-                    TaskUtils::get_task_index(&self.player),
-                );
-                TaskService::check_done_task(&mut self.player, task_type, &target_id);
-                self.handle_task_advance(old_task).await;
+                self.handle_task_action(task_type, target_id).await;
             }
             PlayerMessage::NetworkMessage(m) => {
-                let command = m.command;
-                if let Err(e) = self.handle_network_command(m).await {
-                    error!(
-                        "Error processing network message for player {}: {:?}",
-                        self.player.id, e
-                    );
-                }
-                match command {
-                    -33 | -23 | -15 | 21 => {
-                        tracing::info!(
-                            "EXITING: PlayerMessage::NetworkMessage (command: {}, player: {})",
-                            command,
-                            self.player.id
-                        );
-                    }
-                    _ => {}
-                }
+                self.handle_network_message(m).await;
             }
             PlayerMessage::Chat { text } => {
-                if let Ok(false) =
-                    CommandService::check(&mut self.player, &self.session, &text).await
-                {
-                    let _ = ServiceHandles::chat(
-                        &self.session,
-                        self.player.id,
-                        self.player.map_id,
-                        self.player.zone_id,
-                        &text,
-                    )
-                    .await;
-                }
+                self.handle_chat(text).await;
             }
             PlayerMessage::SendPacket(m) => {
                 self.session.transmit(m);
@@ -150,10 +107,7 @@ impl PlayerActor {
                 self.handle_attack_player(player_id).await;
             }
             PlayerMessage::SelectSkill { skill_template_id } => {
-                let _ = crate::services::skill_service::select_skill(
-                    &mut self.player,
-                    skill_template_id,
-                );
+                self.handle_select_skill(skill_template_id);
             }
             PlayerMessage::UseSkill { msg } => {
                 self.handle_use_skill(msg).await;
@@ -168,117 +122,49 @@ impl PlayerActor {
                 type_combine,
                 npc_id,
             } => {
-                let _ = crate::combine::combine_service::handle_open_tab_actor(
-                    &mut self.player,
-                    &self.session,
-                    type_combine,
-                    npc_id,
-                )
-                .await;
+                self.handle_combine_open_tab(type_combine, npc_id).await;
             }
             PlayerMessage::CombineShowInfo { index } => {
-                let _ = crate::combine::combine_service::handle_show_info_actor(
-                    &mut self.player,
-                    &self.session,
-                    index,
-                )
-                .await;
+                self.handle_combine_show_info(index).await;
             }
             PlayerMessage::CombineConfirm => {
-                let _ = crate::combine::combine_service::handle_confirm_actor(
-                    &mut self.player,
-                    &self.session,
-                )
-                .await;
+                self.handle_combine_confirm().await;
             }
             PlayerMessage::ItemAction {
                 type_action,
                 where_item,
                 index,
             } => {
-                if let Ok(Some(use_result)) =
-                    crate::item::item_controller::ItemController::handle_item_action_actor(
-                        &self.session,
-                        &mut self.player,
-                        type_action,
-                        where_item,
-                        index,
-                    )
-                    .await
-                {
-                    if let crate::item::use_item_service::UseItemResult::RecoveredHpMp {
-                        hp_ki,
-                        stamina,
-                        ..
-                    } = use_result
-                    {
-                        if let Some(ref pet_handle) = self.pet_handle {
-                            let _ = pet_handle
-                                .send(PetMessage::HealPet {
-                                    hp: hp_ki,
-                                    mp: hp_ki,
-                                    stamina,
-                                })
-                                .await;
-                        }
-                    }
-                }
+                self.handle_item_action(type_action, where_item, index)
+                    .await;
             }
             PlayerMessage::GetItem {
                 type_item_inventory,
                 index,
             } => {
-                let _ = ItemController::handle_get_item_actor(
-                    &self.session,
-                    &mut self.player,
-                    type_item_inventory,
-                    index,
-                )
-                .await;
+                self.handle_get_item(type_item_inventory, index).await;
             }
             PlayerMessage::HoiSinh => {
-                let _ = crate::services::player_service::hoi_sinh(&mut self.player);
+                let _ = player_service::hoi_sinh(&mut self.player);
             }
             PlayerMessage::GetSnapshot(tx) => {
                 let _ = tx.send(self.player.clone());
             }
             PlayerMessage::UpdateSkillShortcuts { shortcuts } => {
-                self.player.player_skill.skill_shortcut = shortcuts;
-                let _ = crate::services::skill_service::send_skill_shortcut(&self.player);
+                self.handle_update_skill_shortcuts(shortcuts);
             }
             PlayerMessage::IncreasePoint {
                 type_increment,
                 point,
             } => {
-                let old_task = (
-                    TaskUtils::get_id_task(&self.player),
-                    TaskUtils::get_task_index(&self.player),
-                );
-                self.player.n_point.increase_point(type_increment, point);
-                self.player.n_point.cal_point();
-                player_info_service::send_point_info_sync(&self.player);
-
-                let _ = TaskService::check_done_task_scripts(
-                    &mut self.player,
-                    "2", // UseTiemNang
-                );
-                let _ = TaskService::check_done_task_scripts(
-                    &mut self.player,
-                    "1", // PowerReach
-                );
-                self.handle_task_advance(old_task).await;
+                self.handle_increase_point(type_increment, point).await;
             }
             PlayerMessage::AddTNSM {
                 type_tnsm,
                 param,
                 is_ori,
             } => {
-                player_tnsm_services::tiemnang_sucmanh_add(
-                    &mut self.player,
-                    type_tnsm,
-                    param,
-                    is_ori,
-                );
+                self.handle_add_tnsm(type_tnsm, param, is_ori);
             }
             PlayerMessage::CreateMenu {
                 npc_id,
@@ -286,96 +172,19 @@ impl PlayerActor {
                 menu_options,
                 state,
             } => {
-                let options: Vec<&str> = menu_options.iter().map(|s| s.as_str()).collect();
-                let _ = crate::npc::npc_service::npc_service::create_menu_player(
-                    &mut self.player,
-                    npc_id,
-                    &npc_say,
-                    options,
-                    state,
-                );
+                self.handle_create_menu(npc_id, npc_say, menu_options, state);
             }
             PlayerMessage::FinishLoadMap => {
-                if !Self::check_cooldown(&mut self.last_finish_load_time, 200) {
-                    return;
-                }
-
-                ChangeMapService::finish_load_map(&self.player, Some(&self.session)).await;
-                TaskService::send_info_current_task(&self.player);
-                TaskService::send_tutorial_task_0_0_0(&self.player, "GameNro Server");
-                TaskService::check_auto_skip_task_home(&mut self.player);
-
-                if self.player.map_id == 47 {
-                    let task_id = TaskUtils::get_id_task(&self.player);
-                    let task_index = TaskUtils::get_task_index(&self.player);
-                    if task_id >= task_id::TASK_7 && task_index > 0 {
-                        training_services::call_boss_by_id(
-                            &mut self.player,
-                            BOSS_TAU_PAY_PAY,
-                            false,
-                        );
-                    }
-                }
-
-                tracing::info!(
-                    "EXITING: PlayerMessage::FinishLoadMap (player: {})",
-                    self.player.id
-                );
+                self.handle_finish_load_map().await;
             }
             PlayerMessage::Modify(f) => {
                 f(&mut self.player);
             }
             PlayerMessage::Move { x, y } => {
-                if self.player.is_die() {
-                    return;
-                }
-
-                if self.player.effect_skill.use_troi {
-                    let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
-
-                    if let Some(zone) = zone_opt {
-                        if let Some(mob_id) = self.player.effect_skill.mob_an_troi_id {
-                            zone.remove_mob_hold(mob_id, self.player.id);
-                        }
-                        if let Some(target_id) = self.player.effect_skill.pl_an_troi_id {
-                            zone.remove_player_hold(target_id, self.player.id);
-                        }
-                    }
-                    EffectSkillService::remove_use_troi(&mut self.player);
-                }
-
-                self.player.location.set_position(x, y);
-                let map_id = self.player.map_id;
-                TaskService::check_done_task_go_to_map_position(&mut self.player, map_id, x);
-                if let Some(ref pet_handle) = self.pet_handle {
-                    let _ = pet_handle.send(PetMessage::MasterLocation(x, y)).await;
-                }
-
-                let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-                    .get_zone(self.player.map_id, self.player.zone_id);
-                if let Some(zone) = zone_opt {
-                    let mut msg = Message::new(-7);
-                    let _ = msg.write_int(self.player.id as i32);
-                    let _ = msg.write_short(self.player.location.x);
-                    let _ = msg.write_short(self.player.location.y);
-                    let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
-                }
+                self.handle_move(x, y).await;
             }
             PlayerMessage::ShowInfoPet => {
-                if let Some(ref pet_handle) = self.pet_handle {
-                    let (tx, rx) = tokio::sync::oneshot::channel();
-                    if let Ok(_) = pet_handle.send(PetMessage::GetSnapshot(tx)).await {
-                        let player_clone = self.player.clone();
-                        tokio::spawn(async move {
-                            if let Ok(pet_snapshot) = rx.await {
-                                let _ = player_info_service::send_info_pet(
-                                    &player_clone,
-                                    &pet_snapshot,
-                                );
-                            }
-                        });
-                    }
-                }
+                self.handle_show_info_pet().await;
             }
             PlayerMessage::ChangeMap {
                 map_id,
@@ -384,48 +193,15 @@ impl PlayerActor {
                 y,
                 space_type,
             } => {
-                let zone_opt = if zone_id == -1 {
-                    ZONE_MANAGER.get_best_zone(map_id)
-                } else {
-                    ZONE_MANAGER.get_zone(map_id, zone_id)
-                };
-
-                if let Some(zone) = zone_opt {
-                    self.sync_pet_map().await;
-
-                    ChangeMapService::change_map_to_zone(
-                        &mut self.player,
-                        &zone,
-                        x,
-                        y,
-                        space_type,
-                        Some(&self.session),
-                    )
+                self.handle_change_map(map_id, zone_id, x, y, space_type)
                     .await;
-                } else {
-                    tracing::warn!(
-                        "[ACTOR] ChangeMap failed: zone not found for map {} zone {}",
-                        map_id,
-                        zone_id
-                    );
-                }
             }
             PlayerMessage::UpdateTick => {
                 self.update().await;
             }
-            PlayerMessage::Logout => {
-                // Handled in run() loop
-            }
+            PlayerMessage::Logout => {}
             PlayerMessage::HandleAnTroi(is_an_troi, time_an_troi, caster_id) => {
-                if is_an_troi {
-                    self.player.effect_skill.an_troi = true;
-                    self.player.effect_skill.time_an_troi = time_an_troi;
-                    self.player.effect_skill.start_time_an_troi =
-                        crate::utils::time::current_time_millis();
-                    self.player.effect_skill.pl_troi_id = caster_id;
-                } else {
-                    EffectSkillService::remove_an_troi(&mut self.player);
-                }
+                self.handle_an_troi(is_an_troi, time_an_troi, caster_id);
             }
             PlayerMessage::SetPetHandle(handle) => {
                 self.pet_handle = Some(handle);
@@ -440,21 +216,7 @@ impl PlayerActor {
                 self.handle_unfusion().await;
             }
             PlayerMessage::Pet(pet_msg) => {
-                if self.player.fusion.type_fusion != 0 {
-                    if matches!(
-                        pet_msg,
-                        crate::player::player_actor::pet::message::PetMessage::ChangeStatus(_)
-                    ) {
-                        tracing::info!(
-                            "[PET] Blocked status change while player {} is fused",
-                            self.player.id
-                        );
-                        return;
-                    }
-                }
-                if let Some(handle) = &self.pet_handle {
-                    handle.send_forget(pet_msg);
-                }
+                self.handle_pet_forward(pet_msg);
             }
             PlayerMessage::PetAskPea { pet_id } => {
                 self.handle_pet_ask_pea(pet_id).await;
@@ -465,103 +227,428 @@ impl PlayerActor {
                 info!("Cleared pet handle for player {}", self.player.id);
             }
             PlayerMessage::MagicTreeAction(action) => {
-                info!(
-                    "PlayerActor: MagicTreeAction({}) for player {}",
-                    action, self.player.id
-                );
-                match action {
-                    1 => {
-                        // Open menu
-                        let menu_id = self.player.magic_tree.get_menu_id();
-                        self.player.interaction_state.set_index_menu(menu_id);
-                        if let Ok(msg) = self.player.magic_tree.create_menu_message(&self.player) {
-                            self.session.transmit(msg);
-                        }
-                    }
-                    2 => {
-                        // Load data
-                        if let Ok(msg) = self.player.magic_tree.create_load_message(&self.player) {
-                            self.session.transmit(msg);
-                        }
-                    }
-                    _ => {}
-                }
+                self.handle_magic_tree_action(action);
             }
             PlayerMessage::MagicTreeHarvest => {
-                info!(
-                    "PlayerActor: MagicTreeHarvest for player {}",
-                    self.player.id
-                );
-                crate::services::magic_tree_service::harvest_pea(&mut self.player);
+                self.handle_magic_tree_harvest();
             }
             PlayerMessage::MagicTreeFastRespawn => {
-                info!(
-                    "PlayerActor: MagicTreeFastRespawn for player {}",
-                    self.player.id
-                );
-                crate::services::magic_tree_service::fast_respawn_pea(&mut self.player);
+                self.handle_magic_tree_fast_respawn();
             }
             PlayerMessage::RadarAction(action, mut msg) => {
                 let _ = self.handle_radar_action(action, &mut msg).await;
             }
             PlayerMessage::MagicTreeUpgrade => {
-                info!(
-                    "PlayerActor: MagicTreeUpgrade for player {}",
-                    self.player.id
-                );
-                crate::services::magic_tree_service::upgrade_magic_tree(&mut self.player);
+                self.handle_magic_tree_upgrade();
             }
             PlayerMessage::MagicTreeFastUpgrade => {
-                info!(
-                    "PlayerActor: MagicTreeFastUpgrade for player {}",
-                    self.player.id
-                );
-                crate::services::magic_tree_service::fast_upgrade_magic_tree(&mut self.player);
+                self.handle_magic_tree_fast_upgrade();
             }
             PlayerMessage::MagicTreeUnupgrade => {
-                info!(
-                    "PlayerActor: MagicTreeUnupgrade for player {}",
-                    self.player.id
-                );
-                crate::services::magic_tree_service::unupgrade_magic_tree(&mut self.player);
+                self.handle_magic_tree_unupgrade();
             }
             PlayerMessage::ChangeMapCapsule(index) => {
-                ChangeMapService::change_map_capsule(&mut self.player, index, &self.session).await;
-                self.sync_pet_map().await;
+                self.handle_change_map_capsule(index).await;
             }
             PlayerMessage::ChangeMapBlackBall(index) => {
-                BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
-                self.sync_pet_map().await;
+                self.handle_change_map_black_ball(index).await;
             }
             PlayerMessage::SendInfoTo(target_handle) => {
-                let _ = crate::services::ServiceHandles::send_player_info_to_handle(
-                    &target_handle,
-                    &self.player,
-                );
+                self.handle_send_info_to(target_handle);
             }
             PlayerMessage::SendInfoToAll(targets) => {
-                for target_handle in targets {
-                    let _ = crate::services::ServiceHandles::send_player_info_to_handle(
-                        &target_handle,
-                        &self.player,
-                    );
-                }
+                self.handle_send_info_to_all(targets);
             }
             PlayerMessage::CallTrainingBoss {
                 boss_id,
                 is_thachdau,
             } => {
-                if let Err(e) =
-                    training_services::call_boss_by_id(&mut self.player, &boss_id, is_thachdau)
-                {
-                    error!(
-                        "Error calling training boss for player {}: {:?}",
-                        self.player.id, e
-                    );
+                self.handle_call_training_boss(boss_id, is_thachdau);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  Handler functions
+    // ─────────────────────────────────────────────────────────
+
+    async fn handle_task_action(
+        &mut self,
+        task_type: crate::constant::task_type::TaskType,
+        target_id: String,
+    ) {
+        let old_task = (
+            TaskUtils::get_id_task(&self.player),
+            TaskUtils::get_task_index(&self.player),
+        );
+        TaskService::check_done_task(&mut self.player, task_type, &target_id);
+        self.handle_task_advance(old_task).await;
+    }
+
+    async fn handle_network_message(&mut self, m: Message) {
+        let command = m.command;
+        if let Err(e) = self.handle_network_command(m).await {
+            error!(
+                "Error processing network message for player {}: {:?}",
+                self.player.id, e
+            );
+        }
+        match command {
+            -33 | -23 | -15 | 21 => {
+                tracing::info!(
+                    "EXITING: PlayerMessage::NetworkMessage (command: {}, player: {})",
+                    command,
+                    self.player.id
+                );
+            }
+            _ => {}
+        }
+    }
+
+    async fn handle_chat(&mut self, text: String) {
+        if let Ok(false) = CommandService::check(&mut self.player, &self.session, &text).await {
+            let _ = ServiceHandles::chat(
+                &self.session,
+                self.player.id,
+                self.player.map_id,
+                self.player.zone_id,
+                &text,
+            )
+            .await;
+        }
+    }
+
+    fn handle_select_skill(&mut self, skill_template_id: i32) {
+        let _ = crate::services::skill_service::select_skill(&mut self.player, skill_template_id);
+    }
+
+    async fn handle_combine_open_tab(
+        &mut self,
+        type_combine: crate::combine::combine_type::CombineType,
+        npc_id: i16,
+    ) {
+        let _ = crate::combine::combine_service::handle_open_tab_actor(
+            &mut self.player,
+            &self.session,
+            type_combine,
+            npc_id,
+        )
+        .await;
+    }
+
+    async fn handle_combine_show_info(&mut self, index: Vec<i16>) {
+        let _ = crate::combine::combine_service::handle_show_info_actor(
+            &mut self.player,
+            &self.session,
+            index,
+        )
+        .await;
+    }
+
+    async fn handle_combine_confirm(&mut self) {
+        let _ =
+            crate::combine::combine_service::handle_confirm_actor(&mut self.player, &self.session)
+                .await;
+    }
+
+    async fn handle_item_action(
+        &mut self,
+        type_action: crate::item::type_item_inventory::TypeItemAction,
+        where_item: i8,
+        index: i8,
+    ) {
+        if let Ok(Some(use_result)) = ItemController::handle_item_action_actor(
+            &self.session,
+            &mut self.player,
+            type_action,
+            where_item,
+            index,
+        )
+        .await
+        {
+            if let UseItemResult::RecoveredHpMp { hp_ki, stamina, .. } = use_result {
+                if let Some(ref pet_handle) = self.pet_handle {
+                    let _ = pet_handle
+                        .send(PetMessage::HealPet {
+                            hp: hp_ki,
+                            mp: hp_ki,
+                            stamina,
+                        })
+                        .await;
                 }
             }
         }
     }
+
+    async fn handle_get_item(
+        &mut self,
+        type_item_inventory: crate::item::type_item_inventory::TypeItemInventory,
+        index: i8,
+    ) {
+        let _ = ItemController::handle_get_item_actor(
+            &self.session,
+            &mut self.player,
+            type_item_inventory,
+            index,
+        )
+        .await;
+    }
+
+    fn handle_update_skill_shortcuts(&mut self, shortcuts: Vec<i8>) {
+        self.player.player_skill.skill_shortcut = shortcuts;
+        let _ = crate::services::skill_service::send_skill_shortcut(&self.player);
+    }
+
+    async fn handle_increase_point(&mut self, type_increment: u8, point: i16) {
+        let old_task = (
+            TaskUtils::get_id_task(&self.player),
+            TaskUtils::get_task_index(&self.player),
+        );
+        self.player.n_point.increase_point(type_increment, point);
+        self.player.n_point.cal_point();
+        player_info_service::send_point_info_sync(&self.player);
+
+        let _ = TaskService::check_done_task_scripts(&mut self.player, "2");
+        let _ = TaskService::check_done_task_scripts(&mut self.player, "1");
+        self.handle_task_advance(old_task).await;
+    }
+
+    fn handle_add_tnsm(&mut self, type_tnsm: TypeTNSM, param: i64, is_ori: bool) {
+        player_tnsm_services::tiemnang_sucmanh_add(&mut self.player, type_tnsm, param, is_ori);
+    }
+
+    fn handle_create_menu(
+        &mut self,
+        npc_id: i16,
+        npc_say: String,
+        menu_options: Vec<String>,
+        state: crate::constant::menu_enum::MenuId,
+    ) {
+        let options: Vec<&str> = menu_options.iter().map(|s| s.as_str()).collect();
+        let _ = crate::npc::npc_service::npc_service::create_menu_player(
+            &mut self.player,
+            npc_id,
+            &npc_say,
+            options,
+            state,
+        );
+    }
+
+    async fn handle_finish_load_map(&mut self) {
+        ChangeMapService::finish_load_map(&self.player, Some(&self.session)).await;
+        TaskService::send_info_current_task(&self.player);
+        TaskService::send_tutorial_task_0_0_0(&self.player, "GameNro Server");
+        TaskService::check_auto_skip_task_home(&mut self.player);
+
+        if self.player.map_id == 47 {
+            let task_id = TaskUtils::get_id_task(&self.player);
+            let task_index = TaskUtils::get_task_index(&self.player);
+            if task_id >= task_id::TASK_7 && task_index > 0 {
+                training_services::call_boss_by_id(&mut self.player, BOSS_TAU_PAY_PAY, false);
+            }
+        }
+
+        tracing::info!(
+            "EXITING: PlayerMessage::FinishLoadMap (player: {})",
+            self.player.id
+        );
+    }
+
+    async fn handle_move(&mut self, x: i16, y: i16) {
+        if self.player.is_die() {
+            return;
+        }
+
+        if self.player.effect_skill.use_troi {
+            self.release_hold();
+        }
+
+        self.player.location.set_position(x, y);
+        let map_id = self.player.map_id;
+        TaskService::check_done_task_go_to_map_position(&mut self.player, map_id, x);
+        if let Some(ref pet_handle) = self.pet_handle {
+            let _ = pet_handle.send(PetMessage::MasterLocation(x, y)).await;
+        }
+
+        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
+        if let Some(zone) = zone_opt {
+            let mut msg = Message::new(-7);
+            let _ = msg.write_int(self.player.id as i32);
+            let _ = msg.write_short(self.player.location.x);
+            let _ = msg.write_short(self.player.location.y);
+            let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
+        }
+    }
+
+    async fn handle_show_info_pet(&mut self) {
+        if let Some(ref pet_handle) = self.pet_handle {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            if let Ok(_) = pet_handle.send(PetMessage::GetSnapshot(tx)).await {
+                let player_clone = self.player.clone();
+                tokio::spawn(async move {
+                    if let Ok(pet_snapshot) = rx.await {
+                        let _ = player_info_service::send_info_pet(&player_clone, &pet_snapshot);
+                    }
+                });
+            }
+        }
+    }
+
+    async fn handle_change_map(
+        &mut self,
+        map_id: i32,
+        zone_id: i32,
+        x: i16,
+        y: i16,
+        space_type: SpaceShipType,
+    ) {
+        let zone_opt = if zone_id == -1 {
+            ZONE_MANAGER.get_best_zone(map_id)
+        } else {
+            ZONE_MANAGER.get_zone(map_id, zone_id)
+        };
+
+        if let Some(zone) = zone_opt {
+            self.sync_pet_map().await;
+            ChangeMapService::change_map_to_zone(
+                &mut self.player,
+                &zone,
+                x,
+                y,
+                space_type,
+                Some(&self.session),
+            )
+            .await;
+        } else {
+            tracing::warn!(
+                "[ACTOR] ChangeMap failed: zone not found for map {} zone {}",
+                map_id,
+                zone_id
+            );
+        }
+    }
+
+    fn handle_an_troi(&mut self, is_an_troi: bool, time_an_troi: u64, caster_id: Option<u64>) {
+        if is_an_troi {
+            self.player.effect_skill.an_troi = true;
+            self.player.effect_skill.time_an_troi = time_an_troi;
+            self.player.effect_skill.start_time_an_troi = crate::utils::time::current_time_millis();
+            self.player.effect_skill.pl_troi_id = caster_id;
+        } else {
+            EffectSkillService::remove_an_troi(&mut self.player);
+        }
+    }
+
+    fn handle_pet_forward(&mut self, pet_msg: PetMessage) {
+        if self.player.fusion.type_fusion != 0 {
+            if matches!(pet_msg, PetMessage::ChangeStatus(_)) {
+                tracing::info!(
+                    "[PET] Blocked status change while player {} is fused",
+                    self.player.id
+                );
+                return;
+            }
+        }
+        if let Some(handle) = &self.pet_handle {
+            handle.send_forget(pet_msg);
+        }
+    }
+
+    fn handle_magic_tree_action(&mut self, action: u8) {
+        info!(
+            "PlayerActor: MagicTreeAction({}) for player {}",
+            action, self.player.id
+        );
+        match action {
+            1 => {
+                let menu_id = self.player.magic_tree.get_menu_id();
+                self.player.interaction_state.set_index_menu(menu_id);
+                if let Ok(msg) = self.player.magic_tree.create_menu_message(&self.player) {
+                    self.session.transmit(msg);
+                }
+            }
+            2 => {
+                if let Ok(msg) = self.player.magic_tree.create_load_message(&self.player) {
+                    self.session.transmit(msg);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_magic_tree_harvest(&mut self) {
+        info!(
+            "PlayerActor: MagicTreeHarvest for player {}",
+            self.player.id
+        );
+        crate::services::magic_tree_service::harvest_pea(&mut self.player);
+    }
+
+    fn handle_magic_tree_fast_respawn(&mut self) {
+        info!(
+            "PlayerActor: MagicTreeFastRespawn for player {}",
+            self.player.id
+        );
+        crate::services::magic_tree_service::fast_respawn_pea(&mut self.player);
+    }
+
+    fn handle_magic_tree_upgrade(&mut self) {
+        info!(
+            "PlayerActor: MagicTreeUpgrade for player {}",
+            self.player.id
+        );
+        crate::services::magic_tree_service::upgrade_magic_tree(&mut self.player);
+    }
+
+    fn handle_magic_tree_fast_upgrade(&mut self) {
+        info!(
+            "PlayerActor: MagicTreeFastUpgrade for player {}",
+            self.player.id
+        );
+        crate::services::magic_tree_service::fast_upgrade_magic_tree(&mut self.player);
+    }
+
+    fn handle_magic_tree_unupgrade(&mut self) {
+        info!(
+            "PlayerActor: MagicTreeUnupgrade for player {}",
+            self.player.id
+        );
+        crate::services::magic_tree_service::unupgrade_magic_tree(&mut self.player);
+    }
+
+    async fn handle_change_map_capsule(&mut self, index: i32) {
+        ChangeMapService::change_map_capsule(&mut self.player, index, &self.session).await;
+        self.sync_pet_map().await;
+    }
+
+    async fn handle_change_map_black_ball(&mut self, index: i8) {
+        BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
+        self.sync_pet_map().await;
+    }
+
+    fn handle_send_info_to(&self, target_handle: crate::player::player_actor::PlayerHandle) {
+        let _ = ServiceHandles::send_player_info_to_handle(&target_handle, &self.player);
+    }
+
+    fn handle_send_info_to_all(&self, targets: Vec<crate::player::player_actor::PlayerHandle>) {
+        for target_handle in targets {
+            let _ = ServiceHandles::send_player_info_to_handle(&target_handle, &self.player);
+        }
+    }
+
+    fn handle_call_training_boss(&mut self, boss_id: String, is_thachdau: bool) {
+        if let Err(e) = training_services::call_boss_by_id(&mut self.player, &boss_id, is_thachdau)
+        {
+            error!(
+                "Error calling training boss for player {}: {:?}",
+                self.player.id, e
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  Internal helpers
+    // ─────────────────────────────────────────────────────────
 
     async fn handle_task_advance(&mut self, old_task: (i32, i32)) {
         let new_task = (
@@ -575,7 +662,7 @@ impl PlayerActor {
         }
     }
 
-    async fn handle_pet_ask_pea(&mut self, pet_id: u64) {
+    async fn handle_pet_ask_pea(&mut self, _pet_id: u64) {
         if let Some(index) = self
             .player
             .inventory
@@ -586,9 +673,9 @@ impl PlayerActor {
             if let Some(recovery) =
                 crate::item::use_item_service::UseItemService::eat_pea(&mut self.player, index)
             {
-                let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
-                let _ = crate::services::player_info_service::send_current_stamina(&self.player);
-                let _ = crate::item::InventoryService::send_item_bag(&self.player);
+                let _ = player_info_service::send_point_info_sync(&self.player);
+                let _ = player_info_service::send_current_stamina(&self.player);
+                let _ = InventoryService::send_item_bag(&self.player);
                 if let Some(ref pet_handle) = self.pet_handle {
                     let _ = pet_handle
                         .send(PetMessage::HealPet {
@@ -601,6 +688,7 @@ impl PlayerActor {
             }
         }
     }
+
     async fn handle_fusion(&mut self, type_fusion: i8, template_id: i32) {
         if self.player.fusion.type_fusion != 0 {
             return;
@@ -654,11 +742,7 @@ impl PlayerActor {
                         self.player.fusion.last_time_fusion =
                             crate::utils::time::current_time_millis();
                         let icon_id: i16 = if self.player.gender == 1 { 3901 } else { 3790 };
-                        let _ = crate::services::ServiceHandles::send_item_time_client(
-                            &self.player,
-                            icon_id,
-                            600,
-                        );
+                        let _ = ServiceHandles::send_item_time_client(&self.player, icon_id, 600);
                     }
                 }
             }
@@ -687,10 +771,10 @@ impl PlayerActor {
                 .await;
         }
 
-        let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
-        let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
-        let _ = crate::services::ServiceHandles::send_cai_trang(&self.player);
-        let _ = crate::services::ServiceHandles::send_fusion_effect(&self.player, 0);
+        let _ = player_info_service::send_point_info_sync(&self.player);
+        let _ = player_info_service::send_info_hp_mp_money(&self.player);
+        let _ = ServiceHandles::send_cai_trang(&self.player);
+        let _ = ServiceHandles::send_fusion_effect(&self.player, 0);
     }
 
     async fn update(&mut self) {
@@ -726,21 +810,16 @@ impl PlayerActor {
             }
             crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT
             | crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT_ALT => {
-                // PVP: đổi map = bỏ chạy
                 pvp_manager::get_pvp_handle()
                     .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
-                crate::map::ChangeMapService::change_map_waypoint_handler(
-                    &mut self.player,
-                    &self.session,
-                )
-                .await?;
+                ChangeMapService::change_map_waypoint_handler(&mut self.player, &self.session)
+                    .await?;
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::GO_HOME => {
                 pvp_manager::get_pvp_handle()
                     .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
-                crate::map::ChangeMapService::go_home_handler(&mut self.player, &self.session)
-                    .await?;
+                ChangeMapService::go_home_handler(&mut self.player, &self.session).await?;
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::CHANGE_ZONE => {
@@ -751,8 +830,7 @@ impl PlayerActor {
                     &mut self.player,
                 )
                 .await?;
-                crate::map::ChangeMapService::change_zone(&mut self.player, zone_id, &self.session)
-                    .await?;
+                ChangeMapService::change_zone(&mut self.player, zone_id, &self.session).await?;
                 self.sync_pet_map().await;
             }
             _ => {
@@ -787,7 +865,7 @@ impl PlayerActor {
 
                     if card.used == 0 {
                         if any_other_used {
-                            crate::services::ServiceHandles::send_message_alert(
+                            ServiceHandles::send_message_alert(
                                 &self.player,
                                 "Số thẻ sử dụng đã đạt tối đa",
                             )?;
@@ -808,7 +886,7 @@ impl PlayerActor {
                         new_used,
                     )?;
                     self.player.n_point.cal_point();
-                    crate::services::player_info_service::send_point_info_sync(&self.player)?;
+                    player_info_service::send_point_info_sync(&self.player)?;
                 }
             }
             _ => {}
@@ -816,17 +894,29 @@ impl PlayerActor {
         Ok(())
     }
 
-    async fn handle_injured(&mut self, damage: u64, piercing: bool, from_mob: bool) {
+    async fn handle_injured(&mut self, mut damage: u64, piercing: bool, from_mob: bool) {
         let was_alive = !self.player.is_die();
+        let curr_time = crate::utils::time::current_time_millis();
+        if from_mob {
+            if self.player.charms.td_da_trau > curr_time {
+                damage /= 2;
+            }
+            if self.player.charms.td_bat_tu > curr_time {
+                let hp = self.player.n_point.hp_current as u64;
+                if damage >= hp {
+                    damage = hp.saturating_sub(1);
+                }
+            }
+        }
         let real_damage = self.player.injured(damage, piercing);
         if !from_mob {
             player_info_service::send_info_hp_mp_money(&self.player);
             ServiceHandles::send_player_injured(&self.player, real_damage as i32, false, 255);
-            let _ = crate::services::ServiceHandles::send_hp_sync(&self.player);
+            ServiceHandles::send_hp_sync(&self.player);
         }
         if was_alive && self.player.is_die() {
-            let pvp_handle = crate::matches::pvp_manager::get_pvp_handle();
-            pvp_handle.player_lose(self.player.id as i64, crate::matches::TypeLosePvp::Dead);
+            let pvp_handle = pvp_manager::get_pvp_handle();
+            pvp_handle.player_lose(self.player.id as i64, TypeLosePvp::Dead);
         }
     }
 
@@ -876,8 +966,7 @@ impl PlayerActor {
         let mut pl_target_snapshot = None;
         let mut mob_target = None;
 
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.player.map_id, self.player.zone_id);
+        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
 
         if let Some(zone) = zone_opt.clone() {
             if status == 1 {
@@ -925,8 +1014,7 @@ impl PlayerActor {
             self.release_hold();
         }
 
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.player.map_id, self.player.zone_id);
+        let zone_opt = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id);
 
         if let Some(zone) = zone_opt {
             if let Ok(Some(target_handle)) = zone.get_player(player_id as u64).await {
@@ -943,21 +1031,14 @@ impl PlayerActor {
     }
 
     async fn handle_pick_item(&mut self, item_map_id: i32) {
-        if !Self::check_cooldown(&mut self.last_pick_time, 200) {
-            return;
-        }
-
         let zone_handle = match ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id) {
             Some(zh) => zh,
             None => return,
         };
-
-        // 1. Kiểm tra quyền nhặt (Peek trước)
         let item_map_peek = match zone_handle.get_item(item_map_id).await {
             Ok(Some(it)) => it,
             _ => return,
         };
-
         if !item_map_peek.can_pickup(self.player.id, Some(self.player.clan_id)) {
             let _ = ServiceHandles::send_thong_bao_to_player(
                 &self.player,
@@ -966,7 +1047,6 @@ impl PlayerActor {
             return;
         }
 
-        // 2. Nhặt món đồ ra khỏi zone
         match zone_handle.remove_item(item_map_id).await {
             Ok(Some(item_map)) => {
                 let item_id = item_map.get_item_id();
@@ -1037,7 +1117,6 @@ impl PlayerActor {
 
                             let disappearing_msg =
                                 ItemMapService::build_item_disappear_message(item_map_id);
-
                             ServiceHandles::send_to_all_in_zone(&zone_handle, disappearing_msg);
 
                             if item_type >= 0 && item_type < 5 {
@@ -1090,14 +1169,12 @@ impl PlayerActor {
         self.player.stats_need_update = true;
         let heal_amount = (self.player.n_point.hp_current as i64 * percent_hp as i64 / 100) as i32;
         self.player.n_point.current_hp_add(heal_amount);
-        let _ = crate::services::player_info_service::send_point_info_sync(&self.player);
-        let _ = crate::services::player_info_service::send_info_hp_mp_money(&self.player);
+        let _ = player_info_service::send_point_info_sync(&self.player);
+        let _ = player_info_service::send_info_hp_mp_money(&self.player);
     }
 
     fn release_hold(&mut self) {
-        if let Some(zone) =
-            crate::map::zone_manager::ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id)
-        {
+        if let Some(zone) = ZONE_MANAGER.get_zone(self.player.map_id, self.player.zone_id) {
             if let Some(mob_id) = self.player.effect_skill.mob_an_troi_id {
                 zone.remove_mob_hold(mob_id, self.player.id);
             }
@@ -1105,10 +1182,9 @@ impl PlayerActor {
                 zone.remove_player_hold(target_id, self.player.id);
             }
         }
-        crate::services::effect_skill_service::EffectSkillService::remove_use_troi(
-            &mut self.player,
-        );
+        EffectSkillService::remove_use_troi(&mut self.player);
     }
+
     async fn dispose(&mut self) {
         info!(
             "PlayerActor disposing for {} (ID: {})",
