@@ -6,6 +6,7 @@ mod config;
 mod constant;
 mod data;
 mod database;
+mod dungoen;
 mod entities;
 mod features;
 mod item;
@@ -36,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
     services::manager::init().await?;
     services::manager::init_maps_world().await?;
     boss::manager::BossManager::init_boss().await;
+    dungoen::doanh_trai::manager::global_init();
     matches::pvp_manager::init_pvp();
     matches::dhvt::manager::init_dhvt();
     println!(

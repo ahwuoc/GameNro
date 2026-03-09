@@ -82,11 +82,12 @@ pub mod cmd {
     pub const GET_CLAN_LIST: i8 = -47;
     pub const GET_MEMBER_LIST: i8 = -50;
     pub const CLAN_INFO: i8 = -46;
-    pub const CLAN_MEMBER_INFO: i8 = -49;
+    pub const CLAN_JOIN: i8 = -49;
     pub const CLAN_DONATE: i8 = -54;
-    pub const CLAN_REMOTE: i8 = -55;
+    pub const CLAN_REMOTE: i8 = -56;
+    pub const LEAVE_CLAN: i8 = -55;
     pub const CLAN_INVITE: i8 = -57;
-    pub const CLAN_JOIN: i8 = -48;
+    pub const CLAN_MEMBER_INFO: i8 = -48;
     pub const RADAR: i8 = 127;
 
     // ===== PVP =====

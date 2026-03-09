@@ -96,6 +96,7 @@ pub struct Player {
     pub zone_id_before_capsule: i32,
     pub spaceship_id: i8,
     pub master_id: Option<u64>,
+    pub last_time_join_dt: i64,
 }
 
 impl Player {
@@ -160,6 +161,7 @@ impl Player {
             zone_id_before_capsule: -1,
             spaceship_id: 0,
             master_id: None,
+            last_time_join_dt: 0,
         }
     }
 

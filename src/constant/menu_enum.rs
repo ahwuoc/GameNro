@@ -31,6 +31,9 @@ pub enum MenuId {
     DhvtConfirm,
     DhvtMenu129,
 
+    MenuJoinRedRibbon,
+    MenuJoinDoanhTrai,
+    IgnoreMenu,
     // Bùa
     MenuShopBua,
 }

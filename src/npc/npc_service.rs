@@ -8,6 +8,7 @@ use crate::npc::handlers::conmeo::ConMeoHandler;
 use crate::npc::handlers::dau_than::DauThanHandler;
 use crate::npc::handlers::dynamic_shop_handler::DynamicShopHandler;
 use crate::npc::handlers::ong_gohan::NpcHomeHandler;
+use crate::npc::handlers::quy_lao_kame::QuyLaoKameHandler;
 use crate::npc::handlers::ruong_do::RuongDoHandler;
 use crate::npc::handlers::santa::SantaHandler;
 use crate::npc::handlers::{NpcContext, NpcHandler};
@@ -17,6 +18,7 @@ use crate::player::Player;
 use crate::templates::npc_template_manager;
 
 pub mod npc_service {
+    use crate::dungoen::NpcLinhCanhHandler;
     use crate::map::map_manager;
     use crate::matches::dhvt::service::GhiDanhHandler;
     use crate::matches::pvp_service;
@@ -162,6 +164,8 @@ pub mod npc_service {
             NpcId::Cargo => Some(Box::new(CargoHandler)),
             NpcId::ThanMeoKarin => Some(Box::new(ThanMeoKarinHandler)),
             NpcId::GhiDanh => Some(Box::new(GhiDanhHandler)),
+            NpcId::QuyLaoKame => Some(Box::new(QuyLaoKameHandler)),
+            NpcId::LinhCanh => Some(Box::new(NpcLinhCanhHandler)),
 
             // =================Handle Shop Dynamic===============
             NpcId::Bunma => Some(Box::new(DynamicShopHandler::new(

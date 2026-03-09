@@ -35,7 +35,7 @@ pub struct BossActor {
     pub next_chat_time: Instant,
     pub script: Arc<dyn BossScript>,
     pub last_attacker_id: Option<u64>,
-    pub attacker_player_id: Option<u64>, // ==== Lock player targer
+    pub attacker_player_id: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -425,7 +425,12 @@ impl BossActor {
     pub async fn chat_random_middle(&self) {
         if let Some(template) = boss_template_manager::get(&self.template_id) {
             let stage = &template.stages.0[self.current_stage];
-            let refs = stage.chat.m.iter().map(|s|s.as_str()).collect::<Vec<&str>>();
+            let refs = stage
+                .chat
+                .m
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>();
             self.chat(&refs);
         }
     }

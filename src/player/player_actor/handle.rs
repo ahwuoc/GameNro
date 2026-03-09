@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 pub struct BossInfo {
     pub group_id: Option<u64>,
     pub group_index: i32,
+    pub template_id: String,
 }
 
 #[derive(Clone, Debug)]

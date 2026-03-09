@@ -140,6 +140,7 @@ impl BossManager {
             );
         }
     }
+
     pub async fn spawn_boss(
         template_id: &str,
         map_id: i32,
@@ -150,6 +151,8 @@ impl BossManager {
         group_index: i32,
         sequence: Vec<String>,
         attacker_player_id: Option<u64>,
+        hp_override: Option<i32>,
+        dame_override: Option<i32>,
     ) -> anyhow::Result<()> {
         let Some(template) = boss_template_manager::get(template_id) else {
             return Err(anyhow::anyhow!("Boss template {} not found", template_id));
@@ -158,6 +161,7 @@ impl BossManager {
         let Some(zone) = ZONE_MANAGER.get_zone(map_id, zone_id) else {
             return Err(anyhow::anyhow!("Zone {}-{} not found", map_id, zone_id));
         };
+
         static BOSS_ID_COUNTER: std::sync::atomic::AtomicI64 =
             std::sync::atomic::AtomicI64::new(-1000000);
         let boss_id = BOSS_ID_COUNTER.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) as u64;
@@ -176,23 +180,17 @@ impl BossManager {
         boss_component.sequence = sequence;
         player.boss_component = Some(boss_component);
 
-        tracing::debug!("Boss stages count: {}", template.stages.0.len());
         if let Some(stage) = template.stages.0.get(0) {
             if let Some(stage_name) = &stage.name {
                 player.name = stage_name.clone();
             }
-            tracing::debug!(
-                "Initializing Boss from Stage 0: hp={}, mp={}, dame={}, skills={:?}",
-                stage.hp,
-                stage.mp,
-                stage.dame,
-                stage.skills
-            );
-            player.n_point.hp_max = stage.hp;
-            player.n_point.hp_current = stage.hp;
+
+            player.n_point.hp_max = hp_override.unwrap_or(stage.hp);
+            player.n_point.hp_current = player.n_point.hp_max;
             player.n_point.mp_max = stage.mp;
             player.n_point.mp_current = stage.mp;
-            player.n_point.dame = stage.dame;
+            player.n_point.dame = dame_override.unwrap_or(stage.dame);
+
             if stage.outfit.len() >= 3 {
                 player.head = stage.outfit[0];
                 player.body = stage.outfit[1];
@@ -221,12 +219,6 @@ impl BossManager {
                     };
 
                 if let Some(sk) = sk {
-                    tracing::info!(
-                        "Added skill {} (level {}) to boss {}",
-                        sk.template_id,
-                        sk.point,
-                        boss_id
-                    );
                     player.player_skill.skills.push(sk);
                 } else {
                     tracing::error!(
@@ -239,12 +231,6 @@ impl BossManager {
         } else {
             tracing::error!("Boss template {} HAS NO STAGES!", template_id);
         }
-
-        tracing::info!(
-            "Boss {} initialized with {} skills",
-            boss_id,
-            player.player_skill.skills.len()
-        );
 
         if let Some(stage) = template.stages.0.get(0) {
             if template.r#type == "group" && !stage.together.is_empty() {
@@ -286,6 +272,7 @@ impl BossManager {
             handle.boss_info = Some(crate::player::player_actor::handle::BossInfo {
                 group_id: comp.group_id,
                 group_index: comp.group_index,
+                template_id: template_id.to_string(),
             });
         }
 
@@ -303,7 +290,6 @@ impl BossManager {
         zone.load_me_to_another(boss_id).await?;
 
         let boss_name = template.name.clone();
-        let template_id_cloned = template_id.to_string();
         tokio::spawn(async move {
             info!(
                 "Boss spawned: {} at map {}, zone {}",
@@ -339,10 +325,42 @@ impl BossManager {
                 group_index,
                 sequence,
                 attacker_player_id,
+                None,
+                None,
             )
             .await
             {
                 error!("Error spawning boss {}: {}", template_id, e);
+            }
+        });
+    }
+
+    pub fn spawn_boss_dungeon_async(
+        template_id: String,
+        map_id: i32,
+        zone_id: i32,
+        x: i16,
+        y: i16,
+        hp: i32,
+        dame: i32,
+    ) {
+        tokio::spawn(async move {
+            if let Err(e) = Self::spawn_boss(
+                &template_id,
+                map_id,
+                zone_id,
+                x,
+                y,
+                None,
+                -1,
+                Vec::new(),
+                None,
+                Some(hp),
+                Some(dame),
+            )
+            .await
+            {
+                error!("Error spawning dungeon boss {}: {}", template_id, e);
             }
         });
     }

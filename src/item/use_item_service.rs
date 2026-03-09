@@ -99,6 +99,14 @@ impl UseItemService {
                         ChangeMapService::open_capsule_menu(pl)?;
                         return Ok(UseItemResult::None);
                     }
+                    611 => {
+                        // Bản đồ kho báu -> Mở menu Quy Lão Kame
+                        if let Some(ref session) = pl.session {
+                            crate::npc::npc_service::npc_service::open_menu_controller(session, 13)
+                                .await?;
+                        }
+                        return Ok(UseItemResult::None);
+                    }
                     _ => {
                         return Ok(UseItemResult::Error(
                             "Không thể sử dụng vật phẩm này".to_string(),

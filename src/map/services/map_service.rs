@@ -31,6 +31,28 @@ pub fn is_map_huy_diet(map_id: i32) -> bool {
     map_id >= 169 && map_id <= 171
 }
 
+pub fn is_map_doanh_trai(map_id: i32) -> bool {
+    (53..=62).contains(&map_id)
+}
+
+pub fn is_map_pho_ban(map_id: i32) -> bool {
+    is_map_doanh_trai(map_id)
+        || (135..=138).contains(&map_id)
+        || (141..=144).contains(&map_id)
+        || (147..=152).contains(&map_id) && map_id != 150
+}
+
+pub fn is_map_offline(map_id: i32) -> bool {
+    if let Some(template) = crate::templates::map_template_manager::get(map_id) {
+        return template.r#type == 1;
+    }
+    false
+}
+
+pub fn is_map_tap_luyen(map_id: i32) -> bool {
+    (191..=193).contains(&map_id)
+}
+
 pub fn build_player_teleport_message(player: &Player) -> Message {
     let mut msg = Message::new(123);
     let _ = msg.write_int(player.id as i32);

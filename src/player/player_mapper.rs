@@ -45,16 +45,28 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
 
     match parse_location_array(&model.data_location) {
         Ok((mut map_id, mut x, mut y)) => {
-            if p.n_point.hp_current <= 0 {
-                p.n_point.hp_current = 1;
-                p.n_point.mp_current = 1;
+            if p.n_point.hp_current <= 0
+                || crate::map::services::map_service::is_map_pho_ban(map_id)
+                || crate::map::services::map_service::is_map_ma_bu(map_id)
+                || crate::map::services::map_service::is_map_black_ball_war(map_id)
+            {
+                p.n_point.hp_current = if p.n_point.hp_current <= 0 {
+                    1
+                } else {
+                    p.n_point.hp_current
+                };
+                p.n_point.mp_current = if p.n_point.mp_current <= 0 {
+                    1
+                } else {
+                    p.n_point.mp_current
+                };
                 p.dead_flag = false;
 
                 map_id = (p.gender as i32) + 21;
                 x = 300;
                 y = 336;
                 println!(
-                    "[PLAYER_DAO] Player {} was dead, resetting to home map {} at ({}, {})",
+                    "[PLAYER_DAO] Player {} login from special/dead map, resetting to home map {} at ({}, {})",
                     p.name, map_id, x, y
                 );
             }

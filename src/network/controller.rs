@@ -433,6 +433,12 @@ impl AsyncController {
                 }
                 Ok(())
             }
+            cmd::LEAVE_CLAN => {
+                if let Some(snapshot) = session.get_player_snapshot().await {
+                    ClanService::leave_clan(&snapshot).await?;
+                }
+                Ok(())
+            }
             cmd::CLAN_INVITE => {
                 if let Some(snapshot) = session.get_player_snapshot().await {
                     ClanService::clan_invite(&snapshot, msg).await?;
@@ -440,8 +446,8 @@ impl AsyncController {
                 Ok(())
             }
             cmd::CLAN_JOIN => {
-                if let Some(snapshot) = session.get_player_snapshot().await {
-                    ClanService::join_clan(&snapshot, msg).await?;
+                if let Some(handle) = session.get_player_handle().await {
+                    ClanService::join_clan_controller(handle, msg).await?;
                 }
                 Ok(())
             }

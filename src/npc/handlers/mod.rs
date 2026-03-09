@@ -14,6 +14,7 @@ pub mod dau_than;
 pub mod dr_drief;
 pub mod dynamic_shop_handler;
 pub mod ong_gohan;
+pub mod quy_lao_kame;
 pub mod ruong_do;
 pub mod santa;
 pub mod than_meo;
@@ -45,10 +46,10 @@ impl<'a> NpcContext<'a> {
         msg.write_short(self.npc_id)?;
         msg.write_utf(message)?;
         self.session.transmit(msg);
+        self.hide_wait_dialog()?;
         Ok(())
     }
 
-    /// Ẩn dialog chờ
     pub fn hide_wait_dialog(&self) -> anyhow::Result<()> {
         let mut msg = Message::new(-99);
         msg.write_byte(-1)?;

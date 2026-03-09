@@ -475,12 +475,19 @@ impl ChangeMapService {
         Vec::new()
     }
 
-    fn is_special_map(_map_id: i32) -> bool {
-        false
+    fn is_special_map(map_id: i32) -> bool {
+        crate::map::services::map_service::is_map_pho_ban(map_id)
+            || crate::map::services::map_service::is_map_ma_bu(map_id)
+            || crate::map::services::map_service::is_map_offline(map_id)
+            || crate::map::services::map_service::is_map_tap_luyen(map_id)
     }
 
     fn can_change_zone_now(_player: &Player) -> bool {
         true
+    }
+
+    fn is_doanh_trai_map(map_id: i32) -> bool {
+        (53..=62).contains(&map_id)
     }
 
     pub fn change_map_waypoint(player: &mut Player) -> WaypointChangeResult {
@@ -504,6 +511,16 @@ impl ChangeMapService {
                 }
                 _ => WaypointChangeResult::DestinationUnavailable,
             };
+        }
+        if player.zone_id >= 100 && Self::is_doanh_trai_map(wp.go_map) {
+            if let Some(zone) = zone_manager.get_zone(wp.go_map, player.zone_id) {
+                return WaypointChangeResult::Success {
+                    destination_map_id: wp.go_map,
+                    destination_zone_id: zone.zone_id,
+                    x: wp.go_x,
+                    y: wp.go_y,
+                };
+            }
         }
 
         if let Some(zone) = Self::get_available_zone(wp.go_map) {
@@ -776,7 +793,7 @@ impl ChangeMapService {
     }
 
     fn get_specific_zone(map_id: i32, zone_id: i32) -> Option<ZoneHandle> {
-        let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
+        let zone_manager = &ZONE_MANAGER;
         zone_manager.get_zone(map_id, zone_id)
     }
 
@@ -811,7 +828,6 @@ impl ChangeMapService {
                 return (i as i16) * tile_size as i16;
             }
         }
-
         y
     }
 }

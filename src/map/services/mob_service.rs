@@ -1,3 +1,4 @@
+use crate::boss::boss_id;
 use crate::constant::const_item::{ITEM_DUI_GA_BINH_THUONG, ITEM_DUI_GA_NUONG};
 use crate::constant::task_type::TaskType;
 use crate::constant::{self, const_mob};
@@ -248,9 +249,30 @@ pub async fn update_actor(zone: &mut ZoneActor) {
     let mut global_msgs = Vec::new();
     let mut attack_candidates = Vec::new();
 
+    let is_pho_ban = map_service::is_map_pho_ban(zone.map_id);
+
+    // Check boss Trung Úy Trắng alive (chỉ dùng cho respawn Bulon)
+    let is_trung_uy_trang_alive = is_pho_ban
+        && zone.map_id == 59
+        && zone.active_players.values().any(|h| {
+            h.boss_info
+                .as_ref()
+                .map_or(false, |b| b.template_id == boss_id::BOSS_TRUNG_UY_TRANG)
+        });
+
     for mob in zone.active_mobs.iter_mut() {
         if !mob.is_alive {
-            handle_respawn(mob, current_time, &mut global_msgs);
+            let mut should_respawn = !is_pho_ban;
+            let mut custom_wait_time = 3000;
+
+            if is_pho_ban && mob.template_id == 22 && is_trung_uy_trang_alive {
+                should_respawn = true;
+                custom_wait_time = 10000;
+            }
+
+            if should_respawn {
+                handle_respawn(mob, current_time, &mut global_msgs, custom_wait_time);
+            }
         } else {
             handle_mob_effects(mob, current_time, &mut global_msgs);
             handle_self_recovery(mob, current_time, &mut global_msgs);
@@ -304,7 +326,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
                             mob.id, mob.template_id, target_id, damage, is_retaliation, mob.start_time_attack_player, current_time - mob.start_time_attack_player
                         );
 
-                        handle.send_forget(crate::player::player_actor::PlayerMessage::Injured {
+                        handle.send_forget(PlayerMessage::Injured {
                             damage: damage as u64,
                             piercing: false,
                             from_mob: true,
@@ -360,8 +382,8 @@ fn handle_mob_death(mob: &mut RtMob) {
     mob.die();
 }
 
-fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>) {
-    if current_time > mob.last_time_die + 3000 {
+fn handle_respawn(mob: &mut RtMob, current_time: u64, msgs: &mut Vec<Message>, wait_time: u64) {
+    if current_time > mob.last_time_die + wait_time {
         mob.is_alive = true;
         mob.hp = mob.max_hp;
         mob.status = mob.spawn_status;

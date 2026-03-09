@@ -54,6 +54,9 @@ pub struct Clan {
     pub clan_messages: Vec<ClanMessage>,
     pub clan_message_id: i32,
 
+    pub have_gone_doanh_trai: bool,
+    pub doanh_trai_id: Option<i32>,
+
     // In-memory online members
     pub members_online: Vec<PlayerHandle>,
 
@@ -62,6 +65,10 @@ pub struct Clan {
     pub last_time_open_ban_do_kho_bau: i64,
     pub last_time_open_con_duong_ran_doc: i64,
     pub last_time_open_khi_gas_huy_diet: i64,
+
+    pub doanh_trai_handle: Option<crate::dungoen::doanh_trai::handle::DoanhTraiHandle>,
+    pub last_time_save: i64,
+    pub invites: Vec<i32>,
 }
 
 impl Clan {
@@ -81,6 +88,8 @@ impl Clan {
             level: 1,
             capsule_clan: 0,
             create_time: 0,
+            doanh_trai_id: None,
+            have_gone_doanh_trai: false,
             members: Vec::new(),
             clan_messages: Vec::new(),
             clan_message_id: 0,
@@ -89,6 +98,9 @@ impl Clan {
             last_time_open_ban_do_kho_bau: 0,
             last_time_open_con_duong_ran_doc: 0,
             last_time_open_khi_gas_huy_diet: 0,
+            doanh_trai_handle: None,
+            last_time_save: 0,
+            invites: Vec::new(),
         }
     }
 
@@ -106,6 +118,8 @@ impl Clan {
             capsule_clan: entity.clan_point,
             create_time: entity.create_time.timestamp() as i32,
             members,
+            doanh_trai_id: None,
+            have_gone_doanh_trai: false,
             clan_messages: Vec::new(),
             clan_message_id: 0,
             members_online: Vec::new(),
@@ -113,6 +127,9 @@ impl Clan {
             last_time_open_ban_do_kho_bau: 0,
             last_time_open_con_duong_ran_doc: 0,
             last_time_open_khi_gas_huy_diet: 0,
+            doanh_trai_handle: None,
+            last_time_save: 0,
+            invites: Vec::new(),
         }
     }
 

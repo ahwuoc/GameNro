@@ -52,7 +52,7 @@ pub async fn execute_skill(
         None => return None,
     };
 
-    let Some(temp) = crate::templates::skill_template_manager::get(skill_id) else {
+    let Some(temp) = skill_template_manager::get(skill_id) else {
         return None;
     };
 
@@ -446,7 +446,9 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
     if miss {
         return;
     }
-    let dame_attack = player.n_point.get_dame_attack(false);
+
+    let mut dame_attack = player.n_point.get_dame_attack(false);
+
     let dame_hit = if target.n_point.def < dame_attack {
         dame_attack - target.n_point.def
     } else {
@@ -474,7 +476,13 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
     } else {
         target.n_point.hp_current - dame_hit <= 0
     };
-    let _ = ServiceHandles::send_player_attack_player(player, target.id, dame_hit, is_die, is_crit);
+    let _ = ServiceHandles::send_player_attack_player(
+        player,
+        target.id,
+        if target.is_boss { 0 } else { dame_hit },
+        is_die,
+        is_crit,
+    );
 }
 // =================Player attack Mob===================
 pub async fn deal_damage_to_mob(

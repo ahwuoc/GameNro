@@ -1,17 +1,18 @@
+use super::actor::ClanActor;
+use super::handle::ClanHandle;
 use crate::database::DbManager;
 use crate::entities::clan::Entity as ClanEntity;
 use crate::models::clan::Clan;
 use dashmap::DashMap;
-use std::sync::LazyLock;
 use sea_orm::EntityTrait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::LazyLock;
+use tokio::sync::mpsc;
 use tracing::info;
 
 pub static CLAN_MANAGER: LazyLock<ClanManager> = LazyLock::new(|| ClanManager::new());
 
 pub struct ClanManager {
-    clans: DashMap<i32, Arc<RwLock<Clan>>>,
+    clans: DashMap<i32, ClanHandle>,
 }
 
 impl ClanManager {
@@ -29,34 +30,45 @@ impl ClanManager {
 
         for entity in clan_entities {
             let clan = Clan::from_entity(entity);
-            self.clans.insert(clan.id, Arc::new(RwLock::new(clan)));
+            self.add_clan(clan);
         }
 
         Ok(())
     }
 
     pub fn add_clan(&self, clan: Clan) {
-        self.clans.insert(clan.id, Arc::new(RwLock::new(clan)));
+        let clan_id = clan.id;
+        let (tx, rx) = mpsc::channel(100);
+        let handle = ClanHandle::new(clan_id, tx);
+
+        let mut actor = ClanActor::new(clan, rx);
+        tokio::spawn(async move {
+            actor.run().await;
+        });
+
+        self.clans.insert(clan_id, handle);
     }
 
-    pub fn get_clan(&self, id: i32) -> Option<Arc<RwLock<Clan>>> {
-        self.clans.get(&id).map(|c| Arc::clone(c.value()))
+    pub fn get_clan(&self, id: i32) -> Option<ClanHandle> {
+        self.clans.get(&id).map(|c| c.value().clone())
     }
 
     pub fn remove_clan(&self, id: i32) {
         self.clans.remove(&id);
     }
 
-    pub fn get_all_clans(&self) -> Vec<Arc<RwLock<Clan>>> {
-        self.clans.iter().map(|c| Arc::clone(c.value())).collect()
+    pub fn get_all_clans(&self) -> Vec<ClanHandle> {
+        self.clans.iter().map(|c| c.value().clone()).collect()
     }
 
-    pub async fn search_clans(&self, name: &str) -> Vec<Arc<RwLock<Clan>>> {
+    pub async fn search_clans(&self, name: &str) -> Vec<ClanHandle> {
         let mut list = Vec::new();
         for entry in self.clans.iter() {
-            let clan = entry.value().read().await;
-            if clan.name.contains(name) {
-                list.push(Arc::clone(entry.value()));
+            let handle = entry.value();
+            if let Some(clan) = handle.get_snapshot().await {
+                if clan.name.contains(name) {
+                    list.push(handle.clone());
+                }
             }
             if list.len() >= 20 {
                 break;
@@ -73,7 +85,10 @@ impl ClanManager {
         info!("Saving {} clans to database", self.clans.len());
 
         for entry in self.clans.iter() {
-            let clan = entry.value().read().await;
+            let handle = entry.value();
+            let Some(clan) = handle.get_snapshot().await else {
+                continue;
+            };
 
             // Serialize members
             let members_json = serde_json::to_string(&clan.members).unwrap_or_default();

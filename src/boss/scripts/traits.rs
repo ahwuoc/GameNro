@@ -8,12 +8,9 @@ pub trait BossScript: Send + Sync {
 
     // =============== Lifecycle hooks =============
 
-    /// Gọi khi boss spawn xong
     async fn on_spawn(&self, actor: &mut BossActor) {
         // Default: không làm gì
     }
-
-    /// Gọi mỗi tick - main update loop
     async fn on_update(&self, actor: &mut BossActor) {
         actor.default_update().await;
     }

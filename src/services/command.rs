@@ -83,6 +83,8 @@ impl CommandService {
                     -1,
                     Vec::new(),
                     None,
+                    None,
+                    None,
                 )
                 .await
                 {
@@ -99,6 +101,20 @@ impl CommandService {
                             player,
                             &format!("Lỗi gọi boss {}: {:?}", boss_id, e),
                         )?;
+                    }
+                }
+                return Ok(true);
+            } else if text.starts_with("sd_") {
+                if let Some(num) = text.strip_prefix("sd_") {
+                    if let Ok(param) = num.parse::<i32>() {
+                        player.n_point.set_dame_chiso(param);
+                    }
+                }
+                return Ok(true);
+            } else if text.starts_with("hp_") {
+                if let Some(num) = text.strip_prefix("hp_") {
+                    if let Ok(param) = num.parse::<i32>() {
+                        player.n_point.set_hp_chiso(param);
                     }
                 }
                 return Ok(true);

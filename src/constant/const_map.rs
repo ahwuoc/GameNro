@@ -47,8 +47,6 @@ pub enum TaskId {
 // ========================================
 // Map IDs - Centralized
 // ========================================
-// Map IDs - Sử dụng constants thay vì enum để hỗ trợ bitwise operations
-// ========================================
 
 // --- Trái Đất ---
 pub const LANG_ARU: i32 = 0;
@@ -126,4 +124,3 @@ pub const TASK_20_0: i32 = TaskId::Task20_0 as i32;
 pub const TASK_21_0: i32 = TaskId::Task21_0 as i32;
 pub const TASK_24_0: i32 = TaskId::Task24_0 as i32;
 pub const TASK_27_0: i32 = TaskId::Task27_0 as i32;
-
