@@ -1,7 +1,7 @@
 use crate::entities::player;
 use crate::map::map_manager::MAP_MANAGER;
-use crate::map::map_service;
 use crate::map::zone_manager::ZONE_MANAGER;
+use crate::map::{self, map_service};
 use crate::network::message::Message;
 use crate::player::components::boss::BossComponent;
 use crate::player::player::Player;
@@ -12,6 +12,12 @@ use crate::templates::boss_template_manager;
 use crate::{boss::boss_actor::BossActor, player::player_actor::TypePk};
 use tokio::sync::mpsc;
 use tracing::{error, info};
+
+pub struct Overrider {
+    pub hp: Option<i32>,
+    pub dame: Option<i32>,
+    pub name: Option<String>,
+}
 
 pub struct BossManager;
 
@@ -66,10 +72,7 @@ impl BossManager {
     pub async fn init_boss() {
         use rand::seq::IndexedRandom;
         use std::collections::HashSet;
-
         let templates = boss_template_manager::get_all();
-        info!("Initializing {} boss templates...", templates.len());
-
         let child_boss_ids: HashSet<String> = templates
             .iter()
             .flat_map(|t| t.stages.0.iter())
@@ -87,7 +90,6 @@ impl BossManager {
 
         for template in templates {
             if child_boss_ids.contains(&template.id) {
-                tracing::debug!("Boss {} is a child boss, skipping init", template.id);
                 continue;
             }
 
@@ -137,6 +139,7 @@ impl BossManager {
                 -1,
                 Vec::new(),
                 None,
+                None,
             );
         }
     }
@@ -151,8 +154,7 @@ impl BossManager {
         group_index: i32,
         sequence: Vec<String>,
         attacker_player_id: Option<u64>,
-        hp_override: Option<i32>,
-        dame_override: Option<i32>,
+        overrider: Option<Overrider>,
     ) -> anyhow::Result<()> {
         let Some(template) = boss_template_manager::get(template_id) else {
             return Err(anyhow::anyhow!("Boss template {} not found", template_id));
@@ -181,23 +183,32 @@ impl BossManager {
         player.boss_component = Some(boss_component);
 
         if let Some(stage) = template.stages.0.get(0) {
-            if let Some(stage_name) = &stage.name {
-                player.name = stage_name.clone();
+            if let Some(ov) = &overrider {
+                if let Some(name) = &ov.name {
+                    player.name = name.clone();
+                } else if let Some(stage_name) = &stage.name {
+                    player.name = stage_name.clone();
+                }
+
+                player.n_point.hp_max = ov.hp.unwrap_or(stage.hp);
+                player.n_point.dame = ov.dame.unwrap_or(stage.dame);
+            } else {
+                if let Some(stage_name) = &stage.name {
+                    player.name = stage_name.clone();
+                }
+                player.n_point.hp_max = stage.hp;
+                player.n_point.dame = stage.dame;
             }
 
-            player.n_point.hp_max = hp_override.unwrap_or(stage.hp);
             player.n_point.hp_current = player.n_point.hp_max;
             player.n_point.mp_max = stage.mp;
             player.n_point.mp_current = stage.mp;
-            player.n_point.dame = dame_override.unwrap_or(stage.dame);
 
             if stage.outfit.len() >= 3 {
                 player.head = stage.outfit[0];
                 player.body = stage.outfit[1];
                 player.leg = stage.outfit[2];
             }
-
-            // Thêm skill ban đầu
             for skill_info in &stage.skills {
                 if skill_info.is_empty() {
                     continue;
@@ -254,6 +265,7 @@ impl BossManager {
                         idx as i32,
                         Vec::new(),
                         None,
+                        None,
                     );
                 }
             } else if template.r#type == "sequence" {
@@ -266,7 +278,7 @@ impl BossManager {
         }
 
         let (tx, rx) = mpsc::channel(100);
-        let mut handle = PlayerHandle::new(boss_id, false, tx);
+        let mut handle = PlayerHandle::new(boss_id, false, tx, player.public_state.clone());
 
         if let Some(comp) = &player.boss_component {
             handle.boss_info = Some(crate::player::player_actor::handle::BossInfo {
@@ -313,6 +325,7 @@ impl BossManager {
         group_index: i32,
         sequence: Vec<String>,
         attacker_player_id: Option<u64>,
+        overrider: Option<Overrider>,
     ) {
         tokio::spawn(async move {
             if let Err(e) = Self::spawn_boss(
@@ -325,8 +338,7 @@ impl BossManager {
                 group_index,
                 sequence,
                 attacker_player_id,
-                None,
-                None,
+                overrider,
             )
             .await
             {
@@ -336,31 +348,37 @@ impl BossManager {
     }
 
     pub fn spawn_boss_dungeon_async(
-        template_id: String,
+        template_id: &str,
         map_id: i32,
         zone_id: i32,
         x: i16,
         y: i16,
-        hp: i32,
-        dame: i32,
+        overrider: Option<Overrider>,
     ) {
+        let template = template_id.to_string();
         tokio::spawn(async move {
-            if let Err(e) = Self::spawn_boss(
-                &template_id,
-                map_id,
-                zone_id,
-                x,
-                y,
-                None,
-                -1,
-                Vec::new(),
-                None,
-                Some(hp),
-                Some(dame),
-            )
-            .await
-            {
-                error!("Error spawning dungeon boss {}: {}", template_id, e);
+            let count = if map_id == 47 { 4 } else { 1 };
+            for _ in 0..count {
+                if let Err(e) = Self::spawn_boss(
+                    &template,
+                    map_id,
+                    zone_id,
+                    x,
+                    y,
+                    None,
+                    -1,
+                    Vec::new(),
+                    None,
+                    overrider.as_ref().map(|o| Overrider {
+                        hp: o.hp,
+                        dame: o.dame,
+                        name: o.name.clone(),
+                    }),
+                )
+                .await
+                {
+                    error!("Error spawning dungeon boss {}: {}", template, e);
+                }
             }
         });
     }

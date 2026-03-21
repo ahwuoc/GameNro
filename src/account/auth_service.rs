@@ -193,7 +193,6 @@ fn generate_items_box(now: i64) -> String {
     serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Generate null items for box_lucky_round and daban
 fn generate_null_items(count: usize, now: i64) -> String {
     use crate::player::player_data::ItemDataJson;
     let items: Vec<ItemDataJson> = (0..count)
@@ -207,7 +206,6 @@ fn generate_null_items(count: usize, now: i64) -> String {
     serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Generate skills based on gender
 fn generate_skills(gender: i32, _now: i64) -> String {
     use crate::player::player_data::SkillData;
     let skill_ids = match gender {
@@ -250,6 +248,8 @@ pub async fn update_account_last_login(account_id: i32) -> Result<account::Model
         account_data.last_time_login = Set(Utc::now());
         AccountDao::update_account(db, account_data).await
     } else {
-        Err(DbErr::Custom("Account not found".to_string()))
+        Err(DbErr::Custom(
+            "Sai mật khẩu hoặc tài khoản của bạn chưa đăng ký".to_string(),
+        ))
     }
 }

@@ -12,7 +12,7 @@ const TAP_TU_DONG_TUTORIAL: &str =
 #[async_trait::async_trait]
 impl NpcHandler for ThanMeoKarinHandler {
     async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
-        let player = ctx.get_player_snapshot().await;
+        let player = ctx.get_snapshot().await;
         let Some(player) = player else {
             return Ok(());
         };
@@ -34,8 +34,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                         "Thách đấu\nThần Mèo",
                     ],
                     MenuId::BaseMenu,
-                )
-                .await?;
+                )?;
             }
             1 => {
                 ctx.create_menu(
@@ -46,8 +45,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                         "Thách đấu\nYajirô",
                     ],
                     MenuId::BaseMenu,
-                )
-                .await?;
+                )?;
             }
             _ => {
                 ctx.create_menu(
@@ -58,8 +56,8 @@ impl NpcHandler for ThanMeoKarinHandler {
                         "Tập luyện\nvới\nYajirô",
                     ],
                     MenuId::BaseMenu,
-                )
-                .await?;
+                )?;
+
             }
         }
         Ok(())
@@ -71,7 +69,7 @@ impl NpcHandler for ThanMeoKarinHandler {
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
-        let player = ctx.get_player_snapshot().await;
+        let player = ctx.get_snapshot().await;
         let Some(player) = player else {
             return Ok(());
         };
@@ -99,8 +97,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                         "Không\nđồng ý",
                                     ],
                                     MenuId::TapTuDong,
-                                )
-                                .await?;
+                                )?;
                             }
                         }
                         // Nhiệm vụ
@@ -113,8 +110,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn tập luyện ?\nTập luyện với ta sẽ tăng 20 sức mỗi phút",
                                 vec!["Đồng ý\nluyện tập", "Không\nđồng ý"],
                                 MenuId::TapLuyen,
-                            )
-                            .await?;
+                            )?;
                         }
                         // Thách đấu Thần Mèo
                         3 => {
@@ -122,8 +118,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn thách đấu ?\nNếu thắng ta sẽ được tập luyện với Yajirô, tăng 40 sức mạnh mỗi phút",
                                 vec!["Đồng ý\ngiao đấu", "Không\nđồng ý"],
                                 MenuId::ThachDau,
-                            )
-                            .await?;
+                            )?;
                         }
                         _ => {}
                     },
@@ -144,8 +139,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                         "Không\nđồng ý",
                                     ],
                                     MenuId::TapTuDong,
-                                )
-                                .await?;
+                                )?;
                             }
                         }
                         // Tập luyện với Yajirô
@@ -154,8 +148,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn tập luyện ?\nTập luyện với Yajirô sẽ tăng 40 sức mỗi phút",
                                 vec!["Đồng ý\nluyện tập", "Không\nđồng ý"],
                                 MenuId::TapLuyen,
-                            )
-                            .await?;
+                            )?;
                         }
                         // Thách đấu Yajirô
                         2 => {
@@ -163,8 +156,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn thách đấu ?\nNếu thắng được Yajirô, con sẽ được học võ với người mạnh hơn để tăng đến 80 sức mạnh mỗi phút",
                                 vec!["Đồng ý\ngiao đấu", "Không\nđồng ý"],
                                 MenuId::ThachDau,
-                            )
-                            .await?;
+                            )?;
                         }
                         _ => {}
                     },
@@ -185,8 +177,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                         "Không\nđồng ý",
                                     ],
                                     MenuId::TapTuDong,
-                                )
-                                .await?;
+                                )?;
                             }
                         }
                         // Tập luyện với Thần Mèo
@@ -195,8 +186,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn tập luyện ?\nTập luyện với ta sẽ tăng 20 sức mỗi phút",
                                 vec!["Đồng ý\nluyện tập", "Không\nđồng ý"],
                                 MenuId::TapLuyen,
-                            )
-                            .await?;
+                            )?;
                         }
                         // Tập luyện với Yajirô
                         2 => {
@@ -204,8 +194,7 @@ impl NpcHandler for ThanMeoKarinHandler {
                                 "Con có chắc muốn tập luyện ?\nTập luyện với Yajirô sẽ tăng 40 sức mỗi phút",
                                 vec!["Đồng ý\nluyện tập", "Không\nđồng ý"],
                                 MenuId::ThachDau, // reuse ThachDau for 2nd training option
-                            )
-                            .await?;
+                            )?;
                         }
                         _ => {}
                     },

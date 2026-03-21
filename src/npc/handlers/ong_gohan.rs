@@ -11,8 +11,7 @@ impl NpcHandler for NpcHomeHandler {
             "Chào con, ông Gohan đây!",
             vec!["Giftcode", "Đổi Mật Khẩu", "Đổi Skill", "Shop Skill"],
             MenuId::OngGohanMenu,
-        )
-        .await?;
+        )?;
         Ok(())
     }
 

@@ -40,7 +40,7 @@ pub async fn execute_skill(
 ) -> Option<Message> {
     if !player.is_skill_ready() || !player.has_enough_mana() {
         if player.is_boss {
-            tracing::info!("Boss {} cannot use skill: cooldown or mana", player.id);
+            tracing::debug!("Boss {} cannot use skill: cooldown or mana", player.id);
         } else {
             debug!("Player {} cannot use skill (cooldown or mana)", player.name);
         }
@@ -56,7 +56,7 @@ pub async fn execute_skill(
         return None;
     };
 
-    info!(
+    debug!(
         "use_skill called. Player: {}, Skill ID: {}, Type: {}",
         player.name, skill_id, temp.r#type
     );
@@ -722,25 +722,22 @@ pub fn send_char_die(player: &Player) {
     let _ = ServiceHandles::send_mess_all_player_in_map(player, msg_others);
 }
 
+fn build_skill_shortcut_packet(tag: &str, skill_data: &[i8]) -> anyhow::Result<Message> {
+    let mut msg = Message::new(-30);
+    msg.write_byte(61)?;
+    msg.write_utf(tag)?;
+    msg.write_int(skill_data.len() as i32)?;
+    for &b in skill_data.iter() {
+        msg.write_byte(b)?;
+    }
+    Ok(msg)
+}
+
 pub fn send_skill_shortcut(player: &Player) -> anyhow::Result<()> {
     let skill_data = &player.player_skill.skill_shortcut;
-    let mut msg_k = Message::new(-30);
-    msg_k.write_byte(61)?;
-    msg_k.write_utf("KSkill")?;
-    msg_k.write_int(skill_data.len() as i32)?;
-    for &b in skill_data.iter() {
-        msg_k.write_byte(b)?;
-    }
-    player.send_to_client(msg_k)?;
+    player.send_to_client(build_skill_shortcut_packet("KSkill", skill_data)?)?;
+    player.send_to_client(build_skill_shortcut_packet("OSkill", skill_data)?)?;
 
-    let mut msg_o = Message::new(-30);
-    msg_o.write_byte(61)?;
-    msg_o.write_utf("OSkill")?;
-    msg_o.write_int(skill_data.len() as i32)?;
-    for &b in skill_data.iter() {
-        msg_o.write_byte(b)?;
-    }
-    player.send_to_client(msg_o)?;
     Ok(())
 }
 

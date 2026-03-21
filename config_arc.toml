@@ -4,7 +4,7 @@ listen_host = "127.0.0.1"
 
 [database]
 type_database="mysql"
-host="103.228.36.195"
+host="146.190.88.68"
 port=3306
 user="ahwuocdz"
 password="123456"

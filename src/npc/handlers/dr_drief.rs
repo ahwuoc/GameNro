@@ -14,7 +14,7 @@ impl NpcHandler for DrDriefHandler {
             "Tàu vũ trụ Xayda sử dụng công nghệ mới nhất, có thể đưa ngươi đi bất kỳ đâu, chỉ cần trả tiền là được.",
             vec!["Den Namek", "Den Xayda", "Siêu thị"],
             MenuId::BaseMenu,
-        ).await?;
+        )?;
         Ok(())
     }
 
@@ -27,15 +27,13 @@ impl NpcHandler for DrDriefHandler {
         match menu_id {
             MenuId::BaseMenu => match select {
                 0 => {
-                    ctx.change_map_by_spaceship(MAP_TRAM_TAU_VU_TRU_NAMEC, -1, 5)
-                        .await?;
+                    ctx.change_map_by_spaceship(MAP_TRAM_TAU_VU_TRU_NAMEC, -1, 5)?;
                 }
                 1 => {
-                    ctx.change_map_by_spaceship(MAP_TRAM_TAU_VU_TRU_XAYDA, -1, 5)
-                        .await?;
+                    ctx.change_map_by_spaceship(MAP_TRAM_TAU_VU_TRU_XAYDA, -1, 5)?;
                 }
                 2 => {
-                    ctx.change_map_by_spaceship(MAP_SIEU_THI, -1, 5).await?;
+                    ctx.change_map_by_spaceship(MAP_SIEU_THI, -1, 5)?;
                 }
                 _ => {}
             },

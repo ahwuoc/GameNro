@@ -4,7 +4,7 @@ pub mod pet;
 pub mod player_actor;
 
 pub use handle::PlayerHandle;
-pub use message::PlayerMessage;
+pub use message::{MagicTreeMsg, PlayerMessage};
 pub use player_actor::PlayerActor;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

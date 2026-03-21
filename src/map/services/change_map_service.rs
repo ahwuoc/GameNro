@@ -55,7 +55,7 @@ impl ChangeMapService {
             if let Some(_) = session {
                 player.spaceship_id = actual_space_type as i8;
                 let healing = Self::handle_spaceship_healing(player, actual_space_type);
-                tracing::info!(
+                tracing::debug!(
                     "change_map_to_zone: Auto healing result for {}: {:?}",
                     player.name,
                     healing
@@ -65,14 +65,13 @@ impl ChangeMapService {
                     player,
                     SpaceshipSendType::AllPlayersInMap,
                     actual_space_type,
-                )
-                .await?;
+                )?;
             }
         } else {
             player.spaceship_id = space_type as i8;
             if space_type != SpaceShipType::None {
                 let healing = Self::handle_spaceship_healing(player, space_type);
-                tracing::info!(
+                tracing::debug!(
                     "change_map_to_zone: healing result for {}: {:?}",
                     player.name,
                     healing
@@ -271,21 +270,21 @@ impl ChangeMapService {
         matches!(map_name, "Nhà Broly" | "Nhà Gôhan" | "Nhà Moori")
     }
 
-    fn get_home_map_name(gender: i8) -> String {
+    fn get_home_map_name(gender: i8) -> &'static str {
         match gender {
-            GENDER_TRAI_DAT => "Nhà Gôhan".to_string(),
-            GENDER_NAMEC => "Nhà Moori".to_string(),
-            GENDER_XAYDA => "Nhà Broly".to_string(),
-            _ => "Nhà".to_string(),
+            GENDER_TRAI_DAT => "Nhà Gôhan",
+            GENDER_NAMEC => "Nhà Moori",
+            GENDER_XAYDA => "Nhà Broly",
+            _ => "Nhà",
         }
     }
 
-    fn get_planet_name(gender: i8) -> String {
+    fn get_planet_name(gender: i8) -> &'static str {
         match gender {
-            GENDER_TRAI_DAT => "Trái Đất".to_string(),
-            GENDER_NAMEC => "Namếc".to_string(),
-            GENDER_XAYDA => "Xayda".to_string(),
-            _ => "Unknown".to_string(),
+            GENDER_TRAI_DAT => "Trái Đất",
+            GENDER_NAMEC => "Namếc",
+            GENDER_XAYDA => "Xayda",
+            _ => "Unknown",
         }
     }
     pub async fn open_zone_ui(player: &Player) -> anyhow::Result<()> {
@@ -386,8 +385,14 @@ impl ChangeMapService {
 
     pub async fn change_map_waypoint_handler(
         player: &mut Player,
-        session: &crate::network::session::SessionArc,
+        session: &SessionArc,
     ) -> anyhow::Result<()> {
+        if let Some(msg) = Self::check_map_conditions(player).await? {
+            Self::send_reset_point(player, session);
+            ServiceHandles::send_thong_bao_to_player(player, &msg)?;
+            return Ok(());
+        }
+
         match Self::change_map_waypoint(player) {
             WaypointChangeResult::Success {
                 destination_map_id,
@@ -395,10 +400,6 @@ impl ChangeMapService {
                 x,
                 y,
             } => {
-                tracing::debug!(
-                    "DEBUG_WAYPOINT: Player {} found waypoint to map {} zone {} at ({}, {}) for player at ({}, {})",
-                    player.name, destination_map_id, destination_zone_id, x, y, player.location.x, player.location.y
-                );
                 if let Some(zone) = Self::get_specific_zone(destination_map_id, destination_zone_id)
                 {
                     Self::change_map_to_zone(
@@ -600,16 +601,6 @@ impl ChangeMapService {
         }
     }
 
-    pub fn reset_player_position(player: &mut Player, map_width: i32) {
-        let mut x = player.location.x;
-        if x >= (map_width - 60) as i16 {
-            x = (map_width - 60) as i16;
-        } else if x <= 60 {
-            x = 60;
-        }
-        player.location.set_position(x, player.location.y);
-    }
-
     pub async fn exit_current_map(player: &mut Player) -> anyhow::Result<()> {
         let zone_manager = &ZONE_MANAGER;
         if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
@@ -759,7 +750,7 @@ impl ChangeMapService {
         }
     }
 
-    pub async fn spaceship_arrive(
+    pub fn spaceship_arrive(
         player: &Player,
         send_type: SpaceshipSendType,
         space_type: SpaceShipType,
@@ -768,13 +759,11 @@ impl ChangeMapService {
         msg.write_int(player.id as i32)?;
         msg.write_byte(space_type as i8)?;
 
-        let response = msg.clone();
-
         match send_type {
             SpaceshipSendType::AllPlayersInMap => {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                    zone.broadcast(response);
+                    zone.broadcast(msg);
                 }
             }
             SpaceshipSendType::SelfOnly => {
@@ -785,7 +774,7 @@ impl ChangeMapService {
             SpaceshipSendType::OthersInMap => {
                 let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
                 if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                    zone.broadcast_except(response, player.id);
+                    zone.broadcast_except(msg, player.id);
                 }
             }
         }
@@ -829,5 +818,35 @@ impl ChangeMapService {
             }
         }
         y
+    }
+
+    async fn check_map_conditions(player: &Player) -> anyhow::Result<Option<String>> {
+        if map_service::is_map_doanh_trai(player.map_id) {
+            if let Some(zone) = ZONE_MANAGER.get_zone(player.map_id, player.zone_id) {
+                let state = zone.public_state.read().await;
+                if state.mob_alive_count > 0 || state.has_boss {
+                    return Ok(Some("Chưa hạ hết đối thủ".to_string()));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn send_reset_point(player: &mut Player, session: &SessionArc) {
+        let mut x = player.location.x;
+        let map_width = MAP_MANAGER
+            .find_by_id(player.map_id)
+            .map(|m| m.info.map_width as i16)
+            .unwrap_or(800);
+        if x >= map_width - 60 {
+            x = map_width - 60;
+        } else if x <= 60 {
+            x = 60;
+        }
+        player.location.x = x;
+        let mut msg = Message::new(46);
+        let _ = msg.write_short(x);
+        let _ = msg.write_short(player.location.y);
+        session.transmit(msg);
     }
 }

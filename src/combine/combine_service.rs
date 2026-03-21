@@ -6,7 +6,7 @@ use crate::entities::player;
 use crate::network::message::Message;
 use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::player::player::Player;
-pub async fn handle_open_tab_actor(
+pub fn handle_open_tab_actor(
     player: &mut Player,
     session: &SessionArc,
     type_combine: CombineType,

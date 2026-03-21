@@ -20,7 +20,7 @@ impl DynamicShopHandler {
 #[async_trait::async_trait]
 impl NpcHandler for DynamicShopHandler {
     async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
-        let player_gender = ctx.get_player_snapshot().await.map(|p| p.gender as i32);
+        let player_gender = ctx.get_snapshot().await.map(|p| p.gender as i32);
 
         let options = ShopMenuManager::get_menu_options(ctx.npc_id as i32, player_gender).await?;
 
@@ -32,8 +32,7 @@ impl NpcHandler for DynamicShopHandler {
 
         let option_ref: Vec<&str> = options.iter().map(|s| s.as_str()).collect();
 
-        ctx.create_menu(&self.npc_greeting, option_ref, self.menu_id)
-            .await?;
+        ctx.create_menu(&self.npc_greeting, option_ref, self.menu_id)?;
 
         Ok(())
     }
@@ -48,7 +47,7 @@ impl NpcHandler for DynamicShopHandler {
             return Ok(());
         }
 
-        let player_gender = ctx.get_player_snapshot().await.map(|p| p.gender as i32);
+        let player_gender = ctx.get_snapshot().await.map(|p| p.gender as i32);
 
         if let Some(shop_item) =
             ShopMenuManager::get_shop_by_index(ctx.npc_id as i32, select as usize, player_gender)

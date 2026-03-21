@@ -259,7 +259,7 @@ impl AsyncSession {
         match tx.try_send(msg) {
             Ok(_) => true,
             Err(mpsc::error::TrySendError::Full(_)) => {
-                eprintln!("[WARN] Message queue full");
+                tracing::warn!("[WARN] Message queue full");
                 false
             }
             Err(mpsc::error::TrySendError::Closed(_)) => false,
@@ -293,7 +293,7 @@ impl AsyncSession {
     pub async fn set_player(&self, mut player: RtPlayer, session_arc: SessionArc) {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         let player_id = player.id;
-        let handle = PlayerHandle::new(player_id, false, tx.clone());
+        let handle = PlayerHandle::new(player_id, false, tx.clone(), player.public_state.clone());
         player.session = Some(session_arc.clone());
 
         let pet_handle = if let Some(pet_data) = player.pet_data.take() {

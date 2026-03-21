@@ -30,6 +30,8 @@ pub struct ZoneActor {
     pub active_mobs: Vec<RtMob>,
     pub active_items: Vec<ItemMap>,
     pub rx: mpsc::Receiver<ZoneMessage>,
+    pub public_state:
+        std::sync::Arc<tokio::sync::RwLock<crate::map::models::zone::ZonePublicState>>,
 }
 
 impl ZoneActor {
@@ -47,6 +49,9 @@ impl ZoneActor {
             active_mobs: Vec::new(),
             active_items: Vec::new(),
             rx,
+            public_state: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::map::models::zone::ZonePublicState::default(),
+            )),
         }
     }
 
@@ -159,7 +164,7 @@ impl ZoneActor {
                 mob_id,
                 effect_skill,
             } => {
-                self.handle_sync_mob_effects(mob_id, effect_skill);
+                self.set_mob_effects(mob_id, effect_skill);
             }
             ZoneMessage::RemoveMobHold { mob_id, caster_id } => {
                 self.handle_remove_mob_hold(mob_id, caster_id).await;
@@ -279,7 +284,7 @@ impl ZoneActor {
         .await;
     }
 
-    fn handle_sync_mob_effects(&mut self, mob_id: u64, effect_skill: crate::models::EffectSkill) {
+    fn set_mob_effects(&mut self, mob_id: u64, effect_skill: crate::models::EffectSkill) {
         if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
             mob.effect_skill = effect_skill;
         }
@@ -343,7 +348,27 @@ impl ZoneActor {
                 handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
             }
         }
+
+        self.sync_public_state();
         Ok(())
+    }
+
+    pub fn sync_public_state(&self) {
+        let public_state = self.public_state.clone();
+        let mob_alive_count = self.active_mobs.iter().filter(|m| m.is_alive).count() as i32;
+        let player_count = self
+            .active_players
+            .values()
+            .filter(|p| !p.is_pet && p.boss_info.is_none())
+            .count() as i32;
+        let has_boss = self.active_players.values().any(|p| p.boss_info.is_some());
+
+        tokio::spawn(async move {
+            let mut state = public_state.write().await;
+            state.mob_alive_count = mob_alive_count;
+            state.player_count = player_count;
+            state.has_boss = has_boss;
+        });
     }
 
     fn spawn_special_item_task(&mut self, player_task_info: Option<(i32, i32)>) {

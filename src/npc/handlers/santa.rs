@@ -19,8 +19,7 @@ impl NpcHandler for SantaHandler {
                 "Shop Ruby",
             ],
             MenuId::SantaMenu,
-        )
-        .await?;
+        )?;
         Ok(())
     }
 

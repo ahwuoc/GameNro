@@ -59,7 +59,7 @@ impl PetService {
         };
 
         if let Some(zone) = ZONE_MANAGER.get_zone(pet.player.map_id, pet.player.zone_id) {
-            let handle = PlayerHandle::new(pet.player.id, true, tx);
+            let handle = PlayerHandle::new(pet.player.id, true, tx, pet.player.public_state.clone());
             PLAYER_MANAGER.add(pet.player.id, handle.clone());
             let _ = zone.add_player(handle).await;
             let _ = zone.load_me_to_another(pet.player.id).await;
@@ -169,7 +169,7 @@ impl PetService {
         if let Some(zone) =
             crate::map::zone_manager::ZONE_MANAGER.get_zone(pet.player.map_id, pet.player.zone_id)
         {
-            let handle = PlayerHandle::new(pet.player.id, true, tx);
+            let handle = PlayerHandle::new(pet.player.id, true, tx, pet.player.public_state.clone());
             crate::player::player_manager::PLAYER_MANAGER.add(pet.player.id, handle.clone());
             let _ = zone.add_player(handle).await;
             let _ = zone.load_me_to_another(pet.player.id).await;

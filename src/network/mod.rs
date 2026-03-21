@@ -7,13 +7,14 @@ use tracing::{error, info, instrument, warn};
 
 use crate::config::ServerConfig;
 pub mod controller;
+pub mod handlers;
 pub mod message;
 pub mod session;
 pub mod session_manager;
 
 use crate::player::player_manager::PLAYER_MANAGER;
-use std::sync::LazyLock;
 use session_manager::SessionManager;
+use std::sync::LazyLock;
 
 pub static SESSION_MANAGER: LazyLock<SessionManager> = LazyLock::new(|| SessionManager::new());
 
@@ -23,11 +24,9 @@ pub async fn start_server(config: &ServerConfig) -> anyhow::Result<()> {
     let port = &config.listen_port;
     let addr = format!("{}:{}", host, port);
     let listener = TcpListener::bind(&addr).await?;
-    info!("Server listening on {}", addr);
     loop {
         match listener.accept().await {
             Ok((socket, addr)) => {
-                info!("New connection from: {}", addr);
                 tokio::spawn(async move {
                     if let Err(()) = handle_connection(socket).await {
                         error!("Error handling connection from {}", addr);

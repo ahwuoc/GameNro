@@ -25,7 +25,7 @@ impl IntrinsicService {
         intrinsic_template_manager::get(id).map(|t| Intrinsic::from_entity(&t))
     }
 
-    pub async fn send_info_intrinsic(player: &RtPlayer) -> Result<()> {
+    pub fn send_info_intrinsic(player: &RtPlayer) -> Result<()> {
         let player_instrict = &player.intrinsic;
         let mut msg = Message::new(112);
         msg.write_byte(0);
@@ -35,7 +35,7 @@ impl IntrinsicService {
         Ok(())
     }
 
-    pub async fn show_all_intrinsic(player: &RtPlayer) -> Result<()> {
+    pub fn show_all_intrinsic(player: &RtPlayer) -> Result<()> {
         let list_intrinsic = Self::get_intrinsics(player.gender);
         let mut msg = Message::new(112);
 

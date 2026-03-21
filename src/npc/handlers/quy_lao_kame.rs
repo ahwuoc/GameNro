@@ -8,7 +8,7 @@ pub struct QuyLaoKameHandler;
 #[async_trait]
 impl NpcHandler for QuyLaoKameHandler {
     async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
-        let player = ctx.get_player_snapshot().await;
+        let player = ctx.get_snapshot().await;
         let Some(player) = player else {
             return Ok(());
         };
@@ -22,8 +22,7 @@ impl NpcHandler for QuyLaoKameHandler {
                 "Từ chối",
             ],
             MenuId::BaseMenu,
-        )
-        .await?;
+        )?;
 
         Ok(())
     }
@@ -34,7 +33,7 @@ impl NpcHandler for QuyLaoKameHandler {
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
-        let player = ctx.get_player_snapshot().await;
+        let player = ctx.get_snapshot().await;
         let Some(player) = player else {
             return Ok(());
         };
@@ -48,8 +47,7 @@ impl NpcHandler for QuyLaoKameHandler {
                             "Con có muốn tham gia Bản đồ kho báu không?",
                             vec!["Mở bằng\nBản đồ\nkho báu", "Huống\ndẫn", "Từ chối"],
                             MenuId::MenuJoinRedRibbon,
-                        )
-                        .await?;
+                        )?;
                     }
                     _ => {
                         ctx.npc_chat("Tính năng đang phát triển")?;

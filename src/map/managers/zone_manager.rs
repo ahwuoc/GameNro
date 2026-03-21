@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use tokio::sync::mpsc;
 
 pub struct ZoneManager {
-    zones: DashMap<String, ZoneHandle>,
+    zones: DashMap<(i32, i32), ZoneHandle>,
 }
 
 impl ZoneManager {
@@ -17,69 +17,81 @@ impl ZoneManager {
     }
 
     pub fn create_zone(&self, map_id: i32, zone_id: i32, max_player: i32) -> anyhow::Result<()> {
-        let zone_key = format!("{}_{}", map_id, zone_id);
         let (tx, rx) = mpsc::channel(1000);
-        let zone = ZoneActor::new(map_id, zone_id, max_player, rx);
+        let public_state = std::sync::Arc::new(tokio::sync::RwLock::new(
+            crate::map::models::zone::ZonePublicState::default(),
+        ));
+        let mut zone = ZoneActor::new(map_id, zone_id, max_player, rx);
+        zone.public_state = public_state.clone();
+
         let handle = ZoneHandle {
             map_id,
             zone_id,
             tx,
+            public_state,
         };
         tokio::spawn(zone.run());
-        self.zones.insert(zone_key, handle);
+        self.zones.insert((map_id, zone_id), handle);
         Ok(())
     }
 
     pub fn get_zone(&self, map_id: i32, zone_id: i32) -> Option<ZoneHandle> {
-        let key = format!("{}_{}", map_id, zone_id);
-        self.zones.get(&key).map(|z| z.value().clone())
+        self.zones
+            .get(&(map_id, zone_id))
+            .map(|z| z.value().clone())
     }
 
     pub fn get_best_zone(&self, map_id: i32) -> Option<ZoneHandle> {
-        let prefix = format!("{}_", map_id);
-
         self.zones
             .iter()
-            .filter(|entry| entry.key().starts_with(&prefix))
+            .filter(|entry| entry.key().0 == map_id)
             .min_by_key(|entry| {
-                // This is a bit tricky now since we can't easily get the player count synchronously
-                // For now, we return based on zone_id order or just any available
-                // In a real actor system, you'd probably maintain a local cache of counts
-                0
+                entry
+                    .value()
+                    .public_state
+                    .try_read()
+                    .map(|s| s.player_count)
+                    .unwrap_or(i32::MAX)
             })
             .map(|entry| entry.value().clone())
     }
 
     pub fn get_zones_for_map(&self, map_id: i32) -> Vec<ZoneHandle> {
-        let prefix = format!("{}_", map_id);
         self.zones
             .iter()
-            .filter(|entry| entry.key().starts_with(&prefix))
+            .filter(|entry| entry.key().0 == map_id)
             .map(|entry| entry.value().clone())
             .collect()
     }
 
-    pub fn get_total_players_in_map(&self, _map_id: i32) -> usize {
-        // This should be tracked elsewhere or we need to await multiple handles
-        0
+    pub fn get_total_players_in_map(&self, map_id: i32) -> usize {
+        self.zones
+            .iter()
+            .filter(|entry| entry.key().0 == map_id)
+            .map(|entry| {
+                entry
+                    .value()
+                    .public_state
+                    .try_read()
+                    .map(|s| s.player_count as usize)
+                    .unwrap_or(0)
+            })
+            .sum()
     }
 
     pub fn get_zone_count_for_map(&self, map_id: i32) -> usize {
-        let prefix = format!("{}_", map_id);
         self.zones
             .iter()
-            .filter(|entry| entry.key().starts_with(&prefix))
+            .filter(|entry| entry.key().0 == map_id)
             .count()
     }
 
     pub fn remove_zone(&self, map_id: i32, zone_id: i32) -> Option<ZoneHandle> {
-        let zone_key = format!("{}_{}", map_id, zone_id);
-        self.zones.remove(&zone_key).map(|(_, zone)| zone)
+        self.zones.remove(&(map_id, zone_id)).map(|(_, zone)| zone)
     }
 
     pub fn clear_zones_for_map(&self, map_id: i32) {
-        let prefix = format!("{}_", map_id);
-        self.zones.retain(|key, _| !key.starts_with(&prefix));
+        self.zones.retain(|key, _| key.0 != map_id);
     }
 
     pub fn get_all_zones(&self) -> Vec<ZoneHandle> {

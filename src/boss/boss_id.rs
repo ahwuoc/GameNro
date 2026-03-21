@@ -3,3 +3,7 @@ pub const BOSS_YAJIRO: &str = "boss_yajiro";
 pub const BOSS_TAU_PAY_PAY: &str = "boss_tau_pay_pay";
 pub const BOSS_TRUNG_UY_XANH_LO: &str = "boss_trung_uy_xanh_lo";
 pub const BOSS_TRUNG_UY_TRANG: &str = "boss_trung_uy_trang";
+pub const BOSS_TRUNG_UY_THEP: &str = "boss_trung_uy_thep";
+pub const BOSS_NINJA_AO_TIM: &str = "boss_ninja_ao_tim";
+pub const BOSS_NINJA_AO_TIM_CLONE: &str = "boss_ninja_ao_tim_clone";
+pub const BOSS_ROBOT_VE_SI: &str = "boss_robot_ve_si";

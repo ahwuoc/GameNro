@@ -1,7 +1,8 @@
-use std::sync::LazyLock;
 use std::fs;
+use std::sync::LazyLock;
 
-pub static TILE_TOP_DATA: LazyLock<Vec<Vec<i32>>> = LazyLock::new(|| TileLoader::load_tile_top_data());
+pub static TILE_TOP_DATA: LazyLock<Vec<Vec<i32>>> =
+    LazyLock::new(|| TileLoader::load_tile_top_data());
 
 pub struct TileLoader;
 
@@ -105,7 +106,6 @@ impl TileLoader {
             }
             tiles.push(row);
         }
-        tracing::debug!("Loaded tile_map for map {}: {}x{} tiles", map_id, w, h);
         Some((w as i32, h as i32, tiles))
     }
 

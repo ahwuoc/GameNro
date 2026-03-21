@@ -1,3 +1,4 @@
+// @workflow: /add_packet - Defines internal actor messages for new features
 use sea_orm::sea_query::extension::postgres::Type;
 
 use crate::combine::combine_type::CombineType;
@@ -10,6 +11,17 @@ use crate::player::player_actor::handle::PlayerHandle;
 use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::services::player_tnsm_services::TypeTNSM;
+
+/// Sub-enum grouping all MagicTree-related actions
+#[derive(Debug)]
+pub enum MagicTreeMsg {
+    OpenOrLoad(u8), // action 1 = open menu, 2 = load
+    Harvest,
+    FastRespawn,
+    Upgrade,
+    FastUpgrade,
+    Unupgrade,
+}
 
 pub enum PlayerMessage {
     NetworkMessage(Message),
@@ -111,12 +123,10 @@ pub enum PlayerMessage {
         pet_id: u64,
     },
     ClearPetHandle,
-    MagicTreeAction(u8),
-    MagicTreeHarvest,
-    MagicTreeFastRespawn,
-    MagicTreeUpgrade,
-    MagicTreeFastUpgrade,
-    MagicTreeUnupgrade,
+
+    /// Consolidated MagicTree actions (was 6 separate variants)
+    MagicTree(MagicTreeMsg),
+
     RadarAction(i8, Message),
     ChangeMapCapsule(i32),
     ChangeMapBlackBall(i8),

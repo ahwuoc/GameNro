@@ -7,8 +7,9 @@ use crate::network::session::{self, AsyncSession, SessionArc};
 use crate::player::Player;
 use crate::services::ServiceHandles;
 use crate::{constant, item};
-
 pub struct InventoryService;
+
+// @Dev by Gemini + ahwuocdz vibe coding
 
 impl InventoryService {
     pub fn find_item_bag_with_id(items: &[Item], targert_id: i16) -> Option<&Item> {

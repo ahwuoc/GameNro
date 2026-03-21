@@ -1,5 +1,6 @@
 use super::handle::DoanhTraiHandle;
 use super::message::DoanhTraiMessage;
+use crate::boss;
 use crate::boss::{boss_id::BOSS_TRUNG_UY_TRANG, manager::BossManager};
 use crate::clan::clan_manager::CLAN_MANAGER;
 use crate::clan::message::ClanMessage;
@@ -69,7 +70,6 @@ impl DoanhTraiActor {
     }
 
     pub async fn run(mut self) {
-        info!("DoanhTraiActor[{}] started", self.id);
         let mut interval = tokio::time::interval(Duration::from_millis(TICK_INTERVAL_MS));
 
         loop {
@@ -90,7 +90,6 @@ impl DoanhTraiActor {
                 }
             }
         }
-        info!("DoanhTraiActor[{}] stopped", self.id);
     }
 
     async fn handle_message(&mut self, msg: DoanhTraiMessage) {
@@ -125,7 +124,6 @@ impl DoanhTraiActor {
     //  Handlers
     // ─────────────────────────────────────────────────────────
 
-    /// Lấy zone_id riêng cho instance này (100 + slot_id)
     fn get_instance_zone_id(&self) -> i32 {
         100 + self.id
     }
@@ -140,7 +138,6 @@ impl DoanhTraiActor {
             return;
         }
 
-        // Tạo 10 zone riêng cho 10 map doanh trại
         let zone_id = self.get_instance_zone_id();
         let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
         for map_id in MAP_IDS {
@@ -159,9 +156,8 @@ impl DoanhTraiActor {
             clan_handle.set_dungeon(self.get_handle());
             if let Some(clan) = clan_handle.get_snapshot().await {
                 let clan_power = clan.power_point;
-                // Spawn quái và boss
                 self.init_mobs_dungeon(clan_power).await;
-                self.init_bosses_dungeon(clan_power).await;
+                self.init_bosses_dungoen_doanhtrai(clan_power).await;
             }
         }
 
@@ -208,13 +204,9 @@ impl DoanhTraiActor {
     }
 
     async fn finish(&mut self) {
-        // Kick tất cả players về nhà
         for ph in &self.player_handles {
-            // Gửi thông báo
             let msg = ServiceHandles::build_thong_bao("Đã hết thời gian, bạn sẽ được đưa về nhà");
             ph.send_forget(PlayerMessage::SendPacket(msg));
-
-            // Lấy gender để biết map nhà (21 + gender)
             if let Some(snapshot) = ph.get_snapshot().await {
                 let home_map = 21 + snapshot.gender as i32;
                 ph.send_forget(PlayerMessage::ChangeMap {
@@ -264,18 +256,16 @@ impl DoanhTraiActor {
     //  Helpers
     // ─────────────────────────────────────────────────────────
 
-    /// Teleport player vào map doanh trại
     async fn teleport_player(&self, ph: &PlayerHandle) {
         ph.send_forget(PlayerMessage::ChangeMap {
             map_id: MAP_DOANH_TRAI_ENTRY,
             zone_id: self.get_instance_zone_id(),
             x: -1,
             y: 60,
-            space_type: SpaceShipType::Auto,
+            space_type: SpaceShipType::Default,
         });
     }
 
-    /// Gửi thông báo tới tất cả players trong doanh trại
     #[allow(dead_code)]
     pub async fn notify_all(&self, text: &str) {
         let msg = ServiceHandles::build_thong_bao(text);
@@ -287,7 +277,7 @@ impl DoanhTraiActor {
     async fn init_mobs_dungeon(&self, clan_power: i64) {
         let zone_id = self.get_instance_zone_id();
         let hp_quai = (clan_power / 2000).max(1000) as i32;
-        let dame_quai = 5; // 5% HP
+        let dame_quai = 5;
 
         for &map_id in &MAP_IDS {
             let Some(map) = MAP_MANAGER.find_by_id(map_id) else {
@@ -313,62 +303,87 @@ impl DoanhTraiActor {
             }
         }
     }
-    async fn init_bosses_dungeon(&self, clan_power: i64) {
+
+    async fn init_bosses_dungoen_doanhtrai(&self, clan_power: i64) {
         let zone_id = self.get_instance_zone_id();
-        let hp_quai = (clan_power / 2000).max(1000) as i32;
-        let dame_quai = hp_quai / 20;
+        let mob_hp = (clan_power / 2000).max(1000) as i32;
+        let mob_dame = mob_hp / 20;
 
-        let hp_boss = hp_quai * 50;
-        let dame_boss = dame_quai * 5;
+        let base_hp = mob_hp * 50;
+        let base_dame = mob_dame * 5;
 
-        // Map 54: Ninja Áo Tím
+        // Map 54: Ninja Áo Tím (hệ số x1.2)
         BossManager::spawn_boss_dungeon_async(
-            "boss_ninja_ao_tim".to_string(),
+            boss::boss_id::BOSS_NINJA_AO_TIM,
             54,
             zone_id,
             868,
             336,
-            hp_boss,
-            dame_boss,
+            Some(crate::boss::manager::Overrider {
+                hp: Some((base_hp as f64 * 1.2) as i32),
+                dame: Some((base_dame as f64 * 1.2) as i32),
+                name: None,
+            }),
         );
-        // Map 55: Trung Úy Thép
+
         BossManager::spawn_boss_dungeon_async(
-            "boss_trung_uy_thep".to_string(),
+            boss::boss_id::BOSS_TRUNG_UY_THEP,
             55,
             zone_id,
             444,
             288,
-            hp_boss,
-            dame_boss,
+            Some(crate::boss::manager::Overrider {
+                hp: Some((base_hp as f64 * 1.15) as i32),
+                dame: Some((base_dame as f64 * 1.15) as i32),
+                name: None,
+            }),
         );
-        // Map 57: Robot Vệ Sĩ
+
+        // Map 57: Robot Vệ Sĩ x4 (hệ số x1.3)
+        let robot_hp = (base_hp as f64 * 1.3) as i32;
+        let robot_dame = (base_dame as f64 * 1.3) as i32;
+        for i in 1..=4 {
+            let x = 618 + rand::random_range(-100i16..100);
+            BossManager::spawn_boss_dungeon_async(
+                boss::boss_id::BOSS_ROBOT_VE_SI,
+                57,
+                zone_id,
+                x,
+                336,
+                Some(crate::boss::manager::Overrider {
+                    hp: Some(robot_hp),
+                    dame: Some(robot_dame),
+                    name: Some(format!("Rôbốt Vệ Sĩ 0{}", i)),
+                }),
+            );
+        }
+
+        // Map 59: Trung Úy Trắng (hệ số x1.0)
         BossManager::spawn_boss_dungeon_async(
-            "boss_robot_ve_si".to_string(),
-            57,
-            zone_id,
-            618,
-            336,
-            hp_boss,
-            dame_boss,
-        );
-        // Map 59: Trung Úy Trắng
-        BossManager::spawn_boss_dungeon_async(
-            BOSS_TRUNG_UY_TRANG.to_string(),
+            boss::boss_id::BOSS_TRUNG_UY_TRANG,
             59,
             zone_id,
             686,
             312,
-            hp_boss,
-            dame_boss,
+            Some(crate::boss::manager::Overrider {
+                hp: Some(base_hp),
+                dame: Some(base_dame),
+                name: None,
+            }),
         );
+
+        // Map 62: Trung Úy Xanh Lơ (hệ số x1.1)
         BossManager::spawn_boss_dungeon_async(
-            "boss_trung_uy_xanh_lo".to_string(),
+            boss::boss_id::BOSS_TRUNG_UY_XANH_LO,
             62,
             zone_id,
             750,
             264,
-            hp_boss,
-            dame_boss,
+            Some(crate::boss::manager::Overrider {
+                hp: Some((base_hp as f64 * 1.1) as i32),
+                dame: Some((base_dame as f64 * 1.1) as i32),
+                name: None,
+            }),
         );
     }
 }

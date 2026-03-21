@@ -10,21 +10,31 @@ pub struct BossInfo {
     pub template_id: String,
 }
 
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 #[derive(Clone, Debug)]
 pub struct PlayerHandle {
     pub id: u64,
     pub is_pet: bool,
     pub boss_info: Option<BossInfo>,
     pub tx: mpsc::Sender<PlayerMessage>,
+    pub public_state: Arc<RwLock<crate::player::player::PlayerPublicState>>,
 }
 
 impl PlayerHandle {
-    pub fn new(id: u64, is_pet: bool, tx: mpsc::Sender<PlayerMessage>) -> Self {
+    pub fn new(
+        id: u64,
+        is_pet: bool,
+        tx: mpsc::Sender<PlayerMessage>,
+        public_state: Arc<RwLock<crate::player::player::PlayerPublicState>>,
+    ) -> Self {
         Self {
             id,
             is_pet,
             boss_info: None,
             tx,
+            public_state,
         }
     }
 

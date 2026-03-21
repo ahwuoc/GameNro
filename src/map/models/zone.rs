@@ -4,6 +4,7 @@ use crate::mob::RtMob;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
 use crate::player::player_actor::PlayerHandle;
+use crate::utils::location::Location;
 use anyhow::Result;
 use tokio::sync::{mpsc, oneshot};
 
@@ -102,11 +103,19 @@ pub enum ZoneMessage {
     },
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct ZonePublicState {
+    pub mob_alive_count: i32,
+    pub player_count: i32,
+    pub has_boss: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct ZoneHandle {
     pub map_id: i32,
     pub zone_id: i32,
     pub tx: mpsc::Sender<ZoneMessage>,
+    pub public_state: std::sync::Arc<tokio::sync::RwLock<ZonePublicState>>,
 }
 
 impl ZoneHandle {
@@ -228,7 +237,7 @@ impl ZoneHandle {
         });
     }
 
-    pub fn sync_mob_effects(&self, mob_id: u64, effect_skill: crate::models::EffectSkill) {
+    pub fn mob_effects(&self, mob_id: u64, effect_skill: crate::models::EffectSkill) {
         let _ = self.tx.try_send(ZoneMessage::SyncMobEffects {
             mob_id,
             effect_skill,

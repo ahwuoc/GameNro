@@ -83,15 +83,15 @@ pub mod npc_service {
     }
 
     pub async fn open_menu_controller(session: &SessionArc, npc_id: i16) -> anyhow::Result<()> {
-        let player_name = session
-            .get_player_snapshot()
-            .await
-            .map(|p| p.name)
-            .unwrap_or_else(|| "Unknown".to_string());
+        let snapshot = if let Some(s) = session.get_player_snapshot().await {
+            s
+        } else {
+            return Ok(());
+        };
 
         tracing::debug!(
             "NPC: open_menu_controller: player={}, npc_id={}",
-            player_name,
+            snapshot.name,
             npc_id
         );
 
@@ -100,21 +100,15 @@ pub mod npc_service {
         }
 
         let mut is_talk_task = false;
-        if let Some(snapshot) = session.get_player_snapshot().await {
-            if let Some(sub_task) =
-                crate::services::task_service::TaskService::get_current_sub_task(&snapshot)
-            {
-                if sub_task.task_type == TaskType::TalkNpc
-                    && TaskService::is_match_npc(&snapshot, npc_id)
-                {
-                    is_talk_task = true;
-                    tracing::debug!(
-                        "NPC: Block menu (Talk task match): player={}, npc_id={}, task={}",
-                        snapshot.name,
-                        npc_id,
-                        sub_task.name
-                    );
-                }
+        if let Some(sub_task) = crate::services::task_service::TaskService::get_current_sub_task(&snapshot) {
+            if sub_task.task_type == TaskType::TalkNpc && TaskService::is_match_npc(&snapshot, npc_id) {
+                is_talk_task = true;
+                tracing::debug!(
+                    "NPC: Block menu (Talk task match): player={}, npc_id={}, task={}",
+                    snapshot.name,
+                    npc_id,
+                    sub_task.name
+                );
             }
         }
 
@@ -130,7 +124,7 @@ pub mod npc_service {
             }
         }
 
-        if !can_open_npc(session, npc_id).await {
+        if !can_open_npc_internal(&snapshot, npc_id) {
             hide_wait_dialog(session)?;
             npc_chat(session, "Xin lỗi, tôi không thể mở menu này.", npc_id)?;
             return Ok(());
@@ -147,6 +141,31 @@ pub mod npc_service {
         }
 
         Ok(())
+    }
+
+    /// Internal version that takes a player snapshot to avoid redundant fetches
+    fn can_open_npc_internal(snapshot: &Player, npc_id: i16) -> bool {
+        let map_id = snapshot.map_id;
+        let player_loc = &snapshot.location;
+
+        let npc = NpcId::from_i16(npc_id);
+
+        if npc == Some(NpcId::DauThan) {
+            return map_id == 21 || map_id == 22 || map_id == 23;
+        }
+
+        if npc == Some(NpcId::LyTieuNuong) {
+            return true;
+        }
+
+        let map_manage = &map_manager::MAP_MANAGER;
+        if let Some(map) = map_manage.find_by_id(map_id) {
+            if let Some(npc_spawnd) = map.info.npcs.iter().find(|n| n.temp_id == npc_id as i32) {
+                // In future, implement black_war check properly
+                return true;
+            }
+        }
+        false
     }
 
     fn get_handler(npc_id: i16) -> Option<Box<dyn NpcHandler + Send + Sync>> {
@@ -190,18 +209,15 @@ pub mod npc_service {
         npc_id: i16,
         select: i8,
     ) -> anyhow::Result<()> {
-        let state = if let Some(snapshot) = session.get_player_snapshot().await {
-            Some(snapshot.interaction_state.get_index_menu())
+        let snapshot = if let Some(s) = session.get_player_snapshot().await {
+            s
         } else {
-            None
+            return Ok(());
         };
 
-        let state = match state {
-            Some(s) => s,
-            None => return Ok(()),
-        };
+        let state = snapshot.interaction_state.get_index_menu();
 
-        println!(
+        tracing::debug!(
             "handle_menu_confirm npc_id={} select={} state={:?}",
             npc_id, select, state
         );
@@ -212,8 +228,6 @@ pub mod npc_service {
                 npc_id.to_string(),
             ));
         }
-
-        println!("handle_menu_confirm state={:?}", state);
         match state {
             MenuId::MakeMatchPvp => {
                 pvp_service::send_invite_pvp_thachdau(session, select).await?;
@@ -228,7 +242,7 @@ pub mod npc_service {
             _ => {}
         }
 
-        if !can_open_npc(session, npc_id).await {
+        if !can_open_npc_internal(&snapshot, npc_id) {
             return Ok(());
         }
 

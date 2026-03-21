@@ -173,7 +173,7 @@ pub mod shop_service {
 
         session.transmit(msg);
 
-        println!("Sent shop data for: {}", tag_name);
+        tracing::debug!("Sent shop data for: {}", tag_name);
 
         Ok(())
     }
@@ -357,7 +357,7 @@ pub mod shop_service {
                         }
                         player.inventory.items_bag[idx_bag] = new_item;
                         InventoryService::send_item_bag_to_client(player);
-                        println!("mua thanh cong {}", temp_id_val);
+                        tracing::info!("mua thanh cong {}", temp_id_val);
                     }
                 }
             })));

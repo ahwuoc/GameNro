@@ -11,7 +11,7 @@ pub struct BahatmitHandler;
 #[async_trait]
 impl NpcHandler for BahatmitHandler {
     async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
-        let Some(snapshot) = ctx.get_player_snapshot().await else {
+        let Some(snapshot) = ctx.get_snapshot().await else {
             return Ok(());
         };
         let map_id = snapshot.map_id;
@@ -28,13 +28,9 @@ impl NpcHandler for BahatmitHandler {
                         "Võ đài sinh tử",
                     ],
                     MenuId::BaseMenu,
-                )
-                .await?;
+                )?;
             }
-            _ => {
-                ctx.create_menu("", vec!["Cửa hàng\nBùa"], MenuId::BaseMenu)
-                    .await?
-            }
+            _ => ctx.create_menu("", vec!["Cửa hàng\nBùa"], MenuId::BaseMenu)?,
         }
         Ok(())
     }
@@ -46,7 +42,7 @@ impl NpcHandler for BahatmitHandler {
         select: i8,
     ) -> anyhow::Result<()> {
         let map_id = ctx
-            .get_player_snapshot()
+            .get_snapshot()
             .await
             .map(|p| p.map_id)
             .ok_or(anyhow::anyhow!("Player not found"))?;
@@ -64,14 +60,14 @@ impl NpcHandler for BahatmitHandler {
                         )
                         .await?;
                     }
-                    1 => println!("Xử lý Chức năng đệ tử"),
+                    1 => tracing::info!("Xử lý Chức năng đệ tử"),
                     _ => {}
                 },
                 112 => match select {
-                    0 => println!("Xem Top 100"),
-                    1 => println!("Xử lý Đồng ý"),
-                    2 => println!("Xử lý Từ chối"),
-                    3 => println!("Về đảo rùa"),
+                    0 => tracing::info!("Xem Top 100"),
+                    1 => tracing::info!("Xử lý Đồng ý"),
+                    2 => tracing::info!("Xử lý Từ chối"),
+                    3 => tracing::info!("Về đảo rùa"),
                     _ => {}
                 },
                 _ => match select {
@@ -80,8 +76,7 @@ impl NpcHandler for BahatmitHandler {
                             "Bùa của ta rất lợi hại, nhìn ngươi yếu đuối thế này, chắc muốn mua bùa để mạnh mẽ à, mua không ta bán cho, xài rồi lại thích cho mà xem.",
                             vec!["Bùa\n1 giờ", "Bùa\n8 giờ", "Bùa\n1 tháng", "Đóng"],
                             MenuId::MenuShopBua,
-                        )
-                        .await?
+                        )?;
                     }
                     _ => {}
                 },

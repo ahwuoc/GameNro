@@ -42,6 +42,7 @@ pub fn call_boss_by_id(pl: &mut Player, boss_id: &str, is_thachdau: bool) -> any
         -1,
         Vec::new(),
         Some(pl.id),
+        None,
     );
 
     Ok(())

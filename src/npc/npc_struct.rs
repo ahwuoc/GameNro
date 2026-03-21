@@ -59,6 +59,7 @@ impl RtNpc {
             create_time: Utc::now(),
         }
     }
+    pub fn update(&self) {}
 
     pub fn from_template(template: &NpcTemplate, map_id: i32, x: i32, y: i32) -> Self {
         Self {
@@ -113,7 +114,7 @@ impl RtNpc {
         self.base_menu.as_ref()
     }
 
-    pub async fn open_base_menu(session: &SessionArc) -> anyhow::Result<()> {
+    pub fn open_base_menu(session: &SessionArc) -> anyhow::Result<()> {
         let mut msg = Message::new(-32);
         msg.write_short(14)?;
         msg.write_utf("Ta co the giup gi cho nguoi")?;
@@ -122,7 +123,6 @@ impl RtNpc {
         session.transmit(msg);
         Ok(())
     }
-    pub fn update(&mut self) {}
 
     pub fn is_in_range(&self, player_x: i32, player_y: i32, range: i32) -> bool {
         let mut target = Location::new();

@@ -9,8 +9,20 @@ Trước khi bắt đầu, đảm bảo máy của bạn đã cài đặt:
 - **Rust**: Phiên bản mới nhất (Cài đặt qua [rustup.rs](https://rustup.rs/)).
 - **MySQL (hoặc MariaDB)**: Cơ sở dữ liệu chính.
 - **Git**: Để clone source code.
+- **Wine** (Nếu dùng Linux): Để chạy client Windows.
 
-## 2. Cài đặt Cơ sở dữ liệu
+## 2. Tải Source Code và Client
+
+1.  **Clone Source Code**:
+    ```bash
+    git clone https://github.com/your-repo/GameNro.git
+    cd GameNro
+    ```
+
+2.  **Dữ liệu Game (Client)**:
+    Client game đã được tích hợp sẵn trong thư mục `client/ngocrongonline`.
+
+## 3. Cài đặt Cơ sở dữ liệu
 
 Server sử dụng MySQL làm cơ sở dữ liệu chính.
 
@@ -21,9 +33,9 @@ Server sử dụng MySQL làm cơ sở dữ liệu chính.
 mysql -u root -p nro < database/nro.sql
 ```
 
-## 3. Cấu hình Server
+## 4. Cấu hình Server
 
-File cấu hình chính nằm tại `config.toml` ở thư mục gốc. Bạn cần chỉnh sửa file này để khớp với thông tin database của bạn.
+File cấu hình chính nằm tại `config_arc.toml` ở thư mục gốc. Bạn cần chỉnh sửa file này để khớp với thông tin database của bạn.
 
 ### Cấu hình MySQL (Mặc định)
 ```toml
@@ -41,68 +53,52 @@ db_name="nro"
 pool_size = 10
 max_connections = 20
 min_connections = 1
-```
-
-### Cấu hình SQLite (Tùy chọn)
-Nếu bạn muốn dùng SQLite thay vì MySQL:
-```toml
-[database]
-type_database="sqlite"
-db_name="database/nro.sqlite"
-# Các trường host, port, user, password sẽ bị bỏ qua với SQLite
-```
 
 [logging]
 level = "info"
 file = "logs/app.log"
 ```
 
-## 4. Chạy Server
+## 5. Chạy Server
 
 Sau khi cấu hình xong, mở terminal tại thư mục gốc dự án và chạy lệnh:
 
-**Chạy chế độ Debug (trong quá trình phát triển):**
+**Chế độ Phát triển (Debug):**
 ```bash
-cargo run
+RUST_LOG=info cargo run
 ```
 
-**Chạy chế độ Release (hiệu năng cao, dùng cho production):**
+**Chế độ Production (Release):**
 ```bash
-cargo run --release
+cargo build --release
+./target/release/arc_nro
 ```
 
 Khi thấy dòng log:
-`Server listening on 127.0.0.1:14445`
+`Server started successfully on 127.0.0.1:14445`
 Thì server đã khởi động thành công.
 
-## 5. Kết nối Client
+## 6. Kết nối Client
 
 Client game nằm trong thư mục `client/ngocrongonline`.
-Do đây là bản build cho Windows (`.exe`), trên Linux bạn cần sử dụng **Wine** để chạy.
 
-1.  **Cài đặt Wine** (nếu chưa có):
-    ```bash
-    sudo apt update
-    sudo apt install wine
-    ```
+### Trên Windows:
+Chạy file `Ngoc Rong Online.exe`.
 
-2.  **Chạy Client**:
-    Từ thư mục gốc dự án:
+### Trên Linux (Sử dụng Wine):
+1.  Đảm bảo đã cài đặt Wine.
+2.  Chạy lệnh từ thư mục gốc dự án:
     ```bash
     wine "client/ngocrongonline/Ngoc Rong Online.exe"
     ```
 
 Client sẽ kết nối tới server (mặc định 127.0.0.1:14445).
 
-## 6. Các lệnh phát triển (Developer)
+## 7. Các lệnh phát triển (Developer)
 
 - **Kiểm tra lỗi biên dịch**: 
   ```bash
   cargo check
-  ```
-- **Build project binary**: 
-  ```bash
-  cargo build --release
   ```
 - **Format code chuẩn Rust**: 
   ```bash
@@ -112,3 +108,4 @@ Client sẽ kết nối tới server (mặc định 127.0.0.1:14445).
   ```bash
   cargo doc --open
   ```
+

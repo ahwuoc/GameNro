@@ -1,4 +1,5 @@
 package dungeon;
+
 import utils.Functions;
 import boss.Boss;
 import boss.RedRibbonHQ.NinjaAoTim;
@@ -26,9 +27,9 @@ import utils.Util;
 @Data
 public class RedRibbonHQ implements Runnable {
 
-    //bang hội đủ số người mới đc mở
+    // bang hội đủ số người mới đc mở
     public static final int N_PLAYER_CLAN = 5;
-    //số người đứng cùng khu
+    // bang hoi phai dung gan zone
     public static final int N_PLAYER_MAP = 1;
     public static final int AVAILABLE = 50;
     public static final int TIME_DOANH_TRAI = 1800000;
@@ -85,7 +86,7 @@ public class RedRibbonHQ implements Runnable {
             player.clan.lastTimeOpenDoanhTrai = this.lastTimeOpen;
             player.clan.haveGoneDoanhTrai = false;
             sendTextDoanhTrai();
-            //Khởi tạo quái, boss
+            // Khởi tạo quái, boss
             this.isOpened = true;
             this.init();
         } catch (Exception e) {
@@ -96,7 +97,7 @@ public class RedRibbonHQ implements Runnable {
             return;
         }
         List<Player> plJoinDT = new ArrayList();
-        //Đưa thành viên vào doanh trại
+        // Đưa thành viên vào doanh trại
         for (Player pl : player.zone.getPlayers()) {
             if (pl != null && !pl.equals(player) && pl.clan != null
                     && pl.clan.equals(player.clan) && pl.location.x >= 1285
@@ -147,8 +148,7 @@ public class RedRibbonHQ implements Runnable {
                     bosses.add(new TrungUyTrang(
                             zone,
                             (int) bossDamage,
-                            (int) bossMaxHealth
-                    ));
+                            (int) bossMaxHealth));
                 } catch (Exception e) {
                 }
             }
@@ -159,8 +159,7 @@ public class RedRibbonHQ implements Runnable {
                     bosses.add(new TrungUyXanhLo(
                             zone,
                             (int) bossDamage,
-                            (int) bossMaxHealth
-                    ));
+                            (int) bossMaxHealth));
                 } catch (Exception e) {
                 }
             }
@@ -171,8 +170,7 @@ public class RedRibbonHQ implements Runnable {
                     bosses.add(new TrungUyThep(
                             zone,
                             (int) bossDamage,
-                            (int) bossMaxHealth
-                    ));
+                            (int) bossMaxHealth));
                 } catch (Exception e) {
                 }
             }
@@ -184,8 +182,7 @@ public class RedRibbonHQ implements Runnable {
                             zone,
                             clan,
                             (int) bossDamage,
-                            (int) bossMaxHealth
-                    ));
+                            (int) bossMaxHealth));
                 } catch (Exception e) {
                 }
             }
@@ -199,8 +196,7 @@ public class RedRibbonHQ implements Runnable {
                                 zone,
                                 i,
                                 (int) bossDamage,
-                                (int) bossMaxHealth
-                        ));
+                                (int) bossMaxHealth));
                     }
                 } catch (Exception e) {
                 }
@@ -211,7 +207,8 @@ public class RedRibbonHQ implements Runnable {
 
     public void update() {
         if (isOpened) {
-            if ((!isTimePicking && Util.canDoWithTime(lastTimeOpen, TIME_DOANH_TRAI)) || (isTimePicking && Util.canDoWithTime(lastTimePick, TIME_PICK_DOANH_TRAI))) {
+            if ((!isTimePicking && Util.canDoWithTime(lastTimeOpen, TIME_DOANH_TRAI))
+                    || (isTimePicking && Util.canDoWithTime(lastTimePick, TIME_PICK_DOANH_TRAI))) {
                 finish();
                 dispose();
             }
@@ -321,14 +318,15 @@ public class RedRibbonHQ implements Runnable {
             }
         }
 
-        //update hp dame quái
+        // update hp dame quái
         for (Zone zone : this.zones) {
             for (Mob mob : zone.mobs) {
                 if (mob.isDie()) {
                     continue;
                 }
                 mob.point.dame = (int) (totalHp / mob.tempId < 2_000_000_000 ? totalHp / mob.tempId : 2_000_000_000);
-                mob.point.maxHp = (int) (totalDame/3 * mob.tempId < 2_000_000_000 ? totalDame * mob.tempId : 2_000_000_000);
+                mob.point.maxHp = (int) (totalDame / 3 * mob.tempId < 2_000_000_000 ? totalDame * mob.tempId
+                        : 2_000_000_000);
                 mob.point.hp = mob.point.maxHp;
                 mob.setTiemNang();
             }

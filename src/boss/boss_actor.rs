@@ -6,7 +6,10 @@ use std::{
 use rand::seq::IndexedRandom;
 
 use crate::{
-    boss::scripts::{register, traits::BossScript},
+    boss::{
+        manager::BossManager,
+        scripts::{register, traits::BossScript},
+    },
     map::{zone::ZoneHandle, ChangeMapService},
     models::{boss::BossStage, skill_model::Skill},
     network::message::Message,
@@ -78,8 +81,6 @@ impl BossActor {
     }
 
     pub async fn run(mut self) {
-        tracing::info!("BossActor::run started for {}", self.player.id);
-
         if self.attacker_player_id.is_none() {
             self.notify_join_map();
         }
@@ -151,16 +152,11 @@ impl BossActor {
         if attacker_id.is_some() {
             self.last_attacker_id = attacker_id;
         }
-
-        // Delegate to script
         let script = self.script.clone();
         let real_damage = script.on_injured(self, damage, piercing).await;
-
-        // send_player_injured đã được handle trong script hoặc default
         let _ = real_damage;
     }
     pub async fn update(&mut self) {
-        // Delegate to script (script quản lý timing riêng)
         let script = self.script.clone();
         script.on_update(self).await;
     }
@@ -175,7 +171,7 @@ impl BossActor {
                         if !comp.sequence.is_empty() {
                             let mut next_sequence = comp.sequence.clone();
                             let next_boss_id = next_sequence.remove(0);
-                            crate::boss::manager::BossManager::spawn_boss_async(
+                            BossManager::spawn_boss_async(
                                 next_boss_id,
                                 self.player.map_id,
                                 self.player.zone_id,
@@ -185,6 +181,7 @@ impl BossActor {
                                 -1,
                                 next_sequence,
                                 None,
+                                None,
                             );
                         }
                     }
@@ -192,7 +189,6 @@ impl BossActor {
 
                 tracing::info!("Boss {} defeated, removing...", self.player.id);
 
-                // Gửi TaskAction KillBoss cho người giết boss
                 if let Some(killer_id) = self.last_attacker_id {
                     if let Some(handle) =
                         self.zone_handle.get_player(killer_id).await.unwrap_or(None)
@@ -242,18 +238,10 @@ impl BossActor {
                 let _ = ServiceHandles::send_type_pk(&self.player);
                 let _ = ServiceHandles::send_revive_player(&self.player);
                 self.state = BossState::Fighting;
-                tracing::info!(
-                    "Boss {} finished chatting and starting fight",
-                    self.player.id
-                );
             } else {
                 self.player.type_pk = TypePk::PkNon;
                 let _ = ServiceHandles::send_type_pk(&self.player);
                 self.state = BossState::Waiting;
-                tracing::info!(
-                    "Boss {} finished chatting, waiting for turn",
-                    self.player.id
-                );
             }
         }
     }
@@ -626,6 +614,7 @@ impl BossActor {
                         Some(my_group_id),
                         idx as i32,
                         Vec::new(),
+                        None,
                         None,
                     );
                 }

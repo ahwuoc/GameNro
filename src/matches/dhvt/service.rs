@@ -15,7 +15,7 @@ pub struct GhiDanhHandler;
 #[async_trait]
 impl NpcHandler for GhiDanhHandler {
     async fn open_menu(&self, ctx: &NpcContext<'_>) -> anyhow::Result<()> {
-        let snapshot = match ctx.get_player_snapshot().await {
+        let snapshot = match ctx.get_snapshot().await {
             Some(p) => p,
             None => return Ok(()),
         };
@@ -36,7 +36,7 @@ impl NpcHandler for GhiDanhHandler {
         menu_id: MenuId,
         select: i8,
     ) -> anyhow::Result<()> {
-        let snapshot = match ctx.get_player_snapshot().await {
+        let snapshot = match ctx.get_snapshot().await {
             Some(p) => p,
             None => return Ok(()),
         };
@@ -86,8 +86,7 @@ impl GhiDanhHandler {
             menu_options.push("Dong");
         }
 
-        ctx.create_menu(&say, menu_options, MenuId::BaseMenu)
-            .await?;
+        ctx.create_menu(&say, menu_options, MenuId::BaseMenu)?;
         Ok(())
     }
 
@@ -137,34 +136,29 @@ impl GhiDanhHandler {
                                     ),
                                     vec![&fee_text, "Từ chối"],
                                     MenuId::DhvtConfirm,
-                                )
-                                .await?;
+                                )?;
                             } else {
                                 // Hủy đăng ký
                                 self.do_unregister(ctx, snapshot).await?;
                             }
                         } else {
                             // Chuyển map Siêu Hạng
-                            ctx.change_map_by_spaceship(MAP_SIEU_HANG, snapshot.location.x, 360)
-                                .await?;
+                            ctx.change_map_by_spaceship(MAP_SIEU_HANG, snapshot.location.x, 360)?;
                         }
                     }
                     2 => {
                         if info.can_reg {
                             // Chuyển map Siêu Hạng
-                            ctx.change_map_by_spaceship(MAP_SIEU_HANG, snapshot.location.x, 360)
-                                .await?;
+                            ctx.change_map_by_spaceship(MAP_SIEU_HANG, snapshot.location.x, 360)?;
                         } else {
                             // Chuyển map ĐHVT 23
-                            ctx.change_map_by_spaceship(MAP_DHVT_23, snapshot.location.x, 360)
-                                .await?;
+                            ctx.change_map_by_spaceship(MAP_DHVT_23, snapshot.location.x, 360)?;
                         }
                     }
                     3 => {
                         if info.can_reg {
                             // Chuyển map ĐHVT 23
-                            ctx.change_map_by_spaceship(MAP_DHVT_23, snapshot.location.x, 360)
-                                .await?;
+                            ctx.change_map_by_spaceship(MAP_DHVT_23, snapshot.location.x, 360)?;
                         }
                     }
                     _ => {}
@@ -275,8 +269,7 @@ impl GhiDanhHandler {
                 "Về\nĐại Hội\nVõ Thuật",
             ],
             MenuId::DhvtMenu129,
-        )
-        .await?;
+        )?;
         Ok(())
     }
 
@@ -310,8 +303,7 @@ impl GhiDanhHandler {
                     }
                     3 => {
                         // Về DHVT (map 52)
-                        ctx.change_map_by_spaceship(MAP_PHONG_CHO, snapshot.location.x, 336)
-                            .await?;
+                        ctx.change_map_by_spaceship(MAP_PHONG_CHO, snapshot.location.x, 336)?;
                     }
                     _ => {}
                 }

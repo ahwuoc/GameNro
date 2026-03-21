@@ -84,7 +84,6 @@ impl CommandService {
                     Vec::new(),
                     None,
                     None,
-                    None,
                 )
                 .await
                 {

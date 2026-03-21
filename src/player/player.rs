@@ -3,12 +3,12 @@ use crate::combine::model::Combine;
 use crate::entities;
 use crate::item::inventory::{self, Inventory};
 
-use crate::features::task_player::TaskPlayer;
 use crate::models::radar;
 use crate::models::EffectSkill;
 use crate::models::IntrinsicPlayer;
 use crate::network::message::Message;
 use crate::network::session::SessionArc;
+use crate::player::components::task_player::TaskPlayer;
 use crate::player::player_actor::TypePk;
 use crate::player::player_data::PetData;
 use crate::player::Charms;
@@ -17,6 +17,7 @@ use crate::player::MagicTree;
 use crate::player::NPoint;
 use crate::player::PlayerSkill;
 use crate::services::effect_skill_service::{EffectAction, EffectSkillService};
+use crate::services::task_utils::TaskUtils;
 use crate::services::{player_info_service, ServiceHandles};
 use crate::templates::power_manager;
 use crate::templates::{fusion_template_manager, pet_template_manager};
@@ -27,8 +28,28 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
 
+#[derive(Clone, Debug, Default)]
+pub struct PlayerPublicState {
+    pub location: Location,
+    pub hp_current: i32,
+    pub hp_max: i32,
+    pub mp_current: i32,
+    pub mp_max: i32,
+    pub damage: i32,
+    pub def: i32,
+    pub crit: i32,
+    pub is_die: bool,
+    pub task_id: i32,
+    pub task_index: i32,
+    pub is_boss: bool,
+    pub gender: i8,
+    pub name: String,
+    pub clan_id: i32,
+}
+
 #[derive(Clone, Debug)]
 pub struct Player {
+    pub public_state: Arc<RwLock<PlayerPublicState>>,
     pub id: u64,
     pub clan_id: i32,
     pub name: String,
@@ -103,6 +124,7 @@ impl Player {
     pub fn new(id: u64, name: String, gender: u8) -> Self {
         let current_time = time::current_time_millis();
         Player {
+            public_state: Arc::new(RwLock::new(PlayerPublicState::default())),
             id,
             clan_id: -1,
             name,
@@ -163,6 +185,44 @@ impl Player {
             master_id: None,
             last_time_join_dt: 0,
         }
+    }
+
+    pub fn sync_public_state(&self) {
+        let public_state = self.public_state.clone();
+        let location = self.location.clone();
+        let hp_current = self.n_point.hp_current;
+        let hp_max = self.n_point.hp_max;
+        let mp_current = self.n_point.mp_current;
+        let mp_max = self.n_point.mp_max;
+        let damage = self.n_point.dame;
+        let def = self.n_point.def;
+        let crit = self.n_point.crit;
+        let is_die = self.is_die();
+        let task_id = TaskUtils::get_id_task(self);
+        let task_index = TaskUtils::get_task_index(self);
+        let is_boss = self.is_boss;
+        let gender = self.gender;
+        let name = self.name.clone();
+        let clan_id = self.clan_id;
+
+        tokio::spawn(async move {
+            let mut state = public_state.write().await;
+            state.location = location;
+            state.hp_current = hp_current;
+            state.hp_max = hp_max;
+            state.mp_current = mp_current;
+            state.mp_max = mp_max;
+            state.damage = damage;
+            state.def = def;
+            state.crit = crit as i32;
+            state.is_die = is_die;
+            state.task_id = task_id;
+            state.task_index = task_index;
+            state.is_boss = is_boss;
+            state.gender = gender;
+            state.name = name;
+            state.clan_id = clan_id;
+        });
     }
 
     pub fn is_die(&self) -> bool {
@@ -481,9 +541,6 @@ impl Player {
         self.just_revived = true;
         self.last_time_revived = time::current_time_millis();
     }
-    pub fn chat(&self, text: &str) {
-        println!("[{}]: {}", self.name, text);
-    }
 
     pub fn is_admin(&self) -> bool {
         self.is_admin
@@ -501,7 +558,7 @@ impl Player {
         self.before_dispose = true;
         self.session_id = None;
         self.session = None;
-        println!("Player {} disposed", self.name);
+        tracing::info!("Player {} disposed", self.name);
     }
 
     pub fn set_fight(&mut self, _type_fight: u8, _type_target: u8) {
@@ -568,7 +625,7 @@ impl Player {
     }
 
     pub fn update_zone_change_time(&mut self) {
-        println!("Updated zone change time for player {}", self.name);
+        tracing::debug!("Updated zone change time for player {}", self.name);
     }
 
     pub fn has_enough_mana(&self) -> bool {

@@ -14,7 +14,7 @@ impl ItemService {
         if let Some(item_template) = item_template_manager::get(template_id) {
             Some(Item::with_template(item_template.clone(), quantity))
         } else {
-            println!("Warning: Item template not found for ID: {}", template_id);
+            tracing::warn!("Warning: Item template not found for ID: {}", template_id);
             None
         }
     }

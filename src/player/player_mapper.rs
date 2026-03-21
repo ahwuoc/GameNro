@@ -24,7 +24,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
             p.inventory.set_gem(data_inventory.gem);
         }
         Err(e) => {
-            println!("Failed to parse inventory data: {}", e);
+            tracing::error!("Failed to parse inventory data: {}", e);
         }
     }
 
@@ -76,7 +76,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
             p.location.set_position(x, y);
         }
         Err(e) => {
-            println!("Failed to parse location data: {}", e);
+            tracing::error!("Failed to parse location data: {}", e);
         }
     }
 
@@ -180,7 +180,7 @@ pub async fn from_entity(model: &crate::entities::player::Model) -> Result<Playe
             skill.curr_level = curr_level;
             p.player_skill.skills.push(skill);
         } else {
-            println!("[PLAYER_DAO] Thất bại khi tạo skill với id={}", temp_id);
+            tracing::warn!("[PLAYER_DAO] Thất bại khi tạo skill với id={}", temp_id);
         }
     }
 

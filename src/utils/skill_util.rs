@@ -77,8 +77,8 @@ pub fn parse_skills_json(skills_json: &str) -> Vec<SkillData> {
         return skills;
     }
 
-    println!(
-        "[SKILL_UTIL] Failed to parse skills JSON: {:.100}...",
+    tracing::warn!(
+        "[SKILL_UTIL] Failed to parse skills JSON: {:.100}",
         skills_json
     );
     Vec::new()
@@ -104,7 +104,7 @@ pub async fn create_skill(temp_id: i32, level: i32) -> Option<Skill> {
         }
 
         if !template.skills.is_empty() {
-            println!(
+            tracing::debug!(
                 "[SKILL_UTIL] Level {} out of range for template id={}, max={}",
                 level,
                 temp_id,
@@ -112,7 +112,7 @@ pub async fn create_skill(temp_id: i32, level: i32) -> Option<Skill> {
             );
         }
     } else {
-        println!("[SKILL_UTIL] Template not found for id={}", temp_id);
+        tracing::debug!("[SKILL_UTIL] Template not found for id={}", temp_id);
     }
     None
 }

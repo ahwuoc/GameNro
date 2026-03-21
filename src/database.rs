@@ -10,12 +10,15 @@ pub struct DbManager;
 impl DbManager {
     pub async fn init(config: &DatabaseConfig) -> Result<()> {
         let database_url = if config.type_database == "sqlite" {
-            println!("Connecting to SQLite database: {}", config.db_name);
+            tracing::info!("Connecting to SQLite database: {}", config.db_name);
             format!("sqlite://{}?mode=rwc", config.db_name)
         } else {
-            println!(
+            tracing::info!(
                 "Connecting to {} database at {}:{} (DB: {})",
-                config.type_database, config.host, config.port, config.db_name
+                config.type_database,
+                config.host,
+                config.port,
+                config.db_name
             );
             format!(
                 "{}://{}:{}@{}:{}/{}",
@@ -35,7 +38,7 @@ impl DbManager {
             .sqlx_logging(false);
         let pool = Database::connect(opt).await?;
         let _ = DB_POOL.set(pool);
-        println!("Database connected successfully");
+        tracing::info!("Database connected successfully");
         Ok(())
     }
     pub fn get_pool() -> &'static DatabaseConnection {

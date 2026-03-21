@@ -133,7 +133,7 @@ impl DataGame {
                 msg.write(&data)?;
             }
             Err(_) => {
-                println!("Warning: Small version file not found: {}", file_path);
+                tracing::warn!("Small version file not found: {}", file_path);
             }
         }
 
@@ -168,7 +168,7 @@ impl DataGame {
                 msg.write(&data)?;
             }
             Err(_) => {
-                println!("Warning: Item background data file not found");
+                tracing::warn!("Item background data file not found");
             }
         }
 
@@ -177,7 +177,7 @@ impl DataGame {
     }
 
     pub async fn update_data(session: &SessionArc) -> anyhow::Result<()> {
-        println!("Updating data for client");
+        tracing::info!("Updating data for client");
 
         let dart_data = match std::fs::read("data/arc/update_data/dart") {
             Ok(data) => data,
@@ -231,7 +231,7 @@ impl DataGame {
 
         session.transmit(msg);
 
-        println!("Update data sent successfully");
+        tracing::info!("Update data sent successfully");
         Ok(())
     }
 

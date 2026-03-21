@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::features::side_task_template::SideTaskTemplate;
+use super::side_task_template::SideTaskTemplate;
 
 #[derive(Debug, Clone)]
 pub struct TaskMain {

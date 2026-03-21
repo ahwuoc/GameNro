@@ -3,10 +3,13 @@ pub mod charms;
 pub mod fusion;
 pub mod interaction_state;
 pub mod n_point;
+pub mod option_card;
 pub mod player_friend;
 pub mod player_intrinsic;
 pub mod player_item_time;
 pub mod player_skill;
+pub mod side_task_template;
+pub mod task_player;
 
 #[derive(Debug, Clone, Copy)]
 enum PointType {

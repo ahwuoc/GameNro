@@ -412,7 +412,7 @@ impl PetActor {
                             Some(&mut mob_clone),
                         )
                         .await;
-                        zone.sync_mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
+                        zone.mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
                         self.pet.player.n_point.current_stamina_sub(1);
                         self.pet_chat(None).await;
                     }

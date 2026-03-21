@@ -1,3 +1,4 @@
+// @workflow: /add_packet - Defines protocol command IDs
 pub mod cmd {
     // ===== Auth & Login =====
     pub const LOGIN: i8 = 0;

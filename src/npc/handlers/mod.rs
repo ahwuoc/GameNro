@@ -57,7 +57,7 @@ impl<'a> NpcContext<'a> {
         Ok(())
     }
 
-    pub async fn get_player_snapshot(&self) -> Option<Player> {
+    pub async fn get_snapshot(&self) -> Option<Player> {
         self.session.get_player_snapshot().await
     }
 
@@ -78,7 +78,7 @@ impl<'a> NpcContext<'a> {
         Ok(())
     }
 
-    pub async fn create_menu(
+    pub fn create_menu(
         &self,
         npc_say: &str,
         menu_options: Vec<&str>,
@@ -96,7 +96,7 @@ impl<'a> NpcContext<'a> {
         Ok(())
     }
 
-    pub async fn change_map_by_spaceship(&self, map_id: i32, x: i16, y: i16) -> anyhow::Result<()> {
+    pub fn change_map_by_spaceship(&self, map_id: i32, x: i16, y: i16) -> anyhow::Result<()> {
         if let Some(zone) = ChangeMapService::get_available_zone(map_id) {
             self.send_player_message(PlayerMessage::ChangeMap {
                 map_id,

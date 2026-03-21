@@ -23,7 +23,7 @@ struct SubTaskInfo {
     max_count: i16,
 }
 
-pub async fn send_point_info(player: &RtPlayer) -> anyhow::Result<()> {
+pub fn send_point_info(player: &RtPlayer) -> anyhow::Result<()> {
     send_point_info_sync(player)
 }
 pub fn send_message_info_hpmp(player: &RtPlayer) -> anyhow::Result<()> {
@@ -69,7 +69,8 @@ pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
+/// Sends the current task main info to the player.
+pub fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
     TaskService::send_task_main(player)
 }
 pub fn clear_map(player: &RtPlayer) -> anyhow::Result<()> {
@@ -114,7 +115,7 @@ pub fn send_notification_tab(player: &RtPlayer) -> anyhow::Result<()> {
 }
 
 pub fn send_time_skill(player: &RtPlayer) -> anyhow::Result<()> {
-    println!("Sending time skill info");
+    tracing::debug!("Sending time skill info");
     let mut msg = sub_command_i30(62)?;
     player.send_to_client(msg)?;
     Ok(())
@@ -211,12 +212,12 @@ pub async fn send_player_blob_internal(player: &RtPlayer) -> anyhow::Result<()> 
     Ok(())
 }
 
-pub async fn clear_vtsk(_session: &SessionArc) -> anyhow::Result<()> {
+pub fn clear_vtsk(_session: &SessionArc) -> anyhow::Result<()> {
     Ok(())
 }
 
 pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
-    println!("Sending all player info");
+    tracing::debug!("Sending all player info");
 
     let player = session
         .get_player_snapshot()
@@ -228,13 +229,13 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     DataGame::send_tile_set_info(session).await?;
 
     // -112 intrinsic
-    IntrinsicService::send_info_intrinsic(&player).await?;
+    IntrinsicService::send_info_intrinsic(&player)?;
 
     // -42 my point
-    send_point_info(&player).await?;
+    send_point_info(&player)?;
 
     // 40 task
-    send_task_info(&player).await?;
+    send_task_info(&player)?;
 
     // -22 reset all
     clear_map(&player)?;
@@ -267,16 +268,15 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     skill_service::send_skill_shortcut(&player)?;
 
     // clear vt sk
-    clear_vtsk(session).await?;
+    clear_vtsk(session)?;
 
-    println!("All player info sent successfully");
+    tracing::debug!("All player info sent successfully");
     Ok(())
 }
 
+/// Same as `send_message_info_hpmp` — unified name.
 pub fn send_info_hp_mp_money(player: &RtPlayer) -> anyhow::Result<()> {
-    send_hp(player)?;
-    send_mp(player)?;
-    Ok(())
+    send_message_info_hpmp(player)
 }
 
 pub fn send_info_pet(master: &RtPlayer, pet: &Pet) -> anyhow::Result<()> {

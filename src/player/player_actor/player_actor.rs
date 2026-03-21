@@ -6,6 +6,7 @@ use crate::item::use_item_service::UseItemResult;
 use crate::item::{InventoryService, Item};
 use crate::map::services::training_services;
 use crate::map::zone_manager::ZONE_MANAGER;
+
 use crate::map::{item_map_service, ChangeMapService, ItemMapService, SpaceShipType};
 use crate::matches::{pvp_manager, TypeLosePvp};
 use crate::network::message::Message;
@@ -17,7 +18,7 @@ use crate::player::player_actor::pet::PetHandle;
 use crate::player::player_manager::PLAYER_MANAGER;
 use crate::player::Fusion;
 use crate::services::black_ball_war_service::BlackBallWarService;
-use crate::services::command::CommandService;
+use crate::player::command::CommandService;
 use crate::services::effect_skill_service::EffectSkillService;
 use crate::services::player_tnsm_services::{tiemnang_sucmanh_add, TypeTNSM};
 use crate::services::task_service::TaskService;
@@ -226,26 +227,19 @@ impl PlayerActor {
                 self.player.pet_id = None;
                 info!("Cleared pet handle for player {}", self.player.id);
             }
-            PlayerMessage::MagicTreeAction(action) => {
-                self.handle_magic_tree_action(action);
-            }
-            PlayerMessage::MagicTreeHarvest => {
-                self.handle_magic_tree_harvest();
-            }
-            PlayerMessage::MagicTreeFastRespawn => {
-                self.handle_magic_tree_fast_respawn();
+            PlayerMessage::MagicTree(magic_tree_msg) => {
+                use crate::player::player_actor::MagicTreeMsg;
+                match magic_tree_msg {
+                    MagicTreeMsg::OpenOrLoad(action) => self.handle_magic_tree_action(action),
+                    MagicTreeMsg::Harvest => self.handle_magic_tree_harvest(),
+                    MagicTreeMsg::FastRespawn => self.handle_magic_tree_fast_respawn(),
+                    MagicTreeMsg::Upgrade => self.handle_magic_tree_upgrade(),
+                    MagicTreeMsg::FastUpgrade => self.handle_magic_tree_fast_upgrade(),
+                    MagicTreeMsg::Unupgrade => self.handle_magic_tree_unupgrade(),
+                }
             }
             PlayerMessage::RadarAction(action, mut msg) => {
                 let _ = self.handle_radar_action(action, &mut msg).await;
-            }
-            PlayerMessage::MagicTreeUpgrade => {
-                self.handle_magic_tree_upgrade();
-            }
-            PlayerMessage::MagicTreeFastUpgrade => {
-                self.handle_magic_tree_fast_upgrade();
-            }
-            PlayerMessage::MagicTreeUnupgrade => {
-                self.handle_magic_tree_unupgrade();
             }
             PlayerMessage::ChangeMapCapsule(index) => {
                 self.handle_change_map_capsule(index).await;
@@ -313,8 +307,7 @@ impl PlayerActor {
                 self.player.map_id,
                 self.player.zone_id,
                 &text,
-            )
-            .await;
+            );
         }
     }
 
@@ -332,8 +325,7 @@ impl PlayerActor {
             &self.session,
             type_combine,
             npc_id,
-        )
-        .await;
+        );
     }
 
     async fn handle_combine_show_info(&mut self, index: Vec<i16>) {
@@ -477,6 +469,7 @@ impl PlayerActor {
             let _ = msg.write_short(self.player.location.x);
             let _ = msg.write_short(self.player.location.y);
             let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
+            self.player.sync_public_state();
         }
     }
 
@@ -622,7 +615,7 @@ impl PlayerActor {
     }
 
     async fn handle_change_map_black_ball(&mut self, index: i8) {
-        BlackBallWarService::change_map(&mut self.player, index, &self.session).await;
+        BlackBallWarService::change_map(&mut self.player, index, &self.session);
         self.sync_pet_map().await;
     }
 
@@ -790,7 +783,7 @@ impl PlayerActor {
         if self.player.fusion.is_timed_fusion() {
             let now = crate::utils::time::current_time_millis();
             if self.player.fusion.is_fusion_expired(now) {
-                println!(
+                tracing::info!(
                     "[FUSION] Player {} fusion timer expired, auto-unfusion",
                     self.player.id
                 );
@@ -798,7 +791,9 @@ impl PlayerActor {
             }
         }
 
-        player_service::update_player_tick(&mut self.player).await;
+        player_service::update_player_tick(&mut self.player);
+
+        self.player.sync_public_state();
     }
 
     async fn handle_network_command(&mut self, mut msg: Message) -> anyhow::Result<()> {
@@ -810,26 +805,19 @@ impl PlayerActor {
             }
             crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT
             | crate::constant::cmd::cmd::CHANGE_MAP_WAYPOINT_ALT => {
-                pvp_manager::get_pvp_handle()
-                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
+                self.prepare_for_map_change();
                 ChangeMapService::change_map_waypoint_handler(&mut self.player, &self.session)
                     .await?;
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::GO_HOME => {
-                pvp_manager::get_pvp_handle()
-                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
+                self.prepare_for_map_change();
                 ChangeMapService::go_home_handler(&mut self.player, &self.session).await?;
                 self.sync_pet_map().await;
             }
             crate::constant::cmd::cmd::CHANGE_ZONE => {
                 let zone_id = msg.read_byte()? as i32;
-                pvp_manager::get_pvp_handle()
-                    .player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
-                crate::map::services::change_map_service::ChangeMapService::open_zone_ui(
-                    &mut self.player,
-                )
-                .await?;
+                self.prepare_for_map_change();
                 ChangeMapService::change_zone(&mut self.player, zone_id, &self.session).await?;
                 self.sync_pet_map().await;
             }
@@ -838,6 +826,10 @@ impl PlayerActor {
             }
         }
         Ok(())
+    }
+
+    fn prepare_for_map_change(&self) {
+        pvp_manager::get_pvp_handle().player_lose(self.player.id as i64, TypeLosePvp::RunsAway);
     }
 
     async fn handle_radar_action(&mut self, action: i8, msg: &mut Message) -> anyhow::Result<()> {
@@ -936,7 +928,7 @@ impl PlayerActor {
                         Some(&mut mob_clone),
                     )
                     .await;
-                    zone.sync_mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
+                    zone.mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
                 }
             }
         }
@@ -994,7 +986,7 @@ impl PlayerActor {
             )
             .await;
             if let Some(zone) = zone_opt.clone() {
-                zone.sync_mob_effects(mob.id, mob.effect_skill.clone());
+                zone.mob_effects(mob.id, mob.effect_skill.clone());
             }
         } else if let Some(mut pl_target) = pl_target_snapshot {
             let _ = crate::services::skill_service::execute_skill(

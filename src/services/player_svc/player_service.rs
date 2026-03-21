@@ -105,7 +105,7 @@ pub fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn update_player_tick(player: &mut Player) -> Result<()> {
+pub fn update_player_tick(player: &mut Player) -> Result<()> {
     let now = current_time_millis();
     let effect_result = player.effect_skill.update(now);
 

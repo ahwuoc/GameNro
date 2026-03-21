@@ -17,7 +17,7 @@ use tracing::{error, info, instrument};
 use anyhow::Result;
 
 #[instrument]
-pub async fn init() -> Result<()> {
+pub async fn init_config() -> Result<()> {
     let pool = DbManager::get_pool();
 
     item_template_manager::load(&pool).await?;

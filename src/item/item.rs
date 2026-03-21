@@ -66,7 +66,7 @@ impl Item {
         if Self::is_valid_option_id(option_id) {
             self.item_options.push(ItemOption::new(option_id, param));
         } else {
-            println!("Warning: Invalid option ID {} for item", option_id);
+            tracing::warn!("Warning: Invalid option ID {} for item", option_id);
         }
     }
 

@@ -64,7 +64,7 @@ pub async fn attack_mob_actor(
                 let real_damage = mob.take_damage(damage, die_when_hp_full);
                 mob.add_temporary_enemy(player_id);
                 let new_hp = mob.hp;
-                info!(
+                debug!(
                     "Mob {} (temp {}) takes {} damage. HP: {}/{}",
                     mob.id, mob.template_id, real_damage, new_hp, mob.max_hp
                 );
@@ -88,7 +88,7 @@ pub async fn attack_mob_actor(
                         None,
                     )
                 } else {
-                    info!("Mob {} is dead!", mob.id);
+                    debug!("Mob {} is dead!", mob.id);
                     let drop_x = mob.location.x;
                     let drop_y = mob.location.y;
                     let mob_temp_id = mob.template_id;
@@ -108,7 +108,7 @@ pub async fn attack_mob_actor(
                 }
             }
         } else {
-            info!("Mob {} NOT FOUND in active_mobs", mob_id);
+            debug!("Mob {} NOT FOUND in active_mobs", mob_id);
             (None, None)
         }
     };
@@ -148,17 +148,12 @@ async fn drop_item_on_mob_death_actor(
         return;
     }
 
-    let mut task_id = -1;
-    let mut task_index = -1;
-    if let Some(handle) = zone.active_players.get(&player_id) {
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let _ = handle.send(PlayerMessage::GetSnapshot(tx)).await;
-        if let Ok(player) = rx.await {
-            task_id = TaskUtils::get_id_task(&player);
-            task_index = TaskUtils::get_task_index(&player);
-        }
-    }
-
+    let (task_id, task_index) = if let Some(handle) = zone.active_players.get(&player_id) {
+        let cache = handle.public_state.read().await;
+        (cache.task_id, cache.task_index)
+    } else {
+        (-1, -1)
+    };
     let items = get_mob_rewards(map_id, mob_template_id, task_id, task_index);
 
     if items.is_empty()
@@ -321,7 +316,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
                     mob.start_time_attack_player = current_time;
                     if let Some(handle) = zone.active_players.get(&target_id) {
                         let damage = mob.get_dame_attack();
-                        tracing::info!(
+                        tracing::debug!(
                             "[MOB_ATK] Mob {} (temp {}) ATK Pl {}. Dmg: {}. Retaliatory: {}. Last Atk: {}, Wait: {}",
                             mob.id, mob.template_id, target_id, damage, is_retaliation, mob.start_time_attack_player, current_time - mob.start_time_attack_player
                         );
@@ -334,7 +329,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
                         });
 
                         let msg_me = build_mob_attack_me_message(mob.id as i8, damage);
-                        tracing::info!("[MOB_ATK] SENDING Command -11 to Victim {}", target_id);
+                        tracing::debug!("[MOB_ATK] SENDING Command -11 to Victim {}", target_id);
                         handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
                             msg_me,
                         ));
@@ -346,7 +341,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
                         );
                         for (other_id, other_handle) in zone.active_players.iter() {
                             if *other_id != target_id {
-                                tracing::info!(
+                                tracing::debug!(
                                     "[MOB_ATK] BROADCAST Command -10 to Observer {}",
                                     other_id
                                 );
@@ -357,7 +352,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
                                 );
                             }
                         }
-                        tracing::info!("[MOB_ATK] DONE Mob {} atk on Pl {}", mob.id, target_id);
+                        tracing::debug!("[MOB_ATK] DONE Mob {} atk on Pl {}", mob.id, target_id);
                         tracing::debug!(
                             "[DEBUG_MOB_ATK] FINISH Mob {} attack on Pl {}",
                             mob.id,
@@ -490,25 +485,20 @@ async fn find_target_accurate_actor(
 ) -> Option<(u64, bool, crate::utils::location::Location, f64, i32)> {
     for &player_id in temporary_enemies {
         if let Some(handle) = zone.active_players.get(&player_id) {
-            if handle.boss_info.is_some() {
+            let cache = handle.public_state.read().await;
+            if cache.is_boss {
                 continue;
             }
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            let _ = handle
-                .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-                .await;
-            if let Ok(snapshot) = rx.await {
-                if !snapshot.is_die() && !snapshot.is_boss {
-                    let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
-                    if dist <= 250.0 {
-                        return Some((
-                            player_id,
-                            true,
-                            snapshot.location.clone(),
-                            dist,
-                            snapshot.n_point.hp_current,
-                        ));
-                    }
+            if !cache.is_die {
+                let dist = MapUtils::calculate_distance(mob_location, &cache.location);
+                if dist <= 250.0 {
+                    return Some((
+                        player_id,
+                        true,
+                        cache.location.clone(),
+                        dist,
+                        cache.hp_current,
+                    ));
                 }
             }
         }
@@ -517,27 +507,22 @@ async fn find_target_accurate_actor(
     if template_id > 18 || is_boss {
         let mut closest_info = None;
         let mut min_dist = if is_boss { f64::MAX } else { 100.0 };
-        for handle in zone.active_players.values() {
-            if handle.boss_info.is_some() {
+        for (player_id, handle) in zone.active_players.iter() {
+            let cache = handle.public_state.read().await;
+            if cache.is_boss {
                 continue;
             }
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            let _ = handle
-                .send(crate::player::player_actor::PlayerMessage::GetSnapshot(tx))
-                .await;
-            if let Ok(snapshot) = rx.await {
-                if !snapshot.is_die() && !snapshot.is_boss {
-                    let dist = MapUtils::calculate_distance(mob_location, &snapshot.location);
-                    if dist <= min_dist {
-                        min_dist = dist;
-                        closest_info = Some((
-                            handle.id,
-                            false,
-                            snapshot.location.clone(),
-                            dist,
-                            snapshot.n_point.hp_current,
-                        ));
-                    }
+            if !cache.is_die {
+                let dist = MapUtils::calculate_distance(mob_location, &cache.location);
+                if dist <= min_dist {
+                    min_dist = dist;
+                    closest_info = Some((
+                        *player_id,
+                        false,
+                        cache.location.clone(),
+                        dist,
+                        cache.hp_current,
+                    ));
                 }
             }
         }
