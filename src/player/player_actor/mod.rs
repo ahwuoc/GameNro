@@ -1,4 +1,5 @@
 pub mod handle;
+pub mod handlers;
 pub mod message;
 pub mod pet;
 pub mod player_actor;

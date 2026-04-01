@@ -3,7 +3,8 @@ use crate::item::item_controller::ItemController;
 use crate::item::use_item_service::UseItemResult;
 use crate::item::{InventoryService, Item};
 use crate::map::zone_manager::ZONE_MANAGER;
-use crate::map::{ItemMapService, ServiceHandles};
+use crate::map::ItemMapService;
+use crate::services::ServiceHandles;
 use crate::network::session::SessionArc;
 use crate::player::player::Player;
 use crate::player::player_actor::pet::message::PetMessage;
@@ -129,7 +130,7 @@ impl InventoryHandler {
         session: &SessionArc,
         zone_handle: &crate::map::models::zone::ZoneHandle,
         item_map_id: i32,
-        item_id: &i32,
+        item_id: &i16,
     ) {
         let mut msg = crate::network::message::Message::new(-20);
         let _ = msg.write_short(item_map_id as i16);

@@ -17,17 +17,17 @@ use crate::services::ServiceHandles;
 pub struct MapHandler;
 
 impl MapHandler {
-    pub async fn handle_finish_load_map(player: &Player, session: &Option<&SessionArc>) {
-        ChangeMapService::finish_load_map(player, *session).await;
+    pub async fn handle_finish_load_map(player: &mut Player, session: Option<&SessionArc>) {
+        ChangeMapService::finish_load_map(player, session).await;
         TaskService::send_info_current_task(player);
         TaskService::send_tutorial_task_0_0_0(player, "GameNro Server");
-        TaskService::check_auto_skip_task_home(&mut player.clone());
+        TaskService::check_auto_skip_task_home(player);
 
         if player.map_id == 47 {
             let task_id = TaskUtils::get_id_task(player);
             let task_index = TaskUtils::get_task_index(player);
             if task_id >= task_id::TASK_7 && task_index > 0 {
-                training_services::call_boss_by_id(&mut player.clone(), BOSS_TAU_PAY_PAY, false);
+                let _ = training_services::call_boss_by_id(player, BOSS_TAU_PAY_PAY, false);
             }
         }
     }

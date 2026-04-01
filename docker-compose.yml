@@ -34,7 +34,13 @@ services:
       - "14445:14445"
     environment:
       RUST_LOG: ${RUST_LOG:-info}
-      DATABASE_URL: mysql://${MYSQL_USER:-nro_user}:${MYSQL_PASSWORD:-nro_pass}@mysql:3306/${MYSQL_DATABASE:-nro}
+      DATABASE_HOST: mysql
+      DATABASE_PORT: 3306
+      DATABASE_USER: ${MYSQL_USER:-nro_user}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:-nro_pass}
+      DATABASE_NAME: ${MYSQL_DATABASE:-nro}
+      LISTEN_PORT: 14445
+      LISTEN_HOST: 0.0.0.0
     volumes:
       - ./config_arc.toml:/app/config_arc.toml
     networks:
