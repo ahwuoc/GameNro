@@ -32,11 +32,9 @@ RUN apt-get update && apt-get install -y \
 # Copy binary from builder
 COPY --from=builder /app/target/release/arc_nro /app/arc_nro
 
-# Copy config
 COPY config_arc.toml /app/config_arc.toml
+COPY data ./data
 
-# Expose port (adjust based on your config)
 EXPOSE 14445
 
-# Run the binary
 CMD ["./arc_nro"]

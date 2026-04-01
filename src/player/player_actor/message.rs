@@ -124,7 +124,6 @@ pub enum PlayerMessage {
     },
     ClearPetHandle,
 
-    /// Consolidated MagicTree actions (was 6 separate variants)
     MagicTree(MagicTreeMsg),
 
     RadarAction(i8, Message),
