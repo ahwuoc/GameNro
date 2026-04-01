@@ -1,0 +1,90 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Build release
+        run: cargo build --release --verbose
+        
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp target/release/arc_nro deploy/
+          cp config_arc.toml deploy/
+          cp -r database deploy/
+          tar -czf arc_nro-deploy.tar.gz -C deploy .
+        
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: arc_nro-deploy.tar.gz
+          
+      # Uncomment and configure when you have a deployment server
+      # - name: Deploy to server via SSH
+      #   uses: appleboy/scp-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_KEY }}
+      #     source: "arc_nro-deploy.tar.gz"
+      #     target: "/opt/arc_nro/"
+      #     
+      # - name: Restart service
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_KEY }}
+      #     script: |
+      #       cd /opt/arc_nro
+      #       tar -xzf arc_nro-deploy.tar.gz
+      #       systemctl restart arc_nro
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Build release
+        run: cargo build --release --verbose
+        
+      - name: Create release archive
+        run: |
+          mkdir -p release
+          cp target/release/arc_nro release/
+          cp README.md release/
+          cp config_arc.toml release/config_arc.toml.example
+          tar -czf arc_nro-${{ github.ref_name }}-linux-x86_64.tar.gz -C release .
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: arc_nro-${{ github.ref_name }}-linux-x86_64.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: arc_nro_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-nro}
+      MYSQL_USER: ${MYSQL_USER:-nro_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-nro_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/nro.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - arc_nro_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  game_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arc_nro_server
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "14445:14445"
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      DATABASE_URL: mysql://${MYSQL_USER:-nro_user}:${MYSQL_PASSWORD:-nro_pass}@mysql:3306/${MYSQL_DATABASE:-nro}
+    volumes:
+      - ./config_arc.toml:/app/config_arc.toml
+    networks:
+      - arc_nro_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  arc_nro_network:
+    driver: bridge
