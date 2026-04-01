@@ -1,5 +1,3 @@
-// Handler modules for PlayerActor
-// Each module handles a specific domain of player actions
 
 pub mod combat;
 pub mod fusion;
