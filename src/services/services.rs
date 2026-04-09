@@ -16,6 +16,21 @@ use tracing::debug;
 
 pub struct ServiceHandles {}
 impl ServiceHandles {
+    /// Gửi thông báo (chữ chạy ở trên) cho toàn bộ người chơi trong server.
+    pub fn broadcast_server(text: &str) {
+        let mut msg = Message::new(-25);
+        let _ = msg.write_utf(text);
+
+        for entry in crate::player::player_manager::PLAYER_MANAGER.iter() {
+            let handle = entry.value();
+            if !handle.is_pet && handle.boss_info.is_none() {
+                handle.send_forget(
+                    crate::player::player_actor::message::PlayerMessage::SendPacket(msg.clone()),
+                );
+            }
+        }
+    }
+
     pub fn send_fusion_effect(pl: &Player, type_fusion: i8) -> Result<()> {
         let mut msg = Message::new(125);
         msg.write_byte(type_fusion)?;

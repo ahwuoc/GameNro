@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::map::map_manager::{self, MAP_MANAGER};
+use crate::map::services::map_packet_service::MapPacketService;
 use crate::map::services::mob_service;
 use crate::map::ItemMapService;
 use crate::mob::RtMob;
@@ -18,6 +19,7 @@ use crate::{
 };
 use anyhow::Result;
 use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 use super::zone::{ZoneInfo, ZoneMessage};
@@ -56,7 +58,7 @@ impl ZoneActor {
     }
 
     pub async fn run(mut self) {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(1000));
+        let mut interval = tokio::time::interval(Duration::from_millis(500));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         loop {
@@ -120,21 +122,19 @@ impl ZoneActor {
                 task_info,
                 spaceship_id,
             } => {
-                self.handle_map_info(&session, player_id, x, y, task_info, spaceship_id)
-                    .await?;
+                self.handle_map_info(&session, player_id, x, y, task_info, spaceship_id)?;
             }
             ZoneMessage::LoadAnotherToMe { player_id } => {
-                self.handle_load_another_to_me(player_id).await?;
+                self.handle_load_another_to_me(player_id)?;
             }
             ZoneMessage::LoadMeToAnother { player_id } => {
-                self.handle_load_me_to_another(player_id).await?;
+                self.handle_load_me_to_another(player_id)?;
             }
             ZoneMessage::CheckSpawnTaskItem {
                 player_id,
                 task_info,
             } => {
-                self.handle_check_spawn_task_item(player_id, task_info)
-                    .await;
+                self.handle_check_spawn_task_item(player_id, task_info);
             }
             ZoneMessage::UpdateTick => {
                 self.update().await?;
@@ -167,13 +167,13 @@ impl ZoneActor {
                 self.set_mob_effects(mob_id, effect_skill);
             }
             ZoneMessage::RemoveMobHold { mob_id, caster_id } => {
-                self.handle_remove_mob_hold(mob_id, caster_id).await;
+                self.handle_remove_mob_hold(mob_id, caster_id);
             }
             ZoneMessage::RemovePlayerHold {
                 target_id,
                 caster_id,
             } => {
-                self.handle_remove_player_hold(target_id, caster_id).await;
+                self.handle_remove_player_hold(target_id, caster_id);
             }
             ZoneMessage::Broadcast { msg, except_id } => {
                 self.broadcast(msg, except_id);
@@ -197,8 +197,7 @@ impl ZoneActor {
                     is_player,
                     die_when_hp_full,
                     player_power,
-                )
-                .await;
+                );
             }
         }
         Ok(())
@@ -240,10 +239,10 @@ impl ZoneActor {
         });
     }
 
-    async fn handle_check_spawn_task_item(&mut self, player_id: u64, task_info: (i32, i32)) {
+    fn handle_check_spawn_task_item(&mut self, player_id: u64, task_info: (i32, i32)) {
         self.spawn_special_item_task(Some(task_info));
         if let Some(player_handle) = self.active_players.get(&player_id) {
-            let filtered_items = self.get_filtered_items_with_task(Some(task_info)).await;
+            let filtered_items = self.get_filtered_items_with_task(Some(task_info));
             for item in filtered_items {
                 let item_id = item.get_item_id();
                 if item_id == ITEM_DUI_GA_BINH_THUONG
@@ -290,7 +289,7 @@ impl ZoneActor {
         }
     }
 
-    async fn handle_remove_mob_hold(&mut self, mob_id: u64, caster_id: u64) {
+    fn handle_remove_mob_hold(&mut self, mob_id: u64, caster_id: u64) {
         if let Some(mob) = self.active_mobs.iter_mut().find(|m| m.id == mob_id) {
             if mob.effect_skill.an_troi && mob.effect_skill.pl_troi_id == Some(caster_id) {
                 EffectSkillService::remove_troi_mob(mob);
@@ -306,7 +305,7 @@ impl ZoneActor {
         }
     }
 
-    async fn handle_remove_player_hold(&self, target_id: u64, caster_id: u64) {
+    fn handle_remove_player_hold(&self, target_id: u64, caster_id: u64) {
         if let Some(target_handle) = self.active_players.get(&target_id) {
             target_handle.send_forget(PlayerMessage::HandleAnTroi(false, 0, None));
 
@@ -326,11 +325,15 @@ impl ZoneActor {
     // ─────────────────────────────────────────────────────────
 
     pub async fn update(&mut self) -> anyhow::Result<()> {
+        // Update mobs
         mob_service::update_actor(self).await;
+
+        // Drive player ticks
         for handle in self.active_players.values() {
             handle.send_forget(PlayerMessage::UpdateTick);
         }
 
+        // Update items and broadcast disappearances
         let mut expired_ids = Vec::new();
         self.active_items.retain_mut(|item| {
             let result = item.update();
@@ -344,9 +347,7 @@ impl ZoneActor {
 
         for id in expired_ids {
             let msg = ItemMapService::build_item_disappear_message(id);
-            for handle in self.active_players.values() {
-                handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
-            }
+            self.broadcast(msg, None);
         }
 
         self.sync_public_state();
@@ -415,7 +416,7 @@ impl ZoneActor {
         }
     }
 
-    async fn handle_map_info(
+    fn handle_map_info(
         &mut self,
         session: &SessionArc,
         player_id: u64,
@@ -424,151 +425,30 @@ impl ZoneActor {
         player_task_info: Option<(i32, i32)>,
         spaceship_id: i8,
     ) -> Result<()> {
-        tracing::info!(
-            "[MAP_INFO] Start for player {} Map {}",
-            player_id,
-            self.map_id
-        );
-        let (planet_id, tile_id, bg_id, bg_type, map_type, map_name) = {
-            if let Some(map) = map_manager::MAP_MANAGER.find_by_id(self.map_id) {
-                (
-                    map.info.planet_id as i8,
-                    map.info.tile_id as i8,
-                    map.info.bg_id as i8,
-                    map.info.bg_type as i8,
-                    map.info.r#type as i8,
-                    map.info.name.clone(),
-                )
-            } else {
-                (0i8, 0i8, 0i8, 0i8, 0i8, format!("Map {}", self.map_id))
-            }
-        };
         self.spawn_special_item_task(player_task_info);
-        let mut msg = Message::new(-24);
-        msg.write_byte((self.map_id as u8) as i8)?;
-        msg.write_byte(planet_id)?;
-        msg.write_byte(tile_id)?;
-        msg.write_byte(bg_id)?;
-        msg.write_byte(map_type)?;
-        msg.write_utf(&map_name)?;
-        msg.write_byte(self.zone_id as i8)?;
-        msg.write_short(x)?;
-        msg.write_short(y)?;
-
-        // Waypoints
-        if let Some(map) = MAP_MANAGER.find_by_id(self.map_id) {
-            let wps = &map.info.waypoints;
-            let count = (wps.len().min(127)) as i8;
-            msg.write_byte(count)?;
-            for wp in wps.iter().take(count as usize) {
-                msg.write_short(wp.min_x)?;
-                msg.write_short(wp.min_y)?;
-                msg.write_short(wp.max_x)?;
-                msg.write_short(wp.max_y)?;
-                msg.write_boolean(wp.is_enter)?;
-                msg.write_boolean(wp.is_offline)?;
-                msg.write_utf(&wp.name)?;
-            }
-        } else {
-            msg.write_byte(0)?;
-        }
-
-        // Mobs
-        let mob_count: i8 = (self.active_mobs.len().min(127)) as i8;
-        msg.write_byte(mob_count)?;
-        for mob in self.active_mobs.iter().take(mob_count as usize) {
-            msg.write_boolean(false)?;
-            msg.write_boolean(false)?;
-            msg.write_boolean(false)?;
-            msg.write_boolean(false)?;
-            msg.write_boolean(false)?;
-            msg.write_byte(mob.template_id as i8)?;
-            msg.write_byte(0)?;
-            msg.write_int(mob.hp)?;
-            msg.write_byte(mob.level)?;
-            msg.write_int(mob.max_hp)?;
-            msg.write_short(mob.location.x)?;
-            msg.write_short(mob.location.y)?;
-            msg.write_byte(mob.status)?;
-            msg.write_byte(mob.lv_mob)?;
-            msg.write_boolean(false)?;
-        }
-
-        msg.write_byte(0)?;
-
-        // NPCs
-        let (npcs_for_map, avatar_lookup) = {
-            let npcs =
-                if let Some(map) = crate::map::map_manager::MAP_MANAGER.find_by_id(self.map_id) {
-                    map.info.npcs.clone()
-                } else {
-                    Vec::new()
-                };
-            let avatars: std::collections::HashMap<i32, i32> =
-                crate::templates::npc_template_manager::get_all()
-                    .iter()
-                    .map(|t| (t.id, t.avatar.unwrap_or(0)))
-                    .collect();
-            (npcs, avatars)
-        };
-        let count: i8 = (npcs_for_map.len().min(127)) as i8;
-        msg.write_byte(count)?;
-        for npc in npcs_for_map.into_iter().take(count as usize) {
-            let status: i8 = 1;
-            let avatar: i16 = avatar_lookup.get(&npc.temp_id).cloned().unwrap_or(0) as i16;
-            msg.write_byte(status)?;
-            msg.write_short(npc.x)?;
-            msg.write_short(npc.y)?;
-            msg.write_byte(npc.temp_id as i8)?;
-            msg.write_short(avatar)?;
-        }
-
-        let filtered_items = self.get_filtered_items_with_task(player_task_info).await;
-        let item_count = filtered_items.len().min(127) as i8;
-        msg.write_byte(item_count)?;
-        for item in filtered_items.iter().take(item_count as usize) {
-            msg.write_short(item.item_map_id as i16)?;
-            msg.write_short(item.get_item_id())?;
-            msg.write_short(item.x as i16)?;
-            msg.write_short(item.y as i16)?;
-            msg.write_int(item.player_id as i32)?;
-        }
-        let bg_item_path = format!("data/arc/map/item_bg_map_data/{}", self.map_id);
-        if let Ok(data) = std::fs::read(&bg_item_path) {
-            msg.write(&data)?;
-        } else {
-            msg.write_short(0)?;
-        }
-
-        let eff_item_path = format!("data/arc/map/eff_map/{}", self.map_id);
-        if let Ok(data) = std::fs::read(&eff_item_path) {
-            msg.write(&data)?;
-        } else {
-            msg.write_short(0)?;
-        }
-
-        msg.write_byte(bg_type)?;
-        msg.write_byte(spaceship_id)?;
-        msg.write_byte(if self.map_id == 148 { 1 } else { 0 })?;
-
-        session.transmit(msg);
-        tracing::info!("[MAP_INFO] Transmitted MapInfo -24 to player {}", player_id);
+        MapPacketService::send_map_info(
+            self,
+            session,
+            player_id,
+            x,
+            y,
+            player_task_info,
+            spaceship_id,
+        )?;
         Ok(())
     }
 
     async fn get_filtered_items(&self, player_id: u64) -> Vec<ItemMap> {
-        let player_task_info = if let Some(handle) = PLAYER_MANAGER.get(player_id) {
-            handle
-                .get_snapshot()
-                .await
-                .map(|p| (TaskUtils::get_id_task(&p), TaskUtils::get_task_index(&p)))
+        let player_task_info = if let Some(handle) = self.active_players.get(&player_id) {
+            let cache = handle.public_state.read().await;
+            Some((cache.task_id, cache.task_index))
         } else {
             None
         };
-        self.get_filtered_items_with_task(player_task_info).await
+        self.get_filtered_items_with_task(player_task_info)
     }
 
-    async fn get_filtered_items_with_task(
+    pub fn get_filtered_items_with_task(
         &self,
         player_task_info: Option<(i32, i32)>,
     ) -> Vec<ItemMap> {
@@ -599,7 +479,7 @@ impl ZoneActor {
         filtered
     }
 
-    async fn handle_load_another_to_me(&self, player_id: u64) -> Result<()> {
+    fn handle_load_another_to_me(&self, player_id: u64) -> Result<()> {
         let Some(receiver_handle) = self.active_players.get(&player_id) else {
             return Ok(());
         };
@@ -611,7 +491,7 @@ impl ZoneActor {
         Ok(())
     }
 
-    async fn handle_load_me_to_another(&self, player_id: u64) -> Result<()> {
+    fn handle_load_me_to_another(&self, player_id: u64) -> Result<()> {
         let Some(player_handle) = self.active_players.get(&player_id) else {
             return Ok(());
         };
@@ -629,7 +509,7 @@ impl ZoneActor {
         Ok(())
     }
 
-    async fn handle_area_damage(
+    fn handle_area_damage(
         &mut self,
         attacker_id: u64,
         x: i16,

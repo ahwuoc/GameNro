@@ -148,7 +148,7 @@ impl TrainingScript {
             let target_y = target_snapshot.location.y.saturating_sub(100);
 
             if rand::rng().random_ratio(1, 5) {
-                actor.move_to(target_x, target_y).await;
+                actor.move_to(target_x, target_y);
             }
         }
         let dist = actor.calculate_distance(target_snapshot.location);
@@ -161,28 +161,26 @@ impl TrainingScript {
 
             if dist > range as f32 {
                 actor
-                    .move_to(target_snapshot.location.x, target_snapshot.location.y)
-                    .await;
+                    .move_to(target_snapshot.location.x, target_snapshot.location.y);
             } else {
                 if rand::rng().random_ratio(15, 100) {
                     let dodge_x = target_snapshot
                         .location
                         .x
                         .saturating_add(rand::rng().random_range(-80..80i16));
-                    actor.move_to(dodge_x, target_snapshot.location.y).await;
+                    actor.move_to(dodge_x, target_snapshot.location.y);
                 }
                 actor.use_skill(skill, target_id).await;
             }
         } else {
             if dist > 200.0 {
                 actor
-                    .move_to(target_snapshot.location.x, target_snapshot.location.y)
-                    .await;
+                    .move_to(target_snapshot.location.x, target_snapshot.location.y);
             }
         }
 
         if rand::rng().random_ratio(5, 100) {
-            actor.chat_random_middle().await;
+            actor.chat_random_middle();
         }
     }
 

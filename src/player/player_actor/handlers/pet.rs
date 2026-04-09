@@ -35,4 +35,14 @@ impl PetHandler {
             handle.send_forget(pet_msg);
         }
     }
+    pub fn handle_update_pet_ui(player: &Player, pet_snapshot: &crate::player::player_actor::pet::Pet, chat: Option<String>) {
+        let _ = player_info_service::send_info_pet(player, pet_snapshot);
+        if let Some(text) = chat {
+            let _ = crate::services::ServiceHandles::send_message_chat_just_for_me(
+                player,
+                &pet_snapshot.player,
+                &text,
+            );
+        }
+    }
 }

@@ -53,4 +53,5 @@ pub struct Pet {
     pub last_time_idle_move: u64,
     pub last_time_ask_pea: u64,
     pub last_time_stamina_update: u64,
+    pub last_time_gohome: u64,
 }

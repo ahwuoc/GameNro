@@ -18,18 +18,8 @@ pub async fn handle_use_skill_packet(
     player: &mut Player,
     pl_target: Option<&mut Player>,
     mob_target: Option<&mut RtMob>,
-    mut message: Option<Message>,
+    mut _message: Option<Message>,
 ) {
-    let mut status = 0;
-    if let Some(msg) = &mut message {
-        if let Ok(s) = msg.read_byte() {
-            status = s;
-        }
-    }
-
-    if status == Skill::USE_SKILL_NOT_FOCUS {
-        if let Some(msg) = &mut message {}
-    }
     execute_skill(player, pl_target, mob_target).await;
 }
 
@@ -160,7 +150,7 @@ pub async fn execute_dichchuyentucthoi(
     apply_skill_cost(player);
 
     for msg in messages {
-        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
+        send_to_zone(player, msg);
     }
 }
 
@@ -288,16 +278,12 @@ pub async fn execute_genkidama(
 
         if let Some(mob) = mob_target {
             if let Some(msg) = deal_damage_to_mob(player, mob, false, true).await {
-                let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-                if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                    let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
-                }
+                send_to_zone(player, msg);
             }
         }
 
         if let Some(center) = center_loc {
-            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-            if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
+            if let Some(zone) = ZONE_MANAGER.get_zone(player.map_id, player.zone_id) {
                 let _ = zone
                     .tx
                     .send(crate::map::models::zone::ZoneMessage::AreaDamage {
@@ -331,7 +317,7 @@ pub fn broadcast_skill_charging(player: &Player, time_prepare: i32) {
             .unwrap_or(0);
         let _ = msg.write_short(skill_id);
         let _ = msg.write_short(time_prepare as i16);
-        let _ = crate::services::ServiceHandles::send_mess_all_player_in_map(player, msg);
+        send_to_zone(player, msg);
     }
 }
 
@@ -431,10 +417,7 @@ pub async fn execute_attack_skill(
 
     if let Some(mob) = mob_target {
         if let Some(msg) = deal_damage_to_mob(player, mob, false, false).await {
-            let zone_manager = &crate::map::zone_manager::ZONE_MANAGER;
-            if let Some(zone) = zone_manager.get_zone(player.map_id, player.zone_id) {
-                let _ = crate::services::ServiceHandles::send_to_all_in_zone(&zone, msg);
-            }
+            send_to_zone(player, msg);
         }
     }
 
@@ -471,15 +454,12 @@ pub async fn deal_damage_to_player(player: &mut Player, target: &mut Player, mis
         }
     }
 
-    let is_die = if target.is_boss {
-        false
-    } else {
-        target.n_point.hp_current - dame_hit <= 0
-    };
+    let is_die = !target.is_boss && target.n_point.hp_current - (dame_hit as i32) <= 0;
+
     let _ = ServiceHandles::send_player_attack_player(
         player,
         target.id,
-        if target.is_boss { 0 } else { dame_hit },
+        if target.is_boss { 0 } else { dame_hit as i32 },
         is_die,
         is_crit,
     );
@@ -703,7 +683,7 @@ pub fn broadcast_skill_bomb(player: &Player, time_prepare: i32) {
             .unwrap_or(0);
         let _ = msg.write_short(skill_id);
         let _ = msg.write_short(time_prepare as i16);
-        let _ = ServiceHandles::send_mess_all_player_in_map(player, msg);
+        send_to_zone(player, msg);
     }
 }
 
@@ -719,7 +699,7 @@ pub fn send_char_die(player: &Player) {
     let _ = msg_others.write_byte(0);
     let _ = msg_others.write_short(player.location.x);
     let _ = msg_others.write_short(player.location.y);
-    let _ = ServiceHandles::send_mess_all_player_in_map(player, msg_others);
+    send_to_zone(player, msg_others);
 }
 
 fn build_skill_shortcut_packet(tag: &str, skill_data: &[i8]) -> anyhow::Result<Message> {
@@ -761,4 +741,11 @@ pub fn send_release_cooldown(player: &Player) -> anyhow::Result<()> {
     }
     player.send_to_client(msg)?;
     Ok(())
+}
+
+/// Helper for broadcasting messages to the zone the player belongs to
+fn send_to_zone(player: &Player, msg: Message) {
+    if let Some(zone) = ZONE_MANAGER.get_zone(player.map_id, player.zone_id) {
+        let _ = ServiceHandles::send_to_all_in_zone(&zone, msg);
+    }
 }

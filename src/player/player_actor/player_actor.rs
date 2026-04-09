@@ -42,8 +42,6 @@ impl PlayerActor {
             self.player.name, self.player.id
         );
 
-        let mut interval = tokio::time::interval(Duration::from_millis(500));
-
         loop {
             tokio::select! {
                 Some(msg) = self.receiver.recv() => {
@@ -52,16 +50,12 @@ impl PlayerActor {
                         m => self.handle_message(m).await,
                     }
                 }
-                _ = interval.tick() => {
-                    self.update().await;
-                }
             }
         }
 
         self.dispose().await;
     }
 
-    /// Route messages to appropriate handlers
     async fn handle_message(&mut self, msg: PlayerMessage) {
         match msg {
             // ═══════════════════════════════════════════════════
@@ -266,6 +260,9 @@ impl PlayerActor {
             PlayerMessage::Pet(pet_msg) => {
                 PetHandler::handle_pet_forward(&self.player, &self.pet_handle, pet_msg);
             }
+            PlayerMessage::UpdatePetUI(pet_snapshot, chat) => {
+                PetHandler::handle_update_pet_ui(&self.player, &pet_snapshot, chat);
+            }
             PlayerMessage::PetAskPea { pet_id } => {
                 InventoryHandler::handle_pet_ask_pea(&mut self.player, &self.pet_handle, pet_id)
                     .await;
@@ -368,8 +365,7 @@ impl PlayerActor {
                 f(&mut self.player);
             }
             PlayerMessage::RadarAction(action, mut msg) => {
-                let _ =
-                    MiscHandler::handle_radar_action(&mut self.player, action, &mut msg).await;
+                let _ = MiscHandler::handle_radar_action(&mut self.player, action, &mut msg).await;
             }
             PlayerMessage::SendInfoTo(target_handle) => {
                 MiscHandler::handle_send_info_to(&self.player, target_handle);

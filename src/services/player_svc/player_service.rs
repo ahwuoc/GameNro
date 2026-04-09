@@ -100,7 +100,7 @@ pub fn send_message_hs_char(player: &Player) -> anyhow::Result<()> {
     ServiceHandles::send_mess_all_player_in_map(player, msg_30)?;
 
     player_info_service::send_point_info_sync(player);
-    player_info_service::send_message_info_hpmp(player);
+    player_info_service::send_hp_mp(player);
 
     Ok(())
 }

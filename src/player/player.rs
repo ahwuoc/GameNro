@@ -646,6 +646,32 @@ impl Player {
         false
     }
 
+    pub fn is_skill_ready_by_index(&self, index: usize) -> bool {
+        if let Some(skill) = self.player_skill.skills.get(index) {
+            if skill.template_id == -1 {
+                return false;
+            }
+            let now = crate::utils::time::current_time_millis();
+            if now > skill.start_time_use + skill.cool_down as u64 {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn has_enough_mana_by_index(&self, index: usize) -> bool {
+        if self.is_boss {
+            return true;
+        }
+        if let Some(skill) = self.player_skill.skills.get(index) {
+            if skill.template_id == -1 {
+                return false;
+            }
+            return self.n_point.has_mp(skill.mana_use as i32);
+        }
+        false
+    }
+
     pub fn update_charging(&mut self) -> Option<ChargeUpdateResult> {
         if !self.effect_skill.is_charging {
             return None;

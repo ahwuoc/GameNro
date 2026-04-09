@@ -44,7 +44,7 @@ pub trait BossScript: Send + Sync {
 
     /// Xử lý di chuyển
     async fn on_move(&self, actor: &mut BossActor, target_x: i16, target_y: i16) {
-        actor.default_move(target_x, target_y).await;
+        actor.default_move(target_x, target_y);
     }
 
     // =============== Chat hooks =============

@@ -26,21 +26,14 @@ struct SubTaskInfo {
 pub fn send_point_info(player: &RtPlayer) -> anyhow::Result<()> {
     send_point_info_sync(player)
 }
-pub fn send_message_info_hpmp(player: &RtPlayer) -> anyhow::Result<()> {
-    send_hp(player)?;
-    send_mp(player)?;
-    Ok(())
-}
-pub fn send_hp(player: &RtPlayer) -> anyhow::Result<()> {
-    let mut msg = ServiceHandles::sub_command_30(5)?;
-    msg.write_int(player.n_point.hp_current)?;
-    player.send_to_client(msg)?;
-    Ok(())
-}
-pub fn send_mp(player: &RtPlayer) -> anyhow::Result<()> {
-    let mut msg = ServiceHandles::sub_command_30(6)?;
-    msg.write_int(player.n_point.mp_current)?;
-    player.send_to_client(msg)?;
+pub fn send_hp_mp(player: &RtPlayer) -> anyhow::Result<()> {
+    let mut msg_hp = ServiceHandles::sub_command_30(5)?;
+    msg_hp.write_int(player.n_point.hp_current)?;
+    player.send_to_client(msg_hp)?;
+
+    let mut msg_mp = ServiceHandles::sub_command_30(6)?;
+    msg_mp.write_int(player.n_point.mp_current)?;
+    player.send_to_client(msg_mp)?;
     Ok(())
 }
 
@@ -69,7 +62,6 @@ pub fn send_point_info_sync(player: &RtPlayer) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Sends the current task main info to the player.
 pub fn send_task_info(player: &RtPlayer) -> anyhow::Result<()> {
     TaskService::send_task_main(player)
 }
@@ -274,9 +266,9 @@ pub async fn send_all_player_info(session: &SessionArc) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Same as `send_message_info_hpmp` — unified name.
+/// Utility function to sync HP and MP status to client.
 pub fn send_info_hp_mp_money(player: &RtPlayer) -> anyhow::Result<()> {
-    send_message_info_hpmp(player)
+    send_hp_mp(player)
 }
 
 pub fn send_info_pet(master: &RtPlayer, pet: &Pet) -> anyhow::Result<()> {
