@@ -12,7 +12,6 @@ use crate::player::player_actor::pet::message::PetMessage;
 use crate::player::player_actor::pet::PetHandle;
 use crate::services::player_tnsm_services::TypeTNSM;
 
-/// Sub-enum grouping all MagicTree-related actions
 #[derive(Debug)]
 pub enum MagicTreeMsg {
     OpenOrLoad(u8), // action 1 = open menu, 2 = load
@@ -114,6 +113,7 @@ pub enum PlayerMessage {
     },
     Unfusion,
     Pet(PetMessage),
+    UpdatePetUI(Box<crate::player::player_actor::pet::Pet>, Option<String>),
 
     ShowInfoPet,
     AttackPlayer {

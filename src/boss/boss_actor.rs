@@ -389,8 +389,7 @@ impl BossActor {
                     self.move_to(
                         target_snapshot.location.x,
                         target_snapshot.location.y as i16,
-                    )
-                    .await;
+                    );
                 } else {
                     self.use_skill(skill, target_id).await;
                 }
@@ -399,18 +398,17 @@ impl BossActor {
                     self.move_to(
                         target_snapshot.location.x,
                         target_snapshot.location.y as i16,
-                    )
-                    .await;
+                    );
                 }
             }
 
             if rand::random::<f32>() < 0.05 {
-                self.chat_random_middle().await;
+                self.chat_random_middle();
             }
         }
     }
 
-    pub async fn chat_random_middle(&self) {
+    pub fn chat_random_middle(&self) {
         if let Some(template) = boss_template_manager::get(&self.template_id) {
             let stage = &template.stages.0[self.current_stage];
             let refs = stage
@@ -447,7 +445,7 @@ impl BossActor {
         }
     }
 
-    pub async fn move_to(&mut self, target_x: i16, target_y: i16) {
+    pub fn move_to(&mut self, target_x: i16, target_y: i16) {
         let current_x = self.player.location.x;
         let current_y = self.player.location.y;
 
@@ -479,24 +477,7 @@ impl BossActor {
     }
 
     pub fn choose_skill(&self) -> Option<Skill> {
-        if self.player.player_skill.skills.is_empty() {
-            return None;
-        }
-        let now = time::current_time_millis();
-        let mut available_skills: Vec<_> = self
-            .player
-            .player_skill
-            .skills
-            .iter()
-            .filter(|s| now > s.start_time_use + s.cool_down as u64)
-            .cloned()
-            .collect();
-
-        if available_skills.is_empty() {
-            return None;
-        }
-        let mut rng = rand::rng();
-        available_skills.choose(&mut rng).cloned()
+        self.default_choose_skill()
     }
 
     pub async fn use_skill(&mut self, skill: Skill, target_id: u64) {
@@ -525,6 +506,17 @@ impl BossActor {
                 target_id
             );
         }
+    }
+
+    pub fn notify_join_map(&self) {
+        let map_name = crate::map::map_manager::MAP_MANAGER
+            .find_by_id(self.player.map_id)
+            .map(|m| m.info.name.clone())
+            .unwrap_or_else(|| format!("Map {}", self.player.map_id));
+
+        let notify_text = format!("BOSS {} vừa xuất hiện tại {}", self.player.name, map_name);
+        ServiceHandles::broadcast_server(&notify_text);
+        tracing::info!("{}", notify_text);
     }
 
     pub async fn transform_to_next_stage(&mut self) {
@@ -698,8 +690,8 @@ impl BossActor {
         }
     }
 
-    pub async fn default_move(&mut self, target_x: i16, target_y: i16) {
-        self.move_to(target_x, target_y).await;
+    pub fn default_move(&mut self, target_x: i16, target_y: i16) {
+        self.move_to(target_x, target_y);
     }
 
     pub fn default_chat_appear(&self) -> Vec<String> {
@@ -738,30 +730,6 @@ impl BossActor {
                 .unwrap_or_default()
         } else {
             Vec::new()
-        }
-    }
-
-    pub fn notify_join_map(&self) {
-        let map_name = crate::map::map_manager::MAP_MANAGER
-            .find_by_id(self.player.map_id)
-            .map(|m| m.info.name.clone())
-            .unwrap_or_else(|| format!("Map {}", self.player.map_id));
-
-        let notify_text = format!("BOSS {} vừa xuất hiện tại {}", self.player.name, map_name);
-
-        Self::broadcast_server(&notify_text);
-        tracing::info!("{}", notify_text);
-    }
-
-    pub fn broadcast_server(text: &str) {
-        let mut msg = Message::new(-25);
-        let _ = msg.write_utf(text);
-
-        for entry in PLAYER_MANAGER.iter() {
-            let handle = entry.value();
-            if !handle.is_pet && handle.boss_info.is_none() {
-                handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
-            }
         }
     }
 }

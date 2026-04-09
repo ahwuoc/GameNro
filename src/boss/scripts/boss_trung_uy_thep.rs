@@ -34,7 +34,7 @@ impl BossScript for BossTrungUyThepScript {
             if let Ok(Some(handle)) = actor.zone_handle.get_player(target_id).await {
                 if let Some(snapshot) = handle.get_snapshot().await {
                     if snapshot.location.x < 640 || snapshot.location.x > 980 {
-                        actor.move_to(884, 312).await;
+                        actor.move_to(884, 312);
                         actor.target_id = None;
                     }
                 }
@@ -79,8 +79,7 @@ impl BossScript for BossTrungUyThepScript {
     }
 
     async fn on_move(&self, actor: &mut BossActor, target_x: i16, _target_y: i16) {
-        // Áp dụng terrain elevation của Trung Úy Thép
         let y = self.get_y(target_x);
-        actor.default_move(target_x, y).await;
+        actor.default_move(target_x, y);
     }
 }

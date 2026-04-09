@@ -114,11 +114,7 @@ pub async fn attack_mob_actor(
     };
 
     if let Some(msg) = msg_opt {
-        for handle in zone.active_players.values() {
-            handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
-                msg.clone(),
-            ));
-        }
+        zone.broadcast(msg, None);
     }
 
     if let Some((x, y, mob_temp_id)) = drop_info {
@@ -196,9 +192,7 @@ async fn drop_item_on_mob_death_actor(
 
         zone.active_items.push(item_map.clone());
         let msg = ItemMapService::build_item_appear_message(&item_map);
-        for handle in zone.active_players.values() {
-            handle.send_forget(PlayerMessage::SendPacket(msg.clone()));
-        }
+        zone.broadcast(msg, None);
     }
 }
 
@@ -365,11 +359,7 @@ pub async fn update_actor(zone: &mut ZoneActor) {
     }
 
     for msg in global_msgs {
-        for handle in zone.active_players.values() {
-            handle.send_forget(crate::player::player_actor::PlayerMessage::SendPacket(
-                msg.clone(),
-            ));
-        }
+        zone.broadcast(msg, None);
     }
 }
 

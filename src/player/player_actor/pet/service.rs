@@ -56,6 +56,7 @@ impl PetService {
             last_time_idle_move: 0,
             last_time_ask_pea: 0,
             last_time_stamina_update: 0,
+            last_time_gohome: 0,
         };
 
         if let Some(zone) = ZONE_MANAGER.get_zone(pet.player.map_id, pet.player.zone_id) {
@@ -164,6 +165,7 @@ impl PetService {
             last_time_idle_move: 0,
             last_time_ask_pea: 0,
             last_time_stamina_update: 0,
+            last_time_gohome: 0,
         };
 
         if let Some(zone) =

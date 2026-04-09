@@ -1,6 +1,8 @@
 use crate::map::models::zone::ZoneHandle;
 use crate::map::zone_manager::{self, ZONE_MANAGER};
 use crate::map::{self, ChangeMapService, SpaceShipType};
+use crate::mob;
+use crate::models::skill_model::Skill;
 use crate::network::message::Message;
 use crate::player::player_actor::message::PlayerMessage;
 use crate::player::player_actor::pet::message::PetMessage;
@@ -19,6 +21,43 @@ pub struct PetActor {
     pub receiver: mpsc::Receiver<PlayerMessage>,
 }
 
+const MELEE_RANGE: f32 = 60.0;
+const RANGED_MAX_DISTANCE: f32 = 350.0;
+const MELEE_ATTACKABLE_RANGE: f32 = 80.0;
+const APPROACH_THRESHOLD: f32 = 200.0;
+const MOVE_OFFSET_CLOSE: i16 = 40;
+const MOVE_OFFSET_FAR: i16 = 100;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum PetSkillType {
+    Melee,
+    Ranged,
+}
+
+impl PetSkillType {
+    fn from_dis(dis: f32, has_multiple_skills: bool) -> Self {
+        if dis <= MELEE_RANGE || !has_multiple_skills {
+            Self::Melee
+        } else {
+            Self::Ranged
+        }
+    }
+
+    fn to_index(&self) -> usize {
+        match self {
+            Self::Melee => 0,
+            Self::Ranged => 1,
+        }
+    }
+
+    fn can_attack(&self, dist: f32) -> bool {
+        match self {
+            Self::Melee => dist <= MELEE_ATTACKABLE_RANGE,
+            Self::Ranged => dist <= RANGED_MAX_DISTANCE,
+        }
+    }
+}
+
 impl PetActor {
     pub fn new(pet: Pet, receiver: mpsc::Receiver<PlayerMessage>) -> Self {
         Self { pet, receiver }
@@ -30,7 +69,6 @@ impl PetActor {
             self.pet.player.name, self.pet.master_id
         );
 
-        let mut interval = tokio::time::interval(Duration::from_millis(500));
         loop {
             tokio::select! {
                 Some(msg) = self.receiver.recv() => {
@@ -44,14 +82,7 @@ impl PetActor {
                             from_mob: _,
                             attacker_id: _,
                         } => {
-                            let actual_damage = self.pet.player.injured(damage, piercing);
-                            info!(
-                                "Pet {} took {} damage (after armor: {}). HP left: {}",
-                                self.pet.player.id,
-                                damage,
-                                actual_damage,
-                                self.pet.player.n_point.hp_current
-                            );
+                            let _ = self.pet.player.injured(damage, piercing);
                         }
                         PlayerMessage::GetSnapshot(tx) => {
                             let _ = tx.send(self.pet.player.clone());
@@ -95,9 +126,6 @@ impl PetActor {
                         _ => {}
                     }
                 }
-                _ = interval.tick() => {
-                    self.update().await;
-                }
             }
         }
         self.dispose().await;
@@ -138,6 +166,32 @@ impl PetActor {
         }
     }
 
+    async fn handle_go_home_finish(&mut self) {
+        let old_zone_opt =
+            zone_manager::ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id);
+
+        if let Some(old_zone) = old_zone_opt {
+            let mut msg = Message::new(-6);
+            let _ = msg.write_int(self.pet.player.id as i32);
+            let _ = ServiceHandles::send_to_all_in_zone(&old_zone, msg);
+            let _ = old_zone.remove_player(self.pet.player.id).await;
+        }
+
+        let home_map_id = 21 + self.pet.player.gender as i32;
+        self.pet.player.map_id = home_map_id;
+        self.pet.player.zone_id = 0;
+        self.pet.player.location.x = 200;
+        self.pet.player.location.y = 336;
+
+        self.pet.is_gohome = true;
+        self.pet.last_time_gohome = 0;
+
+        info!(
+            "Pet {} went home to map {} (master: {})",
+            self.pet.player.id, home_map_id, self.pet.master_id
+        );
+    }
+
     async fn handle_pet_message(&mut self, msg: PetMessage) {
         match msg {
             PetMessage::ChangeStatus(status) => {
@@ -154,28 +208,7 @@ impl PetActor {
                     }
                     PetStatus::GoHome => {
                         self.pet_chat(Some("OK con về, bibi sư phụ")).await;
-
-                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-                        let old_zone_opt = zone_manager::ZONE_MANAGER
-                            .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
-                        if let Some(old_zone) = old_zone_opt {
-                            let mut msg = Message::new(-6);
-                            let _ = msg.write_int(self.pet.player.id as i32);
-                            let _ = ServiceHandles::send_to_all_in_zone(&old_zone, msg);
-                            let _ = old_zone.remove_player(self.pet.player.id).await;
-                        }
-                        let home_map_id = 21 + self.pet.player.gender as i32;
-                        self.pet.player.map_id = home_map_id;
-                        self.pet.player.zone_id = 0;
-                        self.pet.player.location.x = 200;
-                        self.pet.player.location.y = 336;
-
-                        self.pet.is_gohome = true;
-                        info!(
-                            "Pet {} went home to map {} (master: {})",
-                            self.pet.player.id, home_map_id, self.pet.master_id
-                        );
+                        self.pet.last_time_gohome = time::current_time_millis();
                     }
                     PetStatus::Fusion => {
                         self.pet_chat(Some("Hợp thể lẹ đi sư phụ")).await;
@@ -205,19 +238,11 @@ impl PetActor {
                 self.pet.player.n_point.current_stamina_add(stamina);
 
                 if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
-                    let pet_snapshot = self.pet.clone();
-                    let _ =
-                        master_handle.send_forget(PlayerMessage::Modify(Box::new(move |master| {
-                            let _ = crate::services::player_info_service::send_info_pet(
-                                master,
-                                &pet_snapshot,
-                            );
-                            let _ = ServiceHandles::send_message_chat_just_for_me(
-                                master,
-                                &pet_snapshot.player,
-                                "Cám ơn sư phụ",
-                            );
-                        })));
+                    let pet_snapshot = Box::new(self.pet.clone());
+                    let _ = master_handle.send_forget(PlayerMessage::UpdatePetUI(
+                        pet_snapshot,
+                        Some("Cám ơn sư phụ".to_string()),
+                    ));
                 }
                 if let Some(zone) =
                     ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
@@ -247,6 +272,14 @@ impl PetActor {
     }
 
     async fn update(&mut self) {
+        if self.pet.status == PetStatus::GoHome && self.pet.last_time_gohome > 0 {
+            let now = time::current_time_millis();
+            if now - self.pet.last_time_gohome >= 2000 {
+                self.handle_go_home_finish().await;
+                return;
+            }
+        }
+
         if self.pet.player.n_point.hp_current <= 0 && !self.pet.player.dead_flag {
             info!(
                 "Pet {} died (HP <= 0). Setting die status.",
@@ -289,6 +322,14 @@ impl PetActor {
                 self.idle_move().await;
             }
             PetStatus::Protect | PetStatus::Attack => {
+                if self.use_skill_3().await
+                    || self.use_skill_4().await
+                    || self.use_skill_5().await
+                    || self.use_skill_6().await
+                    || self.use_skill_7().await
+                {
+                    return;
+                }
                 if let Some(target_mob_id) = self.find_mob_attack().await {
                     self.ai_attack_mob(target_mob_id).await;
                 } else {
@@ -340,83 +381,363 @@ impl PetActor {
         }
     }
 
-    async fn ai_attack_mob(&mut self, mob_id: u64) {
-        if self.pet.player.is_die() {
-            info!(
-                "Pet {} attempted to attack mob {} while dead. Aborting.",
-                self.pet.player.id, mob_id
-            );
-            return;
+    async fn get_skill_by_index(&self, index: usize) -> Option<Skill> {
+        let skills = &self.pet.player.player_skill.skills;
+        if skills.len() <= index {
+            return None;
         }
-        let zone_opt = crate::map::zone_manager::ZONE_MANAGER
-            .get_zone(self.pet.player.map_id, self.pet.player.zone_id);
+        let skill = &skills[index];
+        if skill.template_id == -1 {
+            return None;
+        }
+        Some(skill.clone())
+    }
 
-        if let Some(zone) = zone_opt {
-            if let Ok(mobs) = zone.get_all_mobs().await {
-                if let Some(mob) = mobs.into_iter().find(|m| m.id == mob_id) {
-                    let dx = self.pet.player.location.x - mob.location.x;
-                    let dist = dx.abs() as f32;
+    async fn use_skill_3(&mut self) -> bool {
+        let Some(skill) = self.get_skill_by_index(2).await else {
+            return false;
+        };
 
-                    let skill_index = if dist <= 60.0 {
-                        0
-                    } else if self.pet.player.player_skill.skills.len() > 1 {
-                        1
-                    } else {
-                        0
-                    };
-                    let need_select = match &self.pet.player.player_skill.skill_select {
-                        Some(current) => {
-                            if let Some(target) =
-                                self.pet.player.player_skill.skills.get(skill_index)
-                            {
-                                current.template_id != target.template_id
-                            } else {
-                                false
-                            }
-                        }
-                        None => true,
-                    };
-                    if need_select {
-                        if let Some(skill) = self.pet.player.player_skill.skills.get(skill_index) {
-                            self.pet.player.player_skill.skill_select = Some(skill.clone());
-                        }
-                    }
-
-                    if !self.pet.player.is_skill_ready() || !self.pet.player.has_enough_mana() {
-                        if dist > 200.0 {
-                            self.move_to(mob.location.x + 100, mob.location.y).await;
-                        }
-                        return;
-                    }
-
-                    if skill_index == 0 && dist > 60.0 {
-                        let target_x = if self.pet.player.location.x < mob.location.x {
-                            mob.location.x - 40
-                        } else {
-                            mob.location.x + 40
-                        };
-                        self.move_to(target_x, mob.location.y).await;
-                    } else if dist > 350.0 {
-                        self.move_to(mob.location.x + 100, mob.location.y).await;
-                    }
-                    if (skill_index == 0 && dist <= 80.0) || (skill_index == 1 && dist <= 350.0) {
-                        if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
-                            if let Some(master_snapshot) = master_handle.get_snapshot().await {
-                                self.pet.player.charms.td_de_tu = master_snapshot.charms.td_de_tu;
-                            }
-                        }
-                        let mut mob_clone = mob.clone();
-                        skill_service::execute_skill(
-                            &mut self.pet.player,
-                            None,
-                            Some(&mut mob_clone),
-                        )
-                        .await;
-                        zone.mob_effects(mob_clone.id, mob_clone.effect_skill.clone());
-                        self.pet.player.n_point.current_stamina_sub(1);
-                        self.pet_chat(None).await;
+        match skill.template_id {
+            Skill::THAI_DUONG_HA_SAN => {
+                if self.pet.player.is_skill_ready_by_index(2)
+                    && self.pet.player.has_enough_mana_by_index(2)
+                {
+                    if self.find_mob_attack().await.is_some() {
+                        self.pet.player.player_skill.skill_select = Some(skill);
+                        skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                        return true;
                     }
                 }
+            }
+            Skill::TAI_TAO_NANG_LUONG => {
+                let hp_percent = self.pet.player.n_point.hp_current as f32
+                    / self.pet.player.n_point.hp_max as f32;
+                let mp_percent = self.pet.player.n_point.mp_current as f32
+                    / self.pet.player.n_point.mp_max as f32;
+
+                if (hp_percent <= 0.3 || mp_percent <= 0.3)
+                    && self.pet.player.is_skill_ready_by_index(2)
+                    && self.pet.player.has_enough_mana_by_index(2)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            Skill::SOCOLA => {
+                if self.pet.player.is_skill_ready_by_index(2)
+                    && self.pet.player.has_enough_mana_by_index(2)
+                {
+                    if let Some(target_mob_id) = self.find_mob_attack().await {
+                        if let Some(zone) =
+                            ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                        {
+                            if let Ok(mobs) = zone.get_all_mobs().await {
+                                if let Some(mut mob) =
+                                    mobs.into_iter().find(|m| m.id == target_mob_id)
+                                {
+                                    let dist =
+                                        (self.pet.player.location.x - mob.location.x).abs() as f32;
+                                    if dist <= 300.0 {
+                                        self.pet.player.player_skill.skill_select = Some(skill);
+                                        skill_service::execute_skill(
+                                            &mut self.pet.player,
+                                            None,
+                                            Some(&mut mob),
+                                        )
+                                        .await;
+                                        zone.mob_effects(mob.id, mob.effect_skill.clone());
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Skill::KAIOKEN => {
+                if self.pet.player.is_skill_ready_by_index(2)
+                    && self.pet.player.has_enough_mana_by_index(2)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        false
+    }
+
+    async fn use_skill_4(&mut self) -> bool {
+        let Some(skill) = self.get_skill_by_index(3).await else {
+            return false;
+        };
+
+        match skill.template_id {
+            Skill::BIEN_KHI => {
+                if !self.pet.player.effect_skill.is_monkey
+                    && self.pet.player.is_skill_ready_by_index(3)
+                    && self.pet.player.has_enough_mana_by_index(3)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            Skill::KHIEN_NANG_LUONG => {
+                if !self.pet.player.effect_skill.is_shield
+                    && self.pet.player.is_skill_ready_by_index(3)
+                    && self.pet.player.has_enough_mana_by_index(3)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            Skill::DE_TRUNG => {
+                if self.pet.player.is_skill_ready_by_index(3)
+                    && self.pet.player.has_enough_mana_by_index(3)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        false
+    }
+
+    async fn use_skill_5(&mut self) -> bool {
+        let Some(skill) = self.get_skill_by_index(4).await else {
+            return false;
+        };
+
+        match skill.template_id {
+            Skill::TROI => {
+                if self.pet.player.is_skill_ready_by_index(4)
+                    && self.pet.player.has_enough_mana_by_index(4)
+                {
+                    if let Some(target_mob_id) = self.find_mob_attack().await {
+                        if let Some(zone) =
+                            ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                        {
+                            if let Ok(mobs) = zone.get_all_mobs().await {
+                                if let Some(mut mob) =
+                                    mobs.into_iter().find(|m| m.id == target_mob_id)
+                                {
+                                    let dist =
+                                        (self.pet.player.location.x - mob.location.x).abs() as f32;
+                                    if dist <= 300.0 {
+                                        self.pet.player.player_skill.skill_select = Some(skill);
+                                        skill_service::execute_skill(
+                                            &mut self.pet.player,
+                                            None,
+                                            Some(&mut mob),
+                                        )
+                                        .await;
+                                        zone.mob_effects(mob.id, mob.effect_skill.clone());
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Skill::MAKANKOSAPPO => {
+                if self.pet.player.is_skill_ready_by_index(4)
+                    && self.pet.player.has_enough_mana_by_index(4)
+                {
+                    if let Some(target_mob_id) = self.find_mob_attack().await {
+                        if let Some(zone) =
+                            ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                        {
+                            if let Ok(mobs) = zone.get_all_mobs().await {
+                                if let Some(mut mob) =
+                                    mobs.into_iter().find(|m| m.id == target_mob_id)
+                                {
+                                    let dist =
+                                        (self.pet.player.location.x - mob.location.x).abs() as f32;
+                                    if dist <= 300.0 {
+                                        self.pet.player.player_skill.skill_select = Some(skill);
+                                        skill_service::execute_skill(
+                                            &mut self.pet.player,
+                                            None,
+                                            Some(&mut mob),
+                                        )
+                                        .await;
+                                        zone.mob_effects(mob.id, mob.effect_skill.clone());
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Skill::DICH_CHUYEN_TUC_THOI => {
+                if self.pet.player.is_skill_ready_by_index(4)
+                    && self.pet.player.has_enough_mana_by_index(4)
+                {
+                    if let Some(target_mob_id) = self.find_mob_attack().await {
+                        if let Some(zone) =
+                            ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                        {
+                            if let Ok(mobs) = zone.get_all_mobs().await {
+                                if let Some(mut mob) =
+                                    mobs.into_iter().find(|m| m.id == target_mob_id)
+                                {
+                                    self.pet.player.player_skill.skill_select = Some(skill);
+                                    skill_service::execute_skill(
+                                        &mut self.pet.player,
+                                        None,
+                                        Some(&mut mob),
+                                    )
+                                    .await;
+                                    zone.mob_effects(mob.id, mob.effect_skill.clone());
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        false
+    }
+
+    async fn use_skill_6(&mut self) -> bool {
+        let Some(skill) = self.get_skill_by_index(5).await else {
+            return false;
+        };
+
+        match skill.template_id {
+            Skill::HUYT_SAO => {
+                if self.pet.player.is_skill_ready_by_index(5)
+                    && self.pet.player.has_enough_mana_by_index(5)
+                {
+                    self.pet.player.player_skill.skill_select = Some(skill);
+                    skill_service::execute_skill(&mut self.pet.player, None, None).await;
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        false
+    }
+
+    async fn use_skill_7(&mut self) -> bool {
+        let Some(skill) = self.get_skill_by_index(6).await else {
+            return false;
+        };
+
+        match skill.template_id {
+            Skill::LIEN_HOAN => {
+                if self.pet.player.is_skill_ready_by_index(6)
+                    && self.pet.player.has_enough_mana_by_index(6)
+                {
+                    if let Some(target_mob_id) = self.find_mob_attack().await {
+                        if let Some(zone) =
+                            ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id)
+                        {
+                            if let Ok(mobs) = zone.get_all_mobs().await {
+                                if let Some(mut mob) =
+                                    mobs.into_iter().find(|m| m.id == target_mob_id)
+                                {
+                                    let dist =
+                                        (self.pet.player.location.x - mob.location.x).abs() as f32;
+                                    if dist <= 150.0 {
+                                        self.pet.player.player_skill.skill_select = Some(skill);
+                                        skill_service::execute_skill(
+                                            &mut self.pet.player,
+                                            None,
+                                            Some(&mut mob),
+                                        )
+                                        .await;
+                                        zone.mob_effects(mob.id, mob.effect_skill.clone());
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        false
+    }
+
+    async fn ai_attack_mob(&mut self, mob_id: u64) {
+        if self.pet.player.is_die() {
+            return;
+        }
+
+        let zone_opt = ZONE_MANAGER.get_zone(self.pet.player.map_id, self.pet.player.zone_id);
+        let Some(zone) = zone_opt else { return };
+
+        let Ok(mobs) = zone.get_all_mobs().await else {
+            return;
+        };
+
+        if let Some(mut mob) = mobs.into_iter().find(|m| m.id == mob_id) {
+            let dist = (self.pet.player.location.x - mob.location.x).abs() as f32;
+            let has_multiple_skills = self.pet.player.player_skill.skills.len() > 1;
+
+            let skill_type = PetSkillType::from_dis(dist, has_multiple_skills);
+            let skill_index = skill_type.to_index();
+
+            let need_select = match &self.pet.player.player_skill.skill_select {
+                Some(current) => self
+                    .pet
+                    .player
+                    .player_skill
+                    .skills
+                    .get(skill_index)
+                    .map_or(false, |target| current.template_id != target.template_id),
+                None => true,
+            };
+
+            if need_select {
+                if let Some(skill) = self.pet.player.player_skill.skills.get(skill_index) {
+                    self.pet.player.player_skill.skill_select = Some(skill.clone());
+                }
+            }
+
+            if !self.pet.player.is_skill_ready() || !self.pet.player.has_enough_mana() {
+                if dist > APPROACH_THRESHOLD {
+                    self.move_to(mob.location.x + MOVE_OFFSET_FAR, mob.location.y)
+                        .await;
+                }
+                return;
+            }
+            if skill_type == PetSkillType::Melee && dist > MELEE_RANGE {
+                let target_x = if self.pet.player.location.x < mob.location.x {
+                    mob.location.x - MOVE_OFFSET_CLOSE
+                } else {
+                    mob.location.x + MOVE_OFFSET_CLOSE
+                };
+                self.move_to(target_x, mob.location.y).await;
+            } else if dist > RANGED_MAX_DISTANCE {
+                self.move_to(mob.location.x + MOVE_OFFSET_FAR, mob.location.y)
+                    .await;
+            }
+            if skill_type.can_attack(dist) {
+                if let Some(master_handle) = PLAYER_MANAGER.get(self.pet.master_id) {
+                    if let Some(master_snapshot) = master_handle.get_snapshot().await {
+                        self.pet.player.charms.td_de_tu = master_snapshot.charms.td_de_tu;
+                    }
+                }
+                // let mut mob_clone = mob.clone();
+                skill_service::execute_skill(&mut self.pet.player, None, Some(&mut mob)).await;
+
+                zone.mob_effects(mob.id, mob.effect_skill.clone());
+                self.pet.player.n_point.current_stamina_sub(1);
+                self.pet_chat(None).await;
             }
         }
     }
